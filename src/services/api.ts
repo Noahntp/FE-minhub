@@ -1,4 +1,4 @@
-import { Course, Chapter, Lesson, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest } from '../types';
+import { Course, Chapter, Lesson, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import { MockDB } from './mockDb';
 

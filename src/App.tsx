@@ -3550,8 +3550,6 @@ export default function App() {
             payoutRequests={payoutRequests}
             onApprovePayout={handleApprovePayout}
             onRejectPayout={handleRejectPayout}
-            accountRequests={accountRequests}
-            onResolveAccountRequest={handleResolveAccountRequest}
             onClose={() => handleSwitchRole('student')}
             orders={orders}
             onUpdateOrderStatus={handleUpdateOrderStatus}
