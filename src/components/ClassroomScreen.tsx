@@ -567,7 +567,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
             <ChevronLeft className="w-3.5 h-3.5" /> Thoát lớp học
           </button>
           <div className="text-right">
-            <span className={`text-[10px] block font-mono font-semibold ${classroomTheme === 'dark' ? 'text-gray-400' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-stone-500'}`}>MindHub Study</span>
+            <span className={`text-[10px] block font-mono font-semibold ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-stone-500'}`}>MindHub Study</span>
           </div>
         </div>
 
@@ -620,7 +620,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                 }}
                 className={`w-full py-1.5 rounded text-[10px] font-extrabold text-center transition-all cursor-pointer ${
                   isNextLessonLocked 
-                    ? 'bg-stone-800 text-stone-600 cursor-not-allowed opacity-50' 
+                    ? 'bg-stone-800 text-stone-500 cursor-not-allowed opacity-50' 
                     : classroomTheme === 'sepia' ? 'bg-[#734c2f] hover:bg-[#5c3b24] text-white shadow-xs' : 'bg-brand-normal hover:bg-brand-hover text-white shadow-xs'
                 }`}
               >
@@ -704,7 +704,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
             <h2 className={`text-sm md:text-base font-bold tracking-tight leading-tight transition-colors duration-300 ${classroomTheme === 'dark' ? 'text-white' : classroomTheme === 'sepia' ? 'text-[#3d2c25]' : 'text-[#432c28]'}`}>
               {activeLesson.title}
             </h2>
-            <p className={`text-[11px] transition-colors duration-300 ${classroomTheme === 'dark' ? 'text-gray-400' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-stone-550'}`}>Khóa: {course.title}</p>
+            <p className={`text-[11px] transition-colors duration-300 ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-stone-550'}`}>Khóa: {course.title}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 mt-2 md:mt-0">
@@ -733,7 +733,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
               <button
                 type="button"
                 onClick={() => setClassroomTheme('dark')}
-                className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition-all ${classroomTheme === 'dark' ? 'bg-[#432c28] text-white shadow-xs' : 'text-stone-600 hover:text-brand-dark'}`}
+                className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition-all ${classroomTheme === 'dark' ? 'bg-[#432c28] text-white shadow-xs' : 'text-stone-500 hover:text-brand-dark'}`}
                 title="Giao diện tối huyền bí"
               >
                 Tối
@@ -741,7 +741,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
               <button
                 type="button"
                 onClick={() => setClassroomTheme('light')}
-                className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition-all ${classroomTheme === 'light' ? 'bg-[#432c28] text-white shadow-xs' : 'text-stone-600 hover:text-brand-dark'}`}
+                className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition-all ${classroomTheme === 'light' ? 'bg-[#432c28] text-white shadow-xs' : 'text-stone-500 hover:text-brand-dark'}`}
                 title="Giao diện sáng ấm"
               >
                 Sáng
@@ -749,7 +749,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
               <button
                 type="button"
                 onClick={() => setClassroomTheme('sepia')}
-                className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition-all ${classroomTheme === 'sepia' ? 'bg-[#432c28] text-white shadow-xs' : 'text-stone-600 hover:text-[#432c28]'}`}
+                className={`px-2 py-0.5 rounded-md font-bold text-[10px] transition-all ${classroomTheme === 'sepia' ? 'bg-[#432c28] text-white shadow-xs' : 'text-stone-500 hover:text-[#432c28]'}`}
                 title="Giao diện giấy mộc"
               >
                 Giấy
@@ -836,7 +836,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                   
                   <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl space-y-2 text-left w-full text-xs">
                     <p className="font-extrabold text-amber-800 flex items-center gap-1"><Sparkles className="w-4 h-4" /> Đặc quyền học viên chính thức:</p>
-                    <ul className="list-disc list-inside space-y-1 text-stone-600 font-medium">
+                    <ul className="list-disc list-inside space-y-1 text-stone-500 font-medium">
                       <li>Hơn 50+ video bài giảng chất lượng cao không quảng cáo</li>
                       <li>Học liệu đính kèm độc quyền (Ebook, Code, Solution)</li>
                       <li>Tương tác 1-1 với AI Mentor & Trợ giảng con người</li>
@@ -887,7 +887,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                   <FileText className="w-4 h-4 text-brand-normal" />
                   <span>NỘI DUNG TÀI LIỆU KHÓA HỌC (.DOC)</span>
                   <span className={`ml-auto px-2 py-0.5 rounded font-mono text-[10px] ${
-                    classroomTheme === 'dark' ? 'bg-slate-800 text-stone-300' : 'bg-slate-100 text-stone-600'
+                    classroomTheme === 'dark' ? 'bg-slate-800 text-stone-300' : 'bg-slate-100 text-stone-500'
                   }`}>{activeLesson.duration} Đọc</span>
                 </div>
                 <h3 className={`text-lg md:text-xl font-display font-extrabold tracking-tight transition-colors duration-300 ${
@@ -1112,7 +1112,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
             {activeLesson.type === 'video' && (
               <button 
                 onClick={() => setActiveTab('video')} 
-                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'video' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'video' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
               >
                 <Video className="w-3.5 h-3.5" /> Xem Video bài giảng
               </button>
@@ -1120,7 +1120,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
             {activeLesson.type === 'doc' && (
               <button 
                 onClick={() => setActiveTab('doc')} 
-                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'doc' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'doc' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
               >
                 <FileText className="w-3.5 h-3.5" /> Đọc Tài liệu bài học (.doc)
               </button>
@@ -1128,7 +1128,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
             {activeLesson.type === 'quiz' && (
               <button 
                 onClick={() => setActiveTab('quiz')} 
-                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'quiz' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'quiz' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
               >
                 <HelpCircle className="w-3.5 h-3.5" /> Làm bài Quiz test
               </button>
@@ -1136,38 +1136,38 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
             {activeLesson.type === 'assignment' && (
               <button 
                 onClick={() => setActiveTab('assignment')} 
-                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'assignment' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+                className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'assignment' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
               >
                 <Target className="w-3.5 h-3.5" /> Nộp bài tập thực hành
               </button>
             )}
             <button 
               onClick={() => setActiveTab('notes')} 
-              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'notes' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'notes' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
             >
               <PenSquare className="w-3.5 h-3.5" /> Ghi chú ({progress.notes.length})
             </button>
             <button 
               onClick={() => setActiveTab('qa')} 
-              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'qa' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'qa' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
             >
               <MessageSquare className="w-3.5 h-3.5" /> Hỏi đáp Q&A ({qaList.length})
             </button>
             <button 
               onClick={() => setActiveTab('heatmap')} 
-              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'heatmap' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'heatmap' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
             >
               <BarChart2 className="w-3.5 h-3.5" /> Heatmap Video chi tiết
             </button>
             <button 
               onClick={() => setActiveTab('mentor')} 
-              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'mentor' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'mentor' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
             >
               <Sparkles className="w-3.5 h-3.5" /> AI Mentor Trợ Lý
             </button>
             <button 
               onClick={() => setActiveTab('analytics')} 
-              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'analytics' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-400 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
+              className={`text-xs px-4 py-3 font-semibold shrink-0 transition-colors flex items-center gap-1.5 ${activeTab === 'analytics' ? 'text-brand-normal border-b-2 border-brand-normal bg-brand-light/5' : classroomTheme === 'dark' ? 'text-gray-300 hover:text-white' : classroomTheme === 'sepia' ? 'text-[#8c7468] hover:text-[#432c28]' : 'text-stone-500 hover:text-brand-normal'}`}
             >
               <Award className="w-3.5 h-3.5 text-amber-500" /> Tiến độ & Học bạ
             </button>
@@ -1197,7 +1197,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       ))}
                     </div>
                   ) : (
-                    <p className={`transition-colors duration-300 ${classroomTheme === 'dark' ? 'text-gray-400' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-gray-500'}`}>Không có bài học đính kèm đặc quyền cho bài giảng này.</p>
+                    <p className={`transition-colors duration-300 ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-gray-500'}`}>Không có bài học đính kèm đặc quyền cho bài giảng này.</p>
                   )}
                 </div>
 
@@ -1221,7 +1221,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                   <h3 className={`font-display font-bold text-sm mb-1 ${classroomTheme === 'dark' ? 'text-white' : classroomTheme === 'sepia' ? 'text-[#3d2c25]' : 'text-stone-900'}`}>
                     {activeLesson.quiz?.title || 'Đố vui sát hạch khái niệm'}
                   </h3>
-                  <p className={`text-[11px] ${classroomTheme === 'dark' ? 'text-gray-400' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-gray-500'}`}>Hãy trả lời đúng tất cả câu hỏi để ghi nhận độ thông thạo</p>
+                  <p className={`text-[11px] ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#7d655c]' : 'text-gray-500'}`}>Hãy trả lời đúng tất cả câu hỏi để ghi nhận độ thông thạo</p>
                 </div>
 
                 {activeLesson.quiz?.questions ? (
@@ -1270,7 +1270,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                               : classroomTheme === 'dark' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-red-50 border-red-200 text-red-800'
                           }`}>
                             <b>Kết quả:</b> {selectedAnswers[q.id] === q.correctIndex ? 'Chính xác! 🎉' : `Chưa đúng! Đáp án đúng: ${q.options[q.correctIndex]}`}
-                            <p className={`mt-1 text-[11px] ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#5c3e35]' : 'text-stone-600'}`}>👉 {q.explanation}</p>
+                            <p className={`mt-1 text-[11px] ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#5c3e35]' : 'text-stone-500'}`}>👉 {q.explanation}</p>
                           </div>
                         )}
                       </div>
@@ -1300,7 +1300,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                     </div>
                   </div>
                 ) : (
-                  <p className="text-gray-400 text-center">Không tìm thấy dữ liệu Trắc nghiệm của bài học.</p>
+                  <p className="text-gray-300 text-center">Không tìm thấy dữ liệu Trắc nghiệm của bài học.</p>
                 )}
               </div>
             )}
@@ -1407,7 +1407,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                 <div className="space-y-3">
                   <div className={`flex justify-between items-center border-b pb-2 ${classroomTheme === 'dark' ? 'border-brand-light/10' : 'border-stone-250'}`}>
                     <h4 className={`font-semibold ${classroomTheme === 'dark' ? 'text-white' : classroomTheme === 'sepia' ? 'text-[#3d2c25]' : 'text-stone-900'}`}>Sổ tay ghi chú cá nhân khẩn cấp</h4>
-                    <span className={`text-[10px] ${classroomTheme === 'dark' ? 'text-gray-400' : 'text-stone-500'}`}>Tự động gắn mã thời gian (timestamps)</span>
+                    <span className={`text-[10px] ${classroomTheme === 'dark' ? 'text-gray-300' : 'text-stone-500'}`}>Tự động gắn mã thời gian (timestamps)</span>
                   </div>
 
                   {progress.notes.length === 0 ? (
@@ -1438,7 +1438,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                           </div>
                           <button 
                             onClick={() => handleDeleteNote(note.id)}
-                            className="text-gray-400 hover:text-red-400 p-1 shrink-0 transition-colors"
+                            className="text-gray-300 hover:text-red-400 p-1 shrink-0 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1467,7 +1467,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                     required
                   />
                   <div className={`flex justify-between items-center border-t pt-2 ${classroomTheme === 'dark' ? 'border-brand-light/5' : 'border-stone-250/20'}`}>
-                    <span className={`text-[10px] ${classroomTheme === 'dark' ? 'text-gray-400' : 'text-stone-500'}`}>Quy tắc cộng đồng văn minh</span>
+                    <span className={`text-[10px] ${classroomTheme === 'dark' ? 'text-gray-300' : 'text-stone-500'}`}>Quy tắc cộng đồng văn minh</span>
                     <button type="submit" className="bg-brand-normal hover:bg-brand-hover text-white text-[11px] py-1 px-4 rounded-lg font-semibold shadow">
                       Phát biểu câu hỏi
                     </button>
@@ -1487,7 +1487,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                         <img src={qa.userAvatar} alt="avatar" className={`w-8 h-8 rounded-full border ${classroomTheme === 'dark' ? 'border-brand-light/10' : 'border-stone-200'}`} />
                         <div>
                           <span className={`font-semibold block ${classroomTheme === 'dark' ? 'text-white' : classroomTheme === 'sepia' ? 'text-[#3d2c25]' : 'text-stone-900'}`}>{qa.userName}</span>
-                          <span className={`text-[9px] uppercase tracking-widest ${classroomTheme === 'dark' ? 'text-gray-400' : 'text-stone-550'}`}>{qa.userRole === 'instructor' ? 'giảng viên' : 'học viên'} • {qa.timestamp}</span>
+                          <span className={`text-[9px] uppercase tracking-widest ${classroomTheme === 'dark' ? 'text-gray-300' : 'text-stone-550'}`}>{qa.userRole === 'instructor' ? 'giảng viên' : 'học viên'} • {qa.timestamp}</span>
                         </div>
                       </div>
                       <p className={`pl-10 text-justify ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#5c3e35]' : 'text-stone-700 font-medium'}`}>{qa.text}</p>
@@ -1503,7 +1503,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                                 <img src={reply.userAvatar} alt="avatar" className="w-6 h-6 rounded-full" />
                                 <div>
                                   <span className={`font-semibold font-mono flex items-center gap-1 ${classroomTheme === 'dark' ? 'text-white' : classroomTheme === 'sepia' ? 'text-[#3d2c25]' : 'text-stone-900'}`}>{reply.userName} <Sparkles className="w-3 h-3 text-amber-400" /></span>
-                                  <span className={`text-[9px] ${classroomTheme === 'dark' ? 'text-gray-400' : 'text-stone-550'}`}>{reply.timestamp}</span>
+                                  <span className={`text-[9px] ${classroomTheme === 'dark' ? 'text-gray-300' : 'text-stone-550'}`}>{reply.timestamp}</span>
                                 </div>
                               </div>
                               <p className={`text-justify text-[11px] pl-8 ${classroomTheme === 'dark' ? 'text-gray-300' : classroomTheme === 'sepia' ? 'text-[#5c3e35]' : 'text-stone-700 font-medium'}`}>{reply.text}</p>
@@ -1589,7 +1589,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                             : 'bg-stone-100 border border-stone-200 text-stone-900 font-medium'
                         }`}>
                           {msg.text}
-                          <span className={`block text-[8px] text-right mt-1 ${classroomTheme === 'dark' ? 'text-gray-400' : 'text-stone-500'}`}>{msg.timestamp}</span>
+                          <span className={`block text-[8px] text-right mt-1 ${classroomTheme === 'dark' ? 'text-gray-300' : 'text-stone-500'}`}>{msg.timestamp}</span>
                         </div>
                       </div>
                     ))}
@@ -1597,7 +1597,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                     {isAiTyping && (
                       <div className="flex gap-2.5 max-w-[85%] mr-auto items-center">
                         <div className="w-7 h-7 rounded-full bg-brand-light/50 flex items-center justify-center animate-spin"></div>
-                        <div className={`p-3 rounded-2xl text-xs ${classroomTheme === 'dark' ? 'bg-brand-light/5 text-gray-300' : 'bg-stone-55 text-stone-600 font-medium'}`}>
+                        <div className={`p-3 rounded-2xl text-xs ${classroomTheme === 'dark' ? 'bg-brand-light/5 text-gray-300' : 'bg-stone-55 text-stone-500 font-medium'}`}>
                           <span className="animate-pulse">Thinking / Đang phân tích thuật toán...</span>
                         </div>
                       </div>
@@ -1651,7 +1651,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                     <Map className="w-5 h-5 text-brand-normal" />
                     Heatmap Lưu Lượng Xem Video Chi Tiết
                   </h3>
-                  <p className={`text-xs mt-1 leading-relaxed ${classroomTheme === 'dark' ? 'text-gray-400' : 'text-stone-600 font-medium'}`}>
+                  <p className={`text-xs mt-1 leading-relaxed ${classroomTheme === 'dark' ? 'text-gray-300' : 'text-stone-500 font-medium'}`}>
                     Biểu đồ phản ánh các mốc thời gian trong video được học viên chú ý hoặc quay lại xem đi xem lại nhiều lần nhất. Rất bổ ích để phân bổ sự quan tâm cần rèn luyện!
                   </p>
 
@@ -1675,7 +1675,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       ))}
                     </div>
 
-                    <div className={`flex justify-between text-[10px] pt-2 border-t ${classroomTheme === 'dark' ? 'border-slate-700 text-gray-500' : 'border-stone-200 text-stone-550'}`}>
+                    <div className={`flex justify-between text-[10px] pt-2 border-t ${classroomTheme === 'dark' ? 'border-slate-700 text-gray-300' : 'border-stone-200 text-stone-550'}`}>
                       <span>0:00 (Khởi đầu)</span>
                       <span>3:00 (Phần tranh cãi/Server Actions)</span>
                       <span>6:00 (Hết bài)</span>
@@ -1723,7 +1723,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       <div className="space-y-1 flex-1">
                         <span className="px-2 py-0.5 bg-brand-normal text-white rounded-md text-[9px] font-bold uppercase tracking-wide">🔥 Gợi ý học tiếp</span>
                         <h4 className={`font-bold mt-1 text-sm leading-snug ${classroomTheme === 'dark' ? 'text-gray-200' : 'text-stone-900'}`}>{nextLesson.title}</h4>
-                        <p className="text-[10px] text-gray-400 font-mono">Chương học: {course.chapters.find(ch => ch.lessons.some(le => le.id === nextLesson.id))?.title || 'Chương hiện tại'}</p>
+                        <p className="text-[10px] text-gray-300 font-mono">Chương học: {course.chapters.find(ch => ch.lessons.some(le => le.id === nextLesson.id))?.title || 'Chương hiện tại'}</p>
                       </div>
                       <button
                         type="button"
@@ -1764,7 +1764,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       </span>
                       <div className="flex-1">
                         <p className="font-bold text-gray-200">Hoàn thành 100% video & tài liệu</p>
-                        <p className="text-[10px] text-gray-400">Đã học xong & đánh dấu {completedLessonsCount} trên tổng số {totalLessonsCount} bài giảng.</p>
+                        <p className="text-[10px] text-gray-300">Đã học xong & đánh dấu {completedLessonsCount} trên tổng số {totalLessonsCount} bài giảng.</p>
                       </div>
                       <span className="font-bold text-brand-light-hover font-mono">{calculatedPercent}%</span>
                     </div>
@@ -1776,7 +1776,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       </span>
                       <div className="flex-1">
                         <p className="font-bold text-gray-200">Đạt yêu cầu bài thi thử (Quiz Test)</p>
-                        <p className="text-[10px] text-gray-400">Yêu cầu hoàn tất khảo nghiệm trắc nghiệm đạt từ 50% tổng điểm trở lên.</p>
+                        <p className="text-[10px] text-gray-300">Yêu cầu hoàn tất khảo nghiệm trắc nghiệm đạt từ 50% tổng điểm trở lên.</p>
                       </div>
                       <span className="font-bold text-stone-400 font-mono">{quizScore !== null ? `Đã thi` : 'Chưa thi'}</span>
                     </div>
@@ -1788,7 +1788,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       </span>
                       <div className="flex-1">
                         <p className="font-bold text-gray-200">Xây dựng ít nhất 1 dòng Ghi chú học tập</p>
-                        <p className="text-[10px] text-gray-400">Có tương tác chủ động ghi ghép bài học để tổng hòa kiến thức.</p>
+                        <p className="text-[10px] text-gray-300">Có tương tác chủ động ghi ghép bài học để tổng hòa kiến thức.</p>
                       </div>
                       <span className="font-bold text-stone-400 font-mono">{progress.notes.length} note(s)</span>
                     </div>
@@ -1811,7 +1811,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       </div>
                     ) : (
                       <div className="p-3 bg-stone-900/30 border border-stone-800/70 rounded-xl">
-                        <p className="text-gray-400 text-[10.5px] leading-relaxed">
+                        <p className="text-gray-300 text-[10.5px] leading-relaxed">
                           📌 Bạn có <span className="font-bold text-amber-500">{(completedLessonsCount === totalLessonsCount && progress.notes.length > 0) ? "0" : "1 vài"} tiêu chí cần bổ khuyết</span>. Vui lòng rèn luyện nốt để lấy chứng chỉ bảo chứng nhé!
                         </p>
                       </div>

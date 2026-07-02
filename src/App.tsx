@@ -23,6 +23,7 @@ import { safeLocalStorage as localStorage } from './utils/safeStorage';
 import AuthScreens from './components/AuthScreens';
 import FooterLegal from './components/FooterLegal';
 import CartAndCheckout from './components/CartAndCheckout';
+import CategoryFilterBar from './components/CategoryFilterBar';
 import { ProfilePage } from './components/ProfilePage';
 import ClassroomScreen from './components/ClassroomScreen';
 import InstructorDashboard from './components/InstructorDashboard';
@@ -158,7 +159,10 @@ export default function App() {
   const [coursePurchaseFilter, setCoursePurchaseFilter] = useState<'all' | 'unpurchased' | 'purchased'>('all');
   const [showHeroPopup, setShowHeroPopup] = useState<boolean>(false);
   const getRouteFromPath = (path: string) => {
-    if (path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/forgot-password') || path.startsWith('/verify-email')) return 'auth';
+    if (path.startsWith('/login')) return 'login';
+    if (path.startsWith('/register')) return 'register';
+    if (path.startsWith('/forgot-password')) return 'forgot-password';
+    if (path.startsWith('/verify-email')) return 'verify-email';
     if (path.startsWith('/cart')) return 'cart';
     if (path.startsWith('/checkout')) return 'checkout';
     if (path.startsWith('/my-learning/favorites') || path.startsWith('/favorites')) return 'favorites';
@@ -189,7 +193,10 @@ export default function App() {
       if (path === 'home') finalPath = '/';
       else if (path === 'favorites') finalPath = '/my-learning/favorites';
       else if (path === 'cart') finalPath = '/cart';
-      else if (path === 'auth') finalPath = '/login';
+      else if (path === 'auth' || path === 'login') finalPath = '/login';
+      else if (path === 'register') finalPath = '/register';
+      else if (path === 'forgot-password') finalPath = '/forgot-password';
+      else if (path === 'verify-email') finalPath = '/verify-email';
       else finalPath = '/' + path;
     }
     
@@ -1665,6 +1672,8 @@ export default function App() {
     );
   };
 
+  const isAuthRoute = ['login', 'register', 'forgot-password', 'verify-email'].includes(activeTab);
+
   return (
     <div className="min-h-screen bg-[#fbf9f6] flex flex-col text-main-darker selection:bg-brand-light-active selection:text-brand-dark relative overflow-hidden">
       <style>{`
@@ -1697,7 +1706,8 @@ export default function App() {
 
 
       {/* --- SITE NAVIGATION HEADER --- */}
-      <header className="bg-white border-b border-brand-light-active py-2 md:py-3 px-4 md:px-8 flex justify-between items-center sticky top-0 z-40 shadow-xs">
+      {!isAuthRoute && (
+        <header className="bg-white border-b border-brand-light-active py-2 md:py-3 px-4 md:px-8 flex justify-between items-center sticky top-0 z-40 shadow-xs">
         
         {/* Logo / Brand Name */}
         <button 
@@ -2431,8 +2441,21 @@ export default function App() {
 
         </div>
       </header>
+      )}
 
       {/* --- SIDEBAR AND PERSPECTIVES ROUTING SWAP --- */}
+      {isAuthRoute ? (
+        <AuthScreens
+          initialMode={activeTab as any}
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            setIsLoggedIn(true);
+            alert(`Đăng nhập thành công! Chào mừng, ${user.name} (${user.role.toUpperCase()})`);
+            navigateTo('home');
+          }}
+          onClose={() => navigateTo('home')}
+        />
+      ) : (
       <main className="flex-1 p-4 md:p-12 max-w-7xl mx-auto w-full space-y-10 relative z-10">
 
         {/* 🎬 INTRODUCTORY CINEMATIC SHOWCASE VIDEO POPUP */}
@@ -3884,53 +3907,32 @@ export default function App() {
                   {/* Two-tiered Learning Categories and Subcategories */}
                   <div className="border-t border-stone-100 pt-4 space-y-3.5">
                     {/* Tier 1: Parent Categories */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1">Danh mục chính:</span>
-                      <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-h-[100px] overflow-y-auto">
-                        {[{name: 'All', count: categoriesWithCount.reduce((s, c) => s + c.count, 0)}, ...categoriesWithCount].map((cat) => (
-                          <button 
-                            key={cat.name}
-                            onClick={() => {
-                              setSelectedCategory(cat.name);
-                              setSelectedSubcategory('All');
-                            }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${selectedCategory === cat.name ? 'bg-deep-indigo text-white shadow-xs scale-102 font-bold' : 'bg-stone-100 hover:bg-stone-200 text-stone-600'}`}
-                          >
-                            <span>{cat.name === 'All' ? 'Tất cả phần' : cat.name}</span>
-                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${selectedCategory === cat.name ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-500'}`}>
-                              {cat.count}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <CategoryFilterBar
+                      categories={categoriesWithCount}
+                      activeCategory={selectedCategory}
+                      onSelectCategory={(cat) => {
+                        setSelectedCategory(cat);
+                        setSelectedSubcategory('All');
+                      }}
+                      allLabel="Tất cả phần"
+                      colorScheme="indigo"
+                      label={<span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1">Danh mục chính:</span>}
+                    />
 
                     {/* Tier 2: Subcategories (nested/indented look) */}
                     {availableSubcategories.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-2 bg-[#fdfcfb] border border-stone-150/60 p-2.5 rounded-2xl pl-4 animate-fade-in">
-                        <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1 flex items-center gap-1">
-                          <Layers className="w-3.5 h-3.5 text-[#8b5e3c]" /> Chuyên đề con:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar">
-                          {/* "Tất cả" chip for Subcategories */}
-                          <button 
-                            onClick={() => setSelectedSubcategory('All')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${selectedSubcategory === 'All' ? 'bg-[#8b5e3c] text-white shadow-3xs font-bold' : 'bg-stone-50 border border-stone-200/50 hover:bg-stone-100 text-stone-550'}`}
-                          >
-                            Tất cả chuyên đề
-                          </button>
-                          
-                          {availableSubcategories.map((sub) => (
-                            <button 
-                              key={sub}
-                              onClick={() => setSelectedSubcategory(sub)}
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${selectedSubcategory === sub ? 'bg-[#8b5e3c] text-white shadow-3xs font-bold' : 'bg-stone-50 border border-stone-200/50 hover:bg-stone-100 text-stone-550'}`}
-                            >
-                              {sub}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <CategoryFilterBar
+                        categories={availableSubcategories}
+                        activeCategory={selectedSubcategory}
+                        onSelectCategory={setSelectedSubcategory}
+                        allLabel="Tất cả chuyên đề"
+                        colorScheme="brown"
+                        label={
+                          <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1 flex items-center gap-1">
+                            <Layers className="w-3.5 h-3.5 text-[#8b5e3c]" /> Chuyên đề con:
+                          </span>
+                        }
+                      />
                     )}
                   </div>
                 </div>
@@ -5101,27 +5103,18 @@ export default function App() {
               {/* Parent - Child Category Filter */}
               <div className="border-t border-stone-100 pt-4 space-y-3">
                 {/* Parent Category */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1">Danh mục cha:</span>
-                  <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-h-[100px] overflow-y-auto">
-                    {[{name: 'All', count: categoriesWithCount.reduce((s, c) => s + c.count, 0)}, ...categoriesWithCount].map((cat) => (
-                      <button 
-                        key={cat.name}
-                        onClick={() => {
-                          setMyCoursesParentCat(cat.name);
-                          setMyCoursesChildCat('All');
-                          setMyCoursesPage(1);
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${myCoursesParentCat === cat.name ? 'bg-deep-indigo text-white shadow-xs scale-102 font-bold' : 'bg-stone-100 hover:bg-stone-200 text-stone-600'}`}
-                      >
-                        <span>{cat.name === 'All' ? 'Tất cả danh mục' : cat.name}</span>
-                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${myCoursesParentCat === cat.name ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-500'}`}>
-                          {cat.count}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <CategoryFilterBar
+                  categories={categoriesWithCount}
+                  activeCategory={myCoursesParentCat}
+                  onSelectCategory={(cat) => {
+                    setMyCoursesParentCat(cat);
+                    setMyCoursesChildCat('All');
+                    setMyCoursesPage(1);
+                  }}
+                  allLabel="Tất cả danh mục"
+                  colorScheme="indigo"
+                  label={<span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1">Danh mục cha:</span>}
+                />
 
                 {/* Child Category */}
                 {(() => {
@@ -5133,29 +5126,21 @@ export default function App() {
                   if (childSubs.length === 0) return null;
 
                   return (
-                    <div className="flex flex-wrap items-center gap-2 bg-[#fdfcfb] border border-stone-150/60 p-2.5 rounded-2xl pl-4 animate-fade-in">
-                      <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1 flex items-center gap-1">
-                        <Layers className="w-3.5 h-3.5 text-[#8b5e3c]" /> Danh mục con:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar">
-                        <button 
-                          onClick={() => { setMyCoursesChildCat('All'); setMyCoursesPage(1); }}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${myCoursesChildCat === 'All' ? 'bg-[#8b5e3c] text-white shadow-3xs font-bold' : 'bg-stone-50 border border-stone-200/50 hover:bg-stone-100 text-stone-550'}`}
-                        >
-                          Tất cả danh mục con
-                        </button>
-                        
-                        {childSubs.map((sub) => (
-                          <button 
-                            key={sub}
-                            onClick={() => { setMyCoursesChildCat(sub); setMyCoursesPage(1); }}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${myCoursesChildCat === sub ? 'bg-[#8b5e3c] text-white shadow-3xs font-bold' : 'bg-stone-50 border border-stone-200/50 hover:bg-stone-100 text-stone-550'}`}
-                          >
-                            {sub}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <CategoryFilterBar
+                      categories={childSubs as string[]}
+                      activeCategory={myCoursesChildCat}
+                      onSelectCategory={(sub) => {
+                        setMyCoursesChildCat(sub);
+                        setMyCoursesPage(1);
+                      }}
+                      allLabel="Tất cả danh mục con"
+                      colorScheme="brown"
+                      label={
+                        <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider select-none shrink-0 mr-1 flex items-center gap-1">
+                          <Layers className="w-3.5 h-3.5 text-[#8b5e3c]" /> Danh mục con:
+                        </span>
+                      }
+                    />
                   );
                 })()}
               </div>
@@ -5677,18 +5662,7 @@ export default function App() {
         )}
 
         {/* --- 4. AUTH SCREENS --- */}
-        {activeTab === 'auth' && (
-          <AuthScreens
-            onLoginSuccess={(user) => {
-              setCurrentUser(user);
-              setIsLoggedIn(true);
-              // Quick in-app success notification
-              alert(`Đăng nhập thành công! Chào mừng, ${user.name} (${user.role.toUpperCase()})`);
-              navigateTo('home');
-            }}
-            onClose={() => navigateTo('home')}
-          />
-        )}
+        {/* AuthScreens moved outside of main layout */}
 
         {/* --- 5. CART AND CHECKOUT --- */}
         {(activeTab === 'cart' || activeTab === 'checkout') && (
@@ -5732,6 +5706,7 @@ export default function App() {
         )}
 
       </main>
+      )}
 
       {/* --- FREE LESSON PREVIEW OVERLAYS --- */}
       {previewLesson && (
@@ -5758,6 +5733,7 @@ export default function App() {
 
 
       {/* --- RESTRUCTURED SITE FOOTER --- */}
+      {!isAuthRoute && (
       <footer className="bg-[#1c1410] text-[#fbf9f6] py-14 px-4 md:px-8 border-t border-stone-800 mt-16 shrink-0 select-none">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 text-left text-xs">
           
@@ -5845,6 +5821,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      )}
 
       {/* --- FLOATING HELP & SUPPORT CENTER QUICK ACTION WIDGET --- */}
       <div className="fixed bottom-6 right-6 z-[9900] select-none text-xs">
@@ -5858,34 +5835,22 @@ export default function App() {
             
             <div className="space-y-1.5 font-medium text-[11.5px]">
               <button 
-                onClick={() => { navigateTo('legal'); setShowFloatingHelp(false); }}
+                onClick={() => { navigateTo('faq'); setShowFloatingHelp(false); }}
                 className="w-full text-left py-1.5 px-2 bg-stone-50 hover:bg-[#faf6f2] hover:text-[#8b5e3c] rounded-lg transition-all flex items-center gap-2 cursor-pointer"
               >
-                ❓ Xem câu hỏi FAQ chung
+                ❓ Xem câu hỏi FAQ & Hỗ trợ
+              </button>
+              <button 
+                onClick={() => { navigateTo('contact'); setShowFloatingHelp(false); }}
+                className="w-full text-left py-1.5 px-2 bg-stone-50 hover:bg-[#faf6f2] hover:text-[#8b5e3c] rounded-lg transition-all flex items-center gap-2 cursor-pointer"
+              >
+                🎟️ Liên hệ hỗ trợ trực tiếp
               </button>
               <button 
                 onClick={() => { navigateTo('legal'); setShowFloatingHelp(false); }}
                 className="w-full text-left py-1.5 px-2 bg-stone-50 hover:bg-[#faf6f2] hover:text-[#8b5e3c] rounded-lg transition-all flex items-center gap-2 cursor-pointer"
               >
-                🎟️ Gửi ticket liên hệ hỗ trợ
-              </button>
-              <button 
-                onClick={() => { navigateTo('legal'); setShowFloatingHelp(false); }}
-                className="w-full text-left py-1.5 px-2 bg-stone-50 hover:bg-[#faf6f2] hover:text-[#8b5e3c] rounded-lg transition-all flex items-center gap-2 cursor-pointer"
-              >
-                📜 Điều khoản sử dụng MindHub
-              </button>
-              <button 
-                onClick={() => { navigateTo('legal'); setShowFloatingHelp(false); }}
-                className="w-full text-left py-1.5 px-2 bg-stone-50 hover:bg-[#faf6f2] hover:text-[#8b5e3c] rounded-lg transition-all flex items-center gap-2 cursor-pointer"
-              >
-                🛡️ Chính sách bảo mật dữ liệu
-              </button>
-              <button 
-                onClick={() => { navigateTo('legal'); setShowFloatingHelp(false); }}
-                className="w-full text-left py-1.5 px-2 bg-stone-50 hover:bg-[#faf6f2] hover:text-[#8b5e3c] rounded-lg transition-all flex items-center gap-2 cursor-pointer"
-              >
-                💸 Chính sách hoàn trả học phí
+                📜 Điều khoản & Chính sách
               </button>
             </div>
             

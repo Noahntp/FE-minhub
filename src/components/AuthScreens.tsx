@@ -19,12 +19,26 @@ const DB_SEED_ACCOUNTS = [
 
 interface AuthScreensProps {
   onLoginSuccess: (user: UserType) => void;
-  onClose: () => void;
-  initialMode?: 'login' | 'register';
+  onClose: () => void; // mapped to navigateTo('home')
+  initialMode?: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password';
+  navigateTo?: (path: string) => void;
 }
 
-export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'login' }: AuthScreensProps) {
-  const [mode, setMode] = useState<'login' | 'register' | 'verify' | 'forgot' | 'reset'>(initialMode);
+export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'login', navigateTo }: AuthScreensProps) {
+  const [mode, setMode] = useState<'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password'>(initialMode);
+  
+  React.useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  // Wrapper for setMode to also update URL if navigateTo is provided
+  const handleModeChange = (newMode: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password') => {
+    setMode(newMode);
+    if (navigateTo) {
+      navigateTo(newMode);
+    }
+  };
+
   const [rightPanelTab, setRightPanelTab] = useState<'seed' | 'recent'>('seed');
   
   // Form fields
@@ -226,7 +240,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     }
     // Just mock verification success
     setSuccessMsg('Xác thực tài khoản thành công!');
-    setMode('login');
+    handleModeChange('login');
   };
 
   const handleForgot = (e: React.FormEvent) => {
@@ -256,7 +270,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     setSuccessMsg(`Đã gửi mã khôi phục mật khẩu bảo vệ đến tài khoản ${emailTrimmed}. Vui lòng nhập mã và thiết lập mật khẩu mới.`);
     setVerificationCode(''); // Clear OTP input
     setPassword(''); // Clear new password input
-    setMode('reset');
+    handleModeChange('reset-password');
   };
 
   const handleReset = (e: React.FormEvent) => {
@@ -296,7 +310,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
     setErrorMsg('');
     setSuccessMsg('Đặt lại mật khẩu thành công! Giờ đây bạn đã có thể đăng nhập bằng mật khẩu mới.');
-    setMode('login');
+    handleModeChange('login');
   };
 
   const handleGoogleLogin = () => {
@@ -329,9 +343,9 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           <button 
             type="button" 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+            className="text-xs font-bold text-white/90 hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
           >
-            <X className="w-4 h-4" />
+            Về trang chủ <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -386,7 +400,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       <label className="text-xs font-semibold text-stone-605">Mật khẩu</label>
                       <button 
                         type="button" 
-                        onClick={() => setMode('forgot')} 
+                        onClick={() => handleModeChange('forgot-password')} 
                         className="text-xs text-brand-normal hover:underline"
                       >
                         Quên mật khẩu?
@@ -443,7 +457,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 <div className="text-center pt-1 border-t border-stone-100 mt-2">
                   <p className="text-xs text-stone-500">
                     Bạn mới biết đến MindHub?{' '}
-                    <button type="button" onClick={() => setMode('register')} className="text-[#8b5e3c] font-bold hover:underline">
+                    <button type="button" onClick={() => handleModeChange('register')} className="text-[#8b5e3c] font-bold hover:underline">
                       Đăng ký thành viên
                     </button>
                   </p>
@@ -798,7 +812,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               <div className="text-center pt-2 border-t border-stone-105 mt-2">
                 <p className="text-xs text-stone-505">
                   Đã có tài khoản thành viên?{' '}
-                  <button type="button" onClick={() => setMode('login')} className="text-[#8b5e3c] font-black hover:underline">
+                  <button type="button" onClick={() => handleModeChange('login')} className="text-[#8b5e3c] font-black hover:underline">
                     Quay về Đăng nhập
                   </button>
                 </p>
@@ -871,7 +885,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           })()}
 
           {/* FORGOT PASSWORD MODE */}
-          {mode === 'forgot' && (
+          {mode === 'forgot-password' && (
             <form onSubmit={handleForgot} className="space-y-4 max-w-sm mx-auto text-left py-4">
               <h3 className="text-base font-bold text-stone-850">Nhận Mã Khôi Phục Mật Khẩu</h3>
               <p className="text-xs text-stone-500 leading-normal">
@@ -902,7 +916,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
               <button 
                 type="button" 
-                onClick={() => setMode('login')} 
+                onClick={() => handleModeChange('login')} 
                 className="text-xs text-[#8b5e3c] font-semibold hover:underline block mx-auto pt-1.5"
               >
                 Quay lại đăng nhập
@@ -911,7 +925,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           )}
 
           {/* RESET PASSWORD MODE */}
-          {mode === 'reset' && (() => {
+          {mode === 'reset-password' && (() => {
             const currentRegisteredUser = localRegisteredUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
             const activeOtp = (currentRegisteredUser as any)?.resetOtp || '123456';
             return (
@@ -971,7 +985,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
                 <button 
                   type="button" 
-                  onClick={() => setMode('forgot')} 
+                  onClick={() => handleModeChange('forgot-password')} 
                   className="text-xs text-[#8b5e3c] font-semibold hover:underline block mx-auto pt-1.5"
                 >
                   Quay lại bước gửi mã
