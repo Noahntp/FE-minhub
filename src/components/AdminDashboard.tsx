@@ -19,6 +19,8 @@ interface ModeratorTabProps {
   onApproveCourse: (courseId: string) => void;
   onRejectCourse: (courseId: string, reason: string) => void;
   onResolveFlag: (flagId: string, resolveAction: 'dismiss' | 'resolved') => void;
+  accountRequests: AccountRequest[];
+  onResolveAccountRequest: (id: string, action: 'approved' | 'rejected') => void;
   onClose: () => void;
 }
 
@@ -29,6 +31,8 @@ function ModeratorTab({
   onApproveCourse,
   onRejectCourse,
   onResolveFlag,
+  accountRequests,
+  onResolveAccountRequest,
   onClose
 }: ModeratorTabProps) {
 
@@ -45,34 +49,9 @@ function ModeratorTab({
   // Search & Filter for Pending Courses
   const [courseSearchQuery, setCourseSearchQuery] = useState('');
 
-  // Search & Filter for Flagged Content (Comments/Reviews)
+  // Content search & filter
   const [contentSearchQuery, setContentSearchQuery] = useState('');
   const [contentTypeFilter, setContentTypeFilter] = useState<'all' | 'review' | 'comment'>('all');
-
-  // Account Requests State
-  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>([]);
-  const [resolvingRequest, setResolvingRequest] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === 'account_requests') {
-      ApiService.getAccountRequests().then(setAccountRequests).catch(console.error);
-    }
-  }, [activeTab]);
-
-  const handleResolveAccountRequest = async (id: string, action: 'approved' | 'rejected') => {
-    try {
-      setResolvingRequest(true);
-      await ApiService.resolveAccountRequest(id, action);
-      alert(`Đã ${action === 'approved' ? 'Phê duyệt chấp thuận' : 'Từ chối'} yêu cầu thành công`);
-      // refresh list
-      const updated = await ApiService.getAccountRequests();
-      setAccountRequests(updated);
-    } catch (e: any) {
-      alert('Lỗi: ' + e.message);
-    } finally {
-      setResolvingRequest(false);
-    }
-  };
 
   // Course review actions
   const pendingCourses = courses.filter(c => {
@@ -664,8 +643,6 @@ interface AdminDashboardProps {
   payoutRequests: PayoutRequest[];
   onApprovePayout: (requestId: string) => void;
   onRejectPayout: (requestId: string) => void;
-  accountRequests: AccountRequest[];
-  onResolveAccountRequest: (id: string, action: 'approved' | 'rejected') => void;
   onClose: () => void;
   orders?: Order[];
   onUpdateOrderStatus?: (orderId: string, nextStatus: 'success' | 'pending' | 'failed') => void;
@@ -723,6 +700,31 @@ export default function AdminDashboard({
   const [virtualLogs, setVirtualLogs] = useState<any[]>([]);
 
   // Instructor Requests
+  // Account Requests Integration
+  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>([]);
+  useEffect(() => {
+    const fetchAccountRequests = async () => {
+      try {
+        const data = await ApiService.getAccountRequests();
+        setAccountRequests(data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchAccountRequests();
+  }, []);
+
+  const handleResolveAccountRequest = async (id: string, action: 'approved' | 'rejected') => {
+    try {
+      await ApiService.resolveAccountRequest(id, action);
+      alert(`Đã ${action === 'approved' ? 'Phê duyệt' : 'Từ chối'} yêu cầu thành công`);
+      const updated = await ApiService.getAccountRequests();
+      setAccountRequests(updated);
+    } catch (e: any) {
+      alert('Lỗi: ' + e.message);
+    }
+  };
+
   const [instructorRequests, setInstructorRequests] = useState<any[]>([]);
 
   useEffect(() => {
@@ -4486,7 +4488,7 @@ export default function AdminDashboard({
                         <button
                           type="button"
                           onClick={() => {
-                            onResolveAccountRequest(req.id, 'approved');
+                            handleResolveAccountRequest(req.id, 'approved');
                             // Ban the actual user in state list if approved layout
                             setBannedUserIds(prev => [...prev, req.userId]);
                             alert(`✓ Đã duyệt đề xuất và đình chỉ truy cập đối với thành phần học viên: ${req.userName}.`);
@@ -4498,7 +4500,7 @@ export default function AdminDashboard({
                         <button
                           type="button"
                           onClick={() => {
-                            onResolveAccountRequest(req.id, 'rejected');
+                            handleResolveAccountRequest(req.id, 'rejected');
                             alert(`✓ Đã từ chối đơn hủy của học viên ${req.userName}. Tài khoản giữ nguyên bình thường.`);
                           }}
                           className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded-xl text-xs flex items-center gap-1 shadow-3xs text-[10.5px]"
@@ -4630,7 +4632,7 @@ export default function AdminDashboard({
               onRejectCourse={onRejectCourse}
               onResolveFlag={onResolveFlag}
               accountRequests={accountRequests}
-              onResolveAccountRequest={onResolveAccountRequest}
+              onResolveAccountRequest={handleResolveAccountRequest}
               onClose={() => setActiveTab('general_admin')}
             />
           </div>
