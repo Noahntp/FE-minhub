@@ -611,7 +611,7 @@ export const ApiService = {
     
     const users = MockDB.getState().users;
     // We just mock grabbing the first authenticated user or student for now if token exists
-    const user = users.find(u => u.role !== 'guest') || users[0];
+    const user = users.find(u => (u.role as string) !== 'guest') || users[0];
     return user;
   },
 

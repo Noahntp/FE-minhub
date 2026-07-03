@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Shield, Lock, Mail, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X } from 'lucide-react';
+import { Database, User, Shield, Lock, Mail, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X } from 'lucide-react';
 import { User as UserType, normalizeUser } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '../data';
@@ -40,6 +40,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   };
 
   const [rightPanelTab, setRightPanelTab] = useState<'seed' | 'recent'>('seed');
+  const [showDevTools, setShowDevTools] = useState(false);
   
   // Form fields
   const [email, setEmail] = useState('');
@@ -821,7 +822,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           )}
 
           {/* EMAIL VERIFICATION MODE */}
-          {mode === 'verify' && (() => {
+          {mode === 'verify-email' && (() => {
             const currentRegisteredUser = localRegisteredUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
             const activeOtp = currentRegisteredUser?.verificationOtp || '123456';
             return (
