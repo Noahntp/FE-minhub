@@ -2,8 +2,8 @@ import { Course, User, Notification, Order, FlaggedItem, PayoutRequest, AuditLog
 
 export const INITIAL_USER: User = {
   id: 'u-01',
-  name: 'Trần Thanh Sang',
-  email: 'truongthanhsang31415@gmail.com',
+  name: 'Student Test',
+  email: 'student.test@mindhub.local',
   avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
   role: 'student',
   streak: 5,
@@ -20,13 +20,12 @@ export const INITIAL_USER: User = {
 
 export const SYSTEM_ROLE_USERS: Record<string, User> = {
   student: {
-    ...INITIAL_USER,
-    role: 'student'
+    ...INITIAL_USER
   },
   instructor: {
     id: 'u-02',
-    name: 'Dr. Lê Quốc Khánh',
-    email: 'khanh.le@mindhub.edu.vn',
+    name: 'Instructor Test',
+    email: 'instructor.test@mindhub.local',
     avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
     role: 'instructor',
     streak: 12,
@@ -42,14 +41,14 @@ export const SYSTEM_ROLE_USERS: Record<string, User> = {
     payoutInfo: {
       bankName: 'Techcombank',
       accountNumber: '1903456789123',
-      accountHolder: 'LE QUOC KHANH',
+      accountHolder: 'INSTRUCTOR TEST',
       balance: 42500000 // 42.5M VND
     }
   },
   admin: {
     id: 'u-04',
-    name: 'Admin MindHub',
-    email: 'admin@mindhub.edu.vn',
+    name: 'Admin Test',
+    email: 'admin.test@mindhub.local',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150',
     role: 'admin',
     streak: 99,

@@ -6,7 +6,6 @@ export interface User {
   email: string;
   avatar: string;
   role: Role;
-  roles?: Role[];
   streak: number;
   lastActiveDate: string;
   bio?: string;
@@ -389,45 +388,67 @@ export interface InstructorRequest {
   reviewedAt?: string;
 }
 
-export interface CourseCreationPackage {
+export interface CourseCreditPackage {
   id: string;
-  title: string;
-  shortDescription?: string;
+  name: string;
   description?: string;
-  thumbnail?: string;
-  basePrice: number;
-  courseCreationQuota: number;
-  status: 'active' | 'draft' | 'hidden' | 'archived';
-  displayOrder: number;
-  createdAt: string;
-  updatedAt?: string;
+  credits: number;
+  price: number;
+  status: 'active' | 'inactive';
+  sort_order: number;
+  created_at: string;
+  updated_at?: string;
+  deleted_at?: string | null;
 }
 
-export interface InstructorPackagePurchase {
+export interface DbOrder {
   id: string;
-  instructorId: string;
-  packageId: string;
-  orderId?: string;
-  transactionId?: string;
-  packageTitleSnapshot: string;
-  basePriceSnapshot: number;
-  discountSnapshot: number;
-  finalPriceSnapshot: number;
-  quotaGranted: number;
-  quotaUsed: number;
-  quotaRemaining: number;
-  status: 'pending' | 'paid' | 'failed' | 'refunded';
-  paidAt?: string;
-  refundedAt?: string;
-  createdAt: string;
-  updatedAt?: string;
+  order_type: 'instructor_credit' | 'course_purchase';
+  coupon_id?: string | null;
+  course_id?: string | null;
+  credit_package_id?: string | null;
+  package_snapshot_name?: string | null;
+  package_snapshot_credits?: number | null;
+  user_id: string;
+  order_code: string;
+  status: 'pending' | 'paid' | 'cancelled' | 'failed' | 'expired';
+  price_snapshot: number;
+  payment_method?: string | null;
+  provider_transaction_id?: string | null;
+  amount: number;
+  payment_status: 'unpaid' | 'processing' | 'paid' | 'failed';
+  paid_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+
+  // relations
+  package?: CourseCreditPackage | null;
 }
 
-export interface CourseCreationQuotaUsage {
+export interface InstructorCourseCredit {
   id: string;
-  instructorId: string;
-  packagePurchaseId: string;
-  courseId: string;
-  status: 'consumed' | 'refunded';
-  createdAt: string;
+  instructor_id: string;
+  total_credits: number;
+  used_credits: number;
+  remaining_credits: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface InstructorCreditTransaction {
+  id: string;
+  instructor_id: string;
+  order_id?: string | null;
+  course_id?: string | null;
+  type: 'purchase' | 'use' | 'refund' | 'adjust';
+  credits: number;
+  balance_before: number;
+  balance_after: number;
+  note?: string | null;
+  created_at: string;
+  updated_at?: string;
+
+  // relations
+  order?: { order_code: string; package_snapshot_name: string; amount: number } | null;
+  course?: { title: string } | null;
 }

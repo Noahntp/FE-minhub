@@ -1,6 +1,7 @@
 import { Course, Chapter, Lesson, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import { MockDB } from './mockDb';
+import { SYSTEM_ROLE_USERS } from '../data';
 
 /**
  * MindHub API Service Configuration and Integration Layer
@@ -226,7 +227,16 @@ export const ApiService = {
       return res;
     }
     const users = MockDB.getState().users;
-    const user = users.find(u => u.email === payload.email) || users[0];
+    let user = users.find(u => u.email === payload.email);
+    if (!user) {
+      const sysUsers = Object.values(SYSTEM_ROLE_USERS);
+      user = sysUsers.find(u => u.email === payload.email);
+      if (user) {
+        MockDB.commit({ users: [...users, user] });
+      } else {
+        throw new Error('Email hoặc mật khẩu không chính xác.');
+      }
+    }
     return { user, token: 'mock-token' };
   },
 
@@ -1774,68 +1784,97 @@ export const ApiService = {
   async getCoursePackages(): Promise<any[]> {
     devLog('Packages', 'Get course creation packages');
     if (config.mode === 'api') {
-      const data = await apiFetch<any>('/packages');
-      return data.packages || [];
+      return apiFetch<any[]>('/packages');
     }
     // Mock packages
     return [
-      { id: 'pkg-1', title: 'Gói Trải Nghiệm', basePrice: 200000, courseCreationQuota: 1, status: 'active' },
-      { id: 'pkg-2', title: 'Gói Tiêu Chuẩn', basePrice: 500000, courseCreationQuota: 3, status: 'active' },
-      { id: 'pkg-3', title: 'Gói Chuyên Nghiệp', basePrice: 1500000, courseCreationQuota: 10, status: 'active' }
+      { id: 'pkg-1', name: 'Gói Trải Nghiệm', price: 200000, credits: 1, status: 'active', sort_order: 1 },
+      { id: 'pkg-2', name: 'Gói Tiêu Chuẩn', price: 500000, credits: 3, status: 'active', sort_order: 2 },
+      { id: 'pkg-3', name: 'Gói Chuyên Nghiệp', price: 1500000, credits: 10, status: 'active', sort_order: 3 }
     ];
   },
 
-  /** GET /instructor/quota */
-  async getInstructorQuota(): Promise<{ remaining: number, totalPurchased: number }> {
-    devLog('Packages', 'Get instructor quota');
+  async getPackageById(packageId: string): Promise<any> {
     if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/quota');
+      return apiFetch<any>(`/packages/${packageId}`);
     }
-    // Mock local quota
-    return MockDB.getInstructorQuota();
-  },
-
-  /** POST /packages/purchase */
-  async purchasePackage(payload: { packageId: string; paymentMethod: string }): Promise<{ success: boolean; message: string; quotaGranted: number }> {
-    devLog('Packages', 'Purchase package', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/packages/purchase', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    
     const packages = await this.getCoursePackages();
-    const pkg = packages.find(p => p.id === payload.packageId);
+    const pkg = packages.find(p => p.id === packageId);
     if (!pkg) throw new Error('Không tìm thấy gói');
-
-    let quota = await this.getInstructorQuota();
-    quota.remaining += pkg.courseCreationQuota;
-    quota.totalPurchased += pkg.courseCreationQuota;
-    
-    await MockDB.updateInstructorQuota(quota);
-
-    return { success: true, message: 'Đã mua gói thành công', quotaGranted: pkg.courseCreationQuota };
+    return pkg;
   },
 
-  /** POST /instructor/deduct-quota */
-  async deductQuotaForCourse(payload: { courseId: string }): Promise<{ success: boolean }> {
-    devLog('Packages', 'Deduct quota for course creation', payload);
+  async createPackageOrder(payload: { userId: string, packageId: string, couponCode?: string }): Promise<any> {
+    devLog('Payments', 'Create package order', payload);
     if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/deduct-quota', {
+      return apiFetch<any>('/payments/create-order', {
         method: 'POST',
         body: JSON.stringify(payload)
       });
     }
-    
-    let quota = await this.getInstructorQuota();
-    if (quota.remaining <= 0) {
-      throw new Error('Bạn đã hết lượt tạo khóa học. Vui lòng mua thêm gói.');
+    // Mock order creation
+    const pkg = await this.getPackageById(payload.packageId);
+    return {
+      success: true,
+      order: {
+        id: 'ord-' + Date.now(),
+        order_code: 'PKG-MOCK-' + Date.now(),
+        amount: pkg.price,
+        package_snapshot_name: pkg.name,
+        package_snapshot_credits: pkg.credits,
+        status: 'pending'
+      }
+    };
+  },
+
+  async confirmPackagePayment(payload: { orderCode: string, paymentMethod: string }): Promise<any> {
+    devLog('Payments', 'Confirm package payment', payload);
+    if (config.mode === 'api') {
+      return apiFetch<any>('/payments/confirm', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
     }
-    quota.remaining -= 1;
+    // Mock confirmation
+    let quota = await MockDB.getInstructorQuota();
+    quota.remaining += 1; // Assuming 1 for mock
+    quota.totalPurchased += 1;
     await MockDB.updateInstructorQuota(quota);
-    
-    return { success: true };
+    return { success: true, order: { status: 'paid' } };
+  },
+
+  async getInstructorCreditBalance(instructorId: string): Promise<any> {
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/credits/balance/${instructorId}`);
+    }
+    // Mock balance
+    const quota = await MockDB.getInstructorQuota();
+    return {
+      total_credits: quota.totalPurchased,
+      used_credits: quota.totalPurchased - quota.remaining,
+      remaining_credits: quota.remaining
+    };
+  },
+
+  async getInstructorCreditTransactions(instructorId: string): Promise<any[]> {
+    if (config.mode === 'api') {
+      return apiFetch<any[]>(`/credits/transactions/${instructorId}`);
+    }
+    return [];
+  },
+
+  async getInstructorPackageOrders(instructorId: string): Promise<any[]> {
+    if (config.mode === 'api') {
+      return apiFetch<any[]>(`/credits/orders/${instructorId}`);
+    }
+    return [];
+  },
+
+  async getAdminPackageOrders(): Promise<any[]> {
+    if (config.mode === 'api') {
+      return apiFetch<any[]>('/credits/admin/orders');
+    }
+    return [];
   }
 };
 

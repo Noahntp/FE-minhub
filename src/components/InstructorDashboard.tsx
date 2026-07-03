@@ -281,118 +281,116 @@ function InstructorSecurityPanel({ currentUser }: { currentUser: User }) {
   );
 }
 
-function InstructorPackagesTab({ quota, packages, onQuotaUpdate }: { quota: any, packages: any[], onQuotaUpdate: (q: any) => void }) {
-  const [selectedPackage, setSelectedPackage] = useState<any>(null);
-  const [isPurchasing, setIsPurchasing] = useState(false);
+function InstructorPackagesTab({ currentUser, quota }: { currentUser: User, quota: any }) {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handlePurchase = async () => {
-    if (!selectedPackage) return;
-    try {
-      setIsPurchasing(true);
-      const res = await ApiService.purchasePackage({
-        packageId: selectedPackage.id,
-        paymentMethod: 'balance'
-      });
-      alert(res.message);
-      const newQuota = await ApiService.getInstructorQuota();
-      onQuotaUpdate(newQuota);
-      setSelectedPackage(null);
-    } catch (err: any) {
-      alert(err.message || 'Lỗi khi mua gói');
-    } finally {
-      setIsPurchasing(false);
-    }
-  };
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
+        const data = await ApiService.getInstructorCreditTransactions(currentUser.id);
+        setTransactions(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTransactions();
+  }, [currentUser.id]);
 
   return (
     <div className="space-y-6 animate-fade-in text-left">
-      <div className="bg-stone-50 border p-5 rounded-2xl flex items-center justify-between">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between">
         <div>
-          <h4 className="font-extrabold text-[#783c12] text-sm flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-700" /> Quản lý Gói Khởi Tạo Khóa Học
+          <h4 className="font-extrabold text-2xl flex items-center gap-2 mb-2">
+            <Sparkles className="w-6 h-6 text-emerald-300" /> Hạn mức Lượt xuất bản
           </h4>
-          <p className="text-xs text-stone-500 mt-1">Giảng viên cần mua gói để có quyền tạo thêm khóa học mới.</p>
+          <p className="text-emerald-100 max-w-md">
+            Mỗi lần xuất bản khóa học công khai sẽ cần 1 lượt. Mua thêm gói lượt tạo để tiếp tục xuất bản khi hết hạn mức.
+          </p>
         </div>
-        <div className="text-right">
-          <span className="block text-xs text-stone-500 font-bold uppercase">Hạn mức hiện tại</span>
-          <span className="text-2xl font-black text-brand-dark font-mono">{quota.remaining} <span className="text-sm text-stone-500 font-sans">khóa học</span></span>
+        <div className="mt-6 md:mt-0 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20 min-w-[200px] text-center">
+          <span className="block text-sm text-emerald-100 font-bold uppercase mb-1">Lượt khả dụng</span>
+          <span className="text-4xl font-black text-white">{quota.remaining}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {packages.map(pkg => (
-          <div key={pkg.id} className="border border-stone-200 rounded-2xl p-6 bg-white flex flex-col hover:border-brand-normal transition-colors relative overflow-hidden">
-            {pkg.title.includes('Chuyên Nghiệp') && (
-              <div className="absolute top-3 right-[-30px] bg-amber-500 text-white text-[10px] font-bold px-8 py-1 rotate-45">
-                BÁN CHẠY
-              </div>
-            )}
-            <h3 className="font-black text-lg text-stone-800 mb-2">{pkg.title}</h3>
-            <p className="text-3xl font-black text-brand-normal font-mono mb-4">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(pkg.basePrice)}
-            </p>
-            <ul className="space-y-3 mb-6 flex-1 text-sm text-stone-600 font-semibold">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Cho phép tạo tối đa <b>{pkg.courseCreationQuota} khóa học</b>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Lưu trữ video bài giảng trọn đời
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                Hỗ trợ kỹ thuật 24/7
-              </li>
-            </ul>
-            <button
-              onClick={() => setSelectedPackage(pkg)}
-              className="w-full bg-stone-100 text-stone-700 hover:bg-brand-normal hover:text-white font-bold py-3 rounded-xl transition-colors"
-            >
-              Chọn gói này
-            </button>
-          </div>
-        ))}
+      <div className="flex justify-end">
+        <a 
+          href={`/instructor/${currentUser.id}/course-credit-packages`}
+          onClick={(e) => {
+            e.preventDefault();
+            // Dispatch custom event or just use normal a tag. Actually, since App.tsx handles routing via history.pushState, 
+            // the best way is to let the user click and the top level interceptor handle it if we have one. 
+            // In MindHub, App.tsx has `navigateTo`. Since `navigateTo` is not passed down to `InstructorPackagesTab`, 
+            // we can simulate a popstate:
+            window.history.pushState({}, '', `/instructor/${currentUser.id}/course-credit-packages`);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-colors shadow-md"
+        >
+          <PlusCircle className="w-5 h-5" /> Mua thêm Gói Lượt tạo
+        </a>
       </div>
 
-      {selectedPackage && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md">
-            <h3 className="font-bold text-xl mb-4 text-center">Xác nhận thanh toán</h3>
-            <div className="bg-stone-50 border p-4 rounded-2xl mb-6">
-              <div className="flex justify-between mb-2">
-                <span className="font-semibold text-stone-600">Gói dịch vụ:</span>
-                <span className="font-black">{selectedPackage.title}</span>
-              </div>
-              <div className="flex justify-between mb-2">
-                <span className="font-semibold text-stone-600">Quyền lợi:</span>
-                <span className="font-black">+{selectedPackage.courseCreationQuota} khóa học</span>
-              </div>
-              <div className="flex justify-between border-t pt-2 mt-2">
-                <span className="font-bold">Tổng thanh toán:</span>
-                <span className="font-black text-brand-normal font-mono">
-                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedPackage.basePrice)}
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setSelectedPackage(null)}
-                className="flex-1 py-3 bg-stone-100 text-stone-700 font-bold rounded-xl"
-              >
-                Hủy
-              </button>
-              <button 
-                onClick={handlePurchase}
-                disabled={isPurchasing}
-                className="flex-1 py-3 bg-brand-normal text-white font-bold rounded-xl flex items-center justify-center gap-2"
-              >
-                {isPurchasing ? 'Đang xử lý...' : 'Xác nhận mua'}
-              </button>
-            </div>
+      <div className="bg-white border rounded-2xl p-6">
+        <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-gray-500" /> Lịch sử Giao dịch Lượt xuất bản
+        </h3>
+        
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Đang tải lịch sử...</div>
+        ) : transactions.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 border border-dashed rounded-xl">
+            Bạn chưa có giao dịch nào liên quan đến lượt xuất bản.
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 font-semibold text-gray-600">Thời gian</th>
+                  <th className="px-4 py-3 font-semibold text-gray-600">Loại giao dịch</th>
+                  <th className="px-4 py-3 font-semibold text-gray-600">Mã đơn / Nội dung</th>
+                  <th className="px-4 py-3 font-semibold text-gray-600 text-right">Thay đổi</th>
+                  <th className="px-4 py-3 font-semibold text-gray-600 text-right">Số dư</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {transactions.map((tx: any) => (
+                  <tr key={tx.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 text-gray-500">
+                      {new Date(tx.created_at).toLocaleString('vi-VN')}
+                    </td>
+                    <td className="px-4 py-4">
+                      {tx.type === 'purchase' ? (
+                        <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold uppercase">Mua gói</span>
+                      ) : tx.type === 'use' ? (
+                        <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold uppercase">Sử dụng</span>
+                      ) : (
+                        <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-bold uppercase">{tx.type}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 font-medium text-gray-900">
+                      {tx.note || (tx.order ? tx.order.package_snapshot_name : tx.course ? `Khóa: ${tx.course.title}` : '')}
+                    </td>
+                    <td className="px-4 py-4 text-right font-mono font-bold">
+                      <span className={tx.credits > 0 ? 'text-emerald-600' : 'text-amber-600'}>
+                        {tx.credits > 0 ? '+' : ''}{tx.credits}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right font-mono font-bold text-gray-900">
+                      {tx.balance_after}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -499,7 +497,7 @@ export default function InstructorDashboard({
   const [isUpdatingBank, setIsUpdatingBank] = useState<boolean>(false);
 
   const [gradingSubmissions, setGradingSubmissions] = useState([
-    { id: 'sub-101', studentName: 'Trần Thanh Sang', email: 'truongthanhsang31415@gmail.com', courseTitle: 'Chinh Phục React 19 & Next.js 15', lessonTitle: 'Bài tập 2.3: Validate Form Server Action', submittedValue: 'https://github.com/sang314/react19-form-test', points: null as number | null, feedback: '' }
+    { id: 'sub-101', studentName: 'Student Test', email: 'student.test@mindhub.local', courseTitle: 'Chinh Phục React 19 & Next.js 15', lessonTitle: 'Bài tập 2.3: Validate Form Server Action', submittedValue: 'https://github.com/student/react19-form-test', points: null as number | null, feedback: '' }
   ]);
 
   // --- DYNAMIC STUDENT MANAGEMENT STATES ---
@@ -2933,7 +2931,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
         {/* TAB 8: PACKAGES */}
         {activeTab === 'packages' && (
-          <InstructorPackagesTab quota={quota} packages={packages} onQuotaUpdate={setQuota} />
+          <InstructorPackagesTab currentUser={currentUser} quota={quota} />
         )}
 
       </div>

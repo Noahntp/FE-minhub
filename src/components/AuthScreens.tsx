@@ -6,15 +6,9 @@ import { SYSTEM_ROLE_USERS } from '../data';
 import { ApiService } from '../services/api';
 
 const DB_SEED_ACCOUNTS = [
-  { id: 'db-1', name: 'MindHub Admin', email: 'admin@mindhub.test', password: '12345678', role: 'admin', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Tài khoản Quản trị tối cao (Admin)' },
-  { id: 'db-2', name: 'Nguyễn Minh Khoa', email: 'instructor1@mindhub.test', password: '12345678', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên kì cựu môn Laravel (Instructor)' },
-  { id: 'db-3', name: 'Trần Hà Linh', email: 'instructor2@mindhub.test', password: '12345678', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên thiết kế môn React (Instructor)' },
-  { id: 'db-4', name: 'Lê Gia Bảo', email: 'learner1@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150', description: 'Học viên active (Learner)' },
-  { id: 'db-5', name: 'Phạm Anh Thư', email: 'learner2@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150', description: 'Học viên active (Learner)' },
-  { id: 'db-6', name: 'Đỗ Hoàng Nam', email: 'learner.completed@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', description: 'Học viên đã hoàn thành khóa học (Learner)' },
-  { id: 'db-10', name: 'Learner Limit Device', email: 'learner.limit@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=150', description: 'Học viên giới hạn thiết bị (Learner)' },
-  { id: 'db-11', name: 'Learner Empty State', email: 'learner.empty@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150', description: 'Học viên trống dữ liệu (Learner)' },
-  { id: 'db-99', name: 'Dev Multi-Role Tester', email: import.meta.env.VITE_DEV_TEST_USER_EMAIL || 'tester@mindhub.dev', password: import.meta.env.VITE_DEV_TEST_USER_PASSWORD || 'Dev@123456', role: 'student', roles: ['student', 'instructor', 'admin'], avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=150', description: 'Tài khoản Test Đa Quyền (Dev Environment)' },
+  { id: 'db-1', name: 'Student Test', email: 'student.test@mindhub.local', password: 'password123', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
+  { id: 'db-2', name: 'Instructor Test', email: 'instructor.test@mindhub.local', password: 'password123', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên' },
+  { id: 'db-3', name: 'Admin Test', email: 'admin.test@mindhub.local', password: 'password123', role: 'admin', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150', description: 'Quản trị viên' },
 ];
 
 interface AuthScreensProps {
@@ -328,7 +322,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     <div className="min-h-[85vh] bg-stone-50 flex items-center justify-center p-4">
       <div 
         id="auth-container" 
-        className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-brand-light-active overflow-hidden flex flex-col sm:flex-row text-main-darker animate-fade-in"
+        className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-brand-light-active overflow-hidden flex flex-col text-main-darker animate-fade-in"
       >
         {/* Banner with Brand Theme */}
         <div className="bg-deep-indigo p-5 text-brand-light flex items-center justify-between border-b-4 border-emerald-500 shrink-0">
@@ -1010,4 +1004,3 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     </div>
   );
 }
-

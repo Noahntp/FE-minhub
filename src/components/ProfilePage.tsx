@@ -3,6 +3,7 @@ import { User, Lock, Settings, FileText, Check, Flame, AlertCircle, ShieldAlert,
 import { User as UserType } from '../types';
 import { OTPModal } from './OTPModal';
 import { ApiService } from '../services/api';
+import { AppRoutes, RoleLabels } from '../utils/routes';
 
 const AVAILABLE_AVATARS = [
   "https://i.pravatar.cc/150?img=11",
@@ -325,6 +326,64 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
             {/* PERSONAL TAB */}
             {activeTab === 'personal' && (
               <div className="space-y-6 animate-fade-in">
+                
+                {/* WORKSPACE NAVIGATION (Role Switcher) */}
+                {(currentUser.role === 'instructor' || currentUser.role === 'admin') && (
+                  <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white mb-6">
+                    <div className="bg-stone-50 p-4 border-b border-stone-200 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Award className="w-5 h-5 text-[#8b5e3c]" />
+                        <h4 className="font-bold text-stone-900">Không gian làm việc</h4>
+                      </div>
+                      <div className="flex gap-1.5 text-xs font-semibold">
+                        <span className="px-2.5 py-1 bg-stone-200 text-stone-700 rounded-lg">Học viên</span>
+                        {currentUser.role === 'instructor' && (
+                          <span className="px-2.5 py-1 bg-brand-light text-brand-normal border border-brand-light-active rounded-lg">Giảng viên</span>
+                        )}
+                        {currentUser.role === 'admin' && (
+                          <span className="px-2.5 py-1 bg-red-100 text-red-700 border border-red-200 rounded-lg">Quản trị viên</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4 flex flex-col sm:flex-row gap-3">
+                      {currentUser.role === 'instructor' && (
+                        <button 
+                          onClick={() => navigateTo(AppRoutes.instructorDashboard(currentUser.id))}
+                          className="flex-1 flex items-center justify-between p-3 rounded-xl border border-stone-200 hover:border-brand-normal hover:bg-brand-light transition-all text-left cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-brand-light text-[#8b5e3c] flex items-center justify-center shrink-0 border border-[#e8ded3]">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-stone-900 text-sm">Đi đến trang Giảng viên</h5>
+                              <p className="text-[11px] text-stone-500">Quản lý khóa học, doanh thu</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-stone-400 shrink-0" />
+                        </button>
+                      )}
+                      {currentUser.role === 'admin' && (
+                        <button 
+                          onClick={() => navigateTo(AppRoutes.adminDashboard(currentUser.id))}
+                          className="flex-1 flex items-center justify-between p-3 rounded-xl border border-stone-200 hover:border-red-200 hover:bg-red-50 transition-all text-left cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
+                              <ShieldAlert className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-stone-900 text-sm">Đi đến trang Quản trị</h5>
+                              <p className="text-[11px] text-stone-500">Quản lý hệ thống, kiểm duyệt</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-stone-400 shrink-0" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8">
                   <h3 className="text-xl font-bold text-stone-900 border-b border-stone-100 pb-4 mb-6">Thông tin cơ bản</h3>
                   
@@ -581,56 +640,8 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                     </div>
                   </div>
 
-                  {/* Workspace Navigation */}
-                  {(currentUser.roles?.includes('instructor') || currentUser.role === 'instructor' || currentUser.roles?.includes('admin') || currentUser.role === 'admin') && (
-                    <div className="border border-stone-200 rounded-2xl overflow-hidden mt-6 bg-white mb-6">
-                      <div className="bg-stone-50 p-4 border-b border-stone-200 flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <Award className="w-5 h-5 text-[#8b5e3c]" />
-                          <h4 className="font-bold text-stone-900">Không gian làm việc</h4>
-                        </div>
-                      </div>
-                      <div className="p-4 flex flex-col sm:flex-row gap-3">
-                        {(currentUser.roles?.includes('instructor') || currentUser.role === 'instructor') && (
-                          <button 
-                            onClick={() => navigateTo('instructor')}
-                            className="flex-1 flex items-center justify-between p-3 rounded-xl border border-stone-200 hover:border-brand-normal hover:bg-brand-light transition-all text-left cursor-pointer"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-brand-light text-[#8b5e3c] flex items-center justify-center shrink-0 border border-[#e8ded3]">
-                                <FileText className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <h5 className="font-bold text-stone-900 text-sm">Đi đến trang Giảng viên</h5>
-                                <p className="text-[11px] text-stone-500">Quản lý khóa học, doanh thu</p>
-                              </div>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-stone-400 shrink-0" />
-                          </button>
-                        )}
-                        {(currentUser.roles?.includes('admin') || currentUser.role === 'admin') && (
-                          <button 
-                            onClick={() => navigateTo('admin')}
-                            className="flex-1 flex items-center justify-between p-3 rounded-xl border border-stone-200 hover:border-red-200 hover:bg-red-50 transition-all text-left cursor-pointer"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
-                                <ShieldAlert className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <h5 className="font-bold text-stone-900 text-sm">Đi đến trang Quản trị</h5>
-                                <p className="text-[11px] text-stone-500">Quản lý toàn bộ hệ thống</p>
-                              </div>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-stone-400 shrink-0" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Request Instructor Block */}
-                  {currentUser.role === 'student' && !currentUser.roles?.includes('instructor') && !currentUser.roles?.includes('admin') && (
+                  {currentUser.role === 'student' && (
                     <div className="border border-stone-200 rounded-2xl overflow-hidden mt-6">
                       <div className="bg-stone-50 p-4 border-b border-stone-200 flex justify-between items-center">
                         <div className="flex items-center gap-2">

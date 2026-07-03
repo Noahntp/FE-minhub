@@ -18,6 +18,7 @@ import {
 } from './data';
 import { Course, User as UserType, Order, FlaggedItem, PayoutRequest, Notification, AccountRequest, Lesson, Banner, normalizeUser } from './types';
 import { safeLocalStorage as localStorage } from './utils/safeStorage';
+import { AppRoutes, RoleLabels } from './utils/routes';
 
 // Import subcomponents
 import AuthScreens from './components/AuthScreens';
@@ -34,6 +35,9 @@ import ContactPage from './pages/ContactPage';
 import AboutPage from './pages/AboutPage';
 import { InstructorProfile } from './components/InstructorProfile';
 import CourseQA from './components/CourseQA';
+import PackageList from './components/PackageList';
+import PackageDetail from './components/PackageDetail';
+import PackageCheckout from './components/PackageCheckout';
 
 // Simple custom intersection observer wrapper to achieve smooth scroll animations
 interface ScrollRevealProps {
@@ -134,7 +138,13 @@ const INSTRUCTORS_DATA = [
 
 export default function App() {
   // --- CORE STATE MANAGERS ---
-  const [currentUser, setCurrentUser] = useState<UserType>(INITIAL_USER);
+  const [currentUser, setCurrentUser] = useState<UserType>(() => {
+    try {
+      const stored = localStorage.getItem('mindhub_current_user');
+      if (stored) return JSON.parse(stored);
+    } catch(e) {}
+    return INITIAL_USER;
+  });
   const [categoriesList, setCategoriesList] = useState<string[]>(['All', 'Development', 'Design', 'Marketing', 'Artificial Intelligence', 'Business & Startup', 'Data Science', 'Cybersecurity']);
   const [categoriesWithCount, setCategoriesWithCount] = useState<{name: string, count: number}[]>([]);
   const [learningHistory, setLearningHistory] = useState<any[]>([]);
@@ -158,6 +168,24 @@ export default function App() {
   const [sortBy, setSortBy] = useState<'rating' | 'bestseller' | 'priceAsc' | 'priceDesc' | 'newest' | 'oldest'>('newest');
   const [coursePurchaseFilter, setCoursePurchaseFilter] = useState<'all' | 'unpurchased' | 'purchased'>('all');
   const [showHeroPopup, setShowHeroPopup] = useState<boolean>(false);
+  const getUserIdFromPath = (path: string) => {
+    let match = path.match(/^\/profile\/([^/]+)/);
+    if (match) return match[1];
+    match = path.match(/^\/admin\/([^/]+)/);
+    if (match) return match[1];
+    match = path.match(/^\/instructor\/([^/]+)/);
+    if (match) return match[1];
+    match = path.match(/^\/instructors\/([^/]+)/);
+    if (match) return match[1];
+    return null;
+  };
+
+  const getPackageIdFromPath = (path: string) => {
+    const match = path.match(/^\/instructor\/[^/]+\/course-credit-packages\/([^/]+)/);
+    if (match) return match[1];
+    return null;
+  };
+
   const getRouteFromPath = (path: string) => {
     if (path.startsWith('/login')) return 'login';
     if (path.startsWith('/register')) return 'register';
@@ -167,14 +195,24 @@ export default function App() {
     if (path.startsWith('/checkout')) return 'checkout';
     if (path.startsWith('/my-learning/favorites') || path.startsWith('/favorites')) return 'favorites';
     if (path.startsWith('/notifications')) return 'notifications';
-    if (path.startsWith('/profile') || path.startsWith('/account/profile')) return 'profile';
+    
+    if (path.match(/^\/profile\/([^/]+)/) || path.startsWith('/profile') || path.startsWith('/account/profile')) return 'profile';
+    
     if (path.startsWith('/intro')) return 'intro';
     if (path.startsWith('/my-courses')) return 'my-courses';
     if (path.startsWith('/faq')) return 'faq';
     if (path.startsWith('/help') || path.startsWith('/legal')) return 'legal';
-    if (path.startsWith('/admin')) return 'admin';
+    
+    if (path.match(/^\/admin\/([^/]+)\/dashboard/) || path.startsWith('/admin')) return 'admin';
+    
     if (path.startsWith('/instructor-profile')) return 'instructor-profile';
-    if (path.startsWith('/instructor')) return 'instructor';
+    
+    if (path.match(/^\/instructor\/[^/]+\/course-credit-packages\/[^/]+\/checkout/)) return 'instructor-package-checkout';
+    if (path.match(/^\/instructor\/[^/]+\/course-credit-packages\/[^/]+/)) return 'instructor-package-detail';
+    if (path.match(/^\/instructor\/[^/]+\/course-credit-packages/)) return 'instructor-packages';
+    if (path.match(/^\/instructor\/[^/]+\/course-credit-transactions/)) return 'instructor-transactions';
+    if (path.match(/^\/instructor\/([^/]+)\/dashboard/) || path.startsWith('/instructor')) return 'instructor';
+    
     if (path.startsWith('/courses/')) return 'course-detail';
     if (path.startsWith('/explore')) return 'explore';
     if (path.startsWith('/about')) return 'about';
@@ -184,6 +222,14 @@ export default function App() {
 
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
     return getRouteFromPath(window.location.pathname);
+  });
+  
+  const [routeUserId, setRouteUserId] = useState<string | null>(() => {
+    return getUserIdFromPath(window.location.pathname);
+  });
+  
+  const [routePackageId, setRoutePackageId] = useState<string | null>(() => {
+    return getPackageIdFromPath(window.location.pathname);
   });
 
   const navigateTo = (path: string) => {
@@ -204,14 +250,22 @@ export default function App() {
     const id = urlParams.get('id');
     if (id) setViewedInstructorId(id);
 
-    setCurrentRoute(getRouteFromPath(finalPath.split('?')[0]));
+    const purePath = finalPath.split('?')[0];
+    setCurrentRoute(getRouteFromPath(purePath));
+    setRouteUserId(getUserIdFromPath(purePath));
+    setRoutePackageId(getPackageIdFromPath(purePath));
+    
     window.history.pushState({}, '', finalPath);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentRoute(getRouteFromPath(window.location.pathname));
+      const purePath = window.location.pathname;
+      setCurrentRoute(getRouteFromPath(purePath));
+      setRouteUserId(getUserIdFromPath(purePath));
+      setRoutePackageId(getPackageIdFromPath(purePath));
+      
       const urlParams = new URLSearchParams(window.location.search);
       const id = urlParams.get('id');
       if (id) setViewedInstructorId(id);
@@ -1182,26 +1236,6 @@ export default function App() {
     navigateTo('cart');
   };
 
-  // --- PERSPECTIVE/ROLE SWITCHER ---
-  const handleSwitchRole = (role: 'student' | 'instructor' | 'admin') => {
-    const targetUser = SYSTEM_ROLE_USERS[role];
-    setCurrentUser(targetUser);
-    // Reset view states
-    setViewedCourse(null);
-    setStudyingCourse(null);
-    setIsEditingProfile(false);
-    
-    // Set matching welcome notification for selected role
-    const newNotif: Notification = {
-      id: 'notif-' + Date.now(),
-      title: `Switch Role: Quyền ${role.toUpperCase()}`,
-      message: `Đã kích hoạt giao diện điều hướng dành riêng cho ${role === 'admin' ? 'Quản trị viên' : role === 'instructor' ? 'Giảng viên' : 'Học viên'}.`,
-      type: 'success',
-      date: 'Vừa xong',
-      read: false
-    };
-    setNotifications([newNotif, ...notifications]);
-  };
 
   // --- SHOPPING & WISHLIST ACTIONS ---
   const handleToggleFavorite = (courseId: string) => {
@@ -2378,7 +2412,7 @@ export default function App() {
                 <img src={currentUser.avatar} alt="User Avatar" className="w-8 h-8 rounded-full border border-brand-light-active object-cover" />
                 <div className="hidden md:block">
                   <span className="font-bold block tracking-tight truncate max-w-28 text-main-normal leading-none group-hover:text-brand-normal">{currentUser.name}</span>
-                  <span className="text-[9px] text-gray-400 uppercase tracking-widest font-mono font-bold mt-1.5 block">{currentUser.role}</span>
+                  <span className="text-[9px] text-gray-400 uppercase tracking-widest font-mono font-bold mt-1.5 block">{RoleLabels[currentUser.role] || currentUser.role}</span>
                 </div>
               </button>
               
@@ -2405,7 +2439,7 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         setShowAvatarMenu(false);
-                        navigateTo('profile');
+                        navigateTo(AppRoutes.profile(currentUser.id));
                       }}
                       className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-100 hover:text-brand-normal font-bold flex items-center gap-2 transition-colors cursor-pointer border-none bg-transparent"
                     >
@@ -2449,7 +2483,9 @@ export default function App() {
           initialMode={activeTab as any}
           onLoginSuccess={(user) => {
             setCurrentUser(user);
+            localStorage.setItem('mindhub_current_user', JSON.stringify(user));
             setIsLoggedIn(true);
+            localStorage.setItem('mindhub_is_logged_in', 'true');
             alert(`Đăng nhập thành công! Chào mừng, ${user.name} (${user.role.toUpperCase()})`);
             navigateTo('home');
           }}
@@ -3237,6 +3273,8 @@ export default function App() {
                   type="button" 
                   onClick={() => {
                     setIsLoggedIn(false);
+                    localStorage.removeItem('mindhub_is_logged_in');
+                    localStorage.removeItem('mindhub_current_user');
                     sessionStorage.removeItem('mindhub_welcome_shown');
                     // Reset to visitor Guest user representation
                     setCurrentUser({
@@ -3556,37 +3594,93 @@ export default function App() {
             </div>
 
           </div>
-        ) : currentUser.role === 'instructor' ? (
-          <InstructorDashboard 
-            currentUser={currentUser}
-            courses={courses}
-            onCreateCourseDraft={handleCreateCourseDraft}
-            onUpdateCourse={handleUpdateCourse}
-            onDeleteCourse={handleDeleteCourse}
-            onClose={() => handleSwitchRole('student')}
-          />
-        ) : currentUser.role === 'admin' ? (
-          <AdminDashboard 
-            currentUser={currentUser}
-            courses={courses}
-            onUpdateCourses={(updated) => setCourses(updated)}
-            payoutRequests={payoutRequests}
-            onApprovePayout={handleApprovePayout}
-            onRejectPayout={handleRejectPayout}
-            onClose={() => handleSwitchRole('student')}
-            orders={orders}
-            onUpdateOrderStatus={handleUpdateOrderStatus}
-            categoriesList={categoriesList}
-            onUpdateCategories={setCategoriesList}
-            banners={banners}
-            onUpdateBanners={saveBanners}
-            notifications={notifications}
-            onUpdateNotifications={(updated) => setNotifications(updated)}
-            flaggedReviews={flaggedReviews}
-            onResolveFlag={handleResolveFlag}
-            onApproveCourse={handleApproveCourse}
-            onRejectCourse={handleRejectCourse}
-          />
+        ) : activeTab === 'instructor-packages' ? (
+          (currentUser.role === 'instructor' && currentUser.id === routeUserId) ? (
+            <PackageList 
+              currentUser={currentUser}
+              onNavigateToPackage={(pkgId) => navigateTo(AppRoutes.instructorPackageDetail(currentUser.id, pkgId))}
+              onNavigateToHistory={() => navigateTo(AppRoutes.instructorTransactions(currentUser.id))}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20">
+              <h2 className="text-2xl font-bold">Truy Cập Bị Từ Chối</h2>
+            </div>
+          )
+        ) : activeTab === 'instructor-package-detail' ? (
+          (currentUser.role === 'instructor' && currentUser.id === routeUserId && routePackageId) ? (
+            <PackageDetail 
+              packageId={routePackageId}
+              currentUser={currentUser}
+              onBack={() => navigateTo(AppRoutes.instructorPackages(currentUser.id))}
+              onBuy={(pkgId) => navigateTo(AppRoutes.instructorPackageCheckout(currentUser.id, pkgId))}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20">
+              <h2 className="text-2xl font-bold">Truy Cập Bị Từ Chối</h2>
+            </div>
+          )
+        ) : activeTab === 'instructor-package-checkout' ? (
+          (currentUser.role === 'instructor' && currentUser.id === routeUserId && routePackageId) ? (
+            <PackageCheckout 
+              packageId={routePackageId}
+              currentUser={currentUser}
+              onBack={() => navigateTo(AppRoutes.instructorPackageDetail(currentUser.id, routePackageId))}
+              onSuccess={() => navigateTo(AppRoutes.instructorDashboard(currentUser.id))}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20">
+              <h2 className="text-2xl font-bold">Truy Cập Bị Từ Chối</h2>
+            </div>
+          )
+        ) : activeTab === 'instructor' ? (
+          (currentUser.role === 'instructor' && currentUser.id === routeUserId) ? (
+            <InstructorDashboard 
+              currentUser={currentUser}
+              courses={courses}
+              onCreateCourseDraft={handleCreateCourseDraft}
+              onUpdateCourse={handleUpdateCourse}
+              onDeleteCourse={handleDeleteCourse}
+              onClose={() => navigateTo('/')}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+              <Lock className="w-16 h-16 text-stone-300 mb-4" />
+              <h2 className="text-2xl font-bold text-stone-800 mb-2">Truy Cập Bị Từ Chối</h2>
+              <p className="text-stone-500 mb-6 text-center max-w-md">Bạn không có quyền truy cập vào Khu vực Giảng viên này hoặc URL không hợp lệ.</p>
+              <button onClick={() => navigateTo('/')} className="px-6 py-2.5 bg-brand-normal text-white font-bold rounded-xl shadow-md hover:bg-brand-dark transition-all cursor-pointer">Về Trang Chủ</button>
+            </div>
+          )
+        ) : activeTab === 'admin' ? (
+          (currentUser.role === 'admin' && currentUser.id === routeUserId) ? (
+            <AdminDashboard 
+              currentUser={currentUser}
+              courses={courses}
+              onUpdateCourses={(updated) => setCourses(updated)}
+              payoutRequests={payoutRequests}
+              onApprovePayout={handleApprovePayout}
+              onRejectPayout={handleRejectPayout}
+              onClose={() => navigateTo('/')}
+              orders={orders}
+              onUpdateOrderStatus={handleUpdateOrderStatus}
+              categoriesList={categoriesList}
+              onUpdateCategories={setCategoriesList}
+              banners={banners}
+              onUpdateBanners={saveBanners}
+              notifications={notifications}
+              onUpdateNotifications={(updated) => setNotifications(updated)}
+              flaggedReviews={flaggedReviews}
+              onResolveFlag={handleResolveFlag}
+              onApproveCourse={handleApproveCourse}
+              onRejectCourse={handleRejectCourse}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+              <Lock className="w-16 h-16 text-stone-300 mb-4" />
+              <h2 className="text-2xl font-bold text-stone-800 mb-2">Truy Cập Bị Từ Chối</h2>
+              <p className="text-stone-500 mb-6 text-center max-w-md">Bạn không có quyền quản trị viên để vào trang này.</p>
+              <button onClick={() => navigateTo('/')} className="px-6 py-2.5 bg-brand-normal text-white font-bold rounded-xl shadow-md hover:bg-brand-dark transition-all cursor-pointer">Về Trang Chủ</button>
+            </div>
+          )
         ) : (
           /* --- STUDENT PERSPECTIVE (PRIMARY INTERACTIVITIES) --- */
           <div className="space-y-8 text-sm text-left animate-fade-in pb-12">
@@ -5656,7 +5750,16 @@ export default function App() {
 
         {/* --- 3. DEDICATED PROFILE PAGE --- */}
         {activeTab === 'profile' && (
-          <ProfilePage currentUser={currentUser} setCurrentUser={setCurrentUser} navigateTo={navigateTo} />
+          (currentUser.id === routeUserId) ? (
+            <ProfilePage currentUser={currentUser} setCurrentUser={setCurrentUser} navigateTo={navigateTo} />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+              <Lock className="w-16 h-16 text-stone-300 mb-4" />
+              <h2 className="text-2xl font-bold text-stone-800 mb-2">Không Có Quyền Truy Cập</h2>
+              <p className="text-stone-500 mb-6 text-center max-w-md">Bạn chỉ có thể xem hoặc chỉnh sửa hồ sơ cá nhân của chính mình.</p>
+              <button onClick={() => navigateTo('/')} className="px-6 py-2.5 bg-brand-normal text-white font-bold rounded-xl shadow-md hover:bg-brand-dark transition-all cursor-pointer">Về Trang Chủ</button>
+            </div>
+          )
         )}
 
         {/* --- 4. AUTH SCREENS --- */}

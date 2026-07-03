@@ -1,5 +1,6 @@
 datasource db {
   provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 generator client {
@@ -29,8 +30,11 @@ model User {
   activities          LearningActivity[] @relation("UserActivities")
   questions           CourseQuestion[] @relation("UserQuestions")
   answers             CourseAnswer[] @relation("UserAnswers")
-  packagePurchases    InstructorPackagePurchase[] @relation("InstructorPurchases")
-  quotaUsages         CourseCreationQuotaUsage[] @relation("InstructorQuotaUsages")
+  packagePurchases    Order[] @relation
+  creditBalances      InstructorCourseCredit?
+  creditTransactions  InstructorCreditTransaction[]
+  coupons             Coupon[]
+  revenues            Revenue[]
 }
 
 model Course {
@@ -61,8 +65,13 @@ model Course {
   activities          LearningActivity[] @relation("CourseActivities")
   questions           CourseQuestion[] @relation("CourseQuestions")
   
-  quotaUsageId        String?  @unique
-  quotaUsage          CourseCreationQuotaUsage? @relation("CourseQuotaUsage")
+  credit_used_at      DateTime?
+  credit_transaction_id String?
+  
+  orders              Order[]
+  creditTransactions  InstructorCreditTransaction[]
+  coupons             Coupon[]
+  revenues            Revenue[]
 }
 
 model Chapter {
@@ -157,54 +166,124 @@ model CourseAnswer {
   updatedAt   DateTime @updatedAt
 }
 
-model CourseCreationPackage {
-  id                  String   @id @default(cuid())
-  title               String
-  shortDescription    String?
-  description         String?
-  thumbnail           String?
-  basePrice           Float
-  courseCreationQuota Int
-  status              String   @default("active") // active, draft, hidden, archived
-  displayOrder        Int      @default(0)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  purchases           InstructorPackagePurchase[] @relation("PackagePurchases")
+model CourseCreditPackage {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  credits     Int
+  price       Float
+  status      String    @default("active") // active, inactive
+  sort_order  Int       @default(0)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  orders      Order[]
+
+  @@map("course_credit_packages")
 }
 
-model InstructorPackagePurchase {
-  id                  String   @id @default(cuid())
-  instructorId        String
-  instructor          User     @relation("InstructorPurchases", fields: [instructorId], references: [id])
-  packageId           String
-  package             CourseCreationPackage @relation("PackagePurchases", fields: [packageId], references: [id])
-  orderId             String?
-  transactionId       String?
-  packageTitleSnapshot String
-  basePriceSnapshot   Float
-  discountSnapshot    Float    @default(0)
-  finalPriceSnapshot  Float
-  quotaGranted        Int
-  quotaUsed           Int      @default(0)
-  quotaRemaining      Int
-  status              String   @default("pending") // pending, paid, failed, refunded
-  paidAt              DateTime?
-  refundedAt          DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  quotaUsages         CourseCreationQuotaUsage[] @relation("PurchaseQuotaUsages")
+model Order {
+  id                       String    @id @default(cuid())
+  order_type               String    // "instructor_credit", "course_purchase"
+  coupon_id                String?
+  course_id                String?
+  credit_package_id        String?
+  package_snapshot_name    String?
+  package_snapshot_credits Int?
+  user_id                  String
+  order_code               String    @unique
+  status                   String    @default("pending") // pending, paid, cancelled, failed, expired
+  price_snapshot           Float
+  payment_method           String?   // "momo", "vnpay", "bank_transfer", "cash", "free"
+  provider_transaction_id  String?
+  amount                   Float
+  payment_status           String    @default("unpaid") // unpaid, processing, paid, failed
+  paid_at                  DateTime?
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @updatedAt
+
+  user                     User      @relation(fields: [user_id], references: [id])
+  package                  CourseCreditPackage? @relation(fields: [credit_package_id], references: [id])
+  course                   Course?   @relation(fields: [course_id], references: [id])
+  transactions             InstructorCreditTransaction[]
+
+  @@map("orders")
 }
 
-model CourseCreationQuotaUsage {
-  id                  String   @id @default(cuid())
-  instructorId        String
-  instructor          User     @relation("InstructorQuotaUsages", fields: [instructorId], references: [id])
-  packagePurchaseId   String
-  packagePurchase     InstructorPackagePurchase @relation("PurchaseQuotaUsages", fields: [packagePurchaseId], references: [id])
-  courseId            String   @unique
-  course              Course   @relation("CourseQuotaUsage", fields: [courseId], references: [id])
-  status              String   @default("consumed") // consumed, refunded
-  createdAt           DateTime @default(now())
+model InstructorCourseCredit {
+  id                String   @id @default(cuid())
+  instructor_id     String   @unique
+  total_credits     Int      @default(0)
+  used_credits      Int      @default(0)
+  remaining_credits Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  user              User     @relation(fields: [instructor_id], references: [id])
+
+  @@map("instructor_course_credits")
+}
+
+model InstructorCreditTransaction {
+  id             String   @id @default(cuid())
+  instructor_id  String
+  order_id       String?
+  course_id      String?
+  type           String   // purchase, use, refund, adjust
+  credits        Int
+  balance_before Int
+  balance_after  Int
+  note           String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  user           User     @relation(fields: [instructor_id], references: [id])
+  order          Order?   @relation(fields: [order_id], references: [id])
+  course         Course?  @relation(fields: [course_id], references: [id])
+
+  @@unique([order_id, type])
+
+  @@map("instructor_credit_transactions")
+}
+
+model Coupon {
+  id               String   @id @default(cuid())
+  user_id          String?
+  course_id        String?
+  code             String   @unique
+  name             String
+  description      String?
+  discount_type    String   // percent, fixed
+  discount_value   Float
+  max_order_amount Float?
+  usage_limit      Int?
+  used_count       Int      @default(0)
+  start_at         DateTime?
+  end_at           DateTime?
+  status           String   @default("active") // active, inactive, expired
+
+  user             User?    @relation(fields: [user_id], references: [id])
+  course           Course?  @relation(fields: [course_id], references: [id])
+
+  @@map("coupons")
+}
+
+model Revenue {
+  id                   String   @id @default(cuid())
+  instructor_id        String
+  course_id            String?
+  order_id             String?
+  gross_amount         Float
+  instructor_amount    Float
+  platform_fee_amount  Float
+  status               String   @default("pending") // pending, available, paid
+  earned_at            DateTime @default(now())
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  user                 User     @relation(fields: [instructor_id], references: [id])
+  course               Course?  @relation(fields: [course_id], references: [id])
+
+  @@map("revenues")
 }

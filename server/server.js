@@ -9,6 +9,9 @@ const contactRoutes = require('./routes/contactRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const userRoutes = require('./routes/userRoutes');
 const instructorRoutes = require('./routes/instructorRoutes');
+const packageRoutes = require('./routes/packageRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const creditRoutes = require('./routes/creditRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +31,9 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/instructors', instructorRoutes);
+app.use('/api/packages', packageRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/credits', creditRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

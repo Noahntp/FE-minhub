@@ -752,6 +752,22 @@ export default function AdminDashboard({
     }
   };
   const [coursePackages, setCoursePackages] = useState<any[]>([]);
+  const [adminPackageOrders, setAdminPackageOrders] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const pkgs = await ApiService.getCoursePackages();
+        setCoursePackages(pkgs);
+        const orders = await ApiService.getAdminPackageOrders();
+        setAdminPackageOrders(orders);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchData();
+  }, [activeTab]);
+
   const [testResult, setTestResult] = useState<{
     status: 'idle' | 'testing' | 'success' | 'failed';
     message: string;
@@ -2967,6 +2983,56 @@ export default function AdminDashboard({
                   </div>
                 ))
               )}
+            </div>
+
+            {/* Orders Table */}
+            <div className="mt-8">
+              <h3 className="text-base font-display font-bold text-main-normal mb-4">Giao dịch mua Gói Lượt tạo</h3>
+              <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-stone-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold text-stone-600">Thời gian</th>
+                      <th className="px-4 py-3 font-semibold text-stone-600">Giảng viên</th>
+                      <th className="px-4 py-3 font-semibold text-stone-600">Gói đã mua</th>
+                      <th className="px-4 py-3 font-semibold text-stone-600">Số tiền (VND)</th>
+                      <th className="px-4 py-3 font-semibold text-stone-600">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {adminPackageOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-6 text-stone-400">Chưa có giao dịch nào</td>
+                      </tr>
+                    ) : (
+                      adminPackageOrders.map(order => (
+                        <tr key={order.id} className="hover:bg-stone-50">
+                          <td className="px-4 py-3 text-stone-500">
+                            {new Date(order.created_at).toLocaleString('vi-VN')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-bold">{order.user?.name || order.user_id}</div>
+                            <div className="text-stone-400 text-[10px]">{order.user?.email}</div>
+                          </td>
+                          <td className="px-4 py-3 font-medium text-stone-800">
+                            {order.package_snapshot_name} <span className="text-emerald-600 font-bold ml-1">(+{order.package_snapshot_credits})</span>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-brand-dark font-mono">
+                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.amount)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {order.status === 'paid' ? (
+                              <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-[10px] font-bold uppercase">Thành công</span>
+                            ) : (
+                              <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-[10px] font-bold uppercase">{order.status}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
