@@ -30,7 +30,7 @@ const initializeDB = (): DatabaseState => {
   }
 
   const defaultState: DatabaseState = {
-    users: [INITIAL_USER, ...SYSTEM_ROLE_USERS],
+    users: [INITIAL_USER, ...Object.values(SYSTEM_ROLE_USERS)],
     courses: INITIAL_COURSES,
     orders: [],
     favorites: INITIAL_FAVORITES,
@@ -173,6 +173,15 @@ export const MockDB = {
     MockDB.commit({ accountRequests: updated });
     return updated.find(r => r.id === id) as AccountRequest;
   },
+  updatePayoutRequest: async (requestId: string, updates: Partial<PayoutRequest>) => {
+    const state = MockDB.getState();
+    const reqIndex = state.payoutRequests.findIndex((r: PayoutRequest) => r.id === requestId);
+    if (reqIndex !== -1) {
+      state.payoutRequests[reqIndex] = { ...state.payoutRequests[reqIndex], ...updates };
+      MockDB.commit(state);
+    }
+  },
+
   createAccountRequest: async (request: AccountRequest) => {
     await delay();
     MockDB.commit({ accountRequests: [request, ...dbState.accountRequests] });
