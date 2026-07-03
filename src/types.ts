@@ -111,7 +111,7 @@ export interface Course {
   description: string;
   category: string;
   subcategory: string;
-  instructorId?: string;
+  instructorId: string;
   instructorName: string;
   instructorTitle: string;
   instructorAvatar: string;
@@ -157,6 +157,17 @@ export interface Order {
   total: number;
   status: 'success' | 'pending' | 'failed';
   paymentMethod: string;
+}
+
+export interface PackageOrder {
+  id: string;
+  order_code: string;
+  amount: number;
+  package_snapshot_name: string;
+  package_snapshot_credits: number;
+  status: 'pending' | 'paid' | 'failed';
+  paymentMethod?: string;
+  createdAt?: string;
 }
 
 export interface Notification {

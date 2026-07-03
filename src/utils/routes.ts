@@ -23,6 +23,9 @@ export const AppRoutes = {
   
   // Public Instructor Profile
   publicInstructor: (userId: string | number) => `/instructors/${userId}`,
+  
+  // Public Instructor Courses
+  instructorCourses: (userId: string | number) => `/instructors/${userId}/courses`,
 
   // Instructor Packages
   instructorPackages: (userId: string | number) => `/instructor/${userId}/course-credit-packages`,

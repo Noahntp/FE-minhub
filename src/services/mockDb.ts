@@ -14,6 +14,7 @@ export interface DatabaseState {
   payoutRequests: PayoutRequest[];
   flaggedReviews: FlaggedItem[];
   instructorQuota: { remaining: number; totalPurchased: number };
+  packageOrders: any[];
 }
 
 const DB_KEY = 'mindhub_mock_database';
@@ -43,7 +44,8 @@ const initializeDB = (): DatabaseState => {
     accountRequests: [],
     payoutRequests: PAYOUT_REQUESTS_MOCK,
     flaggedReviews: FLAGGED_REVIEWS_MOCK,
-    instructorQuota: { remaining: 0, totalPurchased: 0 }
+    instructorQuota: { remaining: 0, totalPurchased: 0 },
+    packageOrders: []
   };
 
   saveDB(defaultState);
@@ -94,9 +96,56 @@ export const MockDB = {
     return newQuota;
   },
 
+  getPackageOrder: async (orderCode: string) => {
+    await delay();
+    return dbState.packageOrders.find(o => o.order_code === orderCode) || null;
+  },
+
+  createPackageOrder: async (order: any) => {
+    await delay();
+    const newOrder = { ...order, createdAt: new Date().toISOString() };
+    MockDB.commit({ packageOrders: [newOrder, ...dbState.packageOrders] });
+    return newOrder;
+  },
+
+  updatePackageOrder: async (orderCode: string, updates: any) => {
+    await delay();
+    const updated = dbState.packageOrders.map(o => o.order_code === orderCode ? { ...o, ...updates } : o);
+    MockDB.commit({ packageOrders: updated });
+    return updated.find(o => o.order_code === orderCode);
+  },
+
   updateCourse: async (id: string, updates: Partial<Course>) => {
     await delay();
     const updatedCourses = dbState.courses.map(c => c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c);
+    MockDB.commit({ courses: updatedCourses });
+    return updatedCourses.find(c => c.id === id);
+  },
+
+  createCourseDraft: async (course: Course) => {
+    await delay();
+    const newCourse = { ...course, status: (course.status || 'draft') as any, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    MockDB.commit({ courses: [newCourse, ...dbState.courses] });
+    return newCourse;
+  },
+
+  submitCourseForReview: async (id: string) => {
+    await delay();
+    const updatedCourses = dbState.courses.map(c => c.id === id ? { ...c, status: 'pending' as any, updatedAt: new Date().toISOString() } : c);
+    MockDB.commit({ courses: updatedCourses });
+    return updatedCourses.find(c => c.id === id);
+  },
+
+  approveCourse: async (id: string) => {
+    await delay();
+    const updatedCourses = dbState.courses.map(c => c.id === id ? { ...c, status: 'active' as any, updatedAt: new Date().toISOString() } : c);
+    MockDB.commit({ courses: updatedCourses });
+    return updatedCourses.find(c => c.id === id);
+  },
+
+  rejectCourse: async (id: string, reason: string) => {
+    await delay();
+    const updatedCourses = dbState.courses.map(c => c.id === id ? { ...c, status: 'rejected' as any, rejectionReason: reason, updatedAt: new Date().toISOString() } : c);
     MockDB.commit({ courses: updatedCourses });
     return updatedCourses.find(c => c.id === id);
   },

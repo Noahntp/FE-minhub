@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ApiService } from '../services/api';
 import { CourseCreditPackage, User } from '../types';
-import { ShieldCheck, Tag, CreditCard, CheckCircle, Package, ArrowLeft, Loader2, Landmark, Zap } from 'lucide-react';
+import { ShieldCheck, Tag, CreditCard, CheckCircle, Package, ArrowLeft, Loader2, Landmark, Zap, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '../utils/format';
 
 interface PackageCheckoutProps {
@@ -66,6 +66,13 @@ export default function PackageCheckout({ packageId, currentUser, onBack, onSucc
       // MOCK DELAY for UX
       await new Promise(resolve => setTimeout(resolve, 1500));
       
+      if (paymentMethod === 'vnpay') {
+        const { paymentUrl } = await ApiService.createVNPayGatewayUrl(order.order_code);
+        window.location.href = paymentUrl;
+        return; // Halt execution while page redirects
+      }
+
+      // Fallback/Mock for other methods like momo or bank_transfer
       const res = await ApiService.confirmPackagePayment({
         orderCode: order.order_code,
         paymentMethod

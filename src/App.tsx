@@ -14,7 +14,7 @@ import { loadAndCleanUploadedSongs, saveUploadedSong, deleteUploadedSong, valida
 import { 
   INITIAL_USER, SYSTEM_ROLE_USERS, INITIAL_COURSES, 
   INITIAL_NOTIFICATIONS, INITIAL_FAVORITES, FLAGGED_REVIEWS_MOCK, 
-  PAYOUT_REQUESTS_MOCK, INITIAL_BANNERS
+  PAYOUT_REQUESTS_MOCK, INITIAL_BANNERS, INSTRUCTORS_DATA
 } from './data';
 import { Course, User as UserType, Order, FlaggedItem, PayoutRequest, Notification, AccountRequest, Lesson, Banner, normalizeUser } from './types';
 import { safeLocalStorage as localStorage } from './utils/safeStorage';
@@ -27,6 +27,7 @@ import CartAndCheckout from './components/CartAndCheckout';
 import CategoryFilterBar from './components/CategoryFilterBar';
 import { ProfilePage } from './components/ProfilePage';
 import ClassroomScreen from './components/ClassroomScreen';
+import InstructorCoursesPage from './components/InstructorCoursesPage';
 import InstructorDashboard from './components/InstructorDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import { FreePreviewModal } from './components/FreePreviewModal';
@@ -38,6 +39,7 @@ import CourseQA from './components/CourseQA';
 import PackageList from './components/PackageList';
 import PackageDetail from './components/PackageDetail';
 import PackageCheckout from './components/PackageCheckout';
+import VNPayReturn from './components/VNPayReturn';
 
 // Simple custom intersection observer wrapper to achieve smooth scroll animations
 interface ScrollRevealProps {
@@ -82,59 +84,6 @@ function ScrollReveal({ children, delayMs = 0 }: ScrollRevealProps) {
   );
 }
 
-const INSTRUCTORS_DATA = [
-  {
-    id: 'inst-1',
-    name: 'Dr. Lê Quốc Khánh',
-    title: 'Cựu Kỹ sư nghiên cứu Google Brain',
-    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
-    bio: 'Chuyên gia AI & Deep Learning hàng đầu thế giới, người trực tiếp giảng dạy Next.js, Python & Generative AI Agents.',
-    expertise: 'Artificial Intelligence',
-    expertiseLabel: 'Trí Thức Nhân Tạo',
-    isFeatured: true,
-    rating: 4.9,
-    studentsCount: 3420,
-    coursesCount: 4,
-    social: {
-      github: 'https://github.com',
-      linkedin: 'https://linkedin.com'
-    }
-  },
-  {
-    id: 'inst-2',
-    name: 'Sarah Nguyễn',
-    title: 'Lead Product Designer tại Figma Việt Nam',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150',
-    bio: 'Nhà thiết kế trải nghiệm xuất sắc, làm chủ các Plugin UI/UX Figma và Midjourney phục vụ thiết kế sản phẩm số.',
-    expertise: 'Design',
-    expertiseLabel: 'Thiết Kế Mỹ Thuật',
-    isFeatured: true,
-    rating: 4.8,
-    studentsCount: 1850,
-    coursesCount: 2,
-    social: {
-      github: '#',
-      linkedin: 'https://linkedin.com'
-    }
-  },
-  {
-    id: 'inst-3',
-    name: 'Minh Beta',
-    title: 'Thạc sĩ Quản trị Kinh doanh Harvard',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200',
-    bio: 'Nhà sáng lập tài ba, truyền cảm hứng kinh doanh số, phễu bán hàng Marketing và xu thế tự động đột phá.',
-    expertise: 'Marketing',
-    expertiseLabel: 'Kinh Doanh Số',
-    isFeatured: false,
-    rating: 4.7,
-    studentsCount: 950,
-    coursesCount: 1,
-    social: {
-      github: '#',
-      linkedin: '#'
-    }
-  }
-];
 
 export default function App() {
   // --- CORE STATE MANAGERS ---
@@ -187,6 +136,9 @@ export default function App() {
   };
 
   const getRouteFromPath = (path: string) => {
+    if (typeof window !== 'undefined' && window.location.search.includes('route=vnpay-return')) return 'vnpay-return';
+    if (path.startsWith('/vnpay-return')) return 'vnpay-return';
+    
     if (path.startsWith('/login')) return 'login';
     if (path.startsWith('/register')) return 'register';
     if (path.startsWith('/forgot-password')) return 'forgot-password';
@@ -206,6 +158,7 @@ export default function App() {
     if (path.match(/^\/admin\/([^/]+)\/dashboard/) || path.startsWith('/admin')) return 'admin';
     
     if (path.startsWith('/instructor-profile')) return 'instructor-profile';
+    if (path.match(/^\/instructors\/[^/]+\/courses/)) return 'instructor-courses-page';
     
     if (path.match(/^\/instructor\/[^/]+\/course-credit-packages\/[^/]+\/checkout/)) return 'instructor-package-checkout';
     if (path.match(/^\/instructor\/[^/]+\/course-credit-packages\/[^/]+/)) return 'instructor-package-detail';
@@ -382,60 +335,44 @@ export default function App() {
     return () => window.removeEventListener('mindhub-api-mode-changed', handleModeChange);
   }, []);
 
-  // Live Load Data Effect when Switching into API mode vs Mock Mode
+  const fetchAllCourses = async () => {
+    try {
+      const coursList = await ApiService.getCourses();
+      setCourses(coursList || []);
+    } catch (e) {
+      console.warn('Lỗi kết nối hoặc fetch courses:', e);
+      setCourses([]);
+    }
+  };
+
+  // Live Load Data Effect
   useEffect(() => {
     let active = true;
-    if (apiConfigMode === 'api') {
-      console.log('🔌 Connecting to Live Backend Database via API...');
-      
-      // Load categories from database with count
-      ApiService.getCategoriesWithCount().then(cats => {
-        if (!active) return;
-        if (cats && cats.length > 0) {
-          setCategoriesWithCount(cats);
-          setCategoriesList(['All', ...cats.map(c => c.name)]);
-        }
-      }).catch(e => console.warn('Lỗi nạp danh mục DB:', e));
-
-      // Load user enrollments and history if logged in
-      if (currentUser && currentUser.id) {
-        ApiService.getUserEnrollments(currentUser.id).then(enrollments => {
-          if (!active) return;
-          const completed = enrollments.filter(e => e.progress === 100);
-          setCompletedCoursesList(completed);
-        }).catch(e => console.warn('Lỗi nạp khóa học đã hoàn thành:', e));
-
-        ApiService.getUserActivities(currentUser.id).then(activities => {
-          if (!active) return;
-          setLearningHistory(activities);
-        }).catch(e => console.warn('Lỗi nạp lịch sử học:', e));
+    
+    // Always use ApiService (which handles Mock vs API mode internally)
+    fetchAllCourses();
+    
+    ApiService.getCategoriesWithCount().then(cats => {
+      if (!active) return;
+      if (cats && cats.length > 0) {
+        setCategoriesWithCount(cats);
+        setCategoriesList(['All', ...cats.map(c => c.name)]);
       }
+    }).catch(e => console.warn('Lỗi nạp danh mục DB:', e));
 
-      // Load courses from backend via ApiService (which uses MockDB if in mock mode)
-      ApiService.getCourses().then(coursList => {
+    if (currentUser && currentUser.id) {
+      ApiService.getUserEnrollments(currentUser.id).then(enrollments => {
         if (!active) return;
-        if (coursList && coursList.length > 0) {
-          setCourses(coursList);
-        } else {
-          setCourses([]);
-        }
-      }).catch(e => {
-        console.warn('Lỗi kết nối API Backend thật:', e);
-        setCourses([]);
-      });
+        const completed = enrollments.filter(e => e.progress === 100);
+        setCompletedCoursesList(completed);
+      }).catch(e => console.warn('Lỗi nạp khóa học đã hoàn thành:', e));
 
-      ApiService.getFeaturedCourses().then(featured => {
+      ApiService.getUserActivities(currentUser.id).then(activities => {
         if (!active) return;
-        setFeaturedCourses(featured);
-      }).catch(e => console.warn('Lỗi nạp khóa học nổi bật:', e));
-
-      ApiService.getBestsellerCourses().then(bestsellers => {
-        if (!active) return;
-        setBestsellerCourses(bestsellers);
-      }).catch(e => console.warn('Lỗi nạp khóa học bán chạy:', e));
-
-      // Load student enrolled courses if logged in and not guest
-      if (currentUser && currentUser.id !== 'u-guest') {
+        setLearningHistory(activities);
+      }).catch(e => console.warn('Lỗi nạp lịch sử học:', e));
+      
+      if (currentUser.id !== 'u-guest') {
         ApiService.getMyEnrolledCourses().then(enrolledList => {
           if (!active) return;
           if (enrolledList && enrolledList.length > 0) {
@@ -443,23 +380,17 @@ export default function App() {
           }
         }).catch(e => console.warn('Lỗi nạp lịch sử học khóa học DB:', e));
       }
-    } else {
-      // Restore cached or default static mockup data in Mock Mode
-      const storedCourses = localStorage.getItem('mindhub_courses_db');
-      if (storedCourses) {
-        try {
-          const parsed = JSON.parse(storedCourses);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setCourses(parsed);
-          }
-        } catch {
-          setCourses(INITIAL_COURSES);
-        }
-      } else {
-        setCourses(INITIAL_COURSES);
-      }
-      setCategoriesList(['All', 'Development', 'Design', 'Marketing', 'Artificial Intelligence', 'Business & Startup', 'Data Science', 'Cybersecurity']);
     }
+
+    ApiService.getFeaturedCourses().then(featured => {
+      if (!active) return;
+      setFeaturedCourses(featured);
+    }).catch(e => console.warn('Lỗi nạp khóa học nổi bật:', e));
+
+    ApiService.getBestsellerCourses().then(bestsellers => {
+      if (!active) return;
+      setBestsellerCourses(bestsellers);
+    }).catch(e => console.warn('Lỗi nạp khóa học bán chạy:', e));
 
     return () => {
       active = false;
@@ -1294,24 +1225,49 @@ export default function App() {
   };
 
   // --- INSTRUCTOR & MODERATION CRUD DISPATCHERS ---
-  const handleCreateCourseDraft = (newC: Course) => {
-    setCourses(prev => [newC, ...prev]);
+  const handleCreateCourseDraft = async (newC: Course) => {
+    try {
+      await ApiService.createCourseDraft(newC);
+      await fetchAllCourses();
+    } catch (e: any) {
+      alert('Lỗi tạo khóa học nháp: ' + e.message);
+    }
   };
 
-  const handleUpdateCourse = (updatedC: Course) => {
-    setCourses(prev => prev.map(c => c.id === updatedC.id ? updatedC : c));
+  const handleUpdateCourse = async (updatedC: Course) => {
+    try {
+      await ApiService.updateCourse(updatedC.id, updatedC);
+      await fetchAllCourses();
+    } catch (e: any) {
+      alert('Lỗi cập nhật khóa học: ' + e.message);
+    }
   };
 
-  const handleDeleteCourse = (courseId: string) => {
-    setCourses(prev => prev.filter(c => c.id !== courseId));
+  const handleDeleteCourse = async (courseId: string) => {
+    try {
+      await ApiService.deleteCourse(courseId);
+      await fetchAllCourses();
+    } catch (e: any) {
+      alert('Lỗi xóa khóa học: ' + e.message);
+    }
   };
 
-  const handleApproveCourse = (courseId: string) => {
-    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'active' } : c));
+  const handleApproveCourse = async (courseId: string) => {
+    try {
+      await ApiService.approveCourse(courseId);
+      await fetchAllCourses();
+    } catch (e: any) {
+      alert('Lỗi duyệt khóa học: ' + e.message);
+    }
   };
 
-  const handleRejectCourse = (courseId: string, reason: string) => {
-    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'rejected', rejectionReason: reason } : c));
+  const handleRejectCourse = async (courseId: string, reason: string) => {
+    try {
+      await ApiService.rejectCourse(courseId, reason);
+      await fetchAllCourses();
+    } catch (e: any) {
+      alert('Lỗi từ chối khóa học: ' + e.message);
+    }
   };
 
   const handleResolveFlag = (flagId: string, action: 'dismiss' | 'resolved') => {
@@ -1602,17 +1558,8 @@ export default function App() {
       }
     }, 120);
   };
-
-  const handleSelectInstructorCourses = (name: string) => {
-    setSearchQuery(name);
-    setSelectedCategory('All');
-    setSelectedSubcategory('All');
-    setTimeout(() => {
-      const el = document.getElementById('available-courses-section') || document.getElementById('courses-explorer');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
+  const handleSelectInstructorCourses = (id: string, name: string) => {
+    navigateTo(AppRoutes.instructorCourses(id));
   };
 
   const renderCourseCard = (c: Course) => {
@@ -3619,6 +3566,16 @@ export default function App() {
               <h2 className="text-2xl font-bold">Truy Cập Bị Từ Chối</h2>
             </div>
           )
+        ) : activeTab === 'vnpay-return' ? (
+          <VNPayReturn 
+            onGoToDashboard={() => {
+              if (currentUser) {
+                navigateTo(AppRoutes.instructorDashboard(currentUser.id));
+              } else {
+                navigateTo('login');
+              }
+            }} 
+          />
         ) : activeTab === 'instructor-package-checkout' ? (
           (currentUser.role === 'instructor' && currentUser.id === routeUserId && routePackageId) ? (
             <PackageCheckout 
@@ -4734,11 +4691,11 @@ export default function App() {
                           {/* Action button */}
                           <button 
                             type="button"
-                            onClick={() => handleSelectInstructorCourses(inst.name)}
+                            onClick={() => handleSelectInstructorCourses(inst.id, inst.name)}
                             className="w-full bg-[#faf6f2] hover:bg-brand-normal hover:text-white text-[#8b5e3c] border border-brand-light-active py-2 rounded-xl text-[11px] font-bold transition-all text-center flex items-center justify-center gap-1 group cursor-pointer"
                           >
-                            <span>Xem các khóa học</span>
-                            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                            <span className="group-hover:text-white">Xem các khóa học</span>
+                            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:text-white transition-transform" />
                           </button>
                         </div>
                       ))}
@@ -4834,7 +4791,7 @@ export default function App() {
                   );
                 })()}
               </div>
-            </ScrollReveal>� 
+            </ScrollReveal>
 
 
 
@@ -5762,7 +5719,17 @@ export default function App() {
           )
         )}
 
-        {/* --- 4. AUTH SCREENS --- */}
+        {/* --- 4. INSTRUCTOR COURSES PUBLIC PAGE --- */}
+        {activeTab === 'instructor-courses-page' && (
+          <InstructorCoursesPage
+            instructorId={routeUserId || ''}
+            navigateTo={navigateTo}
+            renderCourseCard={renderCourseCard}
+            currentUser={currentUser}
+          />
+        )}
+
+        {/* --- 5. AUTH SCREENS --- */}
         {/* AuthScreens moved outside of main layout */}
 
         {/* --- 5. CART AND CHECKOUT --- */}

@@ -431,6 +431,33 @@ export const ApiService = {
   },
 
   /** GET /courses (search and filters) */
+  async getPublicCoursesByInstructor(instructorId: string): Promise<Course[]> {
+    const start = Date.now();
+    try {
+      if (config.mode === 'api') {
+        const response = await fetch(`${config.baseUrl}/courses/instructor/${instructorId}`);
+        if (!response.ok) throw new Error('API fetch failed');
+        return await response.json();
+      }
+      // Mock logic
+      const allCourses = await MockDB.getCourses();
+      // Match by instructorId
+      return allCourses.filter(c => 
+        c.instructorId === instructorId && 
+        c.status === 'active' && 
+        !c.isHidden
+      );
+    } catch (err) {
+      return (await MockDB.getCourses()).filter(c => 
+        c.instructorId === instructorId && 
+        c.status === 'active' && 
+        !c.isHidden
+      );
+    } finally {
+      devLog('API', `getCoursesByInstructor(${instructorId})`, { duration: Date.now() - start });
+    }
+  },
+
   async getCourses(filters?: any): Promise<Course[]> {
     devLog('Catalog', 'Fetch all active public courses', filters);
     if (config.mode === 'api') {
@@ -966,7 +993,6 @@ export const ApiService = {
     return { success: true };
   },
 
-  /** POST /payments/vnpay/create */
   async createVNPayGatewayUrl(orderId: string): Promise<{ paymentUrl: string }> {
     devLog('Orders', `Redirect to VNPay gateway portal checkouts for Order ${orderId}`);
     if (config.mode === 'api') {
@@ -975,7 +1001,8 @@ export const ApiService = {
         body: JSON.stringify({ order_id: orderId }),
       });
     }
-    return { paymentUrl: 'https://vnpay.vn/test-checkout-mock-gateway' };
+    // Mock local redirect format for testing
+    return { paymentUrl: `/?route=vnpay-return&vnp_TxnRef=${orderId}&vnp_ResponseCode=00` };
   },
 
   /** GET /payments/vnpay-return */
@@ -1036,7 +1063,7 @@ export const ApiService = {
         body: JSON.stringify(course),
       });
     }
-    return course;
+    return MockDB.createCourseDraft(course);
   },
 
   /** PATCH /instructor/courses/{id} */
@@ -1048,7 +1075,7 @@ export const ApiService = {
         body: JSON.stringify(courseData),
       });
     }
-    return courseData as any;
+    return MockDB.updateCourse(courseId, courseData) as Promise<Course>;
   },
 
   /** DELETE /instructor/courses/{id} -> Mapping backward compatibility with standard deleteCourse */
@@ -1076,12 +1103,35 @@ export const ApiService = {
     return [];
   },
 
-  /** POST /instructor/courses/{id}/submit */
   async submitCourseToAdminVerification(courseId: string): Promise<{ success: boolean }> {
     devLog('Instructor', `Lock blueprint of workspace ${courseId} and submit to moderators`);
     if (config.mode === 'api') {
       return apiFetch<any>(`/instructor/courses/${courseId}/submit`, { method: 'POST' });
     }
+    await MockDB.submitCourseForReview(courseId);
+    return { success: true };
+  },
+
+  /** POST /admin/courses/{id}/approve */
+  async approveCourse(courseId: string): Promise<{ success: boolean }> {
+    devLog('Admin', `Approve course ID: ${courseId}`);
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/admin/courses/${courseId}/approve`, { method: 'POST' });
+    }
+    await MockDB.approveCourse(courseId);
+    return { success: true };
+  },
+
+  /** POST /admin/courses/{id}/reject */
+  async rejectCourse(courseId: string, reason: string): Promise<{ success: boolean }> {
+    devLog('Admin', `Reject course ID: ${courseId} with reason: ${reason}`);
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/admin/courses/${courseId}/reject`, { 
+        method: 'POST',
+        body: JSON.stringify({ reason }) 
+      });
+    }
+    await MockDB.rejectCourse(courseId, reason);
     return { success: true };
   },
 
@@ -1814,16 +1864,18 @@ export const ApiService = {
     }
     // Mock order creation
     const pkg = await this.getPackageById(payload.packageId);
+    const newOrder = {
+      id: 'ord-' + Date.now(),
+      order_code: 'PKG-MOCK-' + Date.now(),
+      amount: pkg.price,
+      package_snapshot_name: pkg.name,
+      package_snapshot_credits: pkg.credits,
+      status: 'pending'
+    };
+    await MockDB.createPackageOrder(newOrder);
     return {
       success: true,
-      order: {
-        id: 'ord-' + Date.now(),
-        order_code: 'PKG-MOCK-' + Date.now(),
-        amount: pkg.price,
-        package_snapshot_name: pkg.name,
-        package_snapshot_credits: pkg.credits,
-        status: 'pending'
-      }
+      order: newOrder
     };
   },
 
@@ -1837,10 +1889,24 @@ export const ApiService = {
     }
     // Mock confirmation
     let quota = await MockDB.getInstructorQuota();
-    quota.remaining += 1; // Assuming 1 for mock
-    quota.totalPurchased += 1;
+    const order = await MockDB.getPackageOrder(payload.orderCode);
+    if (!order) {
+      throw new Error('Đơn hàng không tồn tại');
+    }
+    if (order.status === 'paid') {
+      return { success: true, order };
+    }
+    
+    quota.remaining += order.package_snapshot_credits;
+    quota.totalPurchased += order.package_snapshot_credits;
     await MockDB.updateInstructorQuota(quota);
-    return { success: true, order: { status: 'paid' } };
+    
+    const updatedOrder = await MockDB.updatePackageOrder(payload.orderCode, { 
+      status: 'paid', 
+      paymentMethod: payload.paymentMethod 
+    });
+    
+    return { success: true, order: updatedOrder };
   },
 
   async getInstructorCreditBalance(instructorId: string): Promise<any> {

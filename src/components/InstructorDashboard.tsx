@@ -281,7 +281,7 @@ function InstructorSecurityPanel({ currentUser }: { currentUser: User }) {
   );
 }
 
-function InstructorPackagesTab({ currentUser, quota }: { currentUser: User, quota: any }) {
+function InstructorPackagesTab({ currentUser, quota, quotaLoading, quotaError, fetchQuota }: { currentUser: User, quota: any, quotaLoading: boolean, quotaError: boolean, fetchQuota: () => void }) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -313,7 +313,16 @@ function InstructorPackagesTab({ currentUser, quota }: { currentUser: User, quot
         </div>
         <div className="mt-6 md:mt-0 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20 min-w-[200px] text-center">
           <span className="block text-sm text-emerald-100 font-bold uppercase mb-1">Lượt khả dụng</span>
-          <span className="text-4xl font-black text-white">{quota.remaining}</span>
+          {quotaLoading ? (
+            <span className="text-xl font-black text-white/70 animate-pulse">Đang tải...</span>
+          ) : quotaError ? (
+            <div className="flex flex-col items-center">
+              <span className="text-xl font-black text-red-300">Lỗi dữ liệu</span>
+              <button onClick={fetchQuota} className="text-xs mt-2 underline text-white hover:text-emerald-100">Thử lại</button>
+            </div>
+          ) : (
+            <span className="text-4xl font-black text-white">{quota.remaining}</span>
+          )}
         </div>
       </div>
 
@@ -415,12 +424,29 @@ export default function InstructorDashboard({
   const [activeTab, setActiveTab] = useState<'analytics' | 'courses' | 'grading' | 'payout' | 'builder' | 'students' | 'security' | 'packages'>('analytics');
 
   const [quota, setQuota] = useState<{ remaining: number, totalPurchased: number }>({ remaining: 0, totalPurchased: 0 });
+  const [quotaLoading, setQuotaLoading] = useState(true);
+  const [quotaError, setQuotaError] = useState(false);
   const [packages, setPackages] = useState<any[]>([]);
 
+  const fetchQuota = () => {
+    setQuotaLoading(true);
+    setQuotaError(false);
+    ApiService.getInstructorCreditBalance(currentUser.id)
+      .then(balance => setQuota({
+        remaining: balance.remaining_credits || 0,
+        totalPurchased: balance.total_credits || 0
+      }))
+      .catch(err => {
+        console.error('Lỗi khi fetch quota:', err);
+        setQuotaError(true);
+      })
+      .finally(() => setQuotaLoading(false));
+  };
+
   useEffect(() => {
-    ApiService.getInstructorQuota().then(setQuota).catch(console.error);
+    fetchQuota();
     ApiService.getCoursePackages().then(setPackages).catch(console.error);
-  }, []);
+  }, [currentUser.id]);
   
   // --- BUILDER WIZARD STATES ---
   const [builderStep, setBuilderStep] = useState<number>(1);
@@ -1000,6 +1026,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
       enrolledCount: editingCourseId ? (courses.find(c => c.id === editingCourseId)?.enrolledCount || 10) : 0,
       completionRate: editingCourseId ? (courses.find(c => c.id === editingCourseId)?.completionRate || 92) : 0,
       image,
+      instructorId: currentUser.id,
       instructorName: currentUser.name,
       instructorTitle: 'Giảng viên chuyên môn tại MindHub',
       instructorAvatar: currentUser.avatar,
@@ -1021,42 +1048,13 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     };
 
     if (editingCourseId) {
-      if (ApiService.getConfig().mode === 'api') {
-        ApiService.updateCourse(editingCourseId, payload)
-          .then((updatedFromApi) => {
-            onUpdateCourse(updatedFromApi);
-            alert('Đã cập nhật chỉnh sửa khóa học lên database thành công!');
-          })
-          .catch((err) => {
-            alert('Lỗi khi cập nhật khóa học lên database: ' + (err.message || err.toString()));
-          });
-      } else {
-        onUpdateCourse(payload);
-        alert('Đã cập nhật chỉnh sửa khóa học thành công! Giáo án đã được chuyển sang trạng thái chờ duyệt thẩm định.');
-      }
+      onUpdateCourse(payload);
+      alert('Đã cập nhật chỉnh sửa khóa học thành công! Giáo án đã được chuyển sang trạng thái chờ duyệt thẩm định.');
     } else {
-      try {
-        await ApiService.deductQuotaForCourse({ courseId: payload.id });
-        const newQuota = await ApiService.getInstructorQuota();
-        setQuota(newQuota);
-      } catch (err: any) {
-        alert(err.message || 'Lỗi khi trừ quota khóa học');
-        return;
-      }
-
-      if (ApiService.getConfig().mode === 'api') {
-        ApiService.createCourseDraft(payload)
-          .then((createdFromApi) => {
-            onCreateCourseDraft(createdFromApi);
-            alert('Đã khởi tạo khóa học mới lên database thành công!');
-          })
-          .catch((err) => {
-            alert('Lỗi khi lưu khóa học mới vào database: ' + (err.message || err.toString()));
-          });
-      } else {
-        onCreateCourseDraft(payload);
-        alert('Đã khởi tạo khóa học mới thành công! Giáo án đã được chuyển lên Ban Kế Hoạch Kiểm Duyệt thẩm định xuất bản.');
-      }
+      onCreateCourseDraft(payload);
+      alert('Đã khởi tạo khóa học mới thành công! Giáo án đã được chuyển lên Ban Kế Hoạch Kiểm Duyệt thẩm định xuất bản.');
+      // Refresh lại quota sau khi push course
+      fetchQuota();
     }
 
     // Clean up local storage drafting states
@@ -2931,7 +2929,13 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
         {/* TAB 8: PACKAGES */}
         {activeTab === 'packages' && (
-          <InstructorPackagesTab currentUser={currentUser} quota={quota} />
+          <InstructorPackagesTab 
+            currentUser={currentUser} 
+            quota={quota} 
+            quotaLoading={quotaLoading} 
+            quotaError={quotaError} 
+            fetchQuota={fetchQuota} 
+          />
         )}
 
       </div>

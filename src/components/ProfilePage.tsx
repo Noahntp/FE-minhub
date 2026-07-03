@@ -84,6 +84,7 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
 
   // Start OTP Flow
   const handleOpenOtp = async (type: 'email' | 'phone', action: typeof otpAction) => {
+    if (!action) return;
     setOtpType(type);
     setOtpAction(action);
     
@@ -100,6 +101,7 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
   };
 
   const handleVerifyOtp = async (otpCode: string): Promise<boolean> => {
+    if (!otpAction) return false;
     try {
       if (otpType === 'phone') {
         const res = await ApiService.verifyPhoneOtp(currentUser.phone || '', otpCode, otpAction);
@@ -114,6 +116,7 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
   };
 
   const handleResendOtp = async () => {
+    if (!otpAction) return;
     if (otpType === 'phone') {
       await ApiService.sendPhoneOtp(currentUser.phone || '', otpAction);
     } else {

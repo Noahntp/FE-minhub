@@ -1,5 +1,59 @@
 import { Course, User, Notification, Order, FlaggedItem, PayoutRequest, AuditLog, Banner } from './types';
 
+export const INSTRUCTORS_DATA = [
+  {
+    id: 'inst-1',
+    name: 'Dr. Lê Quốc Khánh',
+    title: 'Cựu Kỹ sư nghiên cứu Google Brain',
+    avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
+    bio: 'Chuyên gia AI & Deep Learning hàng đầu thế giới, người trực tiếp giảng dạy Next.js, Python & Generative AI Agents.',
+    expertise: 'Artificial Intelligence',
+    expertiseLabel: 'Trí Thức Nhân Tạo',
+    isFeatured: true,
+    rating: 4.9,
+    studentsCount: 3420,
+    coursesCount: 4,
+    social: {
+      github: 'https://github.com',
+      linkedin: 'https://linkedin.com'
+    }
+  },
+  {
+    id: 'inst-2',
+    name: 'Sarah Nguyễn',
+    title: 'Lead Product Designer tại Figma Việt Nam',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150',
+    bio: 'Nhà thiết kế trải nghiệm xuất sắc, làm chủ các Plugin UI/UX Figma và Midjourney phục vụ thiết kế sản phẩm số.',
+    expertise: 'Design',
+    expertiseLabel: 'Thiết Kế Mỹ Thuật',
+    isFeatured: true,
+    rating: 4.8,
+    studentsCount: 1850,
+    coursesCount: 2,
+    social: {
+      github: '#',
+      linkedin: 'https://linkedin.com'
+    }
+  },
+  {
+    id: 'inst-3',
+    name: 'Minh Beta',
+    title: 'Thạc sĩ Quản trị Kinh doanh Harvard',
+    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200',
+    bio: 'Nhà sáng lập tài ba, truyền cảm hứng kinh doanh số, phễu bán hàng Marketing và xu thế tự động đột phá.',
+    expertise: 'Marketing',
+    expertiseLabel: 'Kinh Doanh Số',
+    isFeatured: false,
+    rating: 4.7,
+    studentsCount: 950,
+    coursesCount: 1,
+    social: {
+      github: '#',
+      linkedin: '#'
+    }
+  }
+];
+
 export const INITIAL_USER: User = {
   id: 'u-01',
   name: 'Student Test',
@@ -72,6 +126,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Khóa học này sẽ đưa bạn đi từ số không đến việc xây dựng các ứng dụng web phức tạp, tối ưu hóa SEO hoàn hảo và đạt hiệu năng đỉnh cao với React 19 và Next.js 15. Bạn sẽ được làm quen với các khái niệm đột phá mới nhất như React Compiler, `use` Hook, các tính năng Server Actions trực tiếp mà không cần backend API truyền thống.',
     category: 'Development',
     subcategory: 'Web Development',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -241,6 +296,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Biến kỹ năng thiết kế của bạn trở nên vượt bậc bằng cách kết hợp sức mạnh sáng tạo không giới hạn của trí tuệ nhân tạo thế hệ mới vào quy trình UI/UX truyền thống của Figma. Bạn sẽ học cách tạo assets, hình minh họa tuyệt đẹp từ câu lệnh text, tự động tối ưu hóa bản phác thảo và chỉnh sửa giao diện nhanh chóng.',
     category: 'Design',
     subcategory: 'UI/UX Design',
+    instructorId: 'inst-2',
     instructorName: 'Sarah Nguyễn',
     instructorTitle: 'Design Lead tại VinFast',
     instructorAvatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=150',
@@ -316,6 +372,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Học cách tạo ra các Trợ lý thông minh tự động đọc tài liệu, gửi mail, tự tìm kiếm thông tin và phân tích tài chính. Đây là kỹ năng được săn đón nhất trong kỉ nguyên AI hóa doanh nghiệp.',
     category: 'Artificial Intelligence',
     subcategory: 'AI Engineering',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -369,6 +426,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Hướng dẫn từ tư duy sản phẩm số, định vị thương hiệu cá nhân, đến các kỹ năng chạy chiến dịch affiliate đạt hoa hồng khủng trên TikTok Shop, Shopee và các mạng tiếp thị quốc tế.',
     category: 'Marketing',
     subcategory: 'Affiliate Marketing',
+    instructorId: 'inst-6',
     instructorName: 'Minh Beta',
     instructorTitle: 'Triệu phú Affiliate',
     instructorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150',
@@ -397,6 +455,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Khóa học này đang ở trạng thái nháp, chờ duyệt để kiểm tra quy trình kiểm duyệt.',
     category: 'Development',
     subcategory: 'Backend Engineering',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -422,6 +481,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Trở thành một DevOps Engineer thực thụ bằng cách học cách tự động hóa hạ tầng phần mềm từ những bước cơ bản đến quy trình triển khai phức tạp trên Google Cloud Platform (GCP) và AWS. Bạn sẽ được thực hành cấu hình Docker, quản lý container với Kubernetes (K8s), và viết pipelines CI/CD hoàn hảo.',
     category: 'Development',
     subcategory: 'DevOps & Infrastructure',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -455,6 +515,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Học cách thiết kế câu lệnh đỉnh cao (Prompt Engineering), xây dựng quy trình tự động hóa tác vụ lặp đi lặp lại và tạo lập các trợ lý ảo thông minh cho doanh nghiệp của bạn. Đây là khóa học bắt buộc phải có để không bị tụt lại phía sau trong kỷ nguyên AI.',
     category: 'Artificial Intelligence',
     subcategory: 'Prompt Engineering',
+    instructorId: 'inst-1',
     instructorName: 'Trần Hà Linh',
     instructorTitle: 'Chuyên gia Thiết kế & AI',
     instructorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150',
@@ -488,6 +549,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Khóa học hướng dẫn toàn diện từ nghiên cứu trải nghiệm khách hàng (UX Research) cho đến thiết kế giao diện chi tiết (UI Design) cho ứng dụng di động iOS & Android. Học cách ứng dụng Auto-layout, Variables, và Component Properties để tạo thư viện thiết kế chuyên nghiệp.',
     category: 'Design',
     subcategory: 'UI/UX Design',
+    instructorId: 'inst-1',
     instructorName: 'Trần Hà Linh',
     instructorTitle: 'Chuyên gia Thiết kế & AI',
     instructorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150',
@@ -521,6 +583,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Trang bị cho bạn tư duy marketing hiện đại kết hợp các chiến thuật tăng trưởng (Growth Hacking) thực chiến. Học cách xây dựng kênh thương hiệu cá nhân, lên kịch bản video ngắn triệu view và vận hành phễu chuyển đổi bán hàng số tự động.',
     category: 'Marketing',
     subcategory: 'Social Media',
+    instructorId: 'inst-6',
     instructorName: 'Minh Beta',
     instructorTitle: 'Triệu phú Affiliate',
     instructorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150',
@@ -554,6 +617,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Tiếp cận xu hướng tương lai của internet với Blockchain, Smart Contract và dApps. Khóa học hướng dẫn bạn từ các nguyên lý cơ bản của Bitcoin, Ethereum cho đến cách viết, kiểm thử và deploy hợp đồng thông minh (Smart Contract) bằng Solidity, kết nối frontend qua Ethers.js.',
     category: 'Development',
     subcategory: 'Blockchain',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -587,6 +651,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Thiết kế trải nghiệm người dùng dành riêng cho các ứng dụng tích hợp trí tuệ nhân tạo đòi hỏi những mô hình tương tác khác biệt. Khóa học này chỉ dạy cách tối ưu hoá giao diện hộp thoại (Chat Interface), thiết kế gợi ý thông minh, giảm thiểu lỗi ảo giác AI và xây dựng hệ thống voice UI tinh gọn.',
     category: 'Design',
     subcategory: 'UI/UX Design',
+    instructorId: 'inst-1',
     instructorName: 'Thái An',
     instructorTitle: 'Creative Director',
     instructorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=150',
@@ -620,6 +685,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Nâng tầm hiệu suất công việc Marketing của bạn lên gấp 10 lần nhờ sự hỗ trợ đắc lực từ AI. Bạn sẽ được học cách huấn luyện trợ lý AI viết bài viết chuẩn SEO, lên chiến lược từ khóa diện rộng và tự động hoá quy trình phân phối nội dung đa kênh hiệu quả.',
     category: 'Marketing',
     subcategory: 'SEO & Content',
+    instructorId: 'inst-6',
     instructorName: 'Minh Beta',
     instructorTitle: 'Triệu phú Affiliate',
     instructorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150',
@@ -653,6 +719,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Khóa học hướng dẫn lập trình full-stack hoàn chỉnh, từ việc xây dựng dịch vụ hậu đài (backend) bằng Spring Boot, Spring Security JWT cho đến việc hiển thị giao diện tiền đài (frontend) bằng React, Redux Toolkit và Tailwind CSS.',
     category: 'Development',
     subcategory: 'Web Development',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -686,6 +753,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Trở thành một nhà thiết kế UI/UX thực thụ với kỹ năng thiết kế chuyên sâu bằng Figma. Bạn sẽ học cách xây dựng một Design System toàn diện, làm việc với Variables, Auto-layout 5.0, tạo tương tác Prototype phức tạp và xuất file giao diện chuẩn chỉ cho lập trình viên.',
     category: 'Design',
     subcategory: 'UI/UX Design',
+    instructorId: 'inst-1',
     instructorName: 'Trần Hoài Nam',
     instructorTitle: 'Product Designer tại VinGroup',
     instructorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150',
@@ -719,6 +787,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Khóa học này đúc kết toàn bộ quy trình xây dựng một dự án SaaS thành công: từ việc nghiên cứu tìm kiếm "vấn đề nhức nhối" của khách hàng, thiết kế bản mẫu (MVP), lập chiến lược giá cho đến kỹ thuật phát triển kênh tiếp thị và tự động hóa quy trình bán hàng.',
     category: 'Business & Startup',
     subcategory: 'SaaS Business',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -755,6 +824,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Trở thành kỹ sư phân tích dữ liệu chuyên nghiệp. Bạn sẽ được học cách làm sạch dữ liệu nhiễu, trực quan hóa thông tin chi tiết bằng matplotlib và seaborn, và huấn luyện các mô hình Machine Learning mạnh mẽ.',
     category: 'Data Science',
     subcategory: 'Machine Learning',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -791,6 +861,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'Khóa học thực chiến cung cấp cho bạn kiến thức chuyên sâu về an ninh mạng: từ việc dò quét lỗ hổng hệ thống, khai thác lỗ hổng ứng dụng web, đến phân tích mã độc và xây dựng bức tường lửa vững chắc để ngăn chặn tin tặc.',
     category: 'Cybersecurity',
     subcategory: 'Ethical Hacking',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     instructorTitle: 'Cựu Kỹ sư Google Brain',
     instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
@@ -891,7 +962,7 @@ export const FLAGGED_REVIEWS_MOCK: FlaggedItem[] = [
 export const PAYOUT_REQUESTS_MOCK: PayoutRequest[] = [
   {
     id: 'pay-1',
-    instructorId: 'u-02',
+    instructorId: 'inst-1',
     instructorName: 'Dr. Lê Quốc Khánh',
     amount: 15000000,
     status: 'pending',
@@ -899,7 +970,7 @@ export const PAYOUT_REQUESTS_MOCK: PayoutRequest[] = [
   },
   {
     id: 'pay-2',
-    instructorId: 'u-05',
+    instructorId: 'inst-2',
     instructorName: 'Sarah Nguyễn',
     amount: 8000000,
     status: 'completed',

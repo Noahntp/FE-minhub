@@ -831,7 +831,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                     <p className="text-xs text-stone-450 italic">Bạn đang chọn: "{activeLesson?.title || 'Bài học chuyên sâu'}"</p>
                   </div>
                   <p className="text-xs leading-relaxed text-stone-500">
-                    Nội dung này thuộc lộ trình đào tạo cao cấp của MindHub. Bạn cần sở hữu hoặc hoàn tất thủ tục đăng ký học phí để kích hoạt đặc quyền tải học liệu, xem video HLS 1080p và nhận chứng chỉ kết khóa chính quy!
+                    Đây là tài nguyên học thuật thuộc dự án thực tế của MindHub. Bạn cần đăng ký khóa học để kích hoạt đặc quyền tải học liệu và truy cập nội dung bài học chuyên sâu.
                   </p>
                   
                   <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl space-y-2 text-left w-full text-xs">
@@ -1794,29 +1794,6 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                     </div>
                   </div>
 
-                  {/* Summary / Certificate Claim */}
-                  <div className="mt-5 pt-4 border-t border-white/5">
-                    {completedLessonsCount === totalLessonsCount && progress.notes.length > 0 ? (
-                      <div className="p-4 bg-emerald-950/20 border border-emerald-500/25 rounded-xl space-y-1">
-                        <p className="font-extrabold text-emerald-400 flex items-center gap-1 text-[11px]"><Award className="w-4 h-4 text-yellow-400 animate-spin" /> BẠN ĐÃ ĐỦ ĐIỀU KIỆN TỐT NGHIỆP</p>
-                        <p className="text-[10px] text-stone-300">Nhận chứng chỉ số danh dự từ MindHub. Mã hiệu học phần kết khóa chính quy:</p>
-                        <code className="block bg-black/40 text-[10px] p-2 rounded text-emerald-300 font-mono text-center select-all">{verificationCode}</code>
-                        <button
-                          type="button"
-                          onClick={() => alert(`🎉 Chúc mừng bạn đã kết thúc khóa học hoàn mĩ! \nMã xác thực: ${verificationCode}\nHọc bạ của bạn đã được kiểm duyệt và lưu trữ bền vững tại Blockchain MindHub.`)}
-                          className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-all"
-                        >
-                          Tải chứng chỉ tốt nghiệp điện tử (PDF PDF)
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-stone-900/30 border border-stone-800/70 rounded-xl">
-                        <p className="text-gray-300 text-[10.5px] leading-relaxed">
-                          📌 Bạn có <span className="font-bold text-amber-500">{(completedLessonsCount === totalLessonsCount && progress.notes.length > 0) ? "0" : "1 vài"} tiêu chí cần bổ khuyết</span>. Vui lòng rèn luyện nốt để lấy chứng chỉ bảo chứng nhé!
-                        </p>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 {/* 3. Detailed study logs & history */}

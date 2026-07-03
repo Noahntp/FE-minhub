@@ -1593,6 +1593,7 @@ export default function AdminDashboard({
         description: courseForm.description || 'Mô tả chi tiết nội dung chương trình học.',
         category: courseForm.category,
         subcategory: courseForm.subcategory,
+        instructorId: 'inst-1',
         instructorName: courseForm.instructorName,
         instructorTitle: 'Giảng viên ủy quyền MindHub',
         instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150',
