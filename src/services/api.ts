@@ -696,6 +696,40 @@ export const ApiService = {
     return { success: true, message: 'Mật khẩu của bạn đã được thay đổi thành công.' };
   },
 
+  // Hàm Gửi mã OTP (Khi bấm nút Thay đổi Email/Phone)
+  async sendOtpForContactChange(field: 'email' | 'phone', newValue: string): Promise<{ success: boolean; message: string }> {
+    devLog('Profile', `Gửi mã OTP để thay đổi ${field} thành ${newValue}`);
+    if (config.mode === 'api') {
+      // Endpoint này CẦN ĐƯỢC BACKEND HỖ TRỢ, tạm giả lập request
+      // return apiFetch<{ success: boolean; message: string }>('/auth/send-otp', {
+      //   method: 'POST',
+      //   body: JSON.stringify({ field, value: newValue }),
+      // });
+      return new Promise((resolve) => setTimeout(() => resolve({ success: true, message: 'OTP đã được gửi' }), 1000));
+    }
+    return new Promise((resolve) => setTimeout(() => resolve({ success: true, message: 'OTP đã được gửi (Mock)' }), 500));
+  },
+
+  // Hàm Xác nhận mã OTP
+  async verifyOtpContactChange(field: 'email' | 'phone', newValue: string, otp: string): Promise<{ success: boolean }> {
+    devLog('Profile', `Xác nhận OTP ${otp} cho ${field}: ${newValue}`);
+    if (config.mode === 'api') {
+      // Endpoint này CẦN ĐƯỢC BACKEND HỖ TRỢ, tạm giả lập request
+      // return apiFetch<{ success: boolean }>('/auth/verify-otp-change-contact', {
+      //   method: 'POST',
+      //   body: JSON.stringify({ field, value: newValue, otp_code: otp }),
+      // });
+      return new Promise((resolve, reject) => setTimeout(() => {
+        if (otp === '123456') resolve({ success: true });
+        else reject(new Error('Mã OTP không hợp lệ (Mã test là 123456)'));
+      }, 1000));
+    }
+    return new Promise((resolve, reject) => setTimeout(() => {
+      if (otp === '123456') resolve({ success: true });
+      else reject(new Error('Mã OTP không hợp lệ (Mã test là 123456)'));
+    }, 500));
+  },
+
   // ==========================================
   // MODULE 4. WISHLIST UTILITIES
   // ==========================================

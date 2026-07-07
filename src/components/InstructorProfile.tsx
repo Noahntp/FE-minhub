@@ -1,243 +1,301 @@
-import React, { useState, useEffect } from 'react';
-import { User, Course } from '../types';
+import React, { useState, useEffect, useRef, ChangeEvent, KeyboardEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  User, Mail, Phone, ShieldCheck, 
+  Activity, Calendar, Clock, Edit2, 
+  Save, X, CheckCircle2, Loader2 
+} from 'lucide-react';
 import { ApiService } from '../services/api';
-import { Search, MapPin, Briefcase, Mail, BookOpen, Star, Users, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 
-interface InstructorProfileProps {
-  instructorId: string | null;
-  onBack: () => void;
-  onViewCourse: (course: Course) => void;
-  renderCourseCard: (course: Course) => React.ReactNode;
+export interface InstructorData {
+  full_name: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: 'active' | 'inactive' | 'pending' | string;
+  email_verified_at: string | null;
+  last_login_at: string | null;
 }
 
-export const InstructorProfile: React.FC<InstructorProfileProps> = ({ instructorId, onBack, onViewCourse, renderCourseCard }) => {
-  const [instructor, setInstructor] = useState<User | null>(null);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
+interface InstructorProfileProps {
+  initialData: InstructorData;
+  onSubmit: (data: InstructorData) => void;
+}
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [category, setCategory] = useState('All');
-  const [page, setPage] = useState(1);
-  const limit = 8;
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCourses, setTotalCourses] = useState(0);
+export const InstructorProfile: React.FC<InstructorProfileProps> = ({ initialData, onSubmit }) => {
+  const [formData, setFormData] = useState<InstructorData>(initialData);
+  const [isDirty, setIsDirty] = useState(false);
 
-  const [availableCategories, setAvailableCategories] = useState<string[]>(['All']);
-
-  useEffect(() => {
-    if (!instructorId) return;
-
-    setLoading(true);
-    // Fetch profile
-    ApiService.getInstructorProfile(instructorId)
-      .then(res => setInstructor(res))
-      .catch(e => console.error(e));
-
-  }, [instructorId]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingField, setEditingField] = useState<'email' | 'phone' | null>(null);
+  const [tempValue, setTempValue] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  
+  const [otp, setOtp] = useState<string[]>(new Array(6).fill(''));
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    if (!instructorId) return;
+    const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialData);
+    setIsDirty(hasChanged);
+  }, [formData, initialData]);
 
-    setLoading(true);
-    // Fetch courses with filters
-    ApiService.getInstructorCourses(instructorId, {
-      search: searchQuery,
-      category: category !== 'All' ? category : undefined,
-      page,
-      limit
-    }).then(res => {
-      setCourses(res);
-      setTotalPages(1);
-      setTotalCourses(res.length);
+  const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, full_name: e.target.value });
+  };
+
+  const openEditModal = async (field: 'email' | 'phone') => {
+    setEditingField(field);
+    setTempValue(formData[field]);
+    setOtp(new Array(6).fill(''));
+    setIsModalOpen(true);
+    // Gọi API gửi OTP thực tế ở đây nếu cần thiết:
+    // await ApiService.sendOtpForContactChange(field, formData[field]);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingField(null);
+  };
+
+  const handleOtpChange = (index: number, e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (isNaN(Number(value))) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value.substring(value.length - 1);
+    setOtp(newOtp);
+
+    if (value && index < 5 && otpInputRefs.current[index + 1]) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0 && otpInputRefs.current[index - 1]) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleConfirmModal = async () => {
+    if (!editingField || otp.join('').length !== 6) return;
+    
+    setIsVerifying(true);
+    try {
+      const otpString = otp.join('');
+      // GỌI API THẬT
+      await ApiService.verifyOtpContactChange(editingField, tempValue, otpString);
       
-      // Auto-extract categories from courses if we don't have them
-      // Alternatively we can use a dedicated API
-      if (res.length > 0 && availableCategories.length === 1 && category === 'All' && !searchQuery) {
-        const cats = Array.from(new Set(res.map(c => c.category))).filter(Boolean) as string[];
-        setAvailableCategories(['All', ...cats]);
-      }
-    }).catch(e => console.error(e))
-      .finally(() => setLoading(false));
+      // Nếu API báo OK, ta update giao diện (lúc này chỉ là update local state, 
+      // khi bấm 'Lưu thay đổi' thì mới submit toàn bộ profile)
+      setFormData({ ...formData, [editingField]: tempValue });
+      alert("Xác thực thành công!");
+      closeModal();
+    } catch (error: any) {
+      alert(error.message || "Mã OTP không chính xác hoặc đã hết hạn!");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
-  }, [instructorId, searchQuery, category, page]);
+  const handleSave = () => {
+    if (isDirty) {
+      onSubmit(formData);
+    }
+  };
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, category]);
-
-  if (!instructorId) {
-    return (
-      <div className="p-8 text-center bg-white rounded-3xl border border-stone-200 mt-6 max-w-4xl mx-auto">
-        <p className="text-stone-500">Không tìm thấy thông tin giảng viên.</p>
-        <button onClick={onBack} className="mt-4 px-6 py-2 bg-stone-100 rounded-xl hover:bg-stone-200 font-bold">
-          Quay lại
-        </button>
-      </div>
-    );
-  }
-
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Chưa cập nhật';
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  };
+  
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 space-y-8">
-      {/* Back button */}
-      <button 
-        onClick={onBack}
-        className="flex items-center gap-2 text-stone-500 hover:text-brand-normal font-bold text-sm bg-white border border-stone-200 px-4 py-2 rounded-xl shadow-xs transition-all w-fit"
-      >
-        <ChevronLeft className="w-4 h-4" /> Quay lại
-      </button>
-
-      {/* Instructor Header */}
-      {instructor ? (
-        <div className="bg-white border border-stone-200 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row gap-8 shadow-sm">
-          <div className="flex-shrink-0 flex flex-col items-center gap-4">
-            <img 
-              src={instructor.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor.name)}&background=random`} 
-              alt={instructor.name} 
-              className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-stone-50 shadow-md"
-            />
-            <div className="flex gap-4">
-              <div className="flex flex-col items-center bg-stone-50 p-2.5 rounded-xl border border-stone-150 min-w-[80px]">
-                <span className="text-xl font-black text-brand-dark">{totalCourses}</span>
-                <span className="text-[10px] text-stone-500 font-bold uppercase">Khóa học</span>
-              </div>
-              <div className="flex flex-col items-center bg-stone-50 p-2.5 rounded-xl border border-stone-150 min-w-[80px]">
-                <span className="text-xl font-black text-brand-dark">4.8+</span>
-                <span className="text-[10px] text-stone-500 font-bold uppercase">Đánh giá</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 space-y-4">
-            <div>
-              <h1 className="text-3xl font-black text-deep-ink">{instructor.name}</h1>
-              <p className="text-brand-normal font-bold mt-1 text-sm md:text-base flex items-center gap-2">
-                <Briefcase className="w-4 h-4" /> {instructor.title || 'Giảng viên MindHub'}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3 text-xs font-medium text-stone-500 border-b border-stone-100 pb-4">
-              {instructor.email && (
-                <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {instructor.email}</span>
-              )}
-            </div>
-
-            <div className="text-stone-600 text-sm leading-relaxed whitespace-pre-line">
-              {instructor.bio || 'Chưa có thông tin giới thiệu cho giảng viên này.'}
-            </div>
-          </div>
+    <div className="max-w-4xl mx-auto p-6 lg:p-8 bg-white rounded-3xl shadow-sm border border-slate-100">
+      
+      <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Thông tin tài khoản</h2>
+          <p className="text-slate-500 mt-1 text-sm">Quản lý và cập nhật thông tin cá nhân của bạn</p>
         </div>
-      ) : (
-        <div className="bg-white border border-stone-200 rounded-3xl p-8 flex items-center justify-center min-h-[200px]">
-          <div className="w-8 h-8 border-4 border-brand-normal/30 border-t-brand-normal rounded-full animate-spin"></div>
-        </div>
-      )}
-
-      {/* Instructor Courses Section */}
-      <div className="bg-white border border-stone-200 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-stone-100">
-          <div>
-            <h2 className="text-2xl font-extrabold text-deep-ink flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-brand-normal" /> Các Khóa Học Giảng Dạy
-            </h2>
-            <p className="text-stone-500 text-xs mt-1">Được thiết kế và trực tiếp giảng dạy bởi {instructor?.name || 'giảng viên'}.</p>
-          </div>
-          
-          <div className="bg-pale-cyan text-forest-teal font-bold px-3 py-1.5 rounded-lg text-xs uppercase shadow-xs">
-            {totalCourses} Khóa học
-          </div>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="flex flex-col lg:flex-row gap-4 items-center bg-stone-50 p-3 rounded-2xl border border-stone-200/60">
-          <div className="relative w-full lg:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm khóa học của giảng viên này..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-white border border-stone-250 rounded-xl text-sm focus:ring-2 focus:ring-brand-normal focus:border-brand-normal transition-all"
-            />
-          </div>
-
-          <div className="flex gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-1 lg:pb-0">
-            {availableCategories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`whitespace-nowrap px-4 py-2 text-xs font-bold rounded-xl transition-all border ${
-                  category === cat 
-                    ? 'bg-brand-normal text-white border-brand-normal shadow-sm' 
-                    : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-100'
-                }`}
-              >
-                {cat === 'All' ? 'Tất cả danh mục' : cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Courses Grid */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-brand-normal/30 border-t-brand-normal rounded-full animate-spin"></div>
-          </div>
-        ) : courses.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {courses.map(c => renderCourseCard(c))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 pt-6 pb-2">
-                <button
-                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                  disabled={page === 1}
-                  className="p-2 rounded-xl border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                <div className="flex items-center gap-1.5">
-                  {Array.from({ length: totalPages }).map((_, idx) => {
-                    const pageNum = idx + 1;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={`w-8.5 h-8.5 text-xs font-bold rounded-xl transition-all border ${
-                          pageNum === page
-                            ? 'bg-deep-indigo text-white border-deep-indigo shadow-xs scale-105'
-                            : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50 hover:border-stone-300'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={page === totalPages}
-                  className="p-2 rounded-xl border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white transition-all"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-12 text-gray-400 bg-stone-50 border border-dashed border-stone-300 rounded-2xl p-6">
-            <Filter className="w-12 h-12 mx-auto text-stone-300 mb-3" />
-            <p className="font-semibold text-stone-600">Không tìm thấy khóa học nào phù hợp.</p>
-            <p className="text-xs text-stone-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.</p>
-          </div>
-        )}
+        <span className="px-4 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-semibold flex items-center gap-2">
+          <ShieldCheck size={16} />
+          {formData.role === 'instructor' ? 'Giảng viên' : formData.role}
+        </span>
       </div>
+
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <User size={18} className="text-slate-400" />
+            Họ và tên
+          </label>
+          <input
+            type="text"
+            value={formData.full_name}
+            onChange={handleNameChange}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none font-medium text-slate-700"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <Mail size={18} className="text-slate-400" />
+              Địa chỉ Email
+            </label>
+            <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 group">
+              <span className="text-slate-700 font-medium">{formData.email}</span>
+              <button
+                onClick={() => openEditModal('email')}
+                className="text-indigo-600 hover:text-indigo-700 font-semibold text-sm flex items-center gap-1.5 transition-colors opacity-90 group-hover:opacity-100"
+              >
+                <Edit2 size={14} />
+                Thay đổi
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <Phone size={18} className="text-slate-400" />
+              Số điện thoại
+            </label>
+            <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 group">
+              <span className="text-slate-700 font-medium">{formData.phone}</span>
+              <button
+                onClick={() => openEditModal('phone')}
+                className="text-indigo-600 hover:text-indigo-700 font-semibold text-sm flex items-center gap-1.5 transition-colors opacity-90 group-hover:opacity-100"
+              >
+                <Edit2 size={14} />
+                Thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-100 space-y-1.5">
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <Activity size={14}/> Trạng thái tài khoản
+            </span>
+            <div className="flex items-center mt-1">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5
+                ${formData.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${formData.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                {formData.status === 'active' ? 'Đang hoạt động' : 'Vô hiệu hóa'}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-100 space-y-1.5">
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar size={14}/> Xác thực Email
+            </span>
+            <p className="text-sm font-semibold text-slate-700">{formatDate(formData.email_verified_at)}</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-100 space-y-1.5 sm:col-span-2 lg:col-span-1">
+            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <Clock size={14}/> Đăng nhập cuối
+            </span>
+            <p className="text-sm font-semibold text-slate-700">{formatDate(formData.last_login_at)}</p>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4">
+          <button
+            disabled={!isDirty}
+            onClick={handleSave}
+            className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold transition-all
+              ${isDirty 
+                ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5' 
+                : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+          >
+            <Save size={18} />
+            Lưu thay đổi
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isModalOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeModal}
+              className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40"
+            />
+            
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden pointer-events-auto"
+              >
+                <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                  <h3 className="text-xl font-bold text-slate-800">
+                    Thay đổi {editingField === 'email' ? 'Email' : 'Số điện thoại'}
+                  </h3>
+                  <button onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="p-6 space-y-8">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700">
+                      {editingField === 'email' ? 'Nhập Email mới' : 'Nhập Số điện thoại mới'}
+                    </label>
+                    <input
+                      type={editingField === 'email' ? 'email' : 'tel'}
+                      value={tempValue}
+                      onChange={(e) => setTempValue(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none font-medium"
+                      placeholder={`Ví dụ: ${editingField === 'email' ? 'email@example.com' : '0987654321'}`}
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-sm font-semibold text-slate-700 text-center block">
+                      Mã xác thực OTP (6 chữ số)
+                    </label>
+                    <div className="flex items-center justify-between gap-2">
+                      {otp.map((digit, index) => (
+                        <input
+                          key={index}
+                          ref={(el) => { otpInputRefs.current[index] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(index, e)}
+                          onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                          className="w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-bold text-slate-800 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleConfirmModal}
+                    disabled={otp.join('').length !== 6 || !tempValue || isVerifying}
+                    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isVerifying ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+                    {isVerifying ? 'Đang xác thực...' : 'Xác nhận thay đổi'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

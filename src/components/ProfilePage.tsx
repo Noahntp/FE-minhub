@@ -4,6 +4,7 @@ import { User as UserType } from '../types';
 import { OTPModal } from './OTPModal';
 import { ApiService } from '../services/api';
 import { AppRoutes, RoleLabels } from '../utils/routes';
+import { InstructorProfile } from './InstructorProfile';
 
 const AVAILABLE_AVATARS = [
   "https://i.pravatar.cc/150?img=11",
@@ -387,13 +388,10 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                   </div>
                 )}
 
-                <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8">
-                  <h3 className="text-xl font-bold text-stone-900 border-b border-stone-100 pb-4 mb-6">Thông tin cơ bản</h3>
-                  
-                  <form onSubmit={handleSaveProfile} className="space-y-6">
-                    {/* Avatar selection */}
-                    <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-3">Ảnh đại diện</label>
+                {currentUser.role === 'instructor' ? (
+                  <>
+                    <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8 mb-6">
+                      <h3 className="text-xl font-bold text-stone-900 border-b border-stone-100 pb-4 mb-6">Ảnh đại diện</h3>
                       <div className="flex flex-wrap gap-4 items-center">
                         <div className="relative">
                           <img src={editUser.avatar} alt="Current" className="w-16 h-16 rounded-full object-cover border-2 border-brand-normal" />
@@ -416,54 +414,116 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <InstructorProfile 
+                      initialData={{
+                        full_name: currentUser.name || "",
+                        email: currentUser.email || "",
+                        phone: currentUser.phone || "",
+                        role: currentUser.role,
+                        status: currentUser.status || "active",
+                        email_verified_at: currentUser.isEmailVerified ? (currentUser.createdAt || new Date().toISOString()) : null,
+                        last_login_at: new Date().toISOString()
+                      }}
+                      onSubmit={async (data) => {
+                        setSaving(true);
+                        try {
+                          const updatedUser = {
+                            ...editUser,
+                            name: data.full_name,
+                            phone: data.phone,
+                            email: data.email
+                          };
+                          const res = await ApiService.updateMyProfile(updatedUser);
+                          setCurrentUser(res);
+                          setEditUser(res);
+                          showNotification('Cập nhật hồ sơ giảng viên thành công!');
+                        } catch (err: any) {
+                          showNotification('Lỗi khi lưu thông tin.', true);
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                    />
+                  </>
+                ) : (
+                  <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8">
+                    <h3 className="text-xl font-bold text-stone-900 border-b border-stone-100 pb-4 mb-6">Thông tin cơ bản</h3>
+                    
+                    <form onSubmit={handleSaveProfile} className="space-y-6">
+                      {/* Avatar selection */}
                       <div>
-                        <label className="block text-sm font-semibold text-stone-700 mb-1.5">Họ và tên</label>
-                        <input
-                          type="text"
-                          value={editUser.name}
-                          onChange={(e) => setEditUser({...editUser, name: e.target.value})}
-                          className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
-                          required
-                        />
+                        <label className="block text-sm font-semibold text-stone-700 mb-3">Ảnh đại diện</label>
+                        <div className="flex flex-wrap gap-4 items-center">
+                          <div className="relative">
+                            <img src={editUser.avatar} alt="Current" className="w-16 h-16 rounded-full object-cover border-2 border-brand-normal" />
+                            <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                              <Camera className="w-5 h-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {AVAILABLE_AVATARS.map((av, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setEditUser({ ...editUser, avatar: av })}
+                                className={`w-10 h-10 rounded-full overflow-hidden border-2 transition-transform hover:scale-110 ${editUser.avatar === av ? 'border-brand-normal ring-2 ring-brand-light' : 'border-transparent'}`}
+                              >
+                                <img src={av} alt="Avatar option" className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                      
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-stone-700 mb-1.5">Họ và tên</label>
+                          <input
+                            type="text"
+                            value={editUser.name}
+                            onChange={(e) => setEditUser({...editUser, name: e.target.value})}
+                            className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
+                            required
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-semibold text-stone-700 mb-1.5">
+                            Email <span className="text-xs font-normal text-stone-500">(Không thể tự đổi)</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={editUser.email}
+                            disabled
+                            className="w-full px-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-500 cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+
                       <div>
-                        <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                          Email <span className="text-xs font-normal text-stone-500">(Không thể tự đổi)</span>
-                        </label>
-                        <input
-                          type="email"
-                          value={editUser.email}
-                          disabled
-                          className="w-full px-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-500 cursor-not-allowed"
-                        />
+                        <label className="block text-sm font-semibold text-stone-700 mb-1.5">Giới thiệu ngắn (Bio)</label>
+                        <textarea
+                          value={editUser.bio || ''}
+                          onChange={(e) => setEditUser({...editUser, bio: e.target.value})}
+                          rows={3}
+                          className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors resize-none"
+                          placeholder="Một vài điều về bản thân bạn..."
+                        ></textarea>
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-1.5">Giới thiệu ngắn (Bio)</label>
-                      <textarea
-                        value={editUser.bio || ''}
-                        onChange={(e) => setEditUser({...editUser, bio: e.target.value})}
-                        rows={3}
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors resize-none"
-                        placeholder="Một vài điều về bản thân bạn..."
-                      ></textarea>
-                    </div>
-
-                    <div className="pt-4 border-t border-stone-100 flex justify-end">
-                      <button 
-                        type="submit" 
-                        disabled={saving}
-                        className="bg-brand-normal hover:bg-brand-hover text-white font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
-                      >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                      <div className="pt-4 border-t border-stone-100 flex justify-end">
+                        <button 
+                          type="submit" 
+                          disabled={saving}
+                          className="bg-brand-normal hover:bg-brand-hover text-white font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm disabled:opacity-70 flex items-center gap-2"
+                        >
+                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                          {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
             )}
 
@@ -926,7 +986,6 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
