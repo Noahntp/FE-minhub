@@ -9,6 +9,8 @@ import { User, Course, Chapter, Lesson, Quiz, QuizQuestion, PayoutRequest } from
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import { ApiService } from '../services/api';
 import { CouponManagement } from '../features/Coupons';
+import { InstructorQAModule } from '../features/QA';
+import { MessageSquare } from 'lucide-react';
 
 interface InstructorDashboardProps {
   currentUser: User;
@@ -421,8 +423,8 @@ export default function InstructorDashboard({
   onClose
 }: InstructorDashboardProps) {
   
-  // Tabs: 'analytics' | 'courses' | 'grading' | 'payout' | 'builder' | 'students' | 'security' | 'packages' | 'coupons'
-  const [activeTab, setActiveTab] = useState<'analytics' | 'courses' | 'grading' | 'payout' | 'builder' | 'students' | 'security' | 'packages' | 'coupons'>('analytics');
+  // Tabs: 'analytics' | 'courses' | 'grading' | 'payout' | 'builder' | 'students' | 'security' | 'packages' | 'coupons' | 'qa'
+  const [activeTab, setActiveTab] = useState<'analytics' | 'courses' | 'grading' | 'payout' | 'builder' | 'students' | 'security' | 'packages' | 'coupons' | 'qa'>('analytics');
 
   const [quota, setQuota] = useState<{ remaining: number, totalPurchased: number }>({ remaining: 0, totalPurchased: 0 });
   const [quotaLoading, setQuotaLoading] = useState(true);
@@ -1139,6 +1141,12 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'coupons' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
           >
             <PlusCircle className="w-4 h-4 text-stone-700" /> Mã Giảm Giá
+          </button>
+          <button 
+            onClick={() => setActiveTab('qa')}
+            className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'qa' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
+          >
+            <MessageSquare className="w-4 h-4 text-stone-700" /> Hỏi Đáp & Bình Luận
           </button>
 
           <div className="md:pt-6 shrink-0 flex items-center">
@@ -2948,6 +2956,11 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         {/* TAB 9: COUPONS */}
         {activeTab === 'coupons' && (
           <CouponManagement />
+        )}
+
+        {/* TAB 10: QA */}
+        {activeTab === 'qa' && (
+          <InstructorQAModule />
         )}
 
       </div>
