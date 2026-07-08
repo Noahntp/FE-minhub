@@ -78,8 +78,7 @@ export const InstructorProfessional: React.FC<InstructorProfessionalProps> = ({ 
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Khối 2: Form thông tin chi tiết (Cột trái) */}
         <div className="lg:col-span-2 space-y-6 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
@@ -231,6 +230,5 @@ export const InstructorProfessional: React.FC<InstructorProfessionalProps> = ({ 
         </div>
 
       </div>
-    </div>
   );
 };
