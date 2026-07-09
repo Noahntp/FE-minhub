@@ -1562,7 +1562,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
               </div>
             ) : (
               <div className="space-y-4">
-                {instructorCourses.map(course => (
+                {filteredInstructorCourses.map(course => (
                   <div 
                     key={course.id} 
                     className={`border border-brand-light-active rounded-2xl p-5 bg-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:border-stone-300 ${course.isHidden ? 'bg-stone-50/50 opacity-80' : ''}`}
