@@ -665,32 +665,6 @@ export const ApiService = {
     return MockDB.updateUser(myProfile.id, payload) as Promise<User>;
   },
 
-  /** GET /instructor/profile */
-  async getInstructorProfile(): Promise<any> {
-    devLog('Profile', 'Fetch instructor professional details');
-    if (config.mode === 'api') return apiFetch<any>('/instructor/profile');
-    
-    // Mock data
-    return {
-      bio: "Tôi là giảng viên backend, có kinh nghiệm xây dựng REST API, Laravel và MySQL...",
-      expertise: "Laravel, PHP, MySQL, API Design",
-      experience_years: 6,
-      level: "Senior Backend Instructor"
-    };
-  },
-
-  /** PATCH /instructor/profile */
-  async updateInstructorProfile(payload: any): Promise<any> {
-    devLog('Profile', 'Update instructor professional details', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/profile', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return new Promise(resolve => setTimeout(() => resolve(payload), 500));
-  },
-
   /** POST /users/me/account-requests */
   async createAccountRequest(payload: Omit<AccountRequest, 'id' | 'timestamp' | 'status'>): Promise<AccountRequest> {
     devLog('Profile', 'Request account closure', payload);

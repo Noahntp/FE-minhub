@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Filter, PlayCircle, Eye, BarChart2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import ApiService from '../services/api';
+import { ApiService } from '../services/api';
 import { Course } from '../types';
 
 interface InstructorTopCoursesProps {
@@ -227,7 +226,8 @@ export const InstructorTopCourses: React.FC<InstructorTopCoursesProps> = ({ inst
                       </span>
                     </td>
                     <td className="py-4 font-semibold text-stone-700">
-                      <Link to={"/course/" + c.id} className="flex items-center gap-3 hover:text-rose-600 transition-colors">
+                      <a href={"/course/" + c.id} className="flex items-center gap-3 hover:text-rose-600 transition-colors">
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 shrink-0 overflow-hidden relative group/img">
                         {c.image ? (
                           <img src={c.image} alt={c.title} className="w-12 h-8 object-cover rounded shadow-sm" />
                         ) : (
@@ -235,16 +235,17 @@ export const InstructorTopCourses: React.FC<InstructorTopCoursesProps> = ({ inst
                             <PlayCircle className="w-4 h-4" />
                           </div>
                         )}
-                        <span className="truncate max-w-[200px] md:max-w-[300px]">{c.title}</span>
-                      </Link>
+                        </div>
+                        <span className="font-semibold text-sm line-clamp-2">{c.title}</span>
+                      </a>
                     </td>
                     <td className="py-4 text-stone-500 text-xs font-medium">
                       {c.category || 'Chưa phân loại'}
                     </td>
                     <td className="py-4 text-right">
-                      <Link to={"/instructor/students?courseId=" + c.id} className="inline-flex items-center justify-end font-bold text-rose-600 hover:text-rose-700 transition-colors group-hover:scale-105">
-                        {formatNumber(c.total_enrollments)} <Eye className="w-3.5 h-3.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </Link>
+                      <a href={"/instructor/students?courseId=" + c.id} className="inline-flex items-center justify-end font-bold text-rose-600 hover:text-rose-700 transition-colors group-hover:scale-105">
+                        {formatNumber(c.studentCount || 0)} <span className="text-xs font-normal text-gray-500 ml-1">HV</span>
+                      </a>
                     </td>
                     <td className="py-4 text-center">
                        <span className={"px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider " + statusCls}>
@@ -269,9 +270,9 @@ export const InstructorTopCourses: React.FC<InstructorTopCoursesProps> = ({ inst
         </div>
         
         <div className="mt-4 pt-4 border-t border-stone-100 flex justify-end">
-          <Link to="/instructor/courses" className="text-sm font-bold text-rose-600 hover:text-rose-700 transition-colors flex items-center gap-1">
-            Xem tất cả khóa học →
-          </Link>
+          <a href="/instructor/courses" className="text-sm font-bold text-rose-600 hover:text-rose-700 transition-colors flex items-center gap-1">
+            Xem tất cả <Eye className="w-4 h-4" />
+          </a>
         </div>
 
       </div>
