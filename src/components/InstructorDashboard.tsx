@@ -3,7 +3,7 @@ import {
   Users, DollarSign, BookOpen, Clock, Plus, BarChart2, CheckCircle, 
   Settings, UserCheck, ShieldAlert, ArrowUpRight, FileText, Send, Trash2,
   Eye, EyeOff, Edit, PlusCircle, MinusCircle, Save, Check, ChevronRight, ChevronLeft,
-  AlertTriangle, Play, HelpCircle, Lock, Sparkles, Upload, ArrowUp, ArrowDown, Shield, Key, Smartphone, Mail, X, LayoutDashboard, Activity, MessageSquare
+  AlertTriangle, Play, HelpCircle, Lock, Sparkles, Upload, ArrowUp, ArrowDown, Shield, Key, Smartphone, Mail, X, List, AlertCircle, Search, LayoutDashboard, Activity, MessageSquare
 } from 'lucide-react';
 import { User, Course, Chapter, Lesson, Quiz, QuizQuestion, PayoutRequest } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
@@ -430,6 +430,9 @@ export default function InstructorDashboard({
   // Tabs: 'overview' | 'analytics' | 'revenue' | 'courses' | 'grading' | 'payout' | 'builder' | 'students' | 'security' | 'packages' | 'coupons'
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'revenue' | 'courses' | 'grading' | 'payout' | 'qa' | 'builder' | 'students' | 'security' | 'packages' | 'coupons'>('overview');
 
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
+  const [courseStatusFilter, setCourseStatusFilter] = useState('all');
+
   const [quota, setQuota] = useState<{ remaining: number, totalPurchased: number }>({ remaining: 0, totalPurchased: 0 });
   const [quotaLoading, setQuotaLoading] = useState(true);
   const [quotaError, setQuotaError] = useState(false);
@@ -652,8 +655,21 @@ export default function InstructorDashboard({
         c.status === courseFilterStatus
       );
 
-  const totalStudents = instructorCourses.reduce((sum, c) => sum + c.enrolledCount, 0);
-  const mockupAverageCompletion = Math.round(instructorCourses.reduce((sum, c) => sum + c.completionRate, 0) / (instructorCourses.length || 1));
+  const rawInstructorCourses = courses.filter(c => c.instructorName === currentUser.name && c.status !== 'archived');
+  const filteredInstructorCourses = rawInstructorCourses.filter(c => {
+    if (courseSearchQuery.trim() && !c.title.toLowerCase().includes(courseSearchQuery.toLowerCase())) {
+      return false;
+    }
+    if (courseStatusFilter === 'all') return true;
+    if (courseStatusFilter === 'draft') return c.status === 'draft';
+    if (courseStatusFilter === 'pending') return c.status === 'pending';
+    if (courseStatusFilter === 'rejected') return c.status === 'rejected';
+    if (courseStatusFilter === 'active') return c.status === 'active' && !c.isHidden;
+    if (courseStatusFilter === 'hidden') return c.isHidden;
+    return true;
+  });
+  const totalStudents = rawInstructorCourses.reduce((sum, c) => sum + c.enrolledCount, 0);
+  const mockupAverageCompletion = Math.round(rawInstructorCourses.reduce((sum, c) => sum + c.completionRate, 0) / (rawInstructorCourses.length || 1));
 
   // --- AUTO PROGRESS PERSISTENCE ---
   useEffect(() => {
@@ -1498,38 +1514,51 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         {/* LIST OF COURSES TAB - NOW VERTICAL LAYOUT */}
         {activeTab === 'courses' && (
           <div className="space-y-6 animate-fade-in text-xs text-left">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-display font-bold text-main-normal flex items-center gap-1">
-                <BookOpen className="w-4 h-4 text-stone-850" /> Quản lý Giáo Án Giảng Dạy ({instructorCourses.length})
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
+              <h3 className="text-base font-display font-bold text-main-normal flex items-center gap-1 shrink-0">
+                <BookOpen className="w-4 h-4 text-stone-850" /> Quản lý khóa học ({rawInstructorCourses.length})
               </h3>
-              <div className="flex items-center gap-3">
-                <select 
-                  value={courseFilterStatus}
-                  onChange={(e) => setCourseFilterStatus(e.target.value)}
-                  className="bg-slate-50 border border-stone-200 text-stone-700 text-xs font-semibold py-2 px-3 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal transition-all"
+              <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm khóa học..."
+                    value={courseSearchQuery}
+                    onChange={e => setCourseSearchQuery(e.target.value)}
+                    className="w-full md:w-64 pl-9 pr-3 py-2 border rounded-xl focus:outline-none focus:border-brand-normal"
+                  />
+                </div>
+                <select
+                  value={courseStatusFilter}
+                  onChange={e => setCourseStatusFilter(e.target.value)}
+                  className="border rounded-xl px-3 py-2 bg-white min-w-[160px] focus:outline-none focus:border-brand-normal cursor-pointer"
                 >
                   <option value="all">Tất cả trạng thái</option>
-                  <option value="active">Đang Published</option>
-                  <option value="draft">Bản Draft</option>
-                  <option value="pending">Chờ Duyệt</option>
-                  <option value="rejected">Bị Từ Chối</option>
+                  <option value="draft">Đang hoàn thiện</option>
+                  <option value="pending">Chờ duyệt</option>
+                  <option value="rejected">Bị từ chối</option>
+                  <option value="active">Đang công khai</option>
+                  <option value="hidden">Đã ẩn</option>
                 </select>
                 <button 
                   onClick={startBuilderForCreate}
-                  className="bg-brand-normal hover:bg-brand-hover text-brand-light text-xs font-semibold py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+                  className="bg-brand-normal hover:bg-brand-hover text-brand-light text-xs font-semibold py-2 px-4 rounded-xl flex items-center gap-1.5 shadow-sm transition-all shrink-0 justify-center"
                 >
-                  <Plus className="w-4 h-4" /> Thiết kế khóa học mới
+                  <Plus className="w-4 h-4" /> Tạo khóa học
                 </button>
               </div>
             </div>
 
-            {instructorCourses.length === 0 ? (
+            {filteredInstructorCourses.length === 0 ? (
               <div className="text-center py-16 bg-slate-50 border border-dashed rounded-2xl">
                 <BookOpen className="w-12 h-12 text-stone-300 mx-auto mb-2" />
-                <p className="text-stone-500 font-medium text-xs">Bạn chưa thiết lập chương trình học nào.</p>
-                <button onClick={startBuilderForCreate} className="mt-3 bg-brand-normal text-white px-4 py-1.5 rounded-xl font-bold">
-                  Bắt đầu ngay
-                </button>
+                <p className="text-stone-500 font-medium text-xs">Không tìm thấy khóa học nào khớp với bộ lọc.</p>
+                {rawInstructorCourses.length === 0 && (
+                  <button onClick={startBuilderForCreate} className="mt-3 bg-brand-normal text-white px-4 py-1.5 rounded-xl font-bold hover:bg-brand-dark">
+                    Tạo khóa học mới ngay
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -1543,8 +1572,18 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                       <img src={course.image} alt="Course banner" className="w-24 h-16 object-cover rounded-xl shrink-0 border" />
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded ${course.status === 'active' ? 'bg-emerald-100 text-emerald-800' : course.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {course.status === 'active' ? '● Đang hoạt động' : course.status === 'rejected' ? '● Bị Từ Chối' : '● Chờ Thẩm Định'}
+                          <span className={`text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded ${
+                            course.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
+                            course.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            course.status === 'draft' ? 'bg-slate-200 text-slate-700' :
+                            course.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {course.status === 'active' ? '● Đang công khai' :
+                             course.status === 'rejected' ? '● Bị từ chối' :
+                             course.status === 'draft' ? '● Đang hoàn thiện' :
+                             course.status === 'pending' ? '● Chờ duyệt' :
+                             '● Không xác định'}
                           </span>
                           {course.isHidden && (
                             <span className="bg-gray-150 text-gray-700 text-[9px] font-bold px-2 py-0.5 rounded">
@@ -1574,82 +1613,75 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                     {/* Right side functional options */}
                     <div className="flex items-center gap-1.5 shrink-0 w-full md:w-auto self-end md:self-center justify-end border-t md:border-t-0 pt-3 md:pt-0">
                       
-                      {/* Hide/Show toggle option */}
-                      <button 
-                        onClick={() => {
-                          const updated = { ...course, isHidden: !course.isHidden };
-                          onUpdateCourse(updated);
-                          alert(updated.isHidden ? 'Đã ẨN khóa học khỏi trang khám phá học viên.' : 'Đã HIỆN thị khoá học công khai.');
-                        }}
-                        className={`p-2 rounded-xl border font-bold text-xs flex items-center gap-1 transition-all ${course.isHidden ? 'bg-stone-50 border-stone-200 text-gray-400 hover:text-black' : 'border-stone-300 text-stone-700 hover:bg-slate-50'}`}
-                        title={course.isHidden ? 'Hiển thị khóa học cho học viên' : 'Ẩn giấu khóa học khỏi học viên'}
-                      >
-                        {course.isHidden ? <EyeOff className="w-4 h-4 text-stone-500" /> : <Eye className="w-4 h-4 text-emerald-600" />}
-                        <span>{course.isHidden ? 'Hiện' : 'Ẩn'}</span>
-                      </button>
-
-                      {/* View Reason for Rejected */}
-                      {course.status === 'rejected' && course.rejectionReason && (
+                      {course.status === 'rejected' && (
                         <button 
-                          onClick={() => alert(`Lý do từ chối: ${course.rejectionReason}`)}
-                          className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 p-2 px-3 rounded-xl flex items-center gap-1 text-xs font-bold"
+                          onClick={() => alert(`Lý do từ chối: ${course.rejectionReason || 'Không có lý do chi tiết.'}`)}
+                          className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-colors"
                         >
-                          <AlertTriangle className="w-4 h-4" />
-                          <span>Xem lý do</span>
+                          <AlertCircle className="w-4 h-4" /> Xem lý do
                         </button>
                       )}
 
-                      {/* Checklist option for Draft/Rejected */}
-                      {(course.status === 'draft' || course.status === 'rejected') && (
-                        <button 
-                          onClick={() => alert('Chức năng Xem Checklist đang được phát triển.')}
-                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 p-2 px-3 rounded-xl flex items-center gap-1 text-xs font-bold"
-                        >
-                          <FileText className="w-4 h-4" />
-                          <span>Xem checklist</span>
-                        </button>
-                      )}
-
-                      {/* Edit option */}
-                      {course.status !== 'pending' && (course.status as any) !== 'pending_review' && (
-                        <button 
-                          onClick={() => startBuilderForEdit(course)}
-                          className="bg-brand-light-hover hover:bg-brand-light-active text-brand-dark border border-brand-normal/40 font-bold p-2 px-3 rounded-xl flex items-center gap-1 text-xs"
-                        >
-                          <Edit className="w-4 h-4" />
-                          <span>{course.status === 'draft' || course.status === 'rejected' ? 'Tiếp tục hoàn thiện' : 'Chỉnh sửa'}</span>
-                        </button>
-                      )}
-
-                      {/* Resubmit option for Draft/Rejected */}
-                      {(course.status === 'draft' || course.status === 'rejected') && (
+                      {course.status === 'draft' && (
                         <button 
                           onClick={() => {
-                            if (window.confirm('Bạn muốn gửi yêu cầu duyệt lại khóa học này?')) {
+                            if (window.confirm('Bạn có muốn gửi khóa học này cho Admin duyệt không?')) {
                               onUpdateCourse({ ...course, status: 'pending' });
-                              alert('Đã gửi yêu cầu xét duyệt khóa học thành công.');
+                              alert('Đã gửi yêu cầu duyệt khóa học thành công!');
                             }
                           }}
-                          className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 p-2 px-3 rounded-xl flex items-center gap-1 text-xs font-bold"
+                          className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-colors"
                         >
-                          <Send className="w-4 h-4" />
-                          <span>Gửi duyệt</span>
+                          <CheckCircle className="w-4 h-4" /> Gửi duyệt
                         </button>
                       )}
 
-                      {/* Delete option */}
                       <button 
                         onClick={() => {
-                          if (window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn khóa học này? Thao tác này không thể thu hồi.')) {
-                            onDeleteCourse(course.id);
-                            alert('Đã xóa khóa học thành công.');
-                          }
+                          startBuilderForEdit(course);
+                          setBuilderStep(3); // Go to Checklist step
                         }}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-250 p-2 px-3 rounded-xl flex items-center gap-1 text-xs font-bold"
+                        className="bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 px-3 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-colors"
                       >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Xóa</span>
+                        <List className="w-4 h-4" /> Checklist
                       </button>
+
+                      {course.status !== 'pending' && (
+                        <button 
+                          onClick={() => startBuilderForEdit(course)}
+                          className="bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 px-3 py-1.5 rounded-xl flex items-center gap-1 text-xs font-bold transition-colors"
+                        >
+                          <Edit className="w-4 h-4" /> Sửa
+                        </button>
+                      )}
+
+                      {/* Hide/Show toggle option */}
+                      {(course.status === 'active' || course.status === 'hidden') && (
+                        <button 
+                          onClick={() => {
+                            const updated = { ...course, isHidden: !course.isHidden };
+                            onUpdateCourse(updated);
+                          }}
+                          className={`p-1.5 rounded-xl border font-bold text-xs flex items-center justify-center transition-all ${course.isHidden ? 'bg-stone-50 border-stone-200 text-gray-400 hover:text-black' : 'bg-white border-stone-300 text-stone-700 hover:bg-slate-50'}`}
+                          title={course.isHidden ? 'Đang ẩn - Bấm để hiện' : 'Đang hiện - Bấm để ẩn'}
+                        >
+                          {course.isHidden ? <EyeOff className="w-4 h-4 text-stone-500" /> : <Eye className="w-4 h-4 text-emerald-600" />}
+                        </button>
+                      )}
+
+                      {course.status !== 'active' && (
+                        <button 
+                          onClick={() => {
+                            if (window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn khóa học này? Thao tác này không thể thu hồi.')) {
+                              onDeleteCourse(course.id);
+                            }
+                          }}
+                          className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 p-1.5 rounded-xl flex items-center justify-center font-bold"
+                          title="Xóa khóa học"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1699,11 +1731,9 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             {/* Steps breadcrumbs */}
             <div className="flex items-center justify-between overflow-x-auto gap-4 py-2 bg-white p-3 rounded-xl border text-[10.5px] font-semibold text-gray-500 shadow-xs">
               {[
-                { s: 1, label: '1. Thông tin chung' },
-                { s: 2, label: '2. Chương & Học liệu (.doc)' },
-                { s: 3, label: '3. Tạo Quiz trắc nghiệm' },
-                { s: 4, label: '4. Thiết lập học viên' },
-                { s: 5, label: '5. Hoàn tất gửi duyệt' }
+                { s: 1, label: '1. Tổng quan' },
+                { s: 2, label: '2. Nội dung khóa học' },
+                { s: 3, label: '3. Checklist' }
               ].map((stepObj) => (
                 <button
                   key={stepObj.s}
@@ -2228,14 +2258,13 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                     type="button"
                     onClick={() => {
                       if (chapters.length === 0) {
-                        alert('Xin vui lòng chuẩn bị chương học và bài giảng trước khi tạo bài Quiz kiểm tra.');
-                        return;
+                        alert('Bạn chưa thêm chương học nào, nhưng vẫn có thể tới Checklist để kiểm tra.');
                       }
                       setBuilderStep(3);
                     }}
                     className="bg-brand-normal hover:bg-brand-hover text-white py-2 px-6 rounded-xl font-bold flex items-center gap-1.5"
                   >
-                    Tiếp soạn Quiz trắc nghiệm <ChevronRight className="w-4 h-4" />
+                    Tới Checklist kiểm tra <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -2243,437 +2272,85 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
             {/* STEP 3 INTERACTIVE QUIZ DESIGN PANEL */}
             {builderStep === 3 && (
-              <div className="space-y-4 bg-white p-5 rounded-2xl border text-stone-800">
-                <h4 className="font-bold text-xs text-brand-normal border-b pb-2">
-                  Bước 3: Tích hợp bài trắc nghiệm nhanh sát hạch bài học (Quiz Creator)
+              <div className="space-y-4 bg-white p-5 rounded-2xl border text-stone-850">
+                <h4 className="font-bold text-sm text-brand-normal border-b pb-2 flex justify-between items-center">
+                  <span>Bước 3: Checklist kiểm tra & Gửi duyệt</span>
+                  <span className="text-stone-400 text-[10px]">Đánh giá tính sẵn sàng</span>
                 </h4>
-                <p className="text-[11px] text-gray-500 leading-relaxed">
-                  Thiết kế câu hỏi có sẵn để học viên vượt qua trước khi được mở khóa nội dung mới, rèn luyện tư duy thực hành lập trình & AI.
-                </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4 bg-slate-50 rounded-xl border text-xs text-left">
+                  <p className="font-extrabold text-stone-900 border-b pb-2 mb-3">CHECKLIST THÔNG TIN KHÓA HỌC:</p>
+                  <ul className="space-y-3">
+                    <li className="flex items-center gap-2">
+                      {title && subtitle ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-500" />}
+                      <span className={title && subtitle ? 'text-stone-700' : 'text-amber-700 font-medium'}>
+                        Tên khóa học & Dòng phụ {(!title || !subtitle) && '(Thiếu)'}
+                      </span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      {category && subcategory ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-500" />}
+                      <span className={category && subcategory ? 'text-stone-700' : 'text-amber-700 font-medium'}>
+                        Danh mục & Chủ đề {(!category || !subcategory) && '(Thiếu)'}
+                      </span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      {price > 0 ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-500" />}
+                      <span className={price > 0 ? 'text-stone-700' : 'text-amber-700 font-medium'}>
+                        Giá bán hợp lệ (Lớn hơn 0) {price <= 0 && '(Chưa thiết lập)'}
+                      </span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      {chapters.length > 0 ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-500" />}
+                      <span className={chapters.length > 0 ? 'text-stone-700' : 'text-amber-700 font-medium'}>
+                        Nội dung chương trình ({chapters.length} chương) {chapters.length === 0 && '(Chưa có)'}
+                      </span>
+                    </li>
+                  </ul>
+
+                  {(!title || !subtitle || !category || !subcategory || price <= 0 || chapters.length === 0) && (
+                    <div className="mt-4 pt-3 border-t border-dashed border-amber-200">
+                      <p className="text-amber-700 text-[10.5px] font-bold flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        Vui lòng bổ sung các thông tin còn thiếu trước khi có thể gửi duyệt.
+                      </p>
+                    </div>
+                  )}
                   
-                  {/* Left Column: Select lesson to add quiz */}
-                  <div className="space-y-3 border-r pr-4">
-                    <p className="font-extrabold text-[10.5px] text-stone-600">CHỌN CHƯƠNG TRÌNH / BÀI HỌC SOẠN QUIZ:</p>
-                    <div className="space-y-2 max-h-72 overflow-y-auto text-left">
-                      {chapters.map((ch, cidx) => (
-                        <div key={ch.id} className="space-y-1.5 p-1 border-b pb-2">
-                          <p className="font-bold text-stone-700">📌 C.mục {cidx+1}: {ch.title}</p>
-                          <div className="pl-3.5 space-y-1">
-                            {ch.lessons.map((les) => (
-                              <button
-                                key={les.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedChapterIndex(cidx);
-                                  // Selected lesson marker
-                                  alert(`Đang chọn Soạn câu hỏi kiểm tra cho bài giảng: "${les.title}"`);
-                                  // We can record selected Lesson ID using inputs
-                                  setNewLessonTitle(les.title); // backup use
-                                }}
-                                className="w-full text-left truncate text-[10.5px] p-1.5 hover:bg-slate-50 rounded-lg flex items-center gap-1"
-                              >
-                                🔹 {les.title} {les.quiz ? `(Đã có ${les.quiz.questions.length} câu)` : '(Chưa có quiz)'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                  {title && subtitle && category && subcategory && price > 0 && chapters.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-dashed border-emerald-200">
+                      <p className="text-emerald-700 text-[10.5px] font-bold flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                        Khóa học đã đầy đủ thông tin, bạn có thể gửi duyệt.
+                      </p>
                     </div>
-                  </div>
-
-                  {/* Right Column: Quiz questions editor */}
-                  <div className="md:col-span-2 space-y-3 text-left bg-slate-50 p-4 rounded-xl border">
-                    <p className="font-bold text-stone-800 text-[11px]">SOẠN TRẮC NGHIỆM CHI TIẾT</p>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[10.5px] font-bold text-stone-600 mb-1">Dữ liệu Câu hỏi sát hạch *:</label>
-                        <input 
-                          type="text"
-                          value={newQuizQuestion}
-                          onChange={(e) => setNewQuizQuestion(e.target.value)}
-                          placeholder="Từ khóa 'use' trong React 19 có tính năng gì nổi trội?"
-                          className="w-full text-xs p-2 border rounded-xl bg-white focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10.5px] text-stone-600 mb-1">Phương án A *:</label>
-                          <input type="text" value={quizA} onChange={(e) => setQuizA(e.target.value)} className="w-full text-xs p-2 border rounded-xl bg-white" placeholder="Giải quyết luồng Promise và Context bất đồng bộ" />
-                        </div>
-                        <div>
-                          <label className="block text-[10.5px] text-stone-600 mb-1">Phương án B *:</label>
-                          <input type="text" value={quizB} onChange={(e) => setQuizB(e.target.value)} className="w-full text-xs p-2 border rounded-xl bg-white" placeholder="Thay thế hoàn toàn hook useState" />
-                        </div>
-                        <div>
-                          <label className="block text-[10.5px] text-stone-600 mb-1">Phương án C (Tùy chọn):</label>
-                          <input type="text" value={quizC} onChange={(e) => setQuizC(e.target.value)} className="w-full text-xs p-2 border rounded-xl bg-white" placeholder="Đưa dữ liệu ra server" />
-                        </div>
-                        <div>
-                          <label className="block text-[10.5px] text-stone-600 mb-1">Phương án D (Tùy chọn):</label>
-                          <input type="text" value={quizD} onChange={(e) => setQuizD(e.target.value)} className="w-full text-xs p-2 border rounded-xl bg-white" placeholder="Hủy bỏ luồng re-render" />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border">
-                        <label className="text-[10.5px] font-bold text-stone-600">ĐÁP ÁN CHÍNH XÁC NHẤT:</label>
-                        <div className="flex gap-4">
-                          {['A', 'B', 'C', 'D'].map(ans => (
-                            <label key={ans} className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer">
-                              <input 
-                                type="radio" 
-                                name="correct_ans" 
-                                value={ans} 
-                                checked={correctAnswer === ans} 
-                                onChange={() => setCorrectAnswer(ans as 'A' | 'B' | 'C' | 'D')}
-                                className="accent-brand-normal"
-                              />
-                              {ans}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const activeCh = chapters[selectedChapterIndex];
-                          if (!activeCh || activeCh.lessons.length === 0) {
-                            alert('Vui lòng chọn bài giảng trước.');
-                            return;
-                          }
-                          const targetLes = activeCh.lessons[0]; // defaults to first lesson of selected chapter
-                          handleAddQuizToLesson(selectedChapterIndex, targetLes.id);
-                        }}
-                        className="bg-brand-normal text-white py-2 px-4 rounded-xl font-bold text-xs"
-                      >
-                        ⚡️ Ghép Câu Hỏi trắc nghiệm vào bài học đang chọn
-                      </button>
-                    </div>
-
-                  </div>
-
+                  )}
                 </div>
 
                 <div className="flex justify-between pt-4 border-t">
                   <button
                     type="button"
                     onClick={() => setBuilderStep(2)}
-                    className="border text-stone-600 hover:text-black py-2 px-5 rounded-xl font-bold flex items-center gap-1"
+                    className="border text-stone-600 bg-slate-50 hover:bg-white py-2 px-5 rounded-xl font-bold flex items-center gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" /> Quay lại Bước 2
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBuilderStep(4)}
-                    className="bg-brand-normal hover:bg-brand-hover text-white py-2 px-6 rounded-xl font-bold flex items-center gap-1.5"
+                    disabled={!title || !subtitle || !category || !subcategory || price <= 0 || chapters.length === 0}
+                    onClick={() => {
+                      if (!title || !subtitle || !category || !subcategory || price <= 0 || chapters.length === 0) {
+                        alert("Vui lòng hoàn thành đủ Checklist trước khi gửi duyệt.");
+                        return;
+                      }
+                      handleFinishCoursePublish();
+                    }}
+                    className={`py-2.5 px-8 rounded-xl font-extrabold text-xs shadow flex items-center gap-1.5 transition-all ${
+                      (!title || !subtitle || !category || !subcategory || price <= 0 || chapters.length === 0) 
+                        ? 'bg-stone-300 text-stone-500 cursor-not-allowed' 
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    }`}
                   >
-                    Tiếp thiết lập bảo mật học viên <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 4: STUDENT PERMISSION SETTINGS */}
-            {builderStep === 4 && (
-              <div className="space-y-4 bg-white p-5 rounded-2xl border text-stone-850">
-                <h4 className="font-bold text-sm text-brand-normal border-b pb-2">
-                  Bước 4: Cấu hình phân quyền & Giới hạn hành động của Học viên
-                </h4>
-                <p className="text-xs text-gray-400">
-                  Thiết lập kiểm tra đảm bảo tính công bằng học trình, chống tua bỏ dở bài học, download bản quyền học tài liệu.
-                </p>
-
-                <div className="space-y-4 max-w-xl text-left bg-slate-50 p-5 rounded-2xl border">
-                  
-                  {/* allowSkip */}
-                  <div className="flex justify-between items-center bg-white p-3.5 rounded-xl border">
-                    <div>
-                      <p className="font-bold text-xs text-stone-900">Cho phép bỏ qua thời lượng giảng dạy (Tua video nhanh):</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Không cho phép sẽ bắt buộc học viên theo dõi đầy đủ nội dung video để tích hợp hoàn thành.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={allowSkip} 
-                        onChange={(e) => setAllowSkip(e.target.checked)}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
-
-                  {/* allowDownload */}
-                  <div className="flex justify-between items-center bg-white p-3.5 rounded-xl border">
-                    <div>
-                      <p className="font-bold text-xs text-stone-900">Học viên được phép tải Tài liệu / Đính kèm gốc mã nguồn:</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Tránh xuất bản leak dữ liệu ngoài trang nội bộ.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={allowDownload} 
-                        onChange={(e) => setAllowDownload(e.target.checked)}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
-
-                  {/* allowDiscussion */}
-                  <div className="flex justify-between items-center bg-white p-3.5 rounded-xl border">
-                    <div>
-                      <p className="font-bold text-xs text-stone-900">Cho phép Mở chuyên mục phản hồi / Q&A Thảo Luận:</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Mở cổng giao tiếp hỗ trợ học viên giải bài tập, mentor định hướng.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={allowDiscussion} 
-                        onChange={(e) => setAllowDiscussion(e.target.checked)}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
-
-                  {/* giveCertificate */}
-                  <div className="flex justify-between items-center bg-white p-3.5 rounded-xl border">
-                    <div>
-                      <p className="font-bold text-xs text-stone-900">Tự động trao Chứng nhận Tốt nghiệp tốt và chứng chỉ điện tử:</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Học viên vượt qua tất cả Quiz và hoàn thành 100% học trình sẽ nhận được chứng chỉ.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={giveCertificate} 
-                        onChange={(e) => setGiveCertificate(e.target.checked)}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
-                  </div>
-
-                  {/* FREE PREVIEW SETTINGS */}
-                  <div className="border-t border-dashed border-stone-200 pt-4 mt-2">
-                    <h5 className="font-bold text-xs text-[#8b5e3c] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-[#8b5e3c] shrink-0" />
-                      <span>CẤU HÌNH HỌC THỬ MIỄN PHÍ (FREE PREVIEW):</span>
-                    </h5>
-                    <p className="text-[10.5px] text-stone-500 mb-3 leading-relaxed">
-                      Thiết lập các điều kiện xem trước nội dung miễn phí cho học viên chưa đăng ký trải nghiệm chất lượng giảng dạy.
-                    </p>
-
-                    <div className="space-y-3">
-                      {/* allowFreeDoc */}
-                      <div className="flex justify-between items-center bg-white p-3 rounded-xl border">
-                        <div>
-                          <p className="font-bold text-xs text-stone-900">Cho phép xem trước Tài liệu (.doc/.pdf) học thử:</p>
-                          <p className="text-[10.5px] text-gray-400 mt-0.5">Người dùng chưa thanh toán có thể đọc đầy đủ các bài học ở dạng văn bản.</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={allowFreeDoc} 
-                            onChange={(e) => setAllowFreeDoc(e.target.checked)}
-                            className="sr-only peer" 
-                          />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                        </label>
-                      </div>
-
-                      {/* allowFreeVideo */}
-                      <div className="flex justify-between items-center bg-white p-3 rounded-xl border">
-                        <div>
-                          <p className="font-bold text-xs text-stone-900">Cho phép xem thử Video bài giảng:</p>
-                          <p className="text-[10.5px] text-gray-400 mt-0.5">Người dùng chưa thanh toán có thể xem thử một phần thời lượng của video bài giảng.</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={allowFreeVideo} 
-                            onChange={(e) => setAllowFreeVideo(e.target.checked)}
-                            className="sr-only peer" 
-                          />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                        </label>
-                      </div>
-
-                      {/* Custom freeVideoDuration */}
-                      {allowFreeVideo && (
-                        <div className="bg-white p-3 rounded-xl border border-amber-200 space-y-2 animate-fadeIn">
-                          <label className="block text-xs font-bold text-stone-700">
-                            Giới hạn thời lượng xem video miễn phí (giây):
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input 
-                              type="number" 
-                              min="5"
-                              max="3600"
-                              value={freeVideoDuration}
-                              onChange={(e) => setFreeVideoDuration(Number(e.target.value))}
-                              className="border border-stone-200 rounded-lg px-2 py-1 text-xs w-28 focus:outline-none focus:ring-1 focus:ring-[#8b5e3c]"
-                            />
-                            <span className="text-xs text-stone-550 font-medium">giây (Gợi ý: 30 - 60 giây)</span>
-                          </div>
-                          <p className="text-[10px] text-amber-800 leading-snug flex items-center gap-1">
-                            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span>Khi xem qua giới hạn này, video học thử sẽ tự động tạm dừng kèm theo thông báo thu hút mua hàng để tăng tỷ lệ chuyển đổi.</span>
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* FAQ MANAGER SECTION */}
-                  <div className="border-t border-dashed border-stone-200 pt-4 mt-4">
-                    <h5 className="font-bold text-xs text-[#8b5e3c] uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <HelpCircle className="w-4 h-4 text-[#8b5e3c]" /> CÀI ĐẶT FAQ - CÂU HỎI THƯỜNG GẶP KHÓA HỌC:
-                    </h5>
-                    <p className="text-[10.5px] text-stone-500 mb-3 leading-relaxed">
-                      Giúp giải đáp nhanh thắc mắc về lộ trình, điều kiện tiên quyết, đồ án tốt nghiệp, hỗ trợ hoàn tiền để kích cầu đăng ký.
-                    </p>
-
-                    {/* FAQ List */}
-                    <div className="space-y-2 mb-4">
-                      {faqs.length === 0 ? (
-                        <p className="text-[10.5px] text-stone-400 italic bg-white p-3.5 rounded-xl border text-center">
-                          Chưa có câu hỏi FAQ khảo sát nào. Hãy nhập câu hỏi dưới đây để thêm ngay!
-                        </p>
-                      ) : (
-                        faqs.map((faq, idx) => (
-                          <div key={idx} className="bg-white p-3 rounded-xl border flex justify-between items-start gap-4">
-                            <div className="space-y-1.5 text-xs text-left min-w-0">
-                              <p className="font-bold text-stone-900 truncate">Q: {faq.question || faq.q}</p>
-                              <p className="text-stone-550 text-[11px] leading-relaxed break-words">{faq.answer || faq.a}</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFaqs(faqs.filter((_, i) => i !== idx));
-                              }}
-                              className="text-red-500 hover:text-red-700 p-1 shrink-0 bg-transparent hover:bg-red-50 rounded"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* FAQ Inputs */}
-                    <div className="bg-white/80 border p-3 rounded-xl space-y-2.5">
-                      <p className="font-bold text-[10.5px] text-stone-750">Thêm Câu hỏi mới:</p>
-                      
-                      <div className="space-y-2">
-                        <input 
-                          type="text" 
-                          placeholder="Nhập câu hỏi (Ví dụ: Khóa học này có cấp chứng chỉ không?)"
-                          value={newFaqQuestion}
-                          onChange={(e) => setNewFaqQuestion(e.target.value)}
-                          className="w-full border border-stone-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#8b5e3c] bg-white text-stone-900"
-                        />
-                        <textarea 
-                          placeholder="Nhập câu trả lời giải đáp..."
-                          rows={2}
-                          value={newFaqAnswer}
-                          onChange={(e) => setNewFaqAnswer(e.target.value)}
-                          className="w-full border border-stone-200 rounded-lg p-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#8b5e3c] bg-white text-stone-900"
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) {
-                            alert('Vui lòng nhập cả Câu hỏi và Câu trả lời.');
-                            return;
-                          }
-                          const newItem = { question: newFaqQuestion.trim(), answer: newFaqAnswer.trim() };
-                          setFaqs([...faqs, newItem]);
-                          setNewFaqQuestion('');
-                          setNewFaqAnswer('');
-                        }}
-                        className="w-full bg-[#faf6f2] hover:bg-[#8b5e3c] hover:text-white text-[#8b5e3c] border border-stone-200 py-1.5 rounded-lg text-xs font-bold transition-all"
-                      >
-                        + Thêm vào danh sách FAQ
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-                <div className="flex justify-between pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={() => setBuilderStep(3)}
-                    className="border text-stone-600 bg-slate-50 hover:bg-white py-2 px-5 rounded-xl font-bold flex items-center gap-1"
-                  >
-                    <ChevronLeft className="w-4 h-4" /> Quay lại Bước 3
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBuilderStep(5)}
-                    className="bg-brand-normal hover:bg-brand-hover text-white py-2 px-6 rounded-xl font-bold flex items-center gap-1.5"
-                  >
-                    Xem trước & Gửi duyệt khóa học <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 5: REVIEW SUMMARY & DEPLOY TO MODERATOR REVIEW PANEL */}
-            {builderStep === 5 && (
-              <div className="space-y-4 bg-white p-5 rounded-2xl border text-stone-850">
-                <h4 className="font-bold text-sm text-brand-normal border-b pb-2 flex justify-between items-center">
-                  <span>Bước 5: Tổng kiểm tra giáo án & Hoàn tất gửi duyệt xuất bản</span>
-                  <span className="text-stone-400 text-[10px]">Tiến trình sẵn sàng</span>
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-left">
-                  <div className="space-y-3 p-4 bg-slate-50 rounded-xl border">
-                    <p className="font-extrabold text-stone-900 border-b pb-1">TỔNG QUAN HỒ SƠ:</p>
-                    <p><b>Tiêu đề:</b> {title || 'Chưa điền'}</p>
-                    <p><b>Dòng phụ:</b> {subtitle || 'Chưa điền'}</p>
-                    <p><b>Danh mục:</b> {category === 'Development' ? 'Development (Lập trình)' : 'Artificial Intelligence (AI)'} ({subcategory})</p>
-                    <p><b>Giá đề xuất:</b> {formatVND(price)} (Ưu đãi hiện có: {formatVND(salePrice)})</p>
-                    <p><b>Số chương học tích hợp:</b> {chapters.length} chương</p>
-                    <p><b>Số yêu cầu ban đầu:</b> {requirements.length} mục</p>
-                  </div>
-
-                  <div className="space-y-3 p-4 bg-slate-50 rounded-xl border">
-                    <p className="font-extrabold text-stone-900 border-b pb-1">CẤU HÌNH HỌC VIÊN AN TOÀN:</p>
-                    <ul className="list-disc pl-4 space-y-1.5 text-[11px]">
-                      <li>Cho phép tua video: {allowSkip ? 'Đồng ý' : 'Không (Bắt buộc xem hết)'}</li>
-                      <li>Khách hàng tải resources/code: {allowDownload ? 'Được phép' : 'Khóa tải'}</li>
-                      <li>Cho phép học viên thảo luận cộng đồng Q&A: {allowDiscussion ? 'Đồng ý' : 'Khóa thảo luận'}</li>
-                      <li>Học viên nhận chứng nhận chứng chỉ điện tử: {giveCertificate ? 'Có' : 'Không'}</li>
-                    </ul>
-
-                    <div className="pt-2 bg-[#f0fdf4] p-3 rounded-lg border border-[#bcf0da] text-[10.5px] font-medium text-[#166534] flex items-start gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#166534] shrink-0 mt-0.5" />
-                      <span><b>Lưu ý:</b> Khóa học sau khi gửi duyệt sẽ tạm thời chờ đội ngũ Moderator thẩm duyệt (thông qua trong 12h-24h) trước khi hiển thị công khai tới học viên.</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-between pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={() => setBuilderStep(4)}
-                    className="border text-stone-600 bg-slate-50 hover:bg-white py-2 px-5 rounded-xl font-bold flex items-center gap-1"
-                  >
-                    <ChevronLeft className="w-4 h-4" /> Quay lại Bước 4
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleFinishCoursePublish}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-8 rounded-xl font-extrabold text-xs shadow flex items-center gap-1.5"
-                  >
-                    🚀 HOÀN TẤT & GỬI DUYỆT XUẤT BẢN
+                    🚀 GỬI DUYỆT KHÓA HỌC
                   </button>
                 </div>
               </div>
