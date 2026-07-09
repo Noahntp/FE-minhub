@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Settings, FileText, Check, Flame, AlertCircle, ShieldAlert, BadgeCheck, Camera, CreditCard, Mail, Smartphone, KeyRound, Loader2, ChevronRight, CheckCircle2, Clock, PlayCircle, Award } from 'lucide-react';
+import { User, Lock, Settings, FileText, Check, Flame, AlertCircle, ShieldAlert, BadgeCheck, Camera, CreditCard, Mail, Smartphone, KeyRound, Loader2, ChevronRight, CheckCircle2, Clock, PlayCircle, Award, LogOut } from 'lucide-react';
 import { User as UserType } from '../types';
 import { OTPModal } from './OTPModal';
 import { ApiService } from '../services/api';
 import { AppRoutes, RoleLabels } from '../utils/routes';
 import { InstructorProfile } from './InstructorProfile';
+import { InstructorProfessional } from './InstructorProfessional';
 
 const AVAILABLE_AVATARS = [
   "https://i.pravatar.cc/150?img=11",
@@ -20,10 +21,11 @@ interface ProfilePageProps {
   currentUser: UserType;
   setCurrentUser: React.Dispatch<React.SetStateAction<UserType>>;
   navigateTo: (route: string) => void;
+  onLogout?: () => void;
 }
 
-export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: ProfilePageProps) {
-  const [activeTab, setActiveTab] = useState<'personal' | 'security' | 'roles' | 'history'>('personal');
+export function ProfilePage({ currentUser, setCurrentUser, navigateTo, onLogout }: ProfilePageProps) {
+  const [activeTab, setActiveTab] = useState<'personal' | 'professional' | 'security' | 'roles' | 'history'>('personal');
   
   // Forms state
   const [editUser, setEditUser] = useState<UserType>({ ...currentUser });
@@ -40,11 +42,15 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
   
   const [learningHistory, setLearningHistory] = useState<any[]>([]);
 
+  const [professionalData, setProfessionalData] = useState<any>(null);
+
   useEffect(() => {
     if (activeTab === 'history') {
       ApiService.getUserActivities(currentUser.id).then(res => setLearningHistory(res));
+    } else if (activeTab === 'professional' && currentUser.role === 'instructor') {
+      ApiService.getInstructorProfile().then(res => setProfessionalData(res));
     }
-  }, [activeTab, currentUser.id]);
+  }, [activeTab, currentUser.id, currentUser.role]);
 
   // Notifications
   const [successMsg, setSuccessMsg] = useState('');
@@ -299,6 +305,14 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                 >
                   <User className="w-5 h-5" /> Hồ sơ cá nhân
                 </button>
+                {currentUser.role === 'instructor' && (
+                  <button
+                    onClick={() => setActiveTab('professional')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${activeTab === 'professional' ? 'bg-brand-light text-[#432c28]' : 'text-stone-600 hover:bg-stone-50'}`}
+                  >
+                    <Award className="w-5 h-5" /> Hồ sơ chuyên môn
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTab('security')}
                   className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${activeTab === 'security' ? 'bg-brand-light text-[#432c28]' : 'text-stone-600 hover:bg-stone-50'}`}
@@ -314,12 +328,23 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                 >
                   <ShieldAlert className="w-5 h-5" /> Vai trò & Quyền
                 </button>
-                <button
-                  onClick={() => setActiveTab('history')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${activeTab === 'history' ? 'bg-brand-light text-[#432c28]' : 'text-stone-600 hover:bg-stone-50'}`}
-                >
-                  <Clock className="w-5 h-5" /> Lịch sử học tập
-                </button>
+                {currentUser.role !== 'instructor' && (
+                  <button
+                    onClick={() => setActiveTab('history')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-colors ${activeTab === 'history' ? 'bg-brand-light text-[#432c28]' : 'text-stone-600 hover:bg-stone-50'}`}
+                  >
+                    <Clock className="w-5 h-5" /> Lịch sử học tập
+                  </button>
+                )}
+                
+                <div className="pt-4 mt-2 border-t border-stone-200">
+                  <button
+                    onClick={() => onLogout?.()}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-colors text-rose-600 hover:bg-rose-50"
+                  >
+                    <LogOut className="w-5 h-5" /> Đăng xuất tài khoản
+                  </button>
+                </div>
               </nav>
             </div>
           </div>
@@ -789,71 +814,7 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                     </div>
                   )}
 
-                  {/* Instructor Profile Block */}
-                  {currentUser.role === 'instructor' && (
-                    <div className="border border-stone-200 rounded-2xl overflow-hidden mt-6">
-                      <div className="bg-stone-50 p-4 border-b border-stone-200 flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <Flame className="w-5 h-5 text-[#8b5e3c]" />
-                          <h4 className="font-bold text-stone-900">Thông tin Giảng viên</h4>
-                        </div>
-                      </div>
-                      
-                      <div className="p-6 space-y-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-1.5">Giới thiệu chuyên môn</label>
-                          <textarea
-                            rows={3}
-                            value={instructorBio}
-                            onChange={e => setInstructorBio(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:outline-none"
-                            placeholder="Hãy cho chúng tôi biết về kinh nghiệm và chuyên môn giảng dạy của bạn..."
-                          ></textarea>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                          <div>
-                            <label className="block text-sm font-semibold text-stone-700 mb-1.5">Lĩnh vực chuyên môn</label>
-                            <input
-                              type="text"
-                              value={instructorExpertise}
-                              onChange={e => setInstructorExpertise(e.target.value)}
-                              className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:outline-none"
-                              placeholder="VD: Lập trình, Thiết kế..."
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-stone-700 mb-1.5">Năm kinh nghiệm</label>
-                            <input
-                              type="text"
-                              value={instructorExperience}
-                              onChange={e => setInstructorExperience(e.target.value)}
-                              className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:outline-none"
-                              placeholder="VD: 5 năm"
-                            />
-                          </div>
-                        </div>
-                        <div className="mt-4">
-                          <label className="block text-sm font-semibold text-stone-700 mb-1.5">Liên kết Portfolio / CV</label>
-                          <input
-                            type="text"
-                            value={instructorPortfolio}
-                            onChange={e => setInstructorPortfolio(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:outline-none"
-                            placeholder="https://..."
-                          />
-                        </div>
-                        
-                        <button 
-                          onClick={() => {
-                            alert('Lưu thông tin giảng viên thành công! (Mock)');
-                          }}
-                          className="mt-4 bg-[#8b5e3c] hover:bg-[#6c482d] text-white font-bold py-2.5 px-6 rounded-xl transition-colors shadow-sm flex items-center gap-2"
-                        >
-                          Cập nhật Hồ sơ
-                        </button>
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* Leave Instructor Block */}
                   {currentUser.role === 'instructor' && (
@@ -984,6 +945,27 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'professional' && currentUser.role === 'instructor' && (
+              <div className="space-y-6 animate-fade-in">
+                {professionalData ? (
+                  <InstructorProfessional 
+                    initialData={professionalData}
+                    onSubmit={async (data) => {
+                      try {
+                        const updated = await ApiService.updateInstructorProfile(data);
+                        setProfessionalData(updated);
+                        showNotification('Cập nhật hồ sơ chuyên môn thành công!');
+                      } catch (e) {
+                        showNotification('Lỗi khi cập nhật hồ sơ chuyên môn', true);
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex justify-center py-10 text-stone-500">Đang tải dữ liệu...</div>
+                )}
               </div>
             )}
           </div>

@@ -2903,8 +2903,8 @@ export default function App() {
             ) : (
               <div className="relative flex items-center gap-2 pl-2 border-l border-brand-light-active shrink-0">
                 <button
-                  onClick={() => setShowAvatarMenu(!showAvatarMenu)}
-                  aria-label="Menu tài khoản người dùng"
+                  onClick={() => navigateTo(AppRoutes.profile(currentUser.id))}
+                  aria-label="Vào trang hồ sơ cá nhân"
                   className={`flex items-center gap-2 group text-left cursor-pointer p-1.5 rounded-xl transition-all border ${
                     activeTab === "profile" || activeTab === "my-courses"
                       ? "bg-stone-100 border-deep-indigo shadow-3xs"
@@ -2926,57 +2926,7 @@ export default function App() {
                   </div>
                 </button>
 
-                {showAvatarMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40 bg-transparent"
-                      onClick={() => setShowAvatarMenu(false)}
-                    />
-                    <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-brand-light-active py-2 space-y-1 z-50 text-left text-xs animate-fade-in">
-                      <div className="px-4 py-2 border-b border-stone-100 mb-1 bg-stone-50/50">
-                        <p className="font-bold text-stone-800 text-xs truncate">
-                          {currentUser.name}
-                        </p>
-                        <p className="text-[10px] text-stone-500 font-mono truncate">
-                          {currentUser.email}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAvatarMenu(false);
-                          navigateTo("my-courses");
-                        }}
-                        className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-100 hover:text-brand-normal font-bold flex items-center gap-2 transition-colors cursor-pointer border-none bg-transparent"
-                      >
-                        <BookOpen className="w-4 h-4 text-stone-500 shrink-0" />
-                        <span>Khóa học đã tham gia</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAvatarMenu(false);
-                          navigateTo(AppRoutes.profile(currentUser.id));
-                        }}
-                        className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-100 hover:text-brand-normal font-bold flex items-center gap-2 transition-colors cursor-pointer border-none bg-transparent"
-                      >
-                        <User className="w-4 h-4 text-stone-500 shrink-0" />
-                        <span>Quản lý trang hồ sơ</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAvatarMenu(false);
-                          setShowLogoutConfirm(true);
-                        }}
-                        className="w-full px-4 py-2 text-left text-rose-600 hover:bg-rose-50 font-bold flex items-center gap-2 transition-colors cursor-pointer border-none bg-transparent"
-                      >
-                        <LogOut className="w-4 h-4 text-rose-500 shrink-0" />
-                        <span>Đăng xuất tài khoản</span>
-                      </button>
-                    </div>
-                  </>
-                )}
+
 
                 <button
                   onClick={() => {
@@ -7374,6 +7324,7 @@ export default function App() {
                     currentUser={currentUser}
                     setCurrentUser={setCurrentUser}
                     navigateTo={navigateTo}
+                    onLogout={() => setShowLogoutConfirm(true)}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
