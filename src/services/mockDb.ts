@@ -24,7 +24,16 @@ const initializeDB = (): DatabaseState => {
   try {
     const stored = localStorage.getItem(DB_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Đảm bảo cập nhật dữ liệu khóa học mới thêm vào INITIAL_COURSES (như các mock data cho giảng viên) 
+      // nếu chúng chưa có trong DB.
+      const existingCourseIds = new Set(parsed.courses.map((c: any) => c.id));
+      const missingCourses = INITIAL_COURSES.filter(c => !existingCourseIds.has(c.id));
+      if (missingCourses.length > 0) {
+        parsed.courses = [...parsed.courses, ...missingCourses];
+        saveDB(parsed); // lưu lại luôn bản đã merge
+      }
+      return parsed;
     }
   } catch (e) {
     console.error('Error loading mock DB', e);

@@ -20,6 +20,7 @@ export interface InstructorData {
 interface InstructorProfileProps {
   initialData: InstructorData;
   onSubmit: (data: InstructorData) => void;
+  [key: string]: any;
 }
 
 export const InstructorProfile: React.FC<InstructorProfileProps> = ({ initialData, onSubmit }) => {

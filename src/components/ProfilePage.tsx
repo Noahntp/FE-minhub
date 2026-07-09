@@ -421,7 +421,7 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo }: Profile
                         phone: currentUser.phone || "",
                         role: currentUser.role,
                         status: currentUser.status || "active",
-                        email_verified_at: currentUser.isEmailVerified ? (currentUser.createdAt || new Date().toISOString()) : null,
+                        email_verified_at: currentUser.isEmailVerified ? new Date().toISOString() : null,
                         last_login_at: new Date().toISOString()
                       }}
                       onSubmit={async (data) => {

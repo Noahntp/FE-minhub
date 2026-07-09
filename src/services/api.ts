@@ -1146,6 +1146,125 @@ export const ApiService = {
     return { success: true };
   },
 
+  /** GET /instructor/{id}/enrollment-stats */
+  async getInstructorEnrollmentStats(instructorId: string): Promise<{ totalEnrollments: number }> {
+    devLog('Instructor', `Get enrollment stats for instructor ${instructorId}`);
+    if (config.mode === 'api') {
+      return apiFetch<{ totalEnrollments: number }>(`/instructor/${instructorId}/enrollment-stats`);
+    }
+    // Mock
+    // Mock
+    const courses = (await MockDB.getCourses()).filter((c: any) => c.instructorId === instructorId && c.status !== 'deleted');
+    const total = courses.reduce((sum: number, c: any) => sum + (c.enrolledCount || 0), 0);
+    return { totalEnrollments: total };
+  },
+
+  /** GET /instructor/{id}/revenue-chart */
+  async getInstructorRevenueChart(instructorId: string, params: { timeUnit: string, startDate?: string, endDate?: string, courseId?: string }): Promise<any[]> {
+    devLog('Instructor', `Get revenue chart for instructor ${instructorId}`, params);
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      query.append('timeUnit', params.timeUnit);
+      if (params.startDate) query.append('startDate', params.startDate);
+      if (params.endDate) query.append('endDate', params.endDate);
+      if (params.courseId) query.append('courseId', params.courseId);
+      return apiFetch<any[]>(`/instructor/${instructorId}/revenue-chart?${query.toString()}`);
+    }
+    return [];
+  },
+
+
+  /** GET /instructor/{id}/enrollment-chart */
+  async getInstructorEnrollmentChart(instructorId: string, params: { timeUnit: string, startDate?: string, endDate?: string, courseId?: string }): Promise<any[]> {
+    devLog('Instructor', `Get enrollment chart for instructor ${instructorId}`, params);
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      query.append('timeUnit', params.timeUnit);
+      if (params.startDate) query.append('startDate', params.startDate);
+      if (params.endDate) query.append('endDate', params.endDate);
+      if (params.courseId) query.append('courseId', params.courseId);
+      return apiFetch<any[]>(`/instructor/${instructorId}/enrollment-chart?${query.toString()}`);
+    }
+    return [];
+  },
+
+  /** GET /instructor/{id}/top-courses-enrollment */
+  async getInstructorTopCourses(instructorId: string, params: { limit?: number, startDate?: string, endDate?: string, status?: string }): Promise<any[]> {
+    devLog('Instructor', `Get top courses for instructor ${instructorId}`);
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      if (params.limit) query.append('limit', params.limit.toString());
+      if (params.startDate) query.append('startDate', params.startDate);
+      if (params.endDate) query.append('endDate', params.endDate);
+      if (params.status) query.append('status', params.status);
+      return apiFetch<any[]>(`/instructor/${instructorId}/top-courses?${query.toString()}`);
+    }
+    return [];
+  },
+
+  /** GET /instructor/{id}/revenue-stats */
+  async getInstructorRevenueStats(instructorId: string, params: any): Promise<{ totalRevenue: number, totalGross: number, totalPlatformFee: number, totalTransactions: number, totalStudentsPaid: number }> {
+    devLog('Instructor', `Get revenue stats for instructor ${instructorId}`, params);
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      if (params.startDate) query.append('startDate', params.startDate);
+      if (params.endDate) query.append('endDate', params.endDate);
+      return apiFetch<any>(`/instructor/${instructorId}/revenue-stats?${query.toString()}`);
+    }
+    // Mock
+    return {
+      totalRevenue: 0,
+      totalGross: 0,
+      totalPlatformFee: 0,
+      totalTransactions: 0,
+      totalStudentsPaid: 0
+    };
+  },
+
+  /** GET /instructor/{id}/enrollments */
+  async getInstructorEnrollments(instructorId: string, params: any): Promise<{ data: any[], meta: any }> {
+    devLog('Instructor', `Get enrollments for instructor ${instructorId} with params`, params);
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      if (params.courseId) query.append('courseId', params.courseId);
+      if (params.status) query.append('status', params.status);
+      if (params.search) query.append('search', params.search);
+      if (params.minProgress !== undefined) query.append('minProgress', params.minProgress);
+      if (params.maxProgress !== undefined) query.append('maxProgress', params.maxProgress);
+      if (params.startDate) query.append('startDate', params.startDate);
+      if (params.endDate) query.append('endDate', params.endDate);
+      if (params.page) query.append('page', params.page);
+      if (params.limit) query.append('limit', params.limit);
+      return apiFetch<{ data: any[], meta: any }>(`/instructor/${instructorId}/enrollments?${query.toString()}`);
+    }
+    // Mock logic
+    return {
+      data: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 0 }
+    };
+  },
+
+  /** GET /instructor/{id}/revenues */
+  async getInstructorRevenues(instructorId: string, params: any): Promise<{ data: any[], meta: any }> {
+    devLog('Instructor', `Get revenues list for instructor ${instructorId}`, params);
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      if (params.courseId) query.append('courseId', params.courseId);
+      if (params.status) query.append('status', params.status);
+      if (params.search) query.append('search', params.search);
+      if (params.startDate) query.append('startDate', params.startDate);
+      if (params.endDate) query.append('endDate', params.endDate);
+      if (params.page) query.append('page', params.page);
+      if (params.limit) query.append('limit', params.limit);
+      return apiFetch<any>(`/instructor/${instructorId}/revenues?${query.toString()}`);
+    }
+    // Mock
+    return {
+      data: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 0 }
+    };
+  },
+
   /** POST /admin/courses/{id}/approve */
   async approveCourse(courseId: string): Promise<{ success: boolean }> {
     devLog('Admin', `Approve course ID: ${courseId}`);
@@ -1975,6 +2094,84 @@ export const ApiService = {
       return apiFetch<any[]>('/credits/admin/orders');
     }
     return [];
+  },
+
+  // ================= WITHDRAWAL API =================
+  async getInstructorBalance(instructorId: string): Promise<any> {
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/${instructorId}/balance`);
+    }
+    return { withdrawableBalance: 0, totalPendingWithdrawal: 0, totalWithdrawn: 0, lastWithdrawal: null };
+  },
+
+  async getInstructorPayoutAccount(instructorId: string): Promise<any> {
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/${instructorId}/payout-account`);
+    }
+    return { data: null };
+  },
+
+  async updateInstructorPayoutAccount(instructorId: string, payload: any): Promise<any> {
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/${instructorId}/payout-account`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    }
+    return { success: true, data: payload };
+  },
+
+  async getInstructorWithdrawals(instructorId: string, params: any): Promise<any> {
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      if (params.page) query.append('page', params.page);
+      if (params.limit) query.append('limit', params.limit);
+      return apiFetch<any>(`/instructor/${instructorId}/withdrawals?${query.toString()}`);
+    }
+    return { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } };
+  },
+
+  async createInstructorWithdrawal(instructorId: string, payload: any): Promise<any> {
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/${instructorId}/withdrawals`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    }
+    return { success: true };
+  },
+
+  // ================= Q&A API =================
+  async getInstructorQAStats(instructorId: string): Promise<any> {
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/${instructorId}/qa-stats`);
+    }
+    return { unansweredCount: 0 };
+  },
+
+  async getInstructorQuestions(instructorId: string, params: any): Promise<any> {
+    if (config.mode === 'api') {
+      const query = new URLSearchParams();
+      if (params.filter) query.append('filter', params.filter);
+      if (params.courseId) query.append('courseId', params.courseId);
+      if (params.lessonId) query.append('lessonId', params.lessonId);
+      if (params.timeRange) query.append('timeRange', params.timeRange);
+      if (params.search) query.append('search', params.search);
+      if (params.page) query.append('page', params.page);
+      if (params.limit) query.append('limit', params.limit);
+      return apiFetch<any>(`/instructor/${instructorId}/questions?${query.toString()}`);
+    }
+    return { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } };
+  },
+
+  async replyToQuestion(instructorId: string, questionId: string, payload: any): Promise<any> {
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/${instructorId}/questions/${questionId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    }
+    return { success: true };
   }
 };
 
