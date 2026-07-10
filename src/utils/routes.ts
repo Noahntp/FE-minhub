@@ -27,13 +27,8 @@ export const AppRoutes = {
   // Public Instructor Courses
   instructorCourses: (userId: string | number) => `/instructors/${userId}/courses`,
 
-  // Instructor Packages
-  instructorPackages: (userId: string | number) => `/instructor/${userId}/course-credit-packages`,
-  instructorPackageDetail: (userId: string | number, packageId: string) => `/instructor/${userId}/course-credit-packages/${packageId}`,
-  instructorPackageCheckout: (userId: string | number, packageId: string) => `/instructor/${userId}/course-credit-packages/${packageId}/checkout`,
-  
   // Instructor Transactions
-  instructorTransactions: (userId: string | number) => `/instructor/${userId}/course-credit-transactions`,
+  instructorTransactions: (userId: string | number) => `/instructor/${userId}/transactions`,
 };
 
 /**

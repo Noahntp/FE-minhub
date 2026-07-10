@@ -109,10 +109,7 @@ import ContactPage from "./pages/ContactPage";
 import AboutPage from "./pages/AboutPage";
 import { InstructorProfile } from "./components/InstructorProfile";
 import CourseQA from "./components/CourseQA";
-import PackageList from "./components/PackageList";
-import PackageDetail from "./components/PackageDetail";
-import PackageCheckout from "./components/PackageCheckout";
-import VNPayReturn from "./components/VNPayReturn";
+
 
 // Simple custom intersection observer wrapper to achieve smooth scroll animations
 interface ScrollRevealProps {
@@ -219,13 +216,6 @@ export default function App() {
     return null;
   };
 
-  const getPackageIdFromPath = (path: string) => {
-    const match = path.match(
-      /^\/instructor\/[^/]+\/course-credit-packages\/([^/]+)/,
-    );
-    if (match) return match[1];
-    return null;
-  };
 
   const getRouteFromPath = (path: string) => {
     if (
@@ -267,16 +257,7 @@ export default function App() {
     if (path.match(/^\/instructors\/[^/]+\/courses/))
       return "instructor-courses-page";
 
-    if (
-      path.match(
-        /^\/instructor\/[^/]+\/course-credit-packages\/[^/]+\/checkout/,
-      )
-    )
-      return "instructor-package-checkout";
-    if (path.match(/^\/instructor\/[^/]+\/course-credit-packages\/[^/]+/))
-      return "instructor-package-detail";
-    if (path.match(/^\/instructor\/[^/]+\/course-credit-packages/))
-      return "instructor-packages";
+
     if (path.match(/^\/instructor\/[^/]+\/course-credit-transactions/))
       return "instructor-transactions";
     if (
@@ -300,9 +281,6 @@ export default function App() {
     return getUserIdFromPath(window.location.pathname);
   });
 
-  const [routePackageId, setRoutePackageId] = useState<string | null>(() => {
-    return getPackageIdFromPath(window.location.pathname);
-  });
 
   const navigateTo = (path: string) => {
     // If it's a legacy route name (e.g. 'home', 'favorites'), map it
@@ -325,7 +303,7 @@ export default function App() {
     const purePath = finalPath.split("?")[0];
     setCurrentRoute(getRouteFromPath(purePath));
     setRouteUserId(getUserIdFromPath(purePath));
-    setRoutePackageId(getPackageIdFromPath(purePath));
+
 
     window.history.pushState({}, "", finalPath);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -336,7 +314,7 @@ export default function App() {
       const purePath = window.location.pathname;
       setCurrentRoute(getRouteFromPath(purePath));
       setRouteUserId(getUserIdFromPath(purePath));
-      setRoutePackageId(getPackageIdFromPath(purePath));
+
 
       const urlParams = new URLSearchParams(window.location.search);
       const id = urlParams.get("id");
@@ -4330,80 +4308,8 @@ export default function App() {
                 </button>
               </div>
             </div>
-          ) : activeTab === "instructor-packages" ? (
-            currentUser.role === "instructor" &&
-            currentUser.id === routeUserId ? (
-              <PackageList
-                currentUser={currentUser}
-                onNavigateToPackage={(pkgId) =>
-                  navigateTo(
-                    AppRoutes.instructorPackageDetail(currentUser.id, pkgId),
-                  )
-                }
-                onNavigateToHistory={() =>
-                  navigateTo(AppRoutes.instructorTransactions(currentUser.id))
-                }
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20">
-                <h2 className="text-2xl font-bold">Truy Cập Bị Từ Chối</h2>
-              </div>
-            )
-          ) : activeTab === "instructor-package-detail" ? (
-            currentUser.role === "instructor" &&
-            currentUser.id === routeUserId &&
-            routePackageId ? (
-              <PackageDetail
-                packageId={routePackageId}
-                currentUser={currentUser}
-                onBack={() =>
-                  navigateTo(AppRoutes.instructorPackages(currentUser.id))
-                }
-                onBuy={(pkgId) =>
-                  navigateTo(
-                    AppRoutes.instructorPackageCheckout(currentUser.id, pkgId),
-                  )
-                }
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20">
-                <h2 className="text-2xl font-bold">Truy Cập Bị Từ Chối</h2>
-              </div>
-            )
-          ) : activeTab === "vnpay-return" ? (
-            <VNPayReturn
-              onGoToDashboard={() => {
-                if (currentUser) {
-                  navigateTo(AppRoutes.instructorDashboard(currentUser.id));
-                } else {
-                  navigateTo("login");
-                }
-              }}
-            />
-          ) : activeTab === "instructor-package-checkout" ? (
-            currentUser.role === "instructor" &&
-            currentUser.id === routeUserId &&
-            routePackageId ? (
-              <PackageCheckout
-                packageId={routePackageId}
-                currentUser={currentUser}
-                onBack={() =>
-                  navigateTo(
-                    AppRoutes.instructorPackageDetail(
-                      currentUser.id,
-                      routePackageId,
-                    ),
-                  )
-                }
-                onSuccess={() =>
-                  navigateTo(AppRoutes.instructorDashboard(currentUser.id))
-                }
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20">
-                <h2 className="text-2xl font-bold">Truy Cập Bị Từ Chối</h2>
-              </div>
-            )
+
+
           ) : activeTab === "instructor" ? (
             currentUser.role === "instructor" &&
             currentUser.id === routeUserId ? (

@@ -1295,6 +1295,21 @@ export const ApiService = {
     return [];
   },
 
+  /** GET /instructor/learners */
+  async getInstructorLearners(params: any): Promise<any> {
+    devLog('Instructor', `Query all learners for instructor`);
+    const queryStr = new URLSearchParams(params).toString();
+    if (config.mode === 'api') return apiFetch<any>(`/instructor/learners?${queryStr}`);
+    return { data: { stats: { total_enrollments: 0, learning_count: 0, completed_count: 0 }, list: { data: [], totalPages: 1 } } };
+  },
+
+  /** GET /instructor/learners/{id}/details */
+  async getInstructorLearnerDetails(enrollmentId: number): Promise<any> {
+    devLog('Instructor', `Query learner details for enrollment ${enrollmentId}`);
+    if (config.mode === 'api') return apiFetch<any>(`/instructor/learners/${enrollmentId}/details`);
+    return { data: null };
+  },
+
   /** GET /instructor/courses/{courseId}/analytics */
   async getCourseEngagementAnalytics(courseId: string): Promise<any> {
     devLog('Instructor', `Calculate drop-offs, daily watchtime frequency graphs: ${courseId}`);
@@ -1983,162 +1998,77 @@ export const ApiService = {
     return { success: true, message: 'Mock: Đã gửi liên hệ' };
   },
 
-  /** GET /packages */
-  async getCoursePackages(): Promise<any[]> {
-    devLog('Packages', 'Get course creation packages');
-    if (config.mode === 'api') {
-      return apiFetch<any[]>('/packages');
-    }
-    // Mock packages
-    return [
-      { id: 'pkg-1', name: 'Gói Trải Nghiệm', price: 200000, credits: 1, status: 'active', sort_order: 1 },
-      { id: 'pkg-2', name: 'Gói Tiêu Chuẩn', price: 500000, credits: 3, status: 'active', sort_order: 2 },
-      { id: 'pkg-3', name: 'Gói Chuyên Nghiệp', price: 1500000, credits: 10, status: 'active', sort_order: 3 }
-    ];
-  },
-
-  async getPackageById(packageId: string): Promise<any> {
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/packages/${packageId}`);
-    }
-    const packages = await this.getCoursePackages();
-    const pkg = packages.find(p => p.id === packageId);
-    if (!pkg) throw new Error('Không tìm thấy gói');
-    return pkg;
-  },
-
-  async createPackageOrder(payload: { userId: string, packageId: string, couponCode?: string }): Promise<any> {
-    devLog('Payments', 'Create package order', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/payments/create-order', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    // Mock order creation
-    const pkg = await this.getPackageById(payload.packageId);
-    const newOrder = {
-      id: 'ord-' + Date.now(),
-      order_code: 'PKG-MOCK-' + Date.now(),
-      amount: pkg.price,
-      package_snapshot_name: pkg.name,
-      package_snapshot_credits: pkg.credits,
-      status: 'pending'
-    };
-    await MockDB.createPackageOrder(newOrder);
-    return {
-      success: true,
-      order: newOrder
-    };
-  },
-
-  async confirmPackagePayment(payload: { orderCode: string, paymentMethod: string }): Promise<any> {
-    devLog('Payments', 'Confirm package payment', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/payments/confirm', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    // Mock confirmation
-    let quota = await MockDB.getInstructorQuota();
-    const order = await MockDB.getPackageOrder(payload.orderCode);
-    if (!order) {
-      throw new Error('Đơn hàng không tồn tại');
-    }
-    if (order.status === 'paid') {
-      return { success: true, order };
-    }
-    
-    quota.remaining += order.package_snapshot_credits;
-    quota.totalPurchased += order.package_snapshot_credits;
-    await MockDB.updateInstructorQuota(quota);
-    
-    const updatedOrder = await MockDB.updatePackageOrder(payload.orderCode, { 
-      status: 'paid', 
-      paymentMethod: payload.paymentMethod 
-    });
-    
-    return { success: true, order: updatedOrder };
-  },
-
-  async getInstructorCreditBalance(instructorId: string): Promise<any> {
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/credits/balance/${instructorId}`);
-    }
-    // Mock balance
-    const quota = await MockDB.getInstructorQuota();
-    return {
-      total_credits: quota.totalPurchased,
-      used_credits: quota.totalPurchased - quota.remaining,
-      remaining_credits: quota.remaining
-    };
-  },
-
-  async getInstructorCreditTransactions(instructorId: string): Promise<any[]> {
-    if (config.mode === 'api') {
-      return apiFetch<any[]>(`/credits/transactions/${instructorId}`);
-    }
-    return [];
-  },
-
-  async getInstructorPackageOrders(instructorId: string): Promise<any[]> {
-    if (config.mode === 'api') {
-      return apiFetch<any[]>(`/credits/orders/${instructorId}`);
-    }
-    return [];
-  },
-
-  async getAdminPackageOrders(): Promise<any[]> {
-    if (config.mode === 'api') {
-      return apiFetch<any[]>('/credits/admin/orders');
-    }
-    return [];
-  },
-
-  // ================= WITHDRAWAL API =================
+  
+  // ================= PAYOUT & BALANCE API =================
   async getInstructorBalance(instructorId: string): Promise<any> {
+    devLog('Instructor', 'Get balance');
     if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/${instructorId}/balance`);
+      return apiFetch<any>(`/instructor/balance`);
     }
-    return { withdrawableBalance: 0, totalPendingWithdrawal: 0, totalWithdrawn: 0, lastWithdrawal: null };
+    return { withdrawableBalance: 15500000, pendingBalance: 2500000 };
   },
 
   async getInstructorPayoutAccount(instructorId: string): Promise<any> {
+    devLog('Instructor', 'Get payout account');
     if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/${instructorId}/payout-account`);
+      return apiFetch<any>(`/instructor/payout-account`);
     }
-    return { data: null };
+    return { type: 'bank_transfer', accountName: 'NGUYEN VAN A', accountNumber: '123456789', bankName: 'Vietcombank', branch: 'HCM' };
   },
 
   async updateInstructorPayoutAccount(instructorId: string, payload: any): Promise<any> {
+    devLog('Instructor', 'Update payout account', payload);
     if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/${instructorId}/payout-account`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
+      return apiFetch<any>(`/instructor/payout-account`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
       });
     }
-    return { success: true, data: payload };
+    return { success: true, message: 'Đã cập nhật thông tin nhận tiền' };
   },
 
-  async getInstructorWithdrawals(instructorId: string, params: any): Promise<any> {
+  async getInstructorWithdrawals(instructorId: string, params?: any): Promise<{ data: any[], meta: any }> {
+    devLog('Instructor', 'Get withdrawals');
+    const query = new URLSearchParams(params).toString();
     if (config.mode === 'api') {
-      const query = new URLSearchParams();
-      if (params.page) query.append('page', params.page);
-      if (params.limit) query.append('limit', params.limit);
-      return apiFetch<any>(`/instructor/${instructorId}/withdrawals?${query.toString()}`);
+      return apiFetch<{ data: any[], meta: any }>(`/instructor/withdrawals?${query}`);
     }
-    return { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } };
+    return {
+      data: [
+        { id: 'w1', instructorId, amount: 5000000, status: 'completed', requestedAt: new Date(Date.now() - 86400000 * 5).toISOString(), processedAt: new Date(Date.now() - 86400000 * 4).toISOString(), notes: 'Thanh toán tuần 1', payoutMethod: { type: 'bank_transfer', bankName: 'VCB' } },
+        { id: 'w2', instructorId, amount: 2000000, status: 'pending', requestedAt: new Date().toISOString(), payoutMethod: { type: 'bank_transfer', bankName: 'VCB' } }
+      ],
+      meta: { current_page: 1, last_page: 1, total: 2 }
+    };
   },
 
   async createInstructorWithdrawal(instructorId: string, payload: any): Promise<any> {
+    devLog('Instructor', 'Create withdrawal', payload);
     if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/${instructorId}/withdrawals`, {
+      return apiFetch<any>(`/instructor/withdrawals`, {
         method: 'POST',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
     }
-    return { success: true };
+    return { success: true, message: 'Đã tạo yêu cầu rút tiền' };
+  },
+
+  // ================= TRANSACTIONS API =================
+  async getInstructorTransactions(instructorId: string, params: any): Promise<any> {
+    devLog('Instructor', 'Get transaction history');
+    const query = new URLSearchParams(params).toString();
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/transactions?${query}`);
+    }
+    return { data: { stats: { total: 0, success: 0, pending: 0, failed: 0, total_revenue: 0 }, list: { data: [], total: 0, last_page: 1 } } };
+  },
+
+  async getInstructorTransactionDetails(transactionId: string | number): Promise<any> {
+    devLog('Instructor', 'Get transaction details');
+    if (config.mode === 'api') {
+      return apiFetch<any>(`/instructor/transactions/${transactionId}/details`);
+    }
+    return { data: null };
   },
 
   // ================= Q&A API =================

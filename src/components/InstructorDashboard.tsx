@@ -12,6 +12,7 @@ import { InstructorRevenue } from './InstructorRevenue';
 import { InstructorWithdrawal } from './InstructorWithdrawal';
 import { InstructorQAModule } from '../features/QA';
 import { InstructorRevenueChart } from './InstructorRevenueChart';
+import TransactionManagement from './InstructorDashboard/TransactionManagement';
 import { InstructorEnrollmentChart } from './InstructorEnrollmentChart';
 import { InstructorTopCourses } from './InstructorTopCourses';
 import { CouponManagement } from '../features/Coupons';
@@ -288,129 +289,6 @@ function InstructorSecurityPanel({ currentUser }: { currentUser: User }) {
   );
 }
 
-function InstructorPackagesTab({ currentUser, quota, quotaLoading, quotaError, fetchQuota }: { currentUser: User, quota: any, quotaLoading: boolean, quotaError: boolean, fetchQuota: () => void }) {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        const data = await ApiService.getInstructorCreditTransactions(currentUser.id);
-        setTransactions(data);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
-  }, [currentUser.id]);
-
-  return (
-    <div className="space-y-6 animate-fade-in text-left">
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between">
-        <div>
-          <h4 className="font-extrabold text-2xl flex items-center gap-2 mb-2">
-            <Sparkles className="w-6 h-6 text-emerald-300" /> Hạn mức Lượt xuất bản
-          </h4>
-          <p className="text-emerald-100 max-w-md">
-            Mỗi lần xuất bản khóa học công khai sẽ cần 1 lượt. Mua thêm gói lượt tạo để tiếp tục xuất bản khi hết hạn mức.
-          </p>
-        </div>
-        <div className="mt-6 md:mt-0 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20 min-w-[200px] text-center">
-          <span className="block text-sm text-emerald-100 font-bold uppercase mb-1">Lượt khả dụng</span>
-          {quotaLoading ? (
-            <span className="text-xl font-black text-white/70 animate-pulse">Đang tải...</span>
-          ) : quotaError ? (
-            <div className="flex flex-col items-center">
-              <span className="text-xl font-black text-red-300">Lỗi dữ liệu</span>
-              <button onClick={fetchQuota} className="text-xs mt-2 underline text-white hover:text-emerald-100">Thử lại</button>
-            </div>
-          ) : (
-            <span className="text-4xl font-black text-white">{quota.remaining}</span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <a 
-          href={`/instructor/${currentUser.id}/course-credit-packages`}
-          onClick={(e) => {
-            e.preventDefault();
-            // Dispatch custom event or just use normal a tag. Actually, since App.tsx handles routing via history.pushState, 
-            // the best way is to let the user click and the top level interceptor handle it if we have one. 
-            // In MindHub, App.tsx has `navigateTo`. Since `navigateTo` is not passed down to `InstructorPackagesTab`, 
-            // we can simulate a popstate:
-            window.history.pushState({}, '', `/instructor/${currentUser.id}/course-credit-packages`);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          }}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-colors shadow-md"
-        >
-          <PlusCircle className="w-5 h-5" /> Mua thêm Gói Lượt tạo
-        </a>
-      </div>
-
-      <div className="bg-white border rounded-2xl p-6">
-        <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-gray-500" /> Lịch sử Giao dịch Lượt xuất bản
-        </h3>
-        
-        {loading ? (
-          <div className="text-center py-8 text-gray-500">Đang tải lịch sử...</div>
-        ) : transactions.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 border border-dashed rounded-xl">
-            Bạn chưa có giao dịch nào liên quan đến lượt xuất bản.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 font-semibold text-gray-600">Thời gian</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600">Loại giao dịch</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600">Mã đơn / Nội dung</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600 text-right">Thay đổi</th>
-                  <th className="px-4 py-3 font-semibold text-gray-600 text-right">Số dư</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {transactions.map((tx: any) => (
-                  <tr key={tx.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 text-gray-500">
-                      {new Date(tx.created_at).toLocaleString('vi-VN')}
-                    </td>
-                    <td className="px-4 py-4">
-                      {tx.type === 'purchase' ? (
-                        <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded text-xs font-bold uppercase">Mua gói</span>
-                      ) : tx.type === 'use' ? (
-                        <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-xs font-bold uppercase">Sử dụng</span>
-                      ) : (
-                        <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-bold uppercase">{tx.type}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 font-medium text-gray-900">
-                      {tx.note || (tx.order ? tx.order.package_snapshot_name : tx.course ? `Khóa: ${tx.course.title}` : '')}
-                    </td>
-                    <td className="px-4 py-4 text-right font-mono font-bold">
-                      <span className={tx.credits > 0 ? 'text-emerald-600' : 'text-amber-600'}>
-                        {tx.credits > 0 ? '+' : ''}{tx.credits}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-right font-mono font-bold text-gray-900">
-                      {tx.balance_after}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function LaptopIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
@@ -427,36 +305,11 @@ export default function InstructorDashboard({
   onClose
 }: InstructorDashboardProps) {
   
-  // Tabs: 'overview' | 'analytics' | 'revenue' | 'courses' | 'grading' | 'payout' | 'builder' | 'students' | 'security' | 'packages' | 'coupons'
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'revenue' | 'courses' | 'grading' | 'payout' | 'qa' | 'builder' | 'students' | 'security' | 'packages' | 'coupons'>('overview');
+  // Tabs: 'overview' | 'revenue' | 'transactions' | 'courses' | 'grading' | 'qa' | 'builder' | 'students' | 'security' | 'coupons'
+  const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'transactions' | 'courses' | 'grading' | 'qa' | 'builder' | 'students' | 'security' | 'coupons' | 'payout'>('overview');
 
   const [courseSearchQuery, setCourseSearchQuery] = useState('');
   const [courseStatusFilter, setCourseStatusFilter] = useState('all');
-
-  const [quota, setQuota] = useState<{ remaining: number, totalPurchased: number }>({ remaining: 0, totalPurchased: 0 });
-  const [quotaLoading, setQuotaLoading] = useState(true);
-  const [quotaError, setQuotaError] = useState(false);
-  const [packages, setPackages] = useState<any[]>([]);
-
-  const fetchQuota = () => {
-    setQuotaLoading(true);
-    setQuotaError(false);
-    ApiService.getInstructorCreditBalance(currentUser.id)
-      .then(balance => setQuota({
-        remaining: balance.remaining_credits || 0,
-        totalPurchased: balance.total_credits || 0
-      }))
-      .catch(err => {
-        console.error('Lỗi khi fetch quota:', err);
-        setQuotaError(true);
-      })
-      .finally(() => setQuotaLoading(false));
-  };
-
-  useEffect(() => {
-    fetchQuota();
-    ApiService.getCoursePackages().then(setPackages).catch(console.error);
-  }, [currentUser.id]);
   
   // --- BUILDER WIZARD STATES ---
   const [builderStep, setBuilderStep] = useState<number>(1);
@@ -519,18 +372,7 @@ export default function InstructorDashboard({
   const [newFaqQuestion, setNewFaqQuestion] = useState('');
   const [newFaqAnswer, setNewFaqAnswer] = useState('');
 
-  // --- MOCK TRANSITIONS & HISTORY TRACERS ---
-  const [payoutList, setPayoutList] = useState<PayoutRequest[]>([
-    { id: 'pay-1', instructorId: currentUser.id, instructorName: currentUser.name, amount: 15000000, status: 'pending', date: '2026-05-25' }
-  ]);
-
-  // --- WITHDRAWAL FORM AND BANK PROFILE STATES ---
-  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
-  const [bankName, setBankName] = useState<string>(currentUser.payoutInfo?.bankName || 'Techcombank (TCB)');
-  const [accountNumber, setAccountNumber] = useState<string>(currentUser.payoutInfo?.accountNumber || '19034567891011');
-  const [accountHolder, setAccountHolder] = useState<string>(currentUser.payoutInfo?.accountHolder || 'NINH THỊ LAN CHI');
-  const [instructorBalance, setInstructorBalance] = useState<number>(currentUser.payoutInfo?.balance ?? 24500000);
-  const [isUpdatingBank, setIsUpdatingBank] = useState<boolean>(false);
+  
 
   const [gradingSubmissions, setGradingSubmissions] = useState([
     { id: 'sub-101', studentName: 'Student Test', email: 'student.test@mindhub.local', courseTitle: 'Chinh Phục React 19 & Next.js 15', lessonTitle: 'Bài tập 2.3: Validate Form Server Action', submittedValue: 'https://github.com/student/react19-form-test', points: null as number | null, feedback: '' }
@@ -572,11 +414,6 @@ export default function InstructorDashboard({
       ApiService.getInstructorRevenueStats(currentUser.id, { startDate: firstDay }).then(res => {
         setRevenueStats(res);
       }).catch(err => console.error("Error fetching revenue stats", err));
-
-      // Fetch new widgets stats
-      ApiService.getInstructorBalance(currentUser.id).then(res => {
-        setOverviewBalance(res.withdrawableBalance);
-      }).catch(err => console.error("Error fetching balance", err));
 
       ApiService.getInstructorQAStats(currentUser.id).then(res => {
         setOverviewUnansweredQA(res.unansweredCount);
@@ -992,11 +829,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
   // Launch unified wizard screen
   const startBuilderForCreate = () => {
-    if (quota.remaining <= 0) {
-      alert('Bạn đã hết lượt tạo khóa học. Vui lòng mua Gói Khởi Tạo Khóa Học để tiếp tục.');
-      setActiveTab('packages');
-      return;
-    }
+    
     setEditingCourseId(null);
     setTitle('');
     setSubtitle('');
@@ -1094,8 +927,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     } else {
       onCreateCourseDraft(payload);
       alert('Đã khởi tạo khóa học mới thành công! Giáo án đã được chuyển lên Ban Kế Hoạch Kiểm Duyệt thẩm định xuất bản.');
-      // Refresh lại quota sau khi push course
-      fetchQuota();
+      
     }
 
     // Clean up local storage drafting states
@@ -1144,12 +976,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           >
             <LayoutDashboard className="w-4 h-4 text-stone-700" /> Tổng quan Dashboard
           </button>
-          <button 
-            onClick={() => setActiveTab('analytics')}
-            className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'analytics' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
-          >
-            <BarChart2 className="w-4 h-4 text-stone-700" /> Phân Tích KPIs
-          </button>
+          
           <button 
             onClick={() => setActiveTab('revenue')}
             className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'revenue' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
@@ -1174,18 +1001,14 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           >
             <Users className="w-4 h-4 text-stone-700" /> Quản lý Học viên
           </button>
+          
           <button 
-            onClick={() => setActiveTab('payout')}
-            className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'payout' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
+            onClick={() => setActiveTab('transactions')}
+            className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'transactions' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
           >
-            <DollarSign className="w-4 h-4 text-stone-700" /> Yêu cầu Rút tiền
+            <Activity className="w-4 h-4" /> Lịch sử Giao dịch
           </button>
-          <button 
-            onClick={() => setActiveTab('packages')}
-            className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'packages' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
-          >
-            <Sparkles className="w-4 h-4 text-stone-700" /> Gói Tạo Khóa Học
-          </button>
+
           <button 
             onClick={() => setActiveTab('coupons')}
             className={`whitespace-nowrap px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-2 shrink-0 transition-all ${activeTab === 'coupons' ? 'bg-brand-normal text-brand-light' : 'bg-slate-50 md:bg-transparent hover:bg-brand-light-hover'}`}
@@ -1317,7 +1140,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
               {/* Số dư có thể rút */}
               <div 
-                onClick={() => { setActiveTab('payout'); }}
+                onClick={() => { setActiveTab('transactions'); }}
                 className="bg-[#5c3e21] border border-[#8b5e3c] rounded-2xl p-5 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group relative overflow-hidden"
               >
                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-colors"></div>
@@ -1439,68 +1262,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                     <span>Không có hoạt động nào</span>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ANALYTICS TAB SUBPANELS */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-6 animate-fade-in text-xs">
-            <h3 className="text-base font-display font-bold text-main-normal text-left flex items-center gap-1">
-              <BarChart2 className="w-4 h-4 text-stone-850" /> Bảng Phân Tích KPIs Giảng Viên
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="border border-brand-light-active p-4 rounded-2xl bg-slate-50 relative overflow-hidden text-left shadow-xs">
-                <span className="text-gray-400 text-[10px] font-bold uppercase block">Tổng doanh thu nhận (100% doanh thu)</span>
-                <span className="text-md font-bold text-brand-dark block mt-1">{formatVND(68200000)}</span>
-                <span className="text-[10px] text-emerald-600 font-medium block mt-1">↑ 12% so với tháng trước</span>
-              </div>
-              <div className="border border-brand-light-active p-4 rounded-2xl bg-slate-50 relative overflow-hidden text-left shadow-xs">
-                <span className="text-gray-400 text-[10px] font-bold uppercase block">Học viên đang học</span>
-                <span className="text-md font-bold block mt-1">{totalStudents} Học viên</span>
-                <span className="text-[10px] text-emerald-600 font-medium block mt-1">Hoạt động tốt học tập liên tục</span>
-              </div>
-              <div className="border border-brand-light-active p-4 rounded-2xl bg-slate-50 relative overflow-hidden text-left shadow-xs">
-                <span className="text-gray-400 text-[10px] font-bold uppercase block">Tỷ lệ hoàn thành trung bình</span>
-                <span className="text-md font-bold block mt-1">{mockupAverageCompletion}% Tốt nghiệp</span>
-                <span className="text-[10px] text-red-500 font-medium block mt-1">Học viên bỏ dở: 15%</span>
-              </div>
-            </div>
-
-            {/* Graphs mock block */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border border-brand-light-active p-4 rounded-2xl text-left bg-white shadow-sm space-y-4">
-                <h4 className="font-semibold text-xs text-main-normal">Biểu đồ doanh thu hàng tháng</h4>
-                <div className="h-44 flex items-end justify-between gap-2 bg-slate-50 p-3 rounded-lg border">
-                  {[12, 18, 25, 40, 56, 75, 42, 65, 85, 95, 120, 140].map((val, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col justify-end h-full">
-                      <div style={{ height: `${(val / 140) * 100}%` }} className="bg-brand-normal rounded-t hover:bg-brand-hover" title={`Tháng ${idx + 1}: ${formatVND(val * 100000)}`}></div>
-                      <span className="text-[8px] text-center text-gray-400 block mt-1">{idx + 1}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border border-brand-light-active p-4 rounded-2xl text-left bg-white shadow-sm space-y-3">
-                <h4 className="font-semibold text-xs text-main-normal">Gợi ý chủ đề thịnh hành từ AI MindHub</h4>
-                <div className="space-y-2">
-                  <div className="p-3 bg-brand-light/30 border rounded-xl flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-[11px] block text-brand-dark">AI Agent with CrewAI / LangChain</span>
-                      <span className="text-gray-400 text-[10px]">Lượng tìm kiếm tăng vọt 340% kể từ tháng trước</span>
-                    </div>
-                    <span className="bg-red-100 text-red-800 text-[9px] font-bold px-2 py-0.5 rounded">Hot Topic</span>
-                  </div>
-                  <div className="p-3 bg-brand-light/30 border rounded-xl flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-[11px] block text-brand-dark">Figma AI UX Advanced Designs</span>
-                      <span className="text-gray-400 text-[10px]">Tối ưu hóa phác thảo giao diện đa cấp</span>
-                    </div>
-                    <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded">Trending</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -2416,9 +2177,17 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         )}
 
         
+        
+
+        
         {/* WITHDRAWAL TAB */}
         {activeTab === 'payout' && (
           <InstructorWithdrawal instructorId={currentUser?.id} />
+        )}
+
+        {/* TRANSACTIONS TAB */}
+        {activeTab === 'transactions' && (
+          <TransactionManagement instructorId={currentUser?.id || ''} />
         )}
 
         {/* STUDENTS MANAGEMENT DASHBOARD */}
@@ -2643,16 +2412,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           <InstructorSecurityPanel currentUser={currentUser} />
         )}
 
-        {/* TAB 8: PACKAGES */}
-        {activeTab === 'packages' && (
-          <InstructorPackagesTab 
-            currentUser={currentUser} 
-            quota={quota} 
-            quotaLoading={quotaLoading} 
-            quotaError={quotaError} 
-            fetchQuota={fetchQuota} 
-          />
-        )}
+        
 
         {/* TAB 9: COUPONS */}
         {activeTab === 'coupons' && (
