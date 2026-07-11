@@ -48,8 +48,14 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo, onLogout 
     if (activeTab === 'history') {
       ApiService.getUserActivities(currentUser.id).then(res => setLearningHistory(res));
     } else if (activeTab === 'professional' && currentUser.role === 'instructor') {
-      ApiService.getInstructorProfile().then(res => setProfessionalData(res));
+      ApiService.getInstructorProfile()
+        .then(res => setProfessionalData(res))
+        .catch(err => {
+          console.error("Lỗi khi tải hồ sơ chuyên môn", err);
+          setProfessionalData({ bio: '', expertise: '', experience_years: 0, level: 'beginner' });
+        });
     }
+
   }, [activeTab, currentUser.id, currentUser.role]);
 
   // Notifications

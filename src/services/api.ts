@@ -26,11 +26,11 @@ export interface ApiConfig {
 }
 
 // Read configuration from local storage or environment variables
-const initialMode = 'mock';
+const initialMode = (import.meta as any).env?.VITE_API_MODE === 'api' ? 'api' : 'mock';
 const initialBaseUrl = localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 const config: ApiConfig = {
-  mode: 'mock',
+  mode: initialMode,
   baseUrl: initialBaseUrl,
   authToken: localStorage.getItem('mindhub_api_token') || undefined,
   isLogEnabled: true,
@@ -77,6 +77,7 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   if (!(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
+  headers.set('Accept', 'application/json');
   
   if (config.authToken) {
     headers.set('Authorization', `Bearer ${config.authToken}`);
@@ -105,7 +106,12 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     return { success: true } as unknown as T;
   }
 
-  return response.json() as Promise<T>;
+  const json = await response.json();
+  // Unwrap Laravel ApiResponse envelope: { success, data, message }
+  if (json && typeof json === 'object' && 'data' in json && 'success' in json) {
+    return json.data as T;
+  }
+  return json as T;
 }
 
 export const ApiService = {
@@ -113,17 +119,20 @@ export const ApiService = {
   // SYSTEM & CONNECTION UTILS
   // -------------------------------------------------------------
   getConfig() {
+        // BACKEND_MISSING
     return { ...config };
   },
 
   setMode(mode: 'mock' | 'api') {
-    config.mode = 'mock';
-    localStorage.setItem('mindhub_api_mode', 'mock');
-    devLog('Config', 'Changed API mode (forced to mock)', { mode: 'mock' });
-    window.dispatchEvent(new CustomEvent('mindhub-api-mode-changed', { detail: 'mock' }));
+      // BACKEND_MISSING
+    config.mode = mode;
+    localStorage.setItem('mindhub_api_mode', mode);
+    devLog('Config', `Changed API mode to: ${mode}`, { mode });
+    window.dispatchEvent(new CustomEvent('mindhub-api-mode-changed', { detail: mode }));
   },
 
   setBaseUrl(url: string) {
+      // BACKEND_MISSING
     config.baseUrl = url;
     localStorage.setItem('mindhub_api_base_url', url);
     devLog('Config', 'Changed API Base URL', { url });
@@ -131,6 +140,7 @@ export const ApiService = {
   },
 
   setAuthToken(token: string | null) {
+      // BACKEND_MISSING
     if (token) {
       config.authToken = token;
       localStorage.setItem('mindhub_api_token', token);
@@ -142,6 +152,7 @@ export const ApiService = {
   },
 
   getVirtualLogs(): Array<{ id: string; time: string; mode: string; category: string; action: string; payload: string }> {
+      // BACKEND_MISSING
     try {
       return JSON.parse(localStorage.getItem('mindhub_virtual_api_logs') || '[]');
     } catch {
@@ -150,6 +161,7 @@ export const ApiService = {
   },
 
   clearVirtualLogs() {
+      // BACKEND_MISSING
     localStorage.setItem('mindhub_virtual_api_logs', '[]');
   },
 
@@ -200,62 +212,40 @@ export const ApiService = {
   
   /** POST /auth/register */
   async register(payload: any): Promise<{ user: User; token: string }> {
-    devLog('Auth', 'Register new student', { email: payload.email });
-    if (config.mode === 'api') {
-      const res = await apiFetch<{ user: User; token: string }>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      this.setAuthToken(res.token);
-      return res;
-    }
-    const users = MockDB.getState().users;
-    let newUser = { id: 'u-' + Date.now(), name: payload.name, email: payload.email, role: 'student', bio: '' };
-    MockDB.commit({ users: [...users, newUser as any] });
-    return { user: newUser as any, token: 'mock-token' };
+  devLog('Auth', 'Register new user', { email: payload.email, role: payload.role });
+  const endpoint = payload.role === 'instructor' ? '/auth/register/instructor' : '/auth/register/learner';
+  const res = await apiFetch<{ user: User; token: string }>(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+  this.setAuthToken(res.token);
+  return res;
   },
 
   /** POST /auth/login */
   async login(payload: any): Promise<{ user: User; token: string }> {
-    devLog('Auth', 'Login credentials authentication', { email: payload.email });
-    if (config.mode === 'api') {
-      const res = await apiFetch<{ user: User; token: string }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      this.setAuthToken(res.token);
-      return res;
-    }
-    const users = MockDB.getState().users;
-    let user = users.find(u => u.email === payload.email);
-    if (!user) {
-      const sysUsers = Object.values(SYSTEM_ROLE_USERS);
-      user = sysUsers.find(u => u.email === payload.email);
-      if (user) {
-        MockDB.commit({ users: [...users, user] });
-      } else {
-        throw new Error('Email hoặc mật khẩu không chính xác.');
-      }
-    }
-    return { user, token: 'mock-token' };
+  devLog('Auth', 'Login credentials authentication', { email: payload.email });
+  const res = await apiFetch<{ user: User; token: string }>('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+  this.setAuthToken(res.token);
+  return res;
   },
 
   /** POST /auth/logout */
   async logout(): Promise<{ success: boolean }> {
-    devLog('Auth', 'Logout active session requests');
-    if (config.mode === 'api') {
-      const res = await apiFetch<{ success: boolean }>('/auth/logout', {
-        method: 'POST',
-      });
-      this.setAuthToken(null);
-      return res;
-    }
-    this.setAuthToken(null);
-    return { success: true };
+  devLog('Auth', 'Logout active session requests');
+  const res = await apiFetch<{ success: boolean }>('/auth/logout', {
+          method: 'POST',
+        });
+  this.setAuthToken(null);
+  return res;
   },
 
   /** POST /auth/logout-all */
   async logoutAll(): Promise<{ success: boolean }> {
+      // BACKEND_MISSING
     devLog('Auth', 'Terminate all active device sessions');
     if (config.mode === 'api') {
       const res = await apiFetch<{ success: boolean }>('/auth/logout-all', { method: 'POST' });
@@ -267,6 +257,7 @@ export const ApiService = {
 
   /** POST /auth/refresh */
   async refreshToken(): Promise<{ token: string }> {
+      // BACKEND_MISSING
     devLog('Auth', 'Request Token Refresh rotation');
     if (config.mode === 'api') {
       const res = await apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' });
@@ -278,6 +269,7 @@ export const ApiService = {
 
   /** GET /auth/sessions */
   async getSessions(): Promise<any[]> {
+      // BACKEND_MISSING
     devLog('Auth', 'Fetch active browser sessions');
     if (config.mode === 'api') {
       return apiFetch<any[]>('/auth/sessions');
@@ -287,6 +279,7 @@ export const ApiService = {
 
   /** DELETE /auth/sessions/{sessionId} */
   async revokeSession(sessionId: string): Promise<{ success: boolean }> {
+      // BACKEND_MISSING
     devLog('Auth', `Revoking specific session ID: ${sessionId}`);
     if (config.mode === 'api') {
       return apiFetch<{ success: boolean }>(`/auth/sessions/${sessionId}`, { method: 'DELETE' });
@@ -296,26 +289,20 @@ export const ApiService = {
 
   /** POST /auth/forgot-password */
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Send password reset link to', { email });
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>('/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-      });
-    }
-    return { success: true, message: 'Một liên kết đặt lại mật khẩu đã được gửi đến email của bạn.' };
+  devLog('Auth', 'Send password reset link to', { email });
+  return apiFetch<{ success: boolean; message: string }>('/auth/forgot-password', {
+          method: 'POST',
+          body: JSON.stringify({ email }),
+        });
   },
 
   /** POST /auth/reset-password */
   async resetPassword(payload: any): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Submit password reset request');
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return { success: true, message: 'Mật khẩu đã được đặt lại thành công.' };
+  devLog('Auth', 'Submit password reset request');
+  return apiFetch<{ success: boolean; message: string }>('/auth/reset-password', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** POST /auth/verify-email/resend */
@@ -354,16 +341,13 @@ export const ApiService = {
 
   /** POST /auth/google */
   async authWithGoogle(token: string): Promise<{ user: User; token: string }> {
-    devLog('Auth', 'Google OAuth single-sign-on integration');
-    if (config.mode === 'api') {
-      const res = await apiFetch<{ user: User; token: string }>('/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({ token }),
-      });
-      this.setAuthToken(res.token);
-      return res;
-    }
-    return { user: { id: 'u-google', name: 'Google Student', email: 'student@gmail.com', role: 'student' } as any, token: 'mock-google-token' };
+  devLog('Auth', 'Google OAuth single-sign-on integration');
+  const res = await apiFetch<{ user: User; token: string }>('/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+        });
+  this.setAuthToken(res.token);
+  return res;
   },
 
   // ==========================================
@@ -372,24 +356,19 @@ export const ApiService = {
 
   /** GET /home */
   async getHomepageData(): Promise<any> {
-    devLog('Catalog', 'Get homepage catalog metrics, sliders, and categories');
-    if (config.mode === 'api') {
-      return apiFetch<any>('/home');
-    }
-    return { banner: [], categories: [], featured_courses: [], latest_courses: [] };
+  devLog('Catalog', 'Get homepage catalog metrics, sliders, and categories');
+  return apiFetch<any>('/home');
   },
 
   /** GET /categories */
   async getCategories(): Promise<any[]> {
-    devLog('Catalog', 'Get list of course categories');
-    if (config.mode === 'api') {
-      return apiFetch<any[]>('/categories');
-    }
-    return [];
+  devLog('Catalog', 'Get list of course categories');
+  return apiFetch<any[]>('/categories');
   },
 
   // Get category counts
   async getCategoriesWithCount(): Promise<{name: string, count: number}[]> {
+      // BACKEND_MISSING
     if (config.mode === 'api') {
       try {
         return await apiFetch<{name: string, count: number}[]>('/courses/categories');
@@ -409,6 +388,7 @@ export const ApiService = {
   },
 
   async getUserEnrollments(userId: string): Promise<any[]> {
+      // BACKEND_MISSING
     if (config.mode === 'api') {
       try {
         return await apiFetch<any[]>(`/users/${userId}/enrollments`);
@@ -420,6 +400,7 @@ export const ApiService = {
   },
 
   async getUserActivities(userId: string): Promise<any[]> {
+      // BACKEND_MISSING
     if (config.mode === 'api') {
       try {
         return await apiFetch<any[]>(`/users/${userId}/activities`);
@@ -432,6 +413,7 @@ export const ApiService = {
 
   /** GET /courses (search and filters) */
   async getPublicCoursesByInstructor(instructorId: string): Promise<Course[]> {
+      // BACKEND_MISSING
     const start = Date.now();
     try {
       if (config.mode === 'api') {
@@ -459,33 +441,30 @@ export const ApiService = {
   },
 
   async getCourses(filters?: any): Promise<Course[]> {
-    devLog('Catalog', 'Fetch all active public courses', filters);
-    if (config.mode === 'api') {
-      let endpoint = '/courses';
-      if (filters) {
-        const queryParams = new URLSearchParams();
-        Object.keys(filters).forEach(key => {
-          if (filters[key] !== undefined && filters[key] !== null) {
-            queryParams.append(key, String(filters[key]));
-          }
-        });
-        const queryStr = queryParams.toString();
-        if (queryStr) endpoint += `?${queryStr}`;
-      }
-      return apiFetch<Course[]>(endpoint);
-    }
-    return MockDB.getCourses();
+  devLog('Catalog', 'Fetch all active public courses', filters);
+  let endpoint = '/courses';
+  if (filters) {
+          const queryParams = new URLSearchParams();
+          Object.keys(filters).forEach(key => {
+            if (filters[key] !== undefined && filters[key] !== null) {
+              queryParams.append(key, String(filters[key]));
+            }
+          });
+          const queryStr = queryParams.toString();
+          if (queryStr) endpoint += `?${queryStr}`;
+        }
+  return apiFetch<Course[]>(endpoint);
   },
 
   /** GET /courses/featured */
   async getFeaturedCourses(): Promise<Course[]> {
-    devLog('Catalog', 'Fetch highly rated featured courses');
-    if (config.mode === 'api') return apiFetch<Course[]>('/courses/featured');
-    return (await MockDB.getCourses()).filter(c => c.isFeatured);
+  devLog('Catalog', 'Fetch highly rated featured courses');
+  return apiFetch<Course[]>('/courses/featured');
   },
 
   /** GET /courses/bestsellers */
   async getBestsellerCourses(): Promise<Course[]> {
+      // BACKEND_MISSING
     devLog('Catalog', 'Fetch best-selling courses');
     if (config.mode === 'api') return apiFetch<Course[]>('/courses/bestsellers');
     return (await MockDB.getCourses()).filter(c => c.isBestseller);
@@ -493,63 +472,53 @@ export const ApiService = {
 
   /** GET /courses/latest */
   async getLatestCourses(): Promise<Course[]> {
-    devLog('Catalog', 'Fetch newly published curriculum');
-    if (config.mode === 'api') return apiFetch<Course[]>('/courses/latest');
-    return [];
+  devLog('Catalog', 'Fetch newly published curriculum');
+  return apiFetch<Course[]>('/courses/latest');
   },
 
   /** GET /courses/sort */
   async getFilteredSortedCourses(params: any): Promise<Course[]> {
-    devLog('Catalog', 'Sort course directory dynamically', params);
-    if (config.mode === 'api') {
-      const qParams = new URLSearchParams(params).toString();
-      return apiFetch<Course[]>(`/courses/sort?${qParams}`);
-    }
-    return [];
+  devLog('Catalog', 'Sort course directory dynamically', params);
+  const qParams = new URLSearchParams(params).toString();
+  return apiFetch<Course[]>(`/courses/sort?${qParams}`);
   },
 
   /** GET /courses/{slug} */
   async getCourseBySlug(slug: string): Promise<Course> {
-    devLog('Catalog', `View public course node payload with slug: ${slug}`);
-    if (config.mode === 'api') return apiFetch<Course>(`/courses/${slug}`);
-    throw new Error('Course slug lookup requires backend API mode.');
+  devLog('Catalog', `View public course node payload with slug: ${slug}`);
+  return apiFetch<Course>(`/courses/${slug}`);
   },
 
   /** GET /courses/{id}/outline */
   async getCourseOutline(id: string): Promise<any> {
-    devLog('Catalog', `Fetch Syllabus/Outline structure for syllabus ID: ${id}`);
-    if (config.mode === 'api') return apiFetch<any>(`/courses/${id}/outline`);
-    return { sections: [] };
+  devLog('Catalog', `Fetch Syllabus/Outline structure for syllabus ID: ${id}`);
+  return apiFetch<any>(`/courses/${id}/outline`);
   },
 
   /** GET /courses/{id}/reviews */
   async getCourseReviews(id: string): Promise<any[]> {
-    devLog('Catalog', `Fetch student evaluations and written reviews for course: ${id}`);
-    if (config.mode === 'api') return apiFetch<any[]>(`/courses/${id}/reviews`);
-    return [];
+  devLog('Catalog', `Fetch student evaluations and written reviews for course: ${id}`);
+  return apiFetch<any[]>(`/courses/${id}/reviews`);
   },
 
   /** POST /courses/{id}/reviews */
   async postCourseReview(id: string, payload: any): Promise<any> {
-    devLog('Catalog', `Submit review to course: ${id}`, payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/courses/${id}/reviews`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return { id: 'rev-1', rating: payload.rating, comment: payload.comment, user: { name: 'Người dùng hiện tại' } };
+  devLog('Catalog', `Submit review to course: ${id}`, payload);
+  return apiFetch<any>(`/courses/${id}/reviews`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** GET /courses/{id}/faqs */
   async getCourseFAQs(id: string): Promise<any[]> {
-    devLog('Catalog', `Get detailed FAQ questions for Course ID: ${id}`);
-    if (config.mode === 'api') return apiFetch<any[]>(`/courses/${id}/faqs`);
-    return [];
+  devLog('Catalog', `Get detailed FAQ questions for Course ID: ${id}`);
+  return apiFetch<any[]>(`/courses/${id}/faqs`);
   },
 
   /** GET /courses/{id}/questions */
   async getCourseQuestions(id: string, isInternal?: boolean): Promise<any[]> {
+      // BACKEND_MISSING
     devLog('Catalog', `Get Q&A questions for Course ID: ${id}, isInternal: ${isInternal}`);
     if (config.mode === 'api') {
       const qs = isInternal !== undefined ? `?isInternal=${isInternal}` : '';
@@ -560,6 +529,7 @@ export const ApiService = {
 
   /** POST /courses/{id}/questions */
   async addCourseQuestion(id: string, payload: { authorId: string; content: string; isInternal: boolean; lessonId?: string }): Promise<any> {
+      // BACKEND_MISSING
     devLog('Catalog', `Add Q&A question to Course ID: ${id}`, payload);
     if (config.mode === 'api') {
       return apiFetch<any>(`/courses/${id}/questions`, {
@@ -572,6 +542,7 @@ export const ApiService = {
 
   /** POST /courses/{id}/questions/{questionId}/answers */
   async answerCourseQuestion(id: string, questionId: string, payload: { authorId: string; content: string }): Promise<any> {
+      // BACKEND_MISSING
     devLog('Catalog', `Answer Q&A question ID: ${questionId} on Course ID: ${id}`, payload);
     if (config.mode === 'api') {
       return apiFetch<any>(`/courses/${id}/questions/${questionId}/answers`, {
@@ -584,41 +555,37 @@ export const ApiService = {
 
   /** GET /courses/{courseId}/related */
   async getRelatedCourses(courseId: string): Promise<Course[]> {
-    devLog('Catalog', `Recommended related modules for course: ${courseId}`);
-    if (config.mode === 'api') return apiFetch<Course[]>(`/courses/${courseId}/related`);
-    return [];
+  devLog('Catalog', `Recommended related modules for course: ${courseId}`);
+  return apiFetch<Course[]>(`/courses/${courseId}/related`);
   },
 
   /** GET /lessons/{id}/preview */
   async getFreeLessonPreview(lessonId: string): Promise<any> {
-    devLog('Catalog', `Attempting free sample preview for Lesson ID: ${lessonId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/lessons/${lessonId}/preview`);
-    return { id: lessonId, isFree: true, videoUrl: '' };
+  devLog('Catalog', `Attempting free sample preview for Lesson ID: ${lessonId}`);
+  return apiFetch<any>(`/lessons/${lessonId}/preview`);
   },
 
   /** GET /search/suggestions */
   async getAutocompleteSuggestions(query: string): Promise<string[]> {
-    devLog('Catalog', `Get index search hints for query: "${query}"`);
-    if (config.mode === 'api') return apiFetch<string[]>(`/search/suggestions?q=${encodeURIComponent(query)}`);
-    return [];
+  devLog('Catalog', `Get index search hints for query: "${query}"`);
+  return apiFetch<string[]>(`/search/suggestions?q=${encodeURIComponent(query)}`);
   },
 
   /** GET /instructors/featured */
   async getFeaturedInstructors(): Promise<any[]> {
-    devLog('Catalog', 'Get list of top-rated platform experts');
-    if (config.mode === 'api') return apiFetch<any[]>('/instructors/featured');
-    return [];
+  devLog('Catalog', 'Get list of top-rated platform experts');
+  return apiFetch<any[]>('/instructors/featured');
   },
 
   /** GET /instructors/{id} */
   async getPublicInstructorProfile(instructorId: string): Promise<any> {
-    devLog('Catalog', `View public professional page/bio for trainer ID: ${instructorId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/instructors/${instructorId}`);
-    return { name: 'Thầy Giáo Linh', bio: 'Giảng viên Yoga & Thiền Định 8 năm kinh nghiệm.' };
+  devLog('Catalog', `View public professional page/bio for trainer ID: ${instructorId}`);
+  return apiFetch<any>(`/instructors/${instructorId}`);
   },
 
   /** GET /instructors/{id}/courses */
   async getInstructorCourses(instructorId: string, filters?: any): Promise<Course[]> {
+      // BACKEND_MISSING
     devLog('Catalog', `Fetch courses for instructor ID: ${instructorId}`, filters);
     if (config.mode === 'api') {
       let endpoint = `/instructors/${instructorId}/courses`;
@@ -643,30 +610,22 @@ export const ApiService = {
 
   /** GET /users/me */
   async getMyProfile(): Promise<User> {
-    devLog('Profile', 'Fetch currently authenticated profile state node');
-    if (config.mode === 'api') return apiFetch<User>('/users/me');
-    
-    const users = MockDB.getState().users;
-    // We just mock grabbing the first authenticated user or student for now if token exists
-    const user = users.find(u => (u.role as string) !== 'guest') || users[0];
-    return user;
+  devLog('Profile', 'Fetch currently authenticated profile state node');
+  return apiFetch<User>('/users/me');
   },
 
   /** PATCH /users/me */
   async updateMyProfile(payload: Partial<User>): Promise<User> {
-    devLog('Profile', 'Sync personal bio and name traits', payload);
-    if (config.mode === 'api') {
-      return apiFetch<User>('/users/me', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    const myProfile = await ApiService.getMyProfile();
-    return MockDB.updateUser(myProfile.id, payload) as Promise<User>;
+  devLog('Profile', 'Sync personal bio and name traits', payload);
+  return apiFetch<User>('/users/me', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** POST /users/me/account-requests */
   async createAccountRequest(payload: Omit<AccountRequest, 'id' | 'timestamp' | 'status'>): Promise<AccountRequest> {
+      // BACKEND_MISSING
     devLog('Profile', 'Request account closure', payload);
     if (config.mode === 'api') {
       return apiFetch<AccountRequest>('/users/me/account-requests', {
@@ -686,18 +645,16 @@ export const ApiService = {
 
   /** PATCH /users/me/password */
   async changeMyPassword(payload: any): Promise<{ success: boolean; message: string }> {
-    devLog('Profile', 'Submit credential security mutation request');
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>('/users/me/password', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return { success: true, message: 'Mật khẩu của bạn đã được thay đổi thành công.' };
+  devLog('Profile', 'Submit credential security mutation request');
+  return apiFetch<{ success: boolean; message: string }>('/users/me/password', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   // Hàm Gửi mã OTP (Khi bấm nút Thay đổi Email/Phone)
   async sendOtpForContactChange(field: 'email' | 'phone', newValue: string): Promise<{ success: boolean; message: string }> {
+      // BACKEND_MISSING
     devLog('Profile', `Gửi mã OTP để thay đổi ${field} thành ${newValue}`);
     if (config.mode === 'api') {
       // Endpoint này CẦN ĐƯỢC BACKEND HỖ TRỢ, tạm giả lập request
@@ -712,6 +669,7 @@ export const ApiService = {
 
   // Hàm Xác nhận mã OTP
   async verifyOtpContactChange(field: 'email' | 'phone', newValue: string, otp: string): Promise<{ success: boolean }> {
+      // BACKEND_MISSING
     devLog('Profile', `Xác nhận OTP ${otp} cho ${field}: ${newValue}`);
     if (config.mode === 'api') {
       // Endpoint này CẦN ĐƯỢC BACKEND HỖ TRỢ, tạm giả lập request
@@ -736,32 +694,25 @@ export const ApiService = {
 
   /** GET /wishlists */
   async getMyWishlist(): Promise<Course[]> {
-    devLog('Wishlist', 'Get bookmarks under active account');
-    if (config.mode === 'api') return apiFetch<Course[]>('/wishlists');
-    return [];
+  devLog('Wishlist', 'Get bookmarks under active account');
+  return apiFetch<Course[]>('/wishlists');
   },
 
   /** POST /wishlists */
   async addToWishlist(courseId: string): Promise<{ success: boolean }> {
-    devLog('Wishlist', `Add course ID ${courseId} to wishlist`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>('/wishlists', {
-        method: 'POST',
-        body: JSON.stringify({ course_id: courseId }),
-      });
-    }
-    return { success: true };
+  devLog('Wishlist', `Add course ID ${courseId} to wishlist`);
+  return apiFetch<{ success: boolean }>('/wishlists', {
+          method: 'POST',
+          body: JSON.stringify({ course_id: courseId }),
+        });
   },
 
   /** DELETE /wishlists/{courseId} */
   async removeFromWishlist(courseId: string): Promise<{ success: boolean }> {
-    devLog('Wishlist', `Evict course ID ${courseId} list item`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>(`/wishlists/${courseId}`, {
-        method: 'DELETE',
-      });
-    }
-    return { success: true };
+  devLog('Wishlist', `Evict course ID ${courseId} list item`);
+  return apiFetch<{ success: boolean }>(`/wishlists/${courseId}`, {
+          method: 'DELETE',
+        });
   },
 
   // ==========================================
@@ -770,166 +721,137 @@ export const ApiService = {
 
   /** GET /me/courses */
   async getMyEnrolledCourses(): Promise<Course[]> {
-    devLog('Learning', 'Get my bought/enrolled courses library');
-    if (config.mode === 'api') return apiFetch<Course[]>('/me/courses');
-    return [];
+  devLog('Learning', 'Get my bought/enrolled courses library');
+  return apiFetch<Course[]>('/me/courses');
   },
 
   /** GET /me/learning-dashboard */
   async getLearningDashboardStats(): Promise<any> {
-    devLog('Learning', 'Calculate metrics, active days, hours studied, completion milestones');
-    if (config.mode === 'api') return apiFetch<any>('/me/learning-dashboard');
-    return { totalCourses: 0, completedLessons: 0, studyHours: 0, streakDays: 1 };
+  devLog('Learning', 'Calculate metrics, active days, hours studied, completion milestones');
+  return apiFetch<any>('/me/learning-dashboard');
   },
 
   /** GET /me/dynamic-alerts */
   async getMyLearningAlerts(): Promise<any[]> {
-    devLog('Learning', 'Search for system and deadline alerts');
-    if (config.mode === 'api') return apiFetch<any[]>('/me/dynamic-alerts');
-    return [];
+  devLog('Learning', 'Search for system and deadline alerts');
+  return apiFetch<any[]>('/me/dynamic-alerts');
   },
 
   /** GET /me/learning-path/next */
   async getNextPathGoal(): Promise<any> {
-    devLog('Learning', 'Recommend following milestone based on historical studies');
-    if (config.mode === 'api') return apiFetch<any>('/me/learning-path/next');
-    return { recommended_course: null, reason: 'Hãy bắt đầu khóa học đầu tiên' };
+  devLog('Learning', 'Recommend following milestone based on historical studies');
+  return apiFetch<any>('/me/learning-path/next');
   },
 
   /** GET /me/recommendations/rule-based */
   async getRuleBasedRecommendations(): Promise<Course[]> {
-    devLog('Learning', 'Fetch dynamic rule-based personalized suggestions');
-    if (config.mode === 'api') return apiFetch<Course[]>('/me/recommendations/rule-based');
-    return [];
+  devLog('Learning', 'Fetch dynamic rule-based personalized suggestions');
+  return apiFetch<Course[]>('/me/recommendations/rule-based');
   },
 
   /** GET /learn/resume */
   async getResumeBookmarkNode(): Promise<any> {
-    devLog('Learning', 'Locate last watched session pointer');
-    if (config.mode === 'api') return apiFetch<any>('/learn/resume');
-    return null;
+  devLog('Learning', 'Locate last watched session pointer');
+  return apiFetch<any>('/learn/resume');
   },
 
   /** GET /learn/courses/{id}/outline */
   async getStudentCourseOutline(courseId: string): Promise<any> {
-    devLog('Learning', `Retrieve syllabus framework with checkmarks for Course: ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/learn/courses/${courseId}/outline`);
-    return { sections: [] };
+  devLog('Learning', `Retrieve syllabus framework with checkmarks for Course: ${courseId}`);
+  return apiFetch<any>(`/learn/courses/${courseId}/outline`);
   },
 
   /** GET /learn/courses/{id}/progress */
   async getStudentCourseProgress(courseId: string): Promise<any> {
-    devLog('Learning', `Pull complete detailed study data node: ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/learn/courses/${courseId}/progress`);
-    return { completed_count: 0, total_lessons: 0, percentage: 0 };
+  devLog('Learning', `Pull complete detailed study data node: ${courseId}`);
+  return apiFetch<any>(`/learn/courses/${courseId}/progress`);
   },
 
   /** GET /learn/lessons/{id} */
   async getSecureLessonContent(lessonId: string): Promise<Lesson> {
-    devLog('Learning', `Get secure media payload and attachments for Lesson: ${lessonId}`);
-    if (config.mode === 'api') return apiFetch<Lesson>(`/learn/lessons/${lessonId}`);
-    throw new Error('Secure classroom payload requires active API authentication.');
+  devLog('Learning', `Get secure media payload and attachments for Lesson: ${lessonId}`);
+  return apiFetch<Lesson>(`/learn/lessons/${lessonId}`);
   },
 
   /** GET /learn/lessons/{id}/check-access */
   async verifyClassroomAccess(lessonId: string): Promise<{ has_access: boolean }> {
-    devLog('Learning', `Assert system eligibility node of Lesson ID: ${lessonId}`);
-    if (config.mode === 'api') return apiFetch<{ has_access: boolean }>(`/learn/lessons/${lessonId}/check-access`);
-    return { has_access: true };
+  devLog('Learning', `Assert system eligibility node of Lesson ID: ${lessonId}`);
+  return apiFetch<{ has_access: boolean }>(`/learn/lessons/${lessonId}/check-access`);
   },
 
   /** PATCH /learn/lessons/{id}/complete */
   async markLessonAsComplete(lessonId: string): Promise<{ success: boolean }> {
-    devLog('Learning', `Setting milestone checkmark to Lesson: ${lessonId}`);
-    if (config.mode === 'api') return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/complete`, { method: 'PATCH' });
-    return { success: true };
+  devLog('Learning', `Setting milestone checkmark to Lesson: ${lessonId}`);
+  return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/complete`, { method: 'PATCH' });
   },
 
   /** GET /learn/lessons/{id}/next */
   async getNextLessonNode(lessonId: string): Promise<any> {
-    devLog('Learning', `Find following lesson after node ${lessonId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/learn/lessons/${lessonId}/next`);
-    return null;
+  devLog('Learning', `Find following lesson after node ${lessonId}`);
+  return apiFetch<any>(`/learn/lessons/${lessonId}/next`);
   },
 
   /** PATCH /learn/lessons/{id}/progress */
   async saveVideoPlaybackRatio(lessonId: string, currentSeconds: number): Promise<{ success: boolean }> {
-    devLog('Learning', `Syncing video playback bookmark: ${lessonId}`, { seconds: currentSeconds });
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/progress`, {
-        method: 'PATCH',
-        body: JSON.stringify({ current_time: currentSeconds }),
-      });
-    }
-    return { success: true };
+  devLog('Learning', `Syncing video playback bookmark: ${lessonId}`, { seconds: currentSeconds });
+  return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/progress`, {
+          method: 'PATCH',
+          body: JSON.stringify({ current_time: currentSeconds }),
+        });
   },
 
   /** POST /learn/assets/{assetId}/signed-url */
   async generateSignedAssetUrl(assetId: string): Promise<{ signedUrl: string }> {
-    devLog('Learning', `Signing secure credential attachment download token for Asset ${assetId}`);
-    if (config.mode === 'api') {
-      return apiFetch<{ signedUrl: string }>(`/learn/assets/${assetId}/signed-url`, { method: 'POST' });
-    }
-    return { signedUrl: '#' };
+  devLog('Learning', `Signing secure credential attachment download token for Asset ${assetId}`);
+  return apiFetch<{ signedUrl: string }>(`/learn/assets/${assetId}/signed-url`, { method: 'POST' });
   },
 
   /** GET /learn/assets/{id}/download */
   async downloadResourceAsset(assetId: string): Promise<any> {
-    devLog('Learning', `Download resource payload for asset node: ${assetId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/learn/assets/${assetId}/download`);
-    return { success: true };
+  devLog('Learning', `Download resource payload for asset node: ${assetId}`);
+  return apiFetch<any>(`/learn/assets/${assetId}/download`);
   },
 
   /** GET /learn/lessons/{lessonId}/watermark-info */
   async getLiveWatermarkMetadata(lessonId: string): Promise<{ text: string; alpha: number }> {
-    devLog('Learning', `Pull licensing watermark to overlay video player of lesson: ${lessonId}`);
-    if (config.mode === 'api') return apiFetch<{ text: string; alpha: number }>(`/learn/lessons/${lessonId}/watermark-info`);
-    return { text: 'STUDENT_MOCK', alpha: 0.15 };
+  devLog('Learning', `Pull licensing watermark to overlay video player of lesson: ${lessonId}`);
+  return apiFetch<{ text: string; alpha: number }>(`/learn/lessons/${lessonId}/watermark-info`);
   },
 
   /** GET /learning-logs/my */
   async getMyStudyLogs(): Promise<any[]> {
-    devLog('Learning', 'Get active study engagement logs history');
-    if (config.mode === 'api') return apiFetch<any[]>('/learning-logs/my');
-    return [];
+  devLog('Learning', 'Get active study engagement logs history');
+  return apiFetch<any[]>('/learning-logs/my');
   },
 
   /** GET /lessons/{id}/comments */
   async getLessonComments(lessonId: string): Promise<any[]> {
-    devLog('Learning', `Fetch comments stream for Lesson ID: ${lessonId}`);
-    if (config.mode === 'api') return apiFetch<any[]>(`/lessons/${lessonId}/comments`);
-    return [];
+  devLog('Learning', `Fetch comments stream for Lesson ID: ${lessonId}`);
+  return apiFetch<any[]>(`/lessons/${lessonId}/comments`);
   },
 
   /** POST /lessons/{id}/comments */
   async addLessonComment(lessonId: string, content: string): Promise<any> {
-    devLog('Learning', `Post comment to active Lesson ${lessonId}`, { content });
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/lessons/${lessonId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-      });
-    }
-    return { id: 'mc-1', content, user: { name: 'Người dùng hiện tại' }, created_at: 'Vừa xong' };
+  devLog('Learning', `Post comment to active Lesson ${lessonId}`, { content });
+  return apiFetch<any>(`/lessons/${lessonId}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({ content }),
+        });
   },
 
   /** POST /comments/{id}/replies */
   async replyToLessonComment(commentId: string, content: string): Promise<any> {
-    devLog('Learning', `Post nested thread replies to comment node ${commentId}`, { content });
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/comments/${commentId}/replies`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-      });
-    }
-    return { id: 'mc-rep-1', content, user: { name: 'Người dùng hiện tại' }, created_at: 'Vừa xong' };
+  devLog('Learning', `Post nested thread replies to comment node ${commentId}`, { content });
+  return apiFetch<any>(`/comments/${commentId}/replies`, {
+          method: 'POST',
+          body: JSON.stringify({ content }),
+        });
   },
 
   /** GET /courses/{id}/completion-status */
   async getCourseCertificateStatus(courseId: string): Promise<{ certified: boolean; certificate_url?: string }> {
-    devLog('Learning', `Check validation for Graduation status on course: ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/courses/${courseId}/completion-status`);
-    return { certified: false };
+  devLog('Learning', `Check validation for Graduation status on course: ${courseId}`);
+  return apiFetch<any>(`/courses/${courseId}/completion-status`);
   },
 
   // ==========================================
@@ -938,21 +860,17 @@ export const ApiService = {
 
   /** POST /quizzes/{id}/attempts */
   async submitQuizAttemptAnswers(quizId: string, answers: Record<string, string | number[]>): Promise<any> {
-    devLog('Assessment', `Submitting test answers sheet evaluation to Quiz ID: ${quizId}`, answers);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/quizzes/${quizId}/attempts`, {
-        method: 'POST',
-        body: JSON.stringify({ answers }),
-      });
-    }
-    return { score: 100, pass: true, correctCount: 5, totalQuestions: 5 };
+  devLog('Assessment', `Submitting test answers sheet evaluation to Quiz ID: ${quizId}`, answers);
+  return apiFetch<any>(`/quizzes/${quizId}/attempts`, {
+          method: 'POST',
+          body: JSON.stringify({ answers }),
+        });
   },
 
   /** GET /quiz-attempts/{id} */
   async getQuizAttemptDetails(attemptId: string): Promise<any> {
-    devLog('Assessment', `Retrace diagnostic evaluation worksheet: ${attemptId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/quiz-attempts/${attemptId}`);
-    return { score: 100, answersChecked: [] };
+  devLog('Assessment', `Retrace diagnostic evaluation worksheet: ${attemptId}`);
+  return apiFetch<any>(`/quiz-attempts/${attemptId}`);
   },
 
   // ==========================================
@@ -961,103 +879,76 @@ export const ApiService = {
 
   /** POST /orders */
   async createCheckoutOrder(courseIds: string[]): Promise<any> {
-    devLog('Orders', 'Assembling payment carts into transaction invoice', courseIds);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/orders', {
-        method: 'POST',
-        body: JSON.stringify({ course_ids: courseIds }),
-      });
-    }
-    return { id: 'ord-mock', status: 'pending', total: 0 };
+  devLog('Orders', 'Assembling payment carts into transaction invoice', courseIds);
+  return apiFetch<any>('/orders', {
+          method: 'POST',
+          body: JSON.stringify({ course_ids: courseIds }),
+        });
   },
 
   /** POST /orders/apply-coupon */
   async applyCouponCode(couponCode: string, orderId: string): Promise<any> {
-    devLog('Orders', `Apply coupon "${couponCode}" discount trigger to Order ID: ${orderId}`);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/orders/apply-coupon', {
-        method: 'POST',
-        body: JSON.stringify({ code: couponCode, order_id: orderId }),
-      });
-    }
-    return { success: true, discountAmount: 50000, finalTotal: 150000 };
+  devLog('Orders', `Apply coupon "${couponCode}" discount trigger to Order ID: ${orderId}`);
+  return apiFetch<any>('/orders/apply-coupon', {
+          method: 'POST',
+          body: JSON.stringify({ code: couponCode, order_id: orderId }),
+        });
   },
 
   /** GET /orders/my */
   async getMyOrdersHistory(): Promise<any[]> {
-    devLog('Orders', 'Fetch past buy transactions listing');
-    if (config.mode === 'api') return apiFetch<any[]>('/orders/my');
-    return [];
+  devLog('Orders', 'Fetch past buy transactions listing');
+  return apiFetch<any[]>('/orders/my');
   },
 
   /** GET /orders/{id} */
   async getOrderBillReceipt(orderId: string): Promise<any> {
-    devLog('Orders', `Query specific purchase record details: ${orderId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/orders/${orderId}`);
-    return {};
+  devLog('Orders', `Query specific purchase record details: ${orderId}`);
+  return apiFetch<any>(`/orders/${orderId}`);
   },
 
   /** PATCH /orders/{orderId}/cancel */
   async cancelTicketOrder(orderId: string): Promise<{ success: boolean; message: string }> {
-    devLog('Orders', `Cancel transaction ID: ${orderId}`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>(`/orders/${orderId}/cancel`, { method: 'PATCH' });
-    }
-    return { success: true, message: 'Đã hủy đơn hàng.' };
+  devLog('Orders', `Cancel transaction ID: ${orderId}`);
+  return apiFetch<{ success: boolean; message: string }>(`/orders/${orderId}/cancel`, { method: 'PATCH' });
   },
 
   /** POST /orders/{orderId}/retry-payment */
   async retryPaymentGateway(orderId: string): Promise<any> {
-    devLog('Orders', `Reprocess credit clearance for Order ID: ${orderId}`);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/orders/${orderId}/retry-payment`, { method: 'POST' });
-    }
-    return { success: true };
+  devLog('Orders', `Reprocess credit clearance for Order ID: ${orderId}`);
+  return apiFetch<any>(`/orders/${orderId}/retry-payment`, { method: 'POST' });
   },
 
   /** POST /payments */
   async submitManualPaymentProof(payload: FormData): Promise<{ success: boolean }> {
-    devLog('Orders', 'Submit manual bank transfer photo proof');
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>('/payments', {
-        method: 'POST',
-        body: payload, // Transmit as raw FormData mapping multipart/form-data
-      });
-    }
-    return { success: true };
+  devLog('Orders', 'Submit manual bank transfer photo proof');
+  return apiFetch<{ success: boolean }>('/payments', {
+          method: 'POST',
+          body: payload, // Transmit as raw FormData mapping multipart/form-data
+        });
   },
 
   async createVNPayGatewayUrl(orderId: string): Promise<{ paymentUrl: string }> {
-    devLog('Orders', `Redirect to VNPay gateway portal checkouts for Order ${orderId}`);
-    if (config.mode === 'api') {
-      return apiFetch<{ paymentUrl: string }>('/payments/vnpay/create', {
-        method: 'POST',
-        body: JSON.stringify({ order_id: orderId }),
-      });
-    }
-    // Mock local redirect format for testing
-    return { paymentUrl: `/?route=vnpay-return&vnp_TxnRef=${orderId}&vnp_ResponseCode=00` };
+  devLog('Orders', `Redirect to VNPay gateway portal checkouts for Order ${orderId}`);
+  return apiFetch<{ paymentUrl: string }>('/payments/vnpay/create', {
+          method: 'POST',
+          body: JSON.stringify({ order_id: orderId }),
+        });
   },
 
   /** GET /payments/vnpay-return */
   async parseVNPayCallback(vnpayParams: string): Promise<any> {
-    devLog('Orders', 'Processing VNPay return callback payload token check');
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/payments/vnpay-return?${vnpayParams}`);
-    }
-    return { success: true };
+  devLog('Orders', 'Processing VNPay return callback payload token check');
+  return apiFetch<any>(`/payments/vnpay-return?${vnpayParams}`);
   },
 
   /** POST /payments/webhook */
   async hookPaymentStatusBackground(payload: any): Promise<any> {
-    devLog('Orders', 'Incoming transaction webhook notifier payload');
-    if (config.mode === 'api') {
-      return apiFetch<any>('/payments/webhook', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return { received: true };
+  devLog('Orders', 'Incoming transaction webhook notifier payload');
+  return apiFetch<any>('/payments/webhook', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   // ==========================================
@@ -1066,54 +957,43 @@ export const ApiService = {
 
   /** GET /instructor/profile or /users/:id */
   async getInstructorProfile(instructorId?: string): Promise<any> {
-    devLog('Instructor', 'Fetch professional trainer profile details', { instructorId });
-    if (config.mode === 'api') {
-      if (instructorId) {
-        return apiFetch<any>(`/users/${instructorId}`);
-      }
-      return apiFetch<any>('/instructor/profile');
-    }
-    return { id: instructorId || 'inst-1', name: 'Thầy Giáo Mơ', bio: 'Nhà thiền tu', title: 'Chuyên gia Đào tạo', role: 'instructor', email: 'instructor@mindhub.edu.vn', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150' };
+  devLog('Instructor', 'Fetch professional trainer profile details', { instructorId });
+  if (instructorId) {
+          return apiFetch<any>(`/users/${instructorId}`);
+        }
+  return apiFetch<any>('/instructor/profile');
   },
 
   /** PATCH /instructor/profile */
   async updateInstructorProfile(payload: any): Promise<any> {
-    devLog('Instructor', 'Sync public teacher bio credentials', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/profile', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Instructor', 'Sync public teacher bio credentials', payload);
+  return apiFetch<any>('/instructor/profile', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** POST /instructor/courses */
   async createCourseDraft(course: Course): Promise<Course> {
-    devLog('Instructor', 'Create course draft workspace container', { id: course.id, title: course.title });
-    if (config.mode === 'api') {
-      return apiFetch<Course>('/instructor/courses', {
-        method: 'POST',
-        body: JSON.stringify(course),
-      });
-    }
-    return MockDB.createCourseDraft(course);
+  devLog('Instructor', 'Create course draft workspace container', { id: course.id, title: course.title });
+  return apiFetch<Course>('/instructor/courses', {
+          method: 'POST',
+          body: JSON.stringify(course),
+        });
   },
 
   /** PATCH /instructor/courses/{id} */
   async updateCourse(courseId: string, courseData: Partial<Course>): Promise<Course> {
-    devLog('Instructor', `Update syllabus fields: ${courseId}`, courseData);
-    if (config.mode === 'api') {
-      return apiFetch<Course>(`/instructor/courses/${courseId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(courseData),
-      });
-    }
-    return MockDB.updateCourse(courseId, courseData) as Promise<Course>;
+  devLog('Instructor', `Update syllabus fields: ${courseId}`, courseData);
+  return apiFetch<Course>(`/instructor/courses/${courseId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(courseData),
+        });
   },
 
   /** DELETE /instructor/courses/{id} -> Mapping backward compatibility with standard deleteCourse */
   async deleteCourse(courseId: string): Promise<{ success: boolean }> {
+      // BACKEND_MISSING
     devLog('Instructor', `Delete draft course: ${courseId}`);
     if (config.mode === 'api') {
       return apiFetch<{ success: boolean }>(`/instructor/courses/${courseId}`, {
@@ -1125,29 +1005,24 @@ export const ApiService = {
 
   /** GET /instructor/courses/{courseId}/checklist */
   async getCoursePublishChecklist(courseId: string): Promise<{ valid: boolean; warnings: string[] }> {
-    devLog('Instructor', `Retrieve sanity check audit report before publishing Course ID: ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/instructor/courses/${courseId}/checklist`);
-    return { valid: true, warnings: [] };
+  devLog('Instructor', `Retrieve sanity check audit report before publishing Course ID: ${courseId}`);
+  return apiFetch<any>(`/instructor/courses/${courseId}/checklist`);
   },
 
   /** GET /instructor/courses/{id}/review-notes */
   async getAdminSubmissionReviewNotes(courseId: string): Promise<any[]> {
-    devLog('Instructor', `Read audit feedback and issues left by Administrator on: ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any[]>(`/instructor/courses/${courseId}/review-notes`);
-    return [];
+  devLog('Instructor', `Read audit feedback and issues left by Administrator on: ${courseId}`);
+  return apiFetch<any[]>(`/instructor/courses/${courseId}/review-notes`);
   },
 
   async submitCourseToAdminVerification(courseId: string): Promise<{ success: boolean }> {
-    devLog('Instructor', `Lock blueprint of workspace ${courseId} and submit to moderators`);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/courses/${courseId}/submit`, { method: 'POST' });
-    }
-    await MockDB.submitCourseForReview(courseId);
-    return { success: true };
+  devLog('Instructor', `Lock blueprint of workspace ${courseId} and submit to moderators`);
+  return apiFetch<any>(`/instructor/courses/${courseId}/submit`, { method: 'POST' });
   },
 
   /** GET /instructor/{id}/enrollment-stats */
   async getInstructorEnrollmentStats(instructorId: string): Promise<{ totalEnrollments: number }> {
+      // BACKEND_MISSING
     devLog('Instructor', `Get enrollment stats for instructor ${instructorId}`);
     if (config.mode === 'api') {
       return apiFetch<{ totalEnrollments: number }>(`/instructor/${instructorId}/enrollment-stats`);
@@ -1161,6 +1036,7 @@ export const ApiService = {
 
   /** GET /instructor/{id}/revenue-chart */
   async getInstructorRevenueChart(instructorId: string, params: { timeUnit: string, startDate?: string, endDate?: string, courseId?: string }): Promise<any[]> {
+      // BACKEND_MISSING
     devLog('Instructor', `Get revenue chart for instructor ${instructorId}`, params);
     if (config.mode === 'api') {
       const query = new URLSearchParams();
@@ -1176,20 +1052,18 @@ export const ApiService = {
 
   /** GET /instructor/{id}/enrollment-chart */
   async getInstructorEnrollmentChart(instructorId: string, params: { timeUnit: string, startDate?: string, endDate?: string, courseId?: string }): Promise<any[]> {
-    devLog('Instructor', `Get enrollment chart for instructor ${instructorId}`, params);
-    if (config.mode === 'api') {
-      const query = new URLSearchParams();
-      query.append('timeUnit', params.timeUnit);
-      if (params.startDate) query.append('startDate', params.startDate);
-      if (params.endDate) query.append('endDate', params.endDate);
-      if (params.courseId) query.append('courseId', params.courseId);
-      return apiFetch<any[]>(`/instructor/${instructorId}/enrollment-chart?${query.toString()}`);
-    }
-    return [];
+  devLog('Instructor', `Get enrollment chart for instructor ${instructorId}`, params);
+  const query = new URLSearchParams();
+  query.append('timeUnit', params.timeUnit);
+  if (params.startDate) query.append('startDate', params.startDate);
+  if (params.endDate) query.append('endDate', params.endDate);
+  if (params.courseId) query.append('courseId', params.courseId);
+  return apiFetch<any[]>(`/instructor/${instructorId}/enrollment-chart?${query.toString()}`);
   },
 
   /** GET /instructor/{id}/top-courses-enrollment */
   async getInstructorTopCourses(instructorId: string, params: { limit?: number, startDate?: string, endDate?: string, status?: string }): Promise<any[]> {
+      // BACKEND_MISSING
     devLog('Instructor', `Get top courses for instructor ${instructorId}`);
     if (config.mode === 'api') {
       const query = new URLSearchParams();
@@ -1204,6 +1078,7 @@ export const ApiService = {
 
   /** GET /instructor/{id}/revenue-stats */
   async getInstructorRevenueStats(instructorId: string, params: any): Promise<{ totalRevenue: number, totalGross: number, totalPlatformFee: number, totalTransactions: number, totalStudentsPaid: number }> {
+      // BACKEND_MISSING
     devLog('Instructor', `Get revenue stats for instructor ${instructorId}`, params);
     if (config.mode === 'api') {
       const query = new URLSearchParams();
@@ -1223,80 +1098,58 @@ export const ApiService = {
 
   /** GET /instructor/{id}/enrollments */
   async getInstructorEnrollments(instructorId: string, params: any): Promise<{ data: any[], meta: any }> {
-    devLog('Instructor', `Get enrollments for instructor ${instructorId} with params`, params);
-    if (config.mode === 'api') {
-      const query = new URLSearchParams();
-      if (params.courseId) query.append('courseId', params.courseId);
-      if (params.status) query.append('status', params.status);
-      if (params.search) query.append('search', params.search);
-      if (params.minProgress !== undefined) query.append('minProgress', params.minProgress);
-      if (params.maxProgress !== undefined) query.append('maxProgress', params.maxProgress);
-      if (params.startDate) query.append('startDate', params.startDate);
-      if (params.endDate) query.append('endDate', params.endDate);
-      if (params.page) query.append('page', params.page);
-      if (params.limit) query.append('limit', params.limit);
-      return apiFetch<{ data: any[], meta: any }>(`/instructor/${instructorId}/enrollments?${query.toString()}`);
-    }
-    // Mock logic
-    return {
-      data: [],
-      meta: { total: 0, page: 1, limit: 10, totalPages: 0 }
-    };
+  devLog('Instructor', `Get enrollments for instructor ${instructorId} with params`, params);
+  const query = new URLSearchParams();
+  if (params.courseId) query.append('courseId', params.courseId);
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  if (params.minProgress !== undefined) query.append('minProgress', params.minProgress);
+  if (params.maxProgress !== undefined) query.append('maxProgress', params.maxProgress);
+  if (params.startDate) query.append('startDate', params.startDate);
+  if (params.endDate) query.append('endDate', params.endDate);
+  if (params.page) query.append('page', params.page);
+  if (params.limit) query.append('limit', params.limit);
+  return apiFetch<{ data: any[], meta: any }>(`/instructor/${instructorId}/enrollments?${query.toString()}`);
   },
 
   /** GET /instructor/{id}/revenues */
   async getInstructorRevenues(instructorId: string, params: any): Promise<{ data: any[], meta: any }> {
-    devLog('Instructor', `Get revenues list for instructor ${instructorId}`, params);
-    if (config.mode === 'api') {
-      const query = new URLSearchParams();
-      if (params.courseId) query.append('courseId', params.courseId);
-      if (params.status) query.append('status', params.status);
-      if (params.search) query.append('search', params.search);
-      if (params.startDate) query.append('startDate', params.startDate);
-      if (params.endDate) query.append('endDate', params.endDate);
-      if (params.page) query.append('page', params.page);
-      if (params.limit) query.append('limit', params.limit);
-      return apiFetch<any>(`/instructor/${instructorId}/revenues?${query.toString()}`);
-    }
-    // Mock
-    return {
-      data: [],
-      meta: { total: 0, page: 1, limit: 10, totalPages: 0 }
-    };
+  devLog('Instructor', `Get revenues list for instructor ${instructorId}`, params);
+  const query = new URLSearchParams();
+  if (params.courseId) query.append('courseId', params.courseId);
+  if (params.status) query.append('status', params.status);
+  if (params.search) query.append('search', params.search);
+  if (params.startDate) query.append('startDate', params.startDate);
+  if (params.endDate) query.append('endDate', params.endDate);
+  if (params.page) query.append('page', params.page);
+  if (params.limit) query.append('limit', params.limit);
+  return apiFetch<any>(`/instructor/${instructorId}/revenues?${query.toString()}`);
   },
 
   /** POST /admin/courses/{id}/approve */
   async approveCourse(courseId: string): Promise<{ success: boolean }> {
-    devLog('Admin', `Approve course ID: ${courseId}`);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/admin/courses/${courseId}/approve`, { method: 'POST' });
-    }
-    await MockDB.approveCourse(courseId);
-    return { success: true };
+  devLog('Admin', `Approve course ID: ${courseId}`);
+  return apiFetch<any>(`/admin/courses/${courseId}/approve`, { method: 'PATCH' });
   },
 
   /** POST /admin/courses/{id}/reject */
   async rejectCourse(courseId: string, reason: string): Promise<{ success: boolean }> {
-    devLog('Admin', `Reject course ID: ${courseId} with reason: ${reason}`);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/admin/courses/${courseId}/reject`, { 
-        method: 'POST',
-        body: JSON.stringify({ reason }) 
-      });
-    }
-    await MockDB.rejectCourse(courseId, reason);
-    return { success: true };
+  devLog('Admin', `Reject course ID: ${courseId} with reason: ${reason}`);
+  return apiFetch<any>(`/admin/courses/${courseId}/reject`, { 
+          method: 'PATCH',
+          body: JSON.stringify({ reason }) 
+        });
   },
 
   /** GET /instructor/courses/{id}/learners */
   async getInstructorCourseStudentsList(courseId: string): Promise<any[]> {
-    devLog('Instructor', `Query enrolled learner names and active hours for course ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any[]>(`/instructor/courses/${courseId}/learners`);
-    return [];
+  devLog('Instructor', `Query enrolled learner names and active hours for course ${courseId}`);
+  return apiFetch<any[]>(`/instructor/courses/${courseId}/learners`);
   },
 
   /** GET /instructor/learners */
   async getInstructorLearners(params: any): Promise<any> {
+      // BACKEND_MISSING
     devLog('Instructor', `Query all learners for instructor`);
     const queryStr = new URLSearchParams(params).toString();
     if (config.mode === 'api') return apiFetch<any>(`/instructor/learners?${queryStr}`);
@@ -1305,6 +1158,7 @@ export const ApiService = {
 
   /** GET /instructor/learners/{id}/details */
   async getInstructorLearnerDetails(enrollmentId: number): Promise<any> {
+      // BACKEND_MISSING
     devLog('Instructor', `Query learner details for enrollment ${enrollmentId}`);
     if (config.mode === 'api') return apiFetch<any>(`/instructor/learners/${enrollmentId}/details`);
     return { data: null };
@@ -1312,265 +1166,207 @@ export const ApiService = {
 
   /** GET /instructor/courses/{courseId}/analytics */
   async getCourseEngagementAnalytics(courseId: string): Promise<any> {
-    devLog('Instructor', `Calculate drop-offs, daily watchtime frequency graphs: ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any>(`/instructor/courses/${courseId}/analytics`);
-    return { watchtimeDistribution: [], averageCompletionPercent: 0 };
+  devLog('Instructor', `Calculate drop-offs, daily watchtime frequency graphs: ${courseId}`);
+  return apiFetch<any>(`/instructor/courses/${courseId}/analytics`);
   },
 
   /** GET /instructor/courses/{courseId}/learner-risk */
   async getDropoutRiskAnalytics(courseId: string): Promise<any[]> {
-    devLog('Instructor', `Running Dropout Predictive heuristics model over students in ${courseId}`);
-    if (config.mode === 'api') return apiFetch<any[]>(`/instructor/courses/${courseId}/learner-risk`);
-    return [];
+  devLog('Instructor', `Running Dropout Predictive heuristics model over students in ${courseId}`);
+  return apiFetch<any[]>(`/instructor/courses/${courseId}/learner-risk`);
   },
 
   /** GET /instructor/courses/{id}/dashboard */
   async getStudioDashboardStats(courseId?: string): Promise<any> {
-    devLog('Instructor', 'Query financial statistics and student enrollment graphs', { id: courseId });
-    const url = courseId ? `/instructor/courses/${courseId}/dashboard` : '/instructor/courses/dashboard';
-    if (config.mode === 'api') return apiFetch<any>(url);
-    return { revenueTotal: 15400000, studentsCount: 240, ratingAverage: 4.85 };
+  devLog('Instructor', 'Query financial statistics and student enrollment graphs', { id: courseId });
+  const url = courseId ? `/instructor/courses/${courseId}/dashboard` : '/instructor/courses/dashboard';
+  return apiFetch<any>(url);
   },
 
   /** GET /instructor/lessons */
   async getInstructorLessons(): Promise<Lesson[]> {
-    devLog('Instructor', 'Fetch all managed classroom content items');
-    if (config.mode === 'api') return apiFetch<Lesson[]>('/instructor/lessons');
-    return [];
+  devLog('Instructor', 'Fetch all managed classroom content items');
+  return apiFetch<Lesson[]>('/instructor/lessons');
   },
 
   /** POST /instructor/lessons */
   async createCourseSectionLesson(payload: any): Promise<Lesson> {
-    devLog('Instructor', 'Create section lesson resource', payload);
-    if (config.mode === 'api') {
-      return apiFetch<Lesson>('/instructor/lessons', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Instructor', 'Create section lesson resource', payload);
+  return apiFetch<Lesson>('/instructor/lessons', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** GET /instructor/lessons/{id} */
   async getInstructorLessonDetails(id: string): Promise<Lesson> {
-    devLog('Instructor', `View detailed settings metadata for Lesson node: ${id}`);
-    if (config.mode === 'api') return apiFetch<Lesson>(`/instructor/lessons/${id}`);
-    throw new Error('Lesson query requires API Mode.');
+  devLog('Instructor', `View detailed settings metadata for Lesson node: ${id}`);
+  return apiFetch<Lesson>(`/instructor/lessons/${id}`);
   },
 
   /** PUT/PATCH /instructor/lessons/{id} */
   async updateInstructorLesson(id: string, payload: any): Promise<Lesson> {
-    devLog('Instructor', `Update lesson metadata nodes of Lesson: ${id}`, payload);
-    if (config.mode === 'api') {
-      return apiFetch<Lesson>(`/instructor/lessons/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Instructor', `Update lesson metadata nodes of Lesson: ${id}`, payload);
+  return apiFetch<Lesson>(`/instructor/lessons/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** DELETE /instructor/lessons/{id} */
   async deleteInstructorLesson(id: string): Promise<{ success: boolean }> {
-    devLog('Instructor', `Delete Lesson node: ${id} from workspace`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>(`/instructor/lessons/${id}`, { method: 'DELETE' });
-    }
-    return { success: true };
+  devLog('Instructor', `Delete Lesson node: ${id} from workspace`);
+  return apiFetch<{ success: boolean }>(`/instructor/lessons/${id}`, { method: 'DELETE' });
   },
 
   /** POST /instructor/lessons/{id}/assets */
   async uploadLessonAttachmentFile(lessonId: string, payload: FormData): Promise<any> {
-    devLog('Instructor', `Upload document attachment to Lesson placeholder: ${lessonId}`);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/lessons/${lessonId}/assets`, {
-        method: 'POST',
-        body: payload, // Send as FormData directly
-      });
-    }
-    return { id: 'as-1', name: 'File-dinh-kem.pdf', size: '1.2MB' };
+  devLog('Instructor', `Upload document attachment to Lesson placeholder: ${lessonId}`);
+  return apiFetch<any>(`/instructor/lessons/${lessonId}/assets`, {
+          method: 'POST',
+          body: payload, // Send as FormData directly
+        });
   },
 
   /** PATCH /instructor/lessons/{id}/preview */
   async toggleLessonPublicSample(lessonId: string, isPreviewable: boolean): Promise<any> {
-    devLog('Instructor', `Updating sample allowance flag on Lesson: ${lessonId}`, { isPreviewable });
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/lessons/${lessonId}/preview`, {
-        method: 'PATCH',
-        body: JSON.stringify({ is_free_preview: isPreviewable }),
-      });
-    }
-    return { success: true };
+  devLog('Instructor', `Updating sample allowance flag on Lesson: ${lessonId}`, { isPreviewable });
+  return apiFetch<any>(`/instructor/lessons/${lessonId}/preview`, {
+          method: 'PATCH',
+          body: JSON.stringify({ is_free_preview: isPreviewable }),
+        });
   },
 
   /** GET /instructor/quizzes */
   async getInstructorQuizzes(): Promise<any[]> {
-    devLog('Instructor', 'List quizzes available for inclusion');
-    if (config.mode === 'api') return apiFetch<any[]>('/instructor/quizzes');
-    return [];
+  devLog('Instructor', 'List quizzes available for inclusion');
+  return apiFetch<any[]>('/instructor/quizzes');
   },
 
   /** POST /instructor/quizzes */
   async createQuizDraft(quizPayload: any): Promise<any> {
-    devLog('Instructor', 'Instantiate a quiz worksheet template', quizPayload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/quizzes', {
-        method: 'POST',
-        body: JSON.stringify(quizPayload),
-      });
-    }
-    return quizPayload;
+  devLog('Instructor', 'Instantiate a quiz worksheet template', quizPayload);
+  return apiFetch<any>('/instructor/quizzes', {
+          method: 'POST',
+          body: JSON.stringify(quizPayload),
+        });
   },
 
   /** GET/PUT/PATCH/DELETE /instructor/quizzes/{id} */
   async manageQuizWorksheet(id: string, action: 'GET' | 'PUT' | 'PATCH' | 'DELETE', payload?: any): Promise<any> {
-    devLog('Instructor', `Quiz operations pipeline [${action}] to ID: ${id}`);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/quizzes/${id}`, {
-        method: action,
-        body: payload ? JSON.stringify(payload) : undefined,
-      });
-    }
-    return { success: true, quiz: payload };
+  devLog('Instructor', `Quiz operations pipeline [${action}] to ID: ${id}`);
+  return apiFetch<any>(`/instructor/quizzes/${id}`, {
+          method: action,
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
   },
 
   /** GET /instructor/sections */
   async getCourseSections(): Promise<Section[]> {
-    devLog('Instructor', 'Sync sections of managed drafts');
-    if (config.mode === 'api') return apiFetch<any[]>('/instructor/sections');
-    return [];
+  devLog('Instructor', 'Sync sections of managed drafts');
+  return apiFetch<any[]>('/instructor/sections');
   },
 
   /** POST /instructor/sections */
   async createCourseSection(payload: any): Promise<any> {
-    devLog('Instructor', 'Write section block into workbook', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/sections', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Instructor', 'Write section block into workbook', payload);
+  return apiFetch<any>('/instructor/sections', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** GET /instructor/sections/{id} */
   async getSectionDetails(id: string): Promise<any> {
-    devLog('Instructor', `Retrieve setting details on section: ${id}`);
-    if (config.mode === 'api') return apiFetch<any>(`/instructor/sections/${id}`);
-    return {};
+  devLog('Instructor', `Retrieve setting details on section: ${id}`);
+  return apiFetch<any>(`/instructor/sections/${id}`);
   },
 
   /** PUT / PATCH /instructor/sections/{id} */
   async updateSection(id: string, payload: any): Promise<any> {
-    devLog('Instructor', `Modifying structure of section: ${id}`, payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/sections/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Instructor', `Modifying structure of section: ${id}`, payload);
+  return apiFetch<any>(`/instructor/sections/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** DELETE /instructor/sections/{id} */
   async deleteSection(id: string): Promise<{ success: boolean }> {
-    devLog('Instructor', `Remove section folder block entirely: ${id}`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>(`/instructor/sections/${id}`, { method: 'DELETE' });
-    }
-    return { success: true };
+  devLog('Instructor', `Remove section folder block entirely: ${id}`);
+  return apiFetch<{ success: boolean }>(`/instructor/sections/${id}`, { method: 'DELETE' });
   },
 
   /** GET /instructor/coupons */
   async getInstructorPromoCoupons(): Promise<any[]> {
-    devLog('Instructor', 'Fetch all discount campaigns under teacher authorship');
-    if (config.mode === 'api') return apiFetch<any[]>('/instructor/coupons');
-    return [];
+  devLog('Instructor', 'Fetch all discount campaigns under teacher authorship');
+  return apiFetch<any[]>('/instructor/coupons');
   },
 
   /** POST /instructor/coupons */
   async createPromoCoupon(payload: any): Promise<any> {
-    devLog('Instructor', 'Inject new coupon discount rule properties', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/coupons', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Instructor', 'Inject new coupon discount rule properties', payload);
+  return apiFetch<any>('/instructor/coupons', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** GET /instructor/coupons/{id} */
   async getCouponDetails(id: string): Promise<any> {
-    devLog('Instructor', `Retrieve stats for coupon campaign ID: ${id}`);
-    if (config.mode === 'api') return apiFetch<any>(`/instructor/coupons/${id}`);
-    return {};
+  devLog('Instructor', `Retrieve stats for coupon campaign ID: ${id}`);
+  return apiFetch<any>(`/instructor/coupons/${id}`);
   },
 
   /** PATCH /instructor/coupons/{id} */
   async updatePromoCouponDetails(id: string, payload: any): Promise<any> {
-    devLog('Instructor', `Altering active properties / limits of coupon Node: ${id}`, payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/coupons/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Instructor', `Altering active properties / limits of coupon Node: ${id}`, payload);
+  return apiFetch<any>(`/instructor/coupons/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** DELETE /instructor/coupons/{id} */
   async deletePromoCoupon(id: string): Promise<{ success: boolean }> {
-    devLog('Instructor', `Evoking coupon system code cancel: ${id}`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>(`/instructor/coupons/${id}`, { method: 'DELETE' });
-    }
-    return { success: true };
+  devLog('Instructor', `Evoking coupon system code cancel: ${id}`);
+  return apiFetch<{ success: boolean }>(`/instructor/coupons/${id}`, { method: 'DELETE' });
   },
 
   /** POST /instructor/course-announcements */
   async sendBulkCourseAnnouncement(payload: any): Promise<any> {
-    devLog('Instructor', 'Dispatch announcements notifications thread to subscribed students', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/instructor/course-announcements', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return { success: true };
+  devLog('Instructor', 'Dispatch announcements notifications thread to subscribed students', payload);
+  return apiFetch<any>('/instructor/course-announcements', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** GET /instructor/revenue */
   async getRevenueReportsSummary(): Promise<any> {
-    devLog('Instructor', 'Fetch sales distributions and ledger reports');
-    if (config.mode === 'api') return apiFetch<any>('/instructor/revenue');
-    return { earningsTotal: 15400000, ledger: [] };
+  devLog('Instructor', 'Fetch sales distributions and ledger reports');
+  return apiFetch<any>('/instructor/revenue');
   },
 
   /** GET /instructor/reports/completion-rate */
   async getCompletionRatesReport(): Promise<any[]> {
-    devLog('Instructor', 'Compile average lessons completed statistics across student population');
-    if (config.mode === 'api') return apiFetch<any[]>('/instructor/reports/completion-rate');
-    return [];
+  devLog('Instructor', 'Compile average lessons completed statistics across student population');
+  return apiFetch<any[]>('/instructor/reports/completion-rate');
   },
 
   /** GET /instructor/reports/inactive-learners */
   async getInactiveStudentsRiskList(): Promise<any[]> {
-    devLog('Instructor', 'Query for users with zero classroom logins (> 14 days)');
-    if (config.mode === 'api') return apiFetch<any[]>('/instructor/reports/inactive-learners');
-    return [];
+  devLog('Instructor', 'Query for users with zero classroom logins (> 14 days)');
+  return apiFetch<any[]>('/instructor/reports/inactive-learners');
   },
 
   /** POST /instructor/withdrawals */
   async submitBalancePayoutRequest(payload: Partial<PayoutRequest>): Promise<PayoutRequest> {
-    devLog('Instructor', 'Submitting finance balance payout request', payload);
-    if (config.mode === 'api') {
-      return apiFetch<PayoutRequest>('/instructor/withdrawals', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload as any;
+  devLog('Instructor', 'Submitting finance balance payout request', payload);
+  return apiFetch<PayoutRequest>('/instructor/withdrawals', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   // ==========================================
@@ -1579,182 +1375,140 @@ export const ApiService = {
 
   /** GET /admin/roles */
   async getRolesList(): Promise<any[]> {
-    devLog('Admin', 'Query complete role models system directories');
-    if (config.mode === 'api') return apiFetch<any[]>('/admin/roles');
-    return [];
+  devLog('Admin', 'Query complete role models system directories');
+  return apiFetch<any[]>('/admin/roles');
   },
 
   /** POST /admin/roles */
   async createAdminRole(payload: any): Promise<any> {
-    devLog('Admin', 'Adding role privilege node', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>('/admin/roles', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Admin', 'Adding role privilege node', payload);
+  return apiFetch<any>('/admin/roles', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** GET /admin/roles/{id} */
   async getRoleDefinitionDetails(id: string): Promise<any> {
-    devLog('Admin', `View permissions dictionary configured under tag: ${id}`);
-    if (config.mode === 'api') return apiFetch<any>(`/admin/roles/${id}`);
-    return {};
+  devLog('Admin', `View permissions dictionary configured under tag: ${id}`);
+  return apiFetch<any>(`/admin/roles/${id}`);
   },
 
   /** PUT / PATCH /admin/roles/{id} */
   async updateRoleDefinitionDetails(id: string, payload: any): Promise<any> {
-    devLog('Admin', `Modifying privilege mask of role: ${id}`, payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/admin/roles/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Admin', `Modifying privilege mask of role: ${id}`, payload);
+  return apiFetch<any>(`/admin/roles/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** DELETE /admin/roles/{id} */
   async deleteAdminRole(id: string): Promise<{ success: boolean }> {
-    devLog('Admin', `Revoke role template: ${id}`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>(`/admin/roles/${id}`, { method: 'DELETE' });
-    }
-    return { success: true };
+  devLog('Admin', `Revoke role template: ${id}`);
+  return apiFetch<{ success: boolean }>(`/admin/roles/${id}`, { method: 'DELETE' });
   },
 
   /** GET /admin/users */
   async getPlatformUsersList(): Promise<User[]> {
-    devLog('Admin', 'Fetch full index directory of users registrations');
-    if (config.mode === 'api') return apiFetch<User[]>('/admin/users');
-    return [];
+  devLog('Admin', 'Fetch full index directory of users registrations');
+  return apiFetch<User[]>('/admin/users');
   },
 
   /** POST /admin/users */
   async createPlatformUserAccount(payload: any): Promise<User> {
-    devLog('Admin', 'Creating account from backend control panels', payload);
-    if (config.mode === 'api') {
-      return apiFetch<User>('/admin/users', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Admin', 'Creating account from backend control panels', payload);
+  return apiFetch<User>('/admin/users', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** GET /admin/users/{id} */
   async getPlatformUserDetail(id: string): Promise<User> {
-    devLog('Admin', `View general history and order logs for User: ${id}`);
-    if (config.mode === 'api') return apiFetch<User>(`/admin/users/${id}`);
-    throw new Error('User node details require active API connection.');
+  devLog('Admin', `View general history and order logs for User: ${id}`);
+  return apiFetch<User>(`/admin/users/${id}`);
   },
 
   /** PUT / PATCH /admin/users/{id} */
   async updatePlatformUserCredentials(id: string, payload: any): Promise<User> {
-    devLog('Admin', `Overriding role or credential details of user: ${id}`, payload);
-    if (config.mode === 'api') {
-      return apiFetch<User>(`/admin/users/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    }
-    return payload;
+  devLog('Admin', `Overriding role or credential details of user: ${id}`, payload);
+  return apiFetch<User>(`/admin/users/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
   },
 
   /** DELETE /admin/users/{id} */
   async deactivatePlatformUserAccount(id: string): Promise<{ success: boolean }> {
-    devLog('Admin', `Invoking ban/deactivation command on account ID: ${id}`);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean }>(`/admin/users/${id}`, { method: 'DELETE' });
-    }
-    return { success: true };
+  devLog('Admin', `Invoking ban/deactivation command on account ID: ${id}`);
+  return apiFetch<{ success: boolean }>(`/admin/users/${id}`, { method: 'DELETE' });
   },
 
   /** GET /admin/test */
   async verifyAdminAuthConnection(): Promise<{ authenticated: boolean; system_healthy: boolean }> {
-    devLog('Admin', 'Ping admin authentication status connection test sequence');
-    if (config.mode === 'api') return apiFetch<any>('/admin/test');
-    return { authenticated: true, system_healthy: true };
+  devLog('Admin', 'Ping admin authentication status connection test sequence');
+  return apiFetch<any>('/admin/test');
   },
 
   // ==========================================
   // RETRO-SUPPORT / BACKWARD COMPATABILITY INTEGRATIONS
   // ==========================================
   async updateCourseChapters(courseId: string, chapters: Chapter[]): Promise<{ success: boolean; chapters: Chapter[] }> {
-    devLog('Chapters', `Bulk Sync Curriculum for course ${courseId}`, chapters);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; chapters: Chapter[] }>(`/courses/${courseId}/chapters`, {
-        method: 'POST',
-        body: JSON.stringify({ chapters }),
-      });
-    }
-    return { success: true, chapters };
+  devLog('Chapters', `Bulk Sync Curriculum for course ${courseId}`, chapters);
+  return apiFetch<{ success: boolean; chapters: Chapter[] }>(`/courses/${courseId}/chapters`, {
+          method: 'POST',
+          body: JSON.stringify({ chapters }),
+        });
   },
 
   async uploadLessonVideo(
     file: File, 
-    onProgress: (progress: number, status: string) => void
+    onProgress: (progress: number, status: string) => void,
+    lessonId: string = 'new'
   ): Promise<{ success: boolean; videoUrl: string; duration: string }> {
-    devLog('Media', 'Upload direct video file request', { name: file.name, size: `${(file.size / (1024 * 1024)).toFixed(2)} MB` });
-    
-    if (config.mode === 'api') {
-      // Real API Mode: uploads using multipart/form-data
-      const formData = new FormData();
-      formData.append('video', file);
-      
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${config.baseUrl}/media/upload-video`);
-        
-        if (config.authToken) {
-          xhr.setRequestHeader('Authorization', `Bearer ${config.authToken}`);
-        }
-        
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            onProgress(percentComplete, 'Đang gửi từng cụm byte lên Cloud Storage...');
+  devLog('Media', 'Upload direct video file request', { name: file.name, size: `${(file.size / (1024 * 1024)).toFixed(2)} MB` });
+  const formData = new FormData();
+  formData.append('video', file);
+  return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `${config.baseUrl}/instructor/lessons/${lessonId}/video`);
+          
+          if (config.authToken) {
+            xhr.setRequestHeader('Authorization', `Bearer ${config.authToken}`);
           }
-        };
-        
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const res = JSON.parse(xhr.responseText);
-              resolve(res);
-            } catch (err) {
-              reject(new Error('Invalid response payload from media server.'));
+          
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              onProgress(percentComplete, 'Đang gửi từng cụm byte lên Cloud Storage...');
             }
-          } else {
-            reject(new Error(`Tải video lỗi: status code ${xhr.status}`));
-          }
-        };
-        
-        xhr.onerror = () => reject(new Error('Mất kết nối tới máy chủ lưu trữ HLS.'));
-        xhr.send(formData);
-      });
-    }
-
-    // Return simulation
-    return new Promise((resolve) => {
-      resolve({
-        success: true,
-        videoUrl: `https://mindhub-cdn.example.com/videos/${Date.now()}_stream/adaptive.m3u8`,
-        duration: '12:45'
-      });
-    });
+          };
+          
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const res = JSON.parse(xhr.responseText);
+                resolve(res);
+              } catch (err) {
+                reject(new Error('Invalid response payload from media server.'));
+              }
+            } else {
+              reject(new Error(`Tải video lỗi: status code ${xhr.status}`));
+            }
+          };
+          
+          xhr.onerror = () => reject(new Error('Mất kết nối tới máy chủ lưu trữ HLS.'));
+          xhr.send(formData);
+        });
   },
 
   async updateStudentProgress(courseId: string, progress: Partial<StudentProgress>): Promise<Partial<StudentProgress>> {
-    devLog('Progress', `Sync student study session for: ${courseId}`, progress);
-    if (config.mode === 'api') {
-      return apiFetch<StudentProgress>(`/progress/${courseId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(progress),
-      });
-    }
-    return progress;
+  devLog('Progress', `Sync student study session for: ${courseId}`, progress);
+  return apiFetch<StudentProgress>(`/progress/${courseId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(progress),
+        });
   },
 
   /** POST /auth/send-phone-otp */
@@ -1793,114 +1547,50 @@ export const ApiService = {
 
   /** POST /role-requests/admin */
   async requestAdminRole(payload: any): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Request Admin Role', payload);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>('/role-requests/admin', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    return { success: true, message: 'Yêu cầu quyền Admin hệ thống đã được gửi đến Super Admin.' };
+  devLog('Auth', 'Request Admin Role', payload);
+  return apiFetch<{ success: boolean; message: string }>('/role-requests/admin', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
   },
 
   /** POST /roles/request-instructor */
   async requestInstructorRole(payload: any): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Request Instructor Role', payload);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>('/roles/request-instructor', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    
-    // Fallback for mock mode
-    const requests = JSON.parse(localStorage.getItem('mindhub_instructor_requests') || '[]');
-    requests.push({
-      ...payload,
-      id: 'req-' + Date.now(),
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    });
-    localStorage.setItem('mindhub_instructor_requests', JSON.stringify(requests));
-    
-    // Update current user locally
-    const userStr = localStorage.getItem('mindhub_current_user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      user.roleRequestStatus = 'pending_instructor';
-      localStorage.setItem('mindhub_current_user', JSON.stringify(user));
-    }
-    return { success: true, message: 'Yêu cầu trở thành giảng viên đã được gửi đi.' };
+  devLog('Auth', 'Request Instructor Role', payload);
+  return apiFetch<{ success: boolean; message: string }>('/me/instructor-upgrade', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
   },
 
   /** GET /roles/requests */
   async getInstructorRequests(): Promise<InstructorRequest[]> {
-    devLog('Auth', 'Get Instructor Requests');
-    if (config.mode === 'api') {
-      const data = await apiFetch<any>('/roles/requests');
-      return data.requests || [];
-    }
-    return JSON.parse(localStorage.getItem('mindhub_instructor_requests') || '[]');
+  devLog('Auth', 'Get Instructor Requests');
+  const data = await apiFetch<any>('/admin/instructor-upgrade-requests');
+  return data.requests || data || [];
   },
 
   /** POST /roles/resolve */
   async resolveInstructorRequest(payload: { requestId: string; action: 'approve' | 'reject'; rejectionReason?: string }): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Resolve Instructor Request', payload);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>('/roles/resolve', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    
-    // Fallback mock mode
-    let requests = JSON.parse(localStorage.getItem('mindhub_instructor_requests') || '[]');
-    const index = requests.findIndex((r: any) => r.id === payload.requestId);
-    if (index >= 0) {
-      requests[index].status = payload.action === 'approve' ? 'approved' : 'rejected';
-      requests[index].rejectionReason = payload.rejectionReason;
-      requests[index].reviewedAt = new Date().toISOString();
-      localStorage.setItem('mindhub_instructor_requests', JSON.stringify(requests));
-      
-      // We would ideally update the user's role here, but we don't have the full users DB in mock mode easily available.
-      // Assuming the user logs out and in, or their current user state handles it.
-    }
-    return { success: true, message: payload.action === 'approve' ? 'Đã phê duyệt yêu cầu giảng viên.' : 'Đã từ chối yêu cầu.' };
+  devLog('Auth', 'Resolve Instructor Request', payload);
+  return apiFetch<{ success: boolean; message: string }>(`/admin/instructor-upgrade-requests/${payload.requestId}/${payload.action}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload.action === 'reject' ? { reason: payload.rejectionReason } : {})
+        });
   },
 
   /** POST /roles/request-leave-instructor */
   async requestLeaveInstructorRole(payload: { userId: string; fullName: string; email: string; reason: string }): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Request Leave Instructor Role', payload);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>('/roles/request-leave-instructor', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    
-    // Fallback mock mode
-    const requests = JSON.parse(localStorage.getItem('mindhub_instructor_requests') || '[]');
-    requests.push({
-      ...payload,
-      id: 'req-leave-' + Date.now(),
-      status: 'pending',
-      requestType: 'leave_instructor',
-      createdAt: new Date().toISOString()
-    });
-    localStorage.setItem('mindhub_instructor_requests', JSON.stringify(requests));
-    
-    // Update locally
-    const userStr = localStorage.getItem('mindhub_current_user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      user.roleRequestStatus = 'pending_leave_instructor';
-      localStorage.setItem('mindhub_current_user', JSON.stringify(user));
-    }
-    return { success: true, message: 'Yêu cầu rời vai trò giảng viên đã được gửi đi.' };
+  devLog('Auth', 'Request Leave Instructor Role', payload);
+  return apiFetch<{ success: boolean; message: string }>('/roles/request-leave-instructor', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
   },
 
   /** GET /admin/users/:userId/courses */
   async getInstructorCoursesByAdmin(userId: string): Promise<Course[]> {
+      // BACKEND_MISSING
     devLog('Admin', 'Get instructor courses', { userId });
     if (config.mode === 'api') {
       const data = await apiFetch<any>(`/admin/users/${userId}/courses`);
@@ -1911,6 +1601,7 @@ export const ApiService = {
 
   /** POST /admin/users/:userId/lock */
   async toggleUserLockAdmin(userId: string, action: 'lock' | 'unlock'): Promise<{ success: boolean; message: string; status: string }> {
+      // BACKEND_MISSING
     devLog('Admin', `Toggle user lock: ${action}`, { userId });
     if (config.mode === 'api') {
       return apiFetch<{ success: boolean; message: string; status: string }>(`/admin/users/${userId}/lock`, {
@@ -1927,6 +1618,7 @@ export const ApiService = {
 
   /** GET /admin/account-requests */
   async getAccountRequests(): Promise<AccountRequest[]> {
+      // BACKEND_MISSING
     devLog('Admin', 'Fetch account requests');
     if (config.mode === 'api') {
       return apiFetch<AccountRequest[]>('/admin/account-requests');
@@ -1936,6 +1628,7 @@ export const ApiService = {
 
   /** PATCH /admin/account-requests/:requestId/resolve */
   async resolveAccountRequest(requestId: string, action: 'approved' | 'rejected'): Promise<{ success: boolean; message: string }> {
+      // BACKEND_MISSING
     devLog('Admin', 'Resolve account request', { requestId, action });
     if (config.mode === 'api') {
       return apiFetch<{ success: boolean; message: string }>(`/admin/account-requests/${requestId}/resolve`, {
@@ -1949,6 +1642,7 @@ export const ApiService = {
 
   /** PATCH /admin/orders/:orderId/status */
   async updateOrderStatus(orderId: string, status: 'success' | 'pending' | 'failed'): Promise<{ success: boolean; message: string }> {
+      // BACKEND_MISSING
     devLog('Admin', `Update order status to ${status}`, { orderId });
     if (config.mode === 'api') {
       return apiFetch<{ success: boolean; message: string }>(`/admin/orders/${orderId}/status`, {
@@ -1962,6 +1656,7 @@ export const ApiService = {
 
   /** PATCH /admin/payout-requests/:requestId/resolve */
   async resolvePayoutRequest(requestId: string, action: 'completed' | 'rejected'): Promise<{ success: boolean; message: string }> {
+      // BACKEND_MISSING
     devLog('Admin', `Resolve payout request to ${action}`, { requestId });
     if (config.mode === 'api') {
       return apiFetch<{ success: boolean; message: string }>(`/admin/payout-requests/${requestId}/resolve`, {
@@ -1975,59 +1670,44 @@ export const ApiService = {
 
   /** PATCH /admin/courses/:courseId/status */
   async updateCourseStatusAdmin(courseId: string, status: string): Promise<{ success: boolean; message: string }> {
-    devLog('Admin', `Update course status to ${status}`, { courseId });
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message: string }>(`/admin/courses/${courseId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status })
-      });
-    }
-    return { success: true, message: 'Đã cập nhật trạng thái khóa học.' };
+  devLog('Admin', `Update course status to ${status}`, { courseId });
+  return apiFetch<{ success: boolean; message: string }>(`/admin/courses/${courseId}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status })
+        });
   },
 
   /** POST /contact */
   async sendContactMessage(payload: { name: string; email: string; subject: string; message: string }): Promise<{ success: boolean; message?: string }> {
-    devLog('Contact', 'Gửi tin nhắn liên hệ', payload);
-    if (config.mode === 'api') {
-      return apiFetch<{ success: boolean; message?: string }>('/contact', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    }
-    // Mock
-    return { success: true, message: 'Mock: Đã gửi liên hệ' };
+  devLog('Contact', 'Gửi tin nhắn liên hệ', payload);
+  return apiFetch<{ success: boolean; message?: string }>('/contact', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
   },
 
   
   // ================= PAYOUT & BALANCE API =================
   async getInstructorBalance(instructorId: string): Promise<any> {
-    devLog('Instructor', 'Get balance');
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/balance`);
-    }
-    return { withdrawableBalance: 15500000, pendingBalance: 2500000 };
+  devLog('Instructor', 'Get balance');
+  return apiFetch<any>(`/instructor/course-credits`);
   },
 
   async getInstructorPayoutAccount(instructorId: string): Promise<any> {
-    devLog('Instructor', 'Get payout account');
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/payout-account`);
-    }
-    return { type: 'bank_transfer', accountName: 'NGUYEN VAN A', accountNumber: '123456789', bankName: 'Vietcombank', branch: 'HCM' };
+  devLog('Instructor', 'Get payout account');
+  return apiFetch<any>(`/instructor/payout-account`);
   },
 
   async updateInstructorPayoutAccount(instructorId: string, payload: any): Promise<any> {
-    devLog('Instructor', 'Update payout account', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/payout-account`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
-    }
-    return { success: true, message: 'Đã cập nhật thông tin nhận tiền' };
+  devLog('Instructor', 'Update payout account', payload);
+  return apiFetch<any>(`/instructor/payout-account`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
   },
 
   async getInstructorWithdrawals(instructorId: string, params?: any): Promise<{ data: any[], meta: any }> {
+      // BACKEND_MISSING
     devLog('Instructor', 'Get withdrawals');
     const query = new URLSearchParams(params).toString();
     if (config.mode === 'api') {
@@ -2043,36 +1723,28 @@ export const ApiService = {
   },
 
   async createInstructorWithdrawal(instructorId: string, payload: any): Promise<any> {
-    devLog('Instructor', 'Create withdrawal', payload);
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/withdrawals`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
-    return { success: true, message: 'Đã tạo yêu cầu rút tiền' };
+  devLog('Instructor', 'Create withdrawal', payload);
+  return apiFetch<any>(`/instructor/withdrawals`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
   },
 
   // ================= TRANSACTIONS API =================
   async getInstructorTransactions(instructorId: string, params: any): Promise<any> {
-    devLog('Instructor', 'Get transaction history');
-    const query = new URLSearchParams(params).toString();
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/transactions?${query}`);
-    }
-    return { data: { stats: { total: 0, success: 0, pending: 0, failed: 0, total_revenue: 0 }, list: { data: [], total: 0, last_page: 1 } } };
+  devLog('Instructor', 'Get transaction history');
+  const query = new URLSearchParams(params).toString();
+  return apiFetch<any>(`/instructor/credit-transactions?${query}`);
   },
 
   async getInstructorTransactionDetails(transactionId: string | number): Promise<any> {
-    devLog('Instructor', 'Get transaction details');
-    if (config.mode === 'api') {
-      return apiFetch<any>(`/instructor/transactions/${transactionId}/details`);
-    }
-    return { data: null };
+  devLog('Instructor', 'Get transaction details');
+  return apiFetch<any>(`/instructor/transactions/${transactionId}/details`);
   },
 
   // ================= Q&A API =================
   async getInstructorQAStats(instructorId: string): Promise<any> {
+      // BACKEND_MISSING
     if (config.mode === 'api') {
       return apiFetch<any>(`/instructor/${instructorId}/qa-stats`);
     }
@@ -2080,6 +1752,7 @@ export const ApiService = {
   },
 
   async getInstructorQuestions(instructorId: string, params: any): Promise<any> {
+      // BACKEND_MISSING
     if (config.mode === 'api') {
       const query = new URLSearchParams();
       if (params.filter) query.append('filter', params.filter);
@@ -2095,6 +1768,7 @@ export const ApiService = {
   },
 
   async replyToQuestion(instructorId: string, questionId: string, payload: any): Promise<any> {
+      // BACKEND_MISSING
     if (config.mode === 'api') {
       return apiFetch<any>(`/instructor/${instructorId}/questions/${questionId}/reply`, {
         method: 'POST',

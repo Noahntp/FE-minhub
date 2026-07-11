@@ -203,13 +203,14 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
     setSuccessMsg('Đang tạo tài khoản mới...');
     ApiService.register({ 
-      name: name.trim(), 
+      full_name: name.trim(), 
       email: emailTrimmed, 
       password,
+      password_confirmation: confirmPassword,
       role: registerRole,
-      specialty: registerRole === 'instructor' ? instructorSpecialty : undefined,
+      expertise: registerRole === 'instructor' ? instructorSpecialty : undefined,
       bio: registerRole === 'instructor' ? instructorBio : undefined,
-      experience: registerRole === 'instructor' ? instructorExperience : undefined
+      experience_years: registerRole === 'instructor' ? instructorExperience : undefined
     })
       .then(res => {
         const apiUser = normalizeUser({
