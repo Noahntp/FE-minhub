@@ -2046,6 +2046,11 @@ export default function App() {
     "verify-email",
   ].includes(activeTab);
 
+  const isFullScreenRoute = [
+    "admin",
+    "instructor",
+  ].includes(activeTab);
+
   return (
     <div className="min-h-screen bg-[#fbf9f6] flex flex-col text-main-darker selection:bg-brand-light-active selection:text-brand-dark relative overflow-hidden">
       <style>{`
@@ -2074,7 +2079,7 @@ export default function App() {
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none z-0 bg-[radial-gradient(#432c28_1.5px,transparent_1.5px)] [background-size:24px_24px]"></div>
 
       {/* --- SITE NAVIGATION HEADER --- */}
-      {!isAuthRoute && (
+      {(!isAuthRoute && !isFullScreenRoute) && (
         <header className="bg-white border-b border-brand-light-active py-2 md:py-3 px-4 md:px-8 flex justify-between items-center sticky top-0 z-40 shadow-xs">
           {/* Logo / Brand Name */}
           <button
@@ -2938,7 +2943,7 @@ export default function App() {
           onClose={() => navigateTo("home")}
         />
       ) : (
-        <main className="flex-1 p-4 md:p-12 max-w-7xl mx-auto w-full space-y-10 relative z-10">
+        <main className={isFullScreenRoute ? "flex-1 relative z-10 w-full h-full" : "flex-1 p-4 md:p-12 max-w-7xl mx-auto w-full space-y-10 relative z-10"}>
           {/* 🎬 INTRODUCTORY CINEMATIC SHOWCASE VIDEO POPUP */}
           {showIntroVideo && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[9999] flex items-center justify-center p-3 sm:p-5 animate-fade-in">
@@ -4340,7 +4345,7 @@ export default function App() {
               </div>
             )
           ) : activeTab === "admin" ? (
-            currentUser.role === "admin" && currentUser.id === routeUserId ? (
+            currentUser.role === "admin" ? (
               <AdminDashboard
                 currentUser={currentUser}
                 courses={courses}
