@@ -954,7 +954,7 @@ export default function DashboardOverview() {
             </p>
             <button
               type="button"
-              onclick="window.location.reload()"
+              onClick="window.location.reload()"
               className="mt-3 inline-flex h-8 items-center rounded-full bg-ink px-4 text-xs font-semibold text-white hover:opacity-90 transition-opacity"
             >
               Thử lại

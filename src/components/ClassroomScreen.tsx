@@ -6,24 +6,54 @@ import {
   Video, Clock, BarChart2, FolderMinus, FolderPlus, FolderOpen, PenSquare,
   Maximize, Minimize
 } from 'lucide-react';
-import { Course, Lesson, StudentProgress, MentorMessage, QAMessage, User } from '../types';
+import { Course, Chapter, Lesson, StudentProgress, MentorMessage, QAMessage, User } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
+import { resolveMediaUrl } from '../lib/media-url';
 
 interface ClassroomScreenProps {
   course: Course;
-  currentUser: User;
+  currentUser: User | null;
   onClose: () => void;
   enrolledCourseIds?: string[];
 }
 
 export default function ClassroomScreen({ course, currentUser, onClose, enrolledCourseIds = [] }: ClassroomScreenProps) {
+  const [chapters, setChapters] = useState<Chapter[]>(course.chapters || []);
+  const [isLoadingOutline, setIsLoadingOutline] = useState(!course.chapters || course.chapters.length === 0);
+
+  useEffect(() => {
+    if (!course.chapters || course.chapters.length === 0) {
+      import('../services/api').then(({ ApiService }) => {
+        ApiService.getCourseOutline(course.id).then(res => {
+          if (res && Array.isArray(res)) {
+            const mappedChapters: Chapter[] = res.map((ch: any) => ({
+              id: String(ch.id),
+              title: ch.title,
+              lessons: (ch.lessons || []).map((l: any) => ({
+                id: String(l.id),
+                title: l.title,
+                type: l.lesson_type || 'video',
+                duration: l.video_duration_seconds ? `${Math.floor(l.video_duration_seconds / 60)}:${(l.video_duration_seconds % 60).toString().padStart(2, '0')}` : '10:00',
+                videoUrl: l.video_url ? resolveMediaUrl(l.video_url) : 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                isPreview: l.is_preview,
+                content: l.content
+              }))
+            }));
+            setChapters(mappedChapters);
+          }
+        }).catch(err => console.error("Failed to fetch outline", err))
+        .finally(() => setIsLoadingOutline(false));
+      });
+    }
+  }, [course.id, course.chapters]);
+
   // Find active chapter and lesson safely
-  const allLessons: Lesson[] = (course.chapters || []).flatMap(c => c ? (c.lessons || []) : []);
+  const allLessons: Lesson[] = (chapters || []).flatMap(c => c ? (c.lessons || []) : []);
 
   // Manage mock progress state with local storage persistence
   const [progress, setProgress] = useState<StudentProgress>(() => {
-    const firstLessonId = (course.chapters && course.chapters[0] && course.chapters[0].lessons && course.chapters[0].lessons[0]) 
-      ? course.chapters[0].lessons[0].id 
+    const firstLessonId = (chapters && chapters?.[0] && chapters?.[0].lessons && chapters?.[0].lessons[0]) 
+      ? chapters?.[0].lessons[0].id 
       : '';
     const lastLessonId = localStorage.getItem(`mindhub_last_lesson_${course.id}`) || firstLessonId;
     const completedJson = localStorage.getItem(`mindhub_completed_lessons_${course.id}`);
@@ -43,6 +73,21 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
     };
   });
 
+  // When chapters load, ensure we set a current lesson if one wasn't set
+  useEffect(() => {
+    if (!progress.currentLessonId && chapters.length > 0) {
+      const firstLessonId = chapters?.[0]?.lessons?.[0]?.id || '';
+      if (firstLessonId) {
+        setProgress(p => ({
+          ...p,
+          currentLessonId: firstLessonId,
+          notes: [{ id: 'n-1', lessonId: firstLessonId, text: 'React Compiler giúp giải phóng hoàn toàn việc viết useMemo', timestamp: '01:12', timestampSec: 72 }],
+          bookmarks: [{ id: 'b-1', lessonId: firstLessonId, title: 'Đoạn quan trọng về Rendering', timestampSec: 180 }]
+        }));
+      }
+    }
+  }, [chapters, progress.currentLessonId]);
+
   const [activeTab, setActiveTab] = useState<'video' | 'doc' | 'quiz' | 'assignment' | 'notes' | 'qa' | 'mentor' | 'heatmap' | 'analytics'>('video');
   const [classroomTheme, setClassroomTheme] = useState<'dark' | 'light' | 'sepia'>('dark');
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
@@ -51,7 +96,7 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
 
   // Check access permission
   const isEnrolled = enrolledCourseIds.includes(course.id);
-  const isInstructorOrAdmin = currentUser.role === 'admin' || currentUser.role === 'instructor';
+  const isInstructorOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'instructor';
   const hasFullCourseAccess = isEnrolled || isInstructorOrAdmin;
 
   // Mock video state
@@ -61,7 +106,7 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
     if (savedTime !== null) {
       return parseInt(savedTime, 10);
     }
-    const isFirst = course.chapters[0]?.lessons[0]?.id === progress.currentLessonId;
+    const isFirst = chapters?.[0]?.lessons?.[0]?.id === progress.currentLessonId;
     return isFirst ? 45 : 0;
   }); // in seconds
   const [videoSpeed, setVideoSpeed] = useState<number>(1.0);
@@ -70,7 +115,46 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
   const [isBuffering, setIsBuffering] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const [realVideoUrl, setRealVideoUrl] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeLesson && activeLesson.type === 'video') {
+      setIsBuffering(true);
+      import('../services/api').then(({ ApiService }) => {
+        ApiService.getSecureLessonContent(activeLesson.id)
+          .then((res: any) => {
+            const url = res?.video_url || res?.videoUrl;
+            if (url) {
+              setRealVideoUrl(resolveMediaUrl(url));
+            } else {
+              setRealVideoUrl(activeLesson.videoUrl || null);
+            }
+          })
+          .catch(err => {
+            console.error("Failed to fetch secure lesson content:", err);
+            
+            // Explain why the error happened clearly since the backend is unreachable/unfixable right now
+            const isCourseEnrolled = enrolledCourseIds.includes(String(course.id)) || enrolledCourseIds.includes(Number(course.id) as any);
+            if (activeLesson.isPreview || (activeLesson as any).is_preview) {
+               setVideoError("API Backend từ chối cấp quyền dù đây là bài học MIỄN PHÍ. Đang phát video mẫu.");
+            } else if (isCourseEnrolled) {
+               setVideoError("Bạn đang dùng thanh toán Momo giả lập nên Backend chưa ghi nhận quyền xem video thật. Đang phát video mẫu.");
+            } else {
+               setVideoError("Lỗi kết nối hoặc bạn chưa có quyền xem video này. Đang phát video mẫu.");
+            }
+            
+            setRealVideoUrl(activeLesson.videoUrl || null);
+          })
+          .finally(() => setIsBuffering(false));
+      });
+    } else {
+      setRealVideoUrl(null);
+    }
+  }, [activeLesson?.id]);
+
   const currentVideoUrl = useMemo(() => {
+    if (realVideoUrl) return realVideoUrl;
     if (!activeLesson || activeLesson.type !== 'video' || !activeLesson.videoUrl) return '';
     if (!activeLesson.qualities || activeLesson.qualities.length === 0) return activeLesson.videoUrl;
     if (videoResolution === 'Auto') return activeLesson.videoUrl;
@@ -128,7 +212,7 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
 
   // AI Mentor Chat Messages
   const [chatMessages, setChatMessages] = useState<MentorMessage[]>([
-    { id: 'm-1', sender: 'ai', text: `Xin chào ${currentUser.name}! Mình là MindHub AI Mentor riêng của bạn. Mình đã đọc bài giảng "${activeLesson?.title || ''}" và sẵn sàng giải thích mọi thuật toán cực kỳ trực quan. Bạn có câu hỏi nào không?`, timestamp: 'Vừa xong' }
+    { id: 'm-1', sender: 'ai', text: `Xin chào ${currentUser?.name || 'Khách'}! Mình là MindHub AI Mentor riêng của bạn. Mình đã đọc bài giảng "${activeLesson?.title || ''}" và sẵn sàng giải thích mọi thuật toán cực kỳ trực quan. Bạn có câu hỏi nào không?`, timestamp: 'Vừa xong' }
   ]);
   const [newChatMessage, setNewChatMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -251,13 +335,13 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
       if (savedTime !== null) {
         setVideoTime(parseInt(savedTime, 10));
       } else {
-        const isFirst = course.chapters[0]?.lessons[0]?.id === progress.currentLessonId;
+        const isFirst = chapters?.[0]?.lessons?.[0]?.id === progress.currentLessonId;
         setVideoTime(isFirst ? 45 : 0);
       }
       setIsPlaying(false);
       localStorage.setItem(`mindhub_last_lesson_${course.id}`, progress.currentLessonId);
     }
-  }, [progress.currentLessonId, course.id, course.chapters]);
+  }, [progress.currentLessonId, course.id, chapters]);
 
   // Video controller mockup
   const formatTime = (seconds: number) => {
@@ -394,9 +478,9 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
     if (!newQaText.trim()) return;
     const comment: QAMessage = {
       id: 'qa-' + Date.now(),
-      userName: currentUser.name,
-      userAvatar: currentUser.avatar,
-      userRole: currentUser.role,
+      userName: currentUser?.name || 'Khách',
+      userAvatar: currentUser?.avatar,
+      userRole: currentUser?.role,
       text: newQaText,
       timestamp: 'Vừa xong',
       replies: []
@@ -412,12 +496,12 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
 
     setQaList(prev => prev.map(qa => {
       if (qa.id === qaId) {
-        const isInstructorRole = currentUser.role === 'admin' || currentUser.role === 'instructor';
+        const isInstructorRole = currentUser?.role === 'admin' || currentUser?.role === 'instructor';
         const newReply = {
           id: 'qa-r-' + Date.now(),
-          userName: isInstructorRole ? `${currentUser.name} 🔔 (Giảng viên)` : currentUser.name,
-          userAvatar: currentUser.avatar,
-          userRole: currentUser.role,
+          userName: isInstructorRole ? `${currentUser?.name || 'Khách'} 🔔 (Giảng viên)` : currentUser?.name || 'Khách',
+          userAvatar: currentUser?.avatar,
+          userRole: currentUser?.role,
           text: text,
           timestamp: 'Vừa xong'
         };
@@ -524,7 +608,18 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
   };
 
   // Mock certificate verified code
-  const verificationCode = `CERT-MD-${course.id.toUpperCase()}-${currentUser.id.toUpperCase()}`;
+  const verificationCode = `CERT-MD-${String(course.id).toUpperCase()}-${String(currentUser?.id || 'GUEST').toUpperCase()}`;
+
+  if (isLoadingOutline) {
+    return (
+      <div className="fixed inset-0 bg-stone-950 z-[9999] flex flex-col items-center justify-center h-screen text-stone-250 font-sans p-6 text-center">
+        <div className="flex flex-col items-center gap-4 text-emerald-500">
+          <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+          <p className="text-stone-300 font-medium text-sm animate-pulse">Đang tải giáo án khóa học...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (allLessons.length === 0 || !activeLesson) {
     return (
@@ -632,7 +727,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
 
         {/* Chapters Table View */}
         <div className="flex-1 overflow-y-auto p-2 space-y-3 tactile-scrollbar">
-          {course.chapters.map((chapter) => (
+          {(chapters || []).map((chapter) => (
             <div key={chapter.id} className="space-y-1">
               <h4 className={`text-xs font-bold px-2 py-1 leading-snug ${
                 classroomTheme === 'dark' ? 'text-sky-400' : classroomTheme === 'sepia' ? 'text-[#734c2f]' : 'text-deep-indigo'
@@ -940,6 +1035,12 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
 
                 <video
                   ref={videoRef}
+                  onError={(e) => {
+                    const error = e.currentTarget.error;
+                    setVideoError(error ? `Error code ${error.code}: ${error.message}` : "Unknown video error");
+                    console.error("Video error:", error);
+                  }}
+                  onLoadStart={() => setVideoError(null)}
                   src={currentVideoUrl}
                   className="absolute inset-0 w-full h-full object-contain bg-black z-0"
                   onTimeUpdate={(e) => {
@@ -982,7 +1083,17 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                   </button>
                 )}
 
-                {isBuffering && (
+                {videoError && (
+                  <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-20">
+                    <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl text-center">
+                      <p className="text-red-400 font-bold mb-2">Video load error</p>
+                      <p className="text-red-200 text-xs font-mono">{videoError}</p>
+                      <p className="text-stone-400 text-xs mt-2 break-all">{currentVideoUrl}</p>
+                    </div>
+                  </div>
+                )}
+
+                {isBuffering && !videoError && (
                   <div className="text-center p-6 space-y-4 z-10 absolute bg-black/40 rounded-xl backdrop-blur-sm pointer-events-none">
                     <div className="w-12 h-12 rounded-full border-4 border-t-transparent border-brand-normal animate-spin mx-auto"></div>
                     <div>
@@ -1723,7 +1834,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                       <div className="space-y-1 flex-1">
                         <span className="px-2 py-0.5 bg-brand-normal text-white rounded-md text-[9px] font-bold uppercase tracking-wide">🔥 Gợi ý học tiếp</span>
                         <h4 className={`font-bold mt-1 text-sm leading-snug ${classroomTheme === 'dark' ? 'text-gray-200' : 'text-stone-900'}`}>{nextLesson.title}</h4>
-                        <p className="text-[10px] text-gray-300 font-mono">Chương học: {course.chapters.find(ch => ch.lessons.some(le => le.id === nextLesson.id))?.title || 'Chương hiện tại'}</p>
+                        <p className="text-[10px] text-gray-300 font-mono">Chương học: {(chapters || []).find(ch => ch.lessons.some(le => le.id === nextLesson.id))?.title || 'Chương hiện tại'}</p>
                       </div>
                       <button
                         type="button"

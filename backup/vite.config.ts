@@ -44,17 +44,17 @@ export default defineConfig(({ mode }) => {
           secure: false,
         },
         "/videos": {
-          target: backendOrigin,
+          target: "http://62.171.157.22",
           changeOrigin: true,
           secure: false,
         },
         "/thumbnails": {
-          target: backendOrigin,
+          target: "http://62.171.157.22",
           changeOrigin: true,
           secure: false,
         },
         "/demo": {
-          target: backendOrigin,
+          target: "http://62.171.157.22",
           changeOrigin: true,
           secure: false,
         },

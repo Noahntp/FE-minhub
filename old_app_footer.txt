@@ -1,0 +1,41 @@
+4365:      {/* --- STATIC SITE FOOTER LINKS --- */}
+4366-      <footer className="bg-main-dark text-brand-light py-12 px-4 md:px-8 border-t border-brand-light/10 mt-12 shrink-0 select-none">
+4367-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-left text-xs">
+4368-          
+4369-          <div className="space-y-3">
+4370-            <div className="flex items-center gap-2 text-white">
+4371-              <Compass className="w-5 h-5 text-brand-normal" />
+4372-              <span className="font-display font-medium text-sm tracking-tight">MindHub E-Learning</span>
+4373-            </div>
+4374-            <p className="text-gray-400 leading-normal text-[10.5pt] font-light">
+4375-              Hệ thống quản lý thông minh kiến tạo tri thức từ việc rèn luyện thực tế kết hợp trợ lý AI Mentor đồng hành.
+4376-            </p>
+4377-          </div>
+4378-
+4379-          <div className="space-y-2">
+4380-            <span className="font-semibold text-white uppercase text-[10px] tracking-widest text-[#dbcdc3] block">Về MindHub</span>
+4381-            <button onClick={() => setShowLegal('faq')} className="block text-gray-400 hover:text-white text-left font-light">Xem câu hỏi FAQ</button>
+4382-            <button onClick={() => setShowLegal('terms')} className="block text-gray-400 hover:text-white text-left font-light">Điều khoản dịch vụ</button>
+4383-            <button onClick={() => setShowLegal('privacy')} className="block text-gray-400 hover:text-white text-left font-light">Bản quyền thông tin</button>
+4384-          </div>
+4385-
+4386-          <div className="space-y-2">
+4387-            <span className="font-semibold text-white uppercase text-[10px] tracking-widest text-[#dbcdc3] block">Hỗ trợ khẩn cấp</span>
+4388-            <button onClick={() => setShowLegal('contact')} className="block text-gray-400 hover:text-white text-left font-light">Gửi Ticket yêu cầu trợ giúp</button>
+4389-            <button onClick={() => setShowLegal('refund')} className="block text-gray-400 hover:text-white text-left font-light">Chính sách hoàn trả học phí</button>
+4390-            <span className="block text-gray-450 font-sans font-light">Email: help@mindhub.edu.vn</span>
+4391-          </div>
+4392-
+4393-          <div className="space-y-2">
+4394-            <span className="font-semibold text-white uppercase text-[10px] tracking-widest text-[#dbcdc3] block">Bảo mật giao dịch</span>
+4395-            <p className="text-gray-450 font-light">Đơn vị quản lý: Công ty Cổ phần Công nghệ Giáo Dục Quốc Tế MindHub Việt Nam.</p>
+4396-            <span className="text-[10px] bg-white/10 text-white p-1 px-2.5 rounded block text-center font-bold">XÁC THỰC BOUTIQUE SSL</span>
+4397-          </div>
+4398-
+4399-        </div>
+4400-
+4401-        <div className="max-w-7xl mx-auto border-t border-brand-light/10 mt-8 pt-4 flex flex-col sm:flex-row justify-between items-center text-[10px] text-gray-400">
+4402-          <span>MindHub e-learning platform © 2026. Tất cả chỉ là giao diện mô phỏng React & Tailwind CSS.</span>
+4403-          <div className="flex gap-3 mt-2 sm:mt-0">
+4404-            <button onClick={() => alert('Xác thực chứng chỉ MindHub bằng mã hóa block chuỗi an toàn')} className="hover:underline">Xác thực chứng chỉ công khai</button>
+4405-          </div>

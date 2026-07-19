@@ -1,1 +1,1 @@
-﻿export const payout-accountsData = [];
+﻿export const payoutAccountsData = [];

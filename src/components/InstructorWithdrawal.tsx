@@ -356,7 +356,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = ({ inst
               ) : (
                 withdrawals.map(w => (
                   <tr key={w.id} className="hover:bg-stone-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-[10px] text-stone-500">#{w.id.slice(-8).toUpperCase()}</td>
+                    <td className="px-4 py-3 font-mono text-[10px] text-stone-500">#{String(w.id).slice(-8).toUpperCase()}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatDate(w.createdAt)}</td>
                     <td className="px-4 py-3 text-right font-black text-stone-800">{formatVND(w.amount)}</td>
                     <td className="px-4 py-3 max-w-[200px] truncate text-stone-500">{w.note || '-'}</td>

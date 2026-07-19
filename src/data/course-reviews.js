@@ -1,1 +1,1 @@
-﻿export const course-reviewsData = [];
+﻿export const courseReviewsData = [];

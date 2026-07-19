@@ -371,7 +371,7 @@ export default function CategoriesManagement() {
                             <label htmlFor="create-description" className="block text-xs font-semibold text-ink">Mô tả</label>
                             <span className="text-[9px] text-mid-gray"><span id="create-desc-count">0</span>/200 ký tự</span>
                         </div>
-                        <textarea id="create-description" name="description" maxlength="200" placeholder="Mô tả ngắn gọn về danh mục..." className="w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink resize-none leading-relaxed"></textarea>
+                        <textarea id="create-description" name="description" maxLength="200" placeholder="Mô tả ngắn gọn về danh mục..." className="w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink resize-none leading-relaxed"></textarea>
                         <p className="text-[10px] text-danger-brick mt-1 hidden" data-error="description"></p>
                     </div>
                     {/*  Thứ tự hiển thị  */}
@@ -461,7 +461,7 @@ export default function CategoriesManagement() {
                             <label htmlFor="edit-description" className="block text-xs font-semibold text-ink">Mô tả</label>
                             <span className="text-[9px] text-mid-gray"><span id="edit-desc-count">0</span>/200 ký tự</span>
                         </div>
-                        <textarea id="edit-description" name="description" maxlength="200" placeholder="Mô tả ngắn gọn về danh mục..." className="w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink resize-none leading-relaxed"></textarea>
+                        <textarea id="edit-description" name="description" maxLength="200" placeholder="Mô tả ngắn gọn về danh mục..." className="w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink resize-none leading-relaxed"></textarea>
                         <p className="text-[10px] text-danger-brick mt-1 hidden" data-error="description"></p>
                     </div>
                     {/*  Thứ tự hiển thị  */}
