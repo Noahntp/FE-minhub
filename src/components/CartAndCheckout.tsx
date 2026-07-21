@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, Trash2, Tag, CreditCard, CheckCircle, Download, Landmark, BookOpen, FileText, Gift, Info } from 'lucide-react';
 import { Course, Order, Coupon } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import { SYSTEM_COUPONS } from '../data';
+import { ApiService } from '../services/api';
 
 interface CartAndCheckoutProps {
   wishlistCourseIds: string[];
@@ -30,6 +31,7 @@ export default function CartAndCheckout({
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'vnpay'>('vnpay');
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Checkout flow phase: 'wishlist' | 'paying' | 'receipt'
   const [phase, setPhase] = useState<'wishlist' | 'paying' | 'receipt'>(() => {
@@ -40,10 +42,20 @@ export default function CartAndCheckout({
   });
   const [checkoutCourse, setCheckoutCourse] = useState<Course | null>(() => {
     if (initialCourseId) {
-      return allCourses.find((c) => c.id === initialCourseId) || null;
+      return allCourses.find((c) => String(c.id) === String(initialCourseId)) || null;
     }
     return null;
   });
+
+  useEffect(() => {
+    if (initialCourseId) {
+      const course = allCourses.find((c) => String(c.id) === String(initialCourseId));
+      if (course) {
+        setCheckoutCourse(course);
+        setPhase('paying');
+      }
+    }
+  }, [initialCourseId, allCourses]);
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
 
   const wishlistCourses = allCourses.filter((c) => wishlistCourseIds.includes(c.id));
@@ -104,9 +116,44 @@ export default function CartAndCheckout({
       paymentMethod: paymentMethod === 'momo' ? 'Ví Momo' : 'VNPAY QR'
     };
 
+    if (status === 'success') {
+      try {
+        const stored = localStorage.getItem("mindhub_mock_enrolled");
+        const existing = stored ? JSON.parse(stored) : [];
+        existing.push(String(checkoutCourse.id));
+        localStorage.setItem("mindhub_mock_enrolled", JSON.stringify(Array.from(new Set(existing))));
+      } catch (e) {}
+    }
+
     setCreatedOrder(order);
     setPhase('receipt');
     onEnrollSuccess(status === 'success' ? [checkoutCourse.id] : [], order);
+  };
+
+  const handleRealVNPayPayment = async () => {
+    if (!checkoutCourse) return;
+    setIsProcessing(true);
+    try {
+      const orderRes = await ApiService.createCheckoutOrder([String(checkoutCourse.id)]);
+      const createdOrderId = orderRes?.order?.id || orderRes?.id || orderRes?.data?.id;
+      
+      if (createdOrderId) {
+        const vnpayRes = await ApiService.createVNPayGatewayUrl(createdOrderId);
+        const paymentUrl = vnpayRes?.paymentUrl || vnpayRes?.url || vnpayRes?.data?.paymentUrl || vnpayRes?.data?.url;
+        
+        if (paymentUrl) {
+          window.location.href = paymentUrl;
+        } else {
+          throw new Error("Không lấy được link VNPay từ máy chủ");
+        }
+      } else {
+        throw new Error("Không lấy được mã đơn hàng từ máy chủ");
+      }
+    } catch (err) {
+      console.error('Lỗi thanh toán VNPay:', err);
+      alert('Đã xảy ra lỗi khi kết nối cổng thanh toán VNPay.');
+      setIsProcessing(false);
+    }
   };
 
   const formatVND = (num: number) => {
@@ -338,7 +385,7 @@ export default function CartAndCheckout({
                     </div>
                     <div className="flex justify-between pb-1.5 border-b border-stone-200">
                       <span className="text-stone-800">Mã hóa đơn giao dịch:</span>
-                      <span className="font-mono text-stone-950 font-black">MIND{checkoutCourse.id.replace('course-', '').toUpperCase()}</span>
+                      <span className="font-mono text-stone-950 font-black">MIND{String(checkoutCourse.id).replace('course-', '').toUpperCase()}</span>
                     </div>
                     <div className="flex justify-between pb-1.5 border-b border-stone-200">
                       <span className="text-stone-800">Giá gốc học phần:</span>
@@ -359,7 +406,7 @@ export default function CartAndCheckout({
                     
                     <div className="flex justify-between items-center py-1">
                       <span className="text-red-700 font-black uppercase text-[10.5px]">Nội dung thanh toán (Memos):</span>
-                      <span className="font-mono font-black text-red-700 uppercase bg-red-100/70 border border-red-300/50 px-2 py-0.5 rounded text-xs select-all">MIND{checkoutCourse.id.replace('course-', '').toUpperCase()}</span>
+                      <span className="font-mono font-black text-red-700 uppercase bg-red-100/70 border border-red-300/50 px-2 py-0.5 rounded text-xs select-all">MIND{String(checkoutCourse.id).replace('course-', '').toUpperCase()}</span>
                     </div>
                   </div>
 
@@ -373,10 +420,15 @@ export default function CartAndCheckout({
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button 
                         type="button"
-                        onClick={() => handleMockPaymentSuccess('success')} 
-                        className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white text-[10.5px] font-bold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+                        onClick={handleRealVNPayPayment} 
+                        disabled={isProcessing}
+                        className={`flex-1 ${isProcessing ? 'bg-emerald-800/60 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800'} text-white text-[10.5px] font-bold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5`}
                       >
-                        <CheckCircle className="w-4 h-4" /> Thanh toán tự động (Ghi danh ngay)
+                        {isProcessing ? (
+                           <span className="animate-pulse">Đang kết nối cổng thanh toán...</span>
+                        ) : (
+                           <><CheckCircle className="w-4 h-4" /> Thanh toán VNPay (Sandbox)</>
+                        )}
                       </button>
                       
                       <button 

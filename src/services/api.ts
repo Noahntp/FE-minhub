@@ -25,9 +25,9 @@ export interface ApiConfig {
   isLogEnabled: boolean;
 }
 
-// Read configuration from local storage or environment variables
-const initialMode = (import.meta as any).env?.VITE_API_MODE === 'api' ? 'api' : 'mock';
-const initialBaseUrl = localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api';
+// Force API mode to use the real backend exclusively
+const initialMode = 'api';
+const initialBaseUrl = localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 const config: ApiConfig = {
   mode: initialMode,
@@ -63,56 +63,43 @@ const devLog = (category: string, action: string, payload?: any) => {
   }
 };
 
+import { api as axiosApi, saveSessionToken, clearSessionToken } from '../lib/api';
+
 /**
  * Universal Unified HTTP Client Utility with Automatic Authorization header injection
  */
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  if (config.mode === 'mock') {
-    throw new Error('apiFetch called while in mock mode.');
-  }
-
-  const url = `${config.baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-  const headers = new Headers(options.headers || {});
+  const method = options.method || 'GET';
   
-  if (!(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
-  }
-  headers.set('Accept', 'application/json');
-  
-  if (config.authToken) {
-    headers.set('Authorization', `Bearer ${config.authToken}`);
+  let data = options.body;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch (e) {}
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await axiosApi.request({
+      url: endpoint,
+      method,
+      data,
+      headers: options.headers as any,
+    });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    let errJson;
-    try {
-      errJson = JSON.parse(errText);
-    } catch {
-      /* ignore */
+    if (response.status === 204) {
+      return { success: true } as unknown as T;
     }
-    const errMsg = errJson?.message || errJson?.error || `HTTP error! status: ${response.status}`;
-    devLog('Error Response', errMsg, { status: response.status, url });
+
+    const resData = response.data;
+    if (resData && typeof resData === 'object' && 'data' in resData && 'success' in resData) {
+      return resData.data as T;
+    }
+    return resData as T;
+  } catch (error: any) {
+    const errMsg = error.response?.data?.message || error.response?.data?.error || error.message;
+    devLog('Error Response', errMsg, { status: error.response?.status, url: endpoint });
     throw new Error(errMsg);
   }
-
-  // Handle No Content / Empty HTTP 204 response safely
-  if (response.status === 204) {
-    return { success: true } as unknown as T;
-  }
-
-  const json = await response.json();
-  // Unwrap Laravel ApiResponse envelope: { success, data, message }
-  if (json && typeof json === 'object' && 'data' in json && 'success' in json) {
-    return json.data as T;
-  }
-  return json as T;
 }
+
 
 export const ApiService = {
   // -------------------------------------------------------------
@@ -140,13 +127,14 @@ export const ApiService = {
   },
 
   setAuthToken(token: string | null) {
-      // BACKEND_MISSING
     if (token) {
       config.authToken = token;
       localStorage.setItem('mindhub_api_token', token);
+      saveSessionToken(token);
     } else {
       config.authToken = undefined;
       localStorage.removeItem('mindhub_api_token');
+      clearSessionToken();
     }
     devLog('Config', 'Token authorization updated', { hasToken: !!token });
   },

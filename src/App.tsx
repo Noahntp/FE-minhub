@@ -97,6 +97,7 @@ import { AppRoutes, RoleLabels } from "./utils/routes";
 import AuthScreens from "./components/AuthScreens";
 import FooterLegal from "./components/FooterLegal";
 import CartAndCheckout from "./components/CartAndCheckout";
+import VNPayReturnPage from "./components/VNPayReturnPage";
 import CategoryFilterBar from "./components/CategoryFilterBar";
 import { ProfilePage } from "./components/ProfilePage";
 import ClassroomScreen from "./components/ClassroomScreen";
@@ -373,6 +374,7 @@ export default function App() {
 
   // Enrolled courses (purchased courses by student)
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  const [enrolledCoursesData, setEnrolledCoursesData] = useState<any[]>([]);
 
   // Orders and transactions history (student payments & admin control)
   const [orders, setOrders] = useState<Order[]>([]);
@@ -461,7 +463,26 @@ export default function App() {
   const fetchAllCourses = async () => {
     try {
       const coursList = await ApiService.getCourses();
-      setCourses(coursList || []);
+      const normalized = (coursList || []).map((c: any) => ({
+        ...c,
+        id: String(c.id),
+        title: c.title || '',
+        subtitle: c.short_description || c.subtitle || '',
+        image: encodeURI(c.thumbnail_url || c.image || ''),
+        category: c.category?.name || c.category || 'All',
+        subcategory: c.subcategory?.name || c.subcategory || 'All',
+        price: Number(c.price || 0),
+        salePrice: c.sale_price ? Number(c.sale_price) : (c.salePrice ? Number(c.salePrice) : undefined),
+        instructorName: c.instructor?.full_name || c.instructorName || '',
+        status: c.status === 'published' ? 'active' : (c.status || 'active'),
+        rating: c.rating || 5.0,
+        enrolledCount: c.enrolledCount || Math.floor(Math.random() * 500) + 50,
+        reviewCount: c.reviewCount || Math.floor(Math.random() * 100) + 10,
+        isNew: false,
+        isBestseller: false,
+        chapters: c.chapters || []
+      }));
+      setCourses(normalized);
     } catch (e) {
       console.warn("Lỗi kết nối hoặc fetch courses:", e);
       setCourses([]);
@@ -505,11 +526,41 @@ export default function App() {
         ApiService.getMyEnrolledCourses()
           .then((enrolledList) => {
             if (!active) return;
+            setEnrolledCoursesData(enrolledList || []);
+            
+            let mergedIds: string[] = [];
             if (enrolledList && enrolledList.length > 0) {
-              setEnrolledCourseIds(enrolledList.map((c) => c.id));
+              mergedIds = enrolledList.map((c: any) => String(c.course?.id || c.id));
+            }
+            
+            // Add mock enrolled courses for testing survival
+            try {
+              const storedMock = localStorage.getItem("mindhub_mock_enrolled");
+              if (storedMock) {
+                const mockIds = JSON.parse(storedMock);
+                if (Array.isArray(mockIds)) {
+                  mergedIds = [...mergedIds, ...mockIds];
+                }
+              }
+            } catch (e) {}
+
+            if (mergedIds.length > 0) {
+              setEnrolledCourseIds(Array.from(new Set(mergedIds)));
             }
           })
-          .catch((e) => console.warn("Lỗi nạp lịch sử học khóa học DB:", e));
+          .catch((e) => {
+            console.warn("Lỗi nạp lịch sử học khóa học DB:", e);
+            // Even if API fails (e.g. 401), preserve mock data
+            try {
+              const storedMock = localStorage.getItem("mindhub_mock_enrolled");
+              if (storedMock) {
+                const mockIds = JSON.parse(storedMock);
+                if (Array.isArray(mockIds) && mockIds.length > 0) {
+                  setEnrolledCourseIds(mockIds);
+                }
+              }
+            } catch (e) {}
+          });
       }
     }
 
@@ -552,7 +603,7 @@ export default function App() {
     if (!Array.isArray(orders)) return;
     const successCourseIds = orders
       .filter((o) => o && o.status === "success" && Array.isArray(o.courses))
-      .flatMap((o) => o.courses.map((c) => c?.id).filter(Boolean));
+      .flatMap((o) => o.courses.map((c) => c?.id ? String(c.id) : null).filter(Boolean));
 
     setEnrolledCourseIds((prev) => {
       const safePrev = Array.isArray(prev) ? prev : [];
@@ -1421,7 +1472,7 @@ export default function App() {
     "Điện toán Đám mây & DevOps",
   ];
 
-  const handleBuyCourseNow = (courseId: string) => {
+  const handleBuyCourseNow = (courseId: string | number) => {
     if (!isLoggedIn) {
       alert(
         "Vui lòng Đăng sinh viên hoặc Đăng nhập MindHub để đăng ký tuyển sinh!",
@@ -1429,11 +1480,11 @@ export default function App() {
       navigateTo("auth");
       return;
     }
-    if (enrolledCourseIds.includes(courseId)) {
+    if (enrolledCourseIds.includes(String(courseId))) {
       alert("Bạn đã sở hữu khóa học này rồi, vui lòng kiểm tra phòng học!");
       return;
     }
-    setDirectSelectCourseId(courseId);
+    setDirectSelectCourseId(String(courseId));
     navigateTo("cart");
   };
 
@@ -1457,7 +1508,7 @@ export default function App() {
       navigateTo("auth");
       return;
     }
-    if (enrolledCourseIds.includes(courseId)) {
+    if (enrolledCourseIds.includes(String(courseId))) {
       alert("Bạn đã sở hữu khóa học này rồi, vui lòng kiểm tra phòng học!");
       return;
     }
@@ -1621,7 +1672,7 @@ export default function App() {
     const orderObj = updated.find((o) => o.id === orderId);
     if (orderObj) {
       if (nextStatus === "success") {
-        const purchasedIds = orderObj.courses.map((c) => c.id);
+        const purchasedIds = orderObj.courses.map((c) => String(c.id));
         setEnrolledCourseIds((prev) =>
           Array.from(new Set([...prev, ...purchasedIds])),
         );
@@ -1751,7 +1802,7 @@ export default function App() {
 
     // Purchase status filter
     const isEnrolled =
-      Array.isArray(enrolledCourseIds) && enrolledCourseIds.includes(c.id);
+      Array.isArray(enrolledCourseIds) && enrolledCourseIds.includes(String(c.id));
     const matchesPurchase =
       coursePurchaseFilter === "all" ||
       (coursePurchaseFilter === "purchased" && isEnrolled) ||
@@ -1923,7 +1974,7 @@ export default function App() {
   };
 
   const renderCourseCard = (c: Course) => {
-    const isEnrolled = enrolledCourseIds.includes(c.id);
+    const isEnrolled = enrolledCourseIds.includes(String(c.id));
     return (
       <div
         key={c.id}
@@ -2046,6 +2097,12 @@ export default function App() {
     "verify-email",
   ].includes(activeTab);
 
+  const isFullScreenRoute = [
+    "admin",
+    "instructor",
+    "vnpay-return",
+  ].includes(activeTab);
+
   return (
     <div className="min-h-screen bg-[#fbf9f6] flex flex-col text-main-darker selection:bg-brand-light-active selection:text-brand-dark relative overflow-hidden">
       <style>{`
@@ -2069,7 +2126,7 @@ export default function App() {
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none z-0 bg-[radial-gradient(#432c28_1.5px,transparent_1.5px)] [background-size:24px_24px]"></div>
 
       {/* --- SITE NAVIGATION HEADER --- */}
-      {!isAuthRoute && (
+      {(!isAuthRoute && !isFullScreenRoute) && (
         <header className="bg-white border-b border-brand-light-active py-2 md:py-3 px-4 md:px-8 flex justify-between items-center sticky top-0 z-40 shadow-xs">
           {/* Logo / Brand Name */}
           <button
@@ -2845,7 +2902,7 @@ export default function App() {
                   .filter((n) => {
                     if (!n.targetCourseId || n.targetCourseId === "all")
                       return true;
-                    return enrolledCourseIds.includes(n.targetCourseId);
+                    return enrolledCourseIds.includes(String(n.targetCourseId));
                   })
                   .filter((n) => !n.read).length > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
@@ -2933,7 +2990,7 @@ export default function App() {
           onClose={() => navigateTo("home")}
         />
       ) : (
-        <main className="flex-1 p-4 md:p-12 max-w-7xl mx-auto w-full space-y-10 relative z-10">
+        <main className={isFullScreenRoute ? "flex-1 relative z-10 w-full h-full" : "flex-1 p-4 md:p-12 max-w-7xl mx-auto w-full space-y-10 relative z-10"}>
           {/* 🎬 INTRODUCTORY CINEMATIC SHOWCASE VIDEO POPUP */}
           {showIntroVideo && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-lg z-[9999] flex items-center justify-center p-3 sm:p-5 animate-fade-in">
@@ -4065,9 +4122,7 @@ export default function App() {
                             </div>
                             <ul className="mt-2.5 space-y-2 pl-3 border-l border-[#8b5e3c]/20">
                               {chapter.lessons.map((lesson) => {
-                                const isEnrolled = enrolledCourseIds.includes(
-                                  viewedCourse.id,
-                                );
+                                const isEnrolled = enrolledCourseIds.includes(String(viewedCourse.id));
                                 // It is previewable if we are not enrolled and the course allows free preview of this lesson type
                                 const isPreviewable =
                                   !isEnrolled &&
@@ -4177,7 +4232,7 @@ export default function App() {
                     <CourseQA
                       courseId={viewedCourse.id}
                       currentUser={currentUser}
-                      isEnrolled={enrolledCourseIds.includes(viewedCourse.id)}
+                      isEnrolled={enrolledCourseIds.includes(String(viewedCourse.id))}
                       onLoginRequest={() => {
                         navigateTo("auth");
                       }}
@@ -4252,7 +4307,7 @@ export default function App() {
                       </div>
 
                       <div className="space-y-2">
-                        {enrolledCourseIds.includes(viewedCourse.id) ? (
+                        {enrolledCourseIds.includes(String(viewedCourse.id)) ? (
                           <button
                             onClick={() => {
                               setStudyingCourse(viewedCourse);
@@ -4305,6 +4360,8 @@ export default function App() {
             </div>
 
 
+          ) : activeTab === "vnpay-return" ? (
+            <VNPayReturnPage />
           ) : activeTab === "instructor" ? (
             currentUser.role === "instructor" &&
             currentUser.id === routeUserId ? (
@@ -4335,7 +4392,7 @@ export default function App() {
               </div>
             )
           ) : activeTab === "admin" ? (
-            currentUser.role === "admin" && currentUser.id === routeUserId ? (
+            currentUser.role === "admin" ? (
               <AdminDashboard
                 currentUser={currentUser}
                 courses={courses}
@@ -4393,13 +4450,13 @@ export default function App() {
                             <span className="text-[10px] bg-[#f5ece3] text-[#8b5e3c] font-bold px-2.5 py-1 rounded-md">
                               {
                                 courses.filter((c) =>
-                                  enrolledCourseIds.includes(c.id),
+                                  enrolledCourseIds.includes(String(c.id)),
                                 ).length
                               }{" "}
                               KHÓA ĐANG HỌC
                             </span>
                             {courses.filter((c) =>
-                              enrolledCourseIds.includes(c.id),
+                              enrolledCourseIds.includes(String(c.id)),
                             ).length > 0 && (
                               <div className="hidden md:flex items-center gap-1 ml-2">
                                 <button
@@ -4447,7 +4504,7 @@ export default function App() {
                             (c) =>
                               c &&
                               Array.isArray(enrolledCourseIds) &&
-                              enrolledCourseIds.includes(c.id),
+                              enrolledCourseIds.includes(String(c.id)),
                           ).length === 0 ? (
                           <div className="text-center py-12 text-stone-400 bg-white border border-dashed border-stone-300 rounded-3xl shadow-3xs p-8 space-y-3">
                             <BookOpen className="w-10 h-10 text-stone-300 mx-auto" />
@@ -4488,7 +4545,7 @@ export default function App() {
                                   (c) =>
                                     c &&
                                     Array.isArray(enrolledCourseIds) &&
-                                    enrolledCourseIds.includes(c.id),
+                                    enrolledCourseIds.includes(String(c.id)),
                                 )
                                 .sort((a, b) => {
                                   const timeA =
@@ -4510,7 +4567,8 @@ export default function App() {
                               return (
                                 <>
                                   {topRecent.map((c) => {
-                                    const compRate = c.completionRate || 60;
+                                    const backendProgress = enrolledCoursesData.find((ed: any) => String(ed.course?.id || ed.id) === String(c.id))?.progress_percent;
+                                    const compRate = backendProgress !== undefined ? backendProgress : (c.completionRate || 0);
                                     const totalLessons =
                                       c.chapters?.reduce(
                                         (acc, ch) => acc + ch.lessons.length,
@@ -5130,9 +5188,7 @@ export default function App() {
                         return (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                             {sortedFavs.map((c) => {
-                              const isEnrolled = enrolledCourseIds.includes(
-                                c.id,
-                              );
+                              const isEnrolled = enrolledCourseIds.includes(String(c.id));
                               return (
                                 <div
                                   key={c.id}
@@ -5824,7 +5880,7 @@ export default function App() {
                           .filter(
                             (c) =>
                               Array.isArray(enrolledCourseIds) &&
-                              enrolledCourseIds.includes(c.id),
+                              enrolledCourseIds.includes(String(c.id)),
                           )
                           .sort((a, b) => {
                             const dateA = getCoursePurchaseDate(a.id).getTime();
@@ -6362,7 +6418,7 @@ export default function App() {
                             (c) =>
                               c &&
                               Array.isArray(enrolledCourseIds) &&
-                              enrolledCourseIds.includes(c.id),
+                              enrolledCourseIds.includes(String(c.id)),
                           ).length
                         : 0}{" "}
                       khóa học
@@ -6519,7 +6575,7 @@ export default function App() {
                           (c) =>
                             c &&
                             Array.isArray(enrolledCourseIds) &&
-                            enrolledCourseIds.includes(c.id),
+                            enrolledCourseIds.includes(String(c.id)),
                         )
                       : [];
                     if (allEnrolled.length === 0) {
@@ -6951,7 +7007,7 @@ export default function App() {
                       <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {filtered.map((c) => {
-                            const isEnrolled = enrolledCourseIds.includes(c.id);
+                            const isEnrolled = enrolledCourseIds.includes(String(c.id));
                             return (
                               <div
                                 key={c.id}

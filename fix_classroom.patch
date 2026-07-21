@@ -1,0 +1,46 @@
+--- src/components/ClassroomScreen.tsx
++++ src/components/ClassroomScreen.tsx
+@@ -10,2 +10,3 @@
+ import { safeLocalStorage as localStorage } from '../utils/safeStorage';
++import { ApiService } from '../services/api';
+ 
+@@ -19,4 +20,16 @@
+ export default function ClassroomScreen({ course, currentUser, onClose, enrolledCourseIds = [] }: ClassroomScreenProps) {
++  const [chapters, setChapters] = useState<Chapter[]>(course.chapters || []);
++  const [isLoadingOutline, setIsLoadingOutline] = useState(!course.chapters || course.chapters.length === 0);
++
++  useEffect(() => {
++    if (!course.chapters || course.chapters.length === 0) {
++      ApiService.getStudentCourseOutline(course.id).then(res => {
++        if (res && res.data) {
++          setChapters(res.data);
++        }
++      }).catch(err => console.error("Failed to load outline", err))
++      .finally(() => setIsLoadingOutline(false));
++    }
++  }, [course.id, course.chapters]);
++
+   // Find active chapter and lesson safely
+-  const allLessons: Lesson[] = (course.chapters || []).flatMap(c => c ? (c.lessons || []) : []);
++  const allLessons: Lesson[] = (chapters || []).flatMap(c => c ? (c.lessons || []) : []);
+ 
+@@ -24,4 +37,4 @@
+   const [progress, setProgress] = useState<StudentProgress>(() => {
+-    const firstLessonId = (course.chapters && course.chapters?.[0] && course.chapters?.[0].lessons && course.chapters?.[0].lessons[0]) 
+-      ? course.chapters?.[0].lessons[0].id 
++    const firstLessonId = (chapters && chapters?.[0] && chapters?.[0].lessons && chapters?.[0].lessons[0]) 
++      ? chapters?.[0].lessons[0].id 
+       : '';
+@@ -43,2 +56,12 @@
+ 
++  // If chapters load later, we need to set the currentLessonId if it wasn't set
++  useEffect(() => {
++    if (!progress.currentLessonId && chapters.length > 0) {
++      const firstLessonId = chapters?.[0]?.lessons?.[0]?.id || '';
++      if (firstLessonId) {
++        setProgress(p => ({ ...p, currentLessonId: firstLessonId }));
++      }
++    }
++  }, [chapters, progress.currentLessonId]);
++
+   const markLessonComplete = (lessonId: string) => {

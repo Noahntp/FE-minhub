@@ -3,7 +3,7 @@ import { Database, User, Shield, Lock, Mail, Eye, EyeOff, UserPlus, LogIn, Key, 
 import { User as UserType, normalizeUser } from '../types';
 import { safeLocalStorage as localStorage } from '../utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '../data';
-import { ApiService } from '../services/api';
+import { login, register as registerApi } from '../services/auth.service';
 
 const DB_SEED_ACCOUNTS = [
   { id: 'db-1', name: 'Student Test', email: 'student.test@mindhub.local', password: 'password123', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
@@ -127,10 +127,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const emailTrimmed = email.trim().toLowerCase();
     
     setSuccessMsg('Đang đăng nhập...');
-    ApiService.login({ email: emailTrimmed, password })
+    login({ email: emailTrimmed, password })
       .then(res => {
         const apiUser = normalizeUser({
-          ...res.user,
+          ...res,
           isEmailVerified: true
         });
         saveToHistory(apiUser);
@@ -156,13 +156,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     setSuccessMsg(`Đã tự động cấu hình hòm thư: ${seed.email}. Vui lòng nhấn "Truy cập hệ thống" để kết nối database!`);
     
     // Auto-login instantly for rapid testing in API mode!
-    const isApi = ApiService.getConfig().mode === 'api';
+    const isApi = true;
     if (isApi) {
       setSuccessMsg(`Đang thử kết nối trực tiếp đến database với tài khoản ${seed.email}...`);
-      ApiService.login({ email: seed.email, password: seed.password })
+      login({ email: seed.email, password: seed.password })
         .then(res => {
           const apiUser = normalizeUser({
-            ...res.user,
+            ...res,
             isEmailVerified: true
           });
           saveToHistory(apiUser);
@@ -202,26 +202,30 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const emailTrimmed = email.trim().toLowerCase();
 
     setSuccessMsg('Đang tạo tài khoản mới...');
-    ApiService.register({ 
+    registerApi({ 
       full_name: name.trim(), 
       email: emailTrimmed, 
       password,
       password_confirmation: confirmPassword,
-      role: registerRole,
-      expertise: registerRole === 'instructor' ? instructorSpecialty : undefined,
-      bio: registerRole === 'instructor' ? instructorBio : undefined,
-      experience_years: registerRole === 'instructor' ? instructorExperience : undefined
+      role: registerRole
     })
-      .then(res => {
-        const apiUser = normalizeUser({
-          ...res.user,
-          role: registerRole,
-          isEmailVerified: true
-        });
-        saveToHistory(apiUser);
-        onLoginSuccess(apiUser);
-        alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
-        onClose();
+      .then((res: any) => {
+        const token = res?.session_token || res?.token || res?.data?.token || res?.data?.session_token;
+        if (token) {
+          const apiUser = normalizeUser({
+            ...res,
+            role: registerRole,
+            isEmailVerified: true
+          });
+          saveToHistory(apiUser);
+          onLoginSuccess(apiUser);
+          alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
+          onClose();
+        } else {
+          setSuccessMsg('');
+          alert('Đăng ký tài khoản thành công! Vui lòng xác thực email để kích hoạt tài khoản hoặc chờ Admin phê duyệt.');
+          setMode('login');
+        }
       })
       .catch(err => {
         setErrorMsg(`Thất bại tạo tài khoản: ${err.message || err.toString()}`);
