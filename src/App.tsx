@@ -2122,11 +2122,6 @@ export default function App() {
         }
       `}</style>
 
-      {/* Creative moving color frames / background organic blobs to keep interface breathing and airy */}
-      <div className="absolute top-24 left-[-15%] w-[45rem] h-[45rem] rounded-full bg-gradient-to-tr from-[#f5ece3] to-[#f7ede2] opacity-65 blur-3xl animate-drift-blob-1 pointer-events-none select-none z-0"></div>
-      <div className="absolute top-[42rem] right-[-10%] w-[40rem] h-[40rem] rounded-full bg-gradient-to-br from-[#eedecf] to-white opacity-55 blur-3xl animate-drift-blob-2 pointer-events-none select-none z-0"></div>
-      <div className="absolute bottom-[20rem] left-[15%] w-[48rem] h-[48rem] rounded-full bg-gradient-to-tr from-[#fbf9f6] to-[#f5ece3] opacity-60 blur-3xl animate-drift-blob-1 pointer-events-none select-none z-0"></div>
-
       {/* Decorative vintage SVG coffee grid patterns to prevent blank emptiness */}
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none z-0 bg-[radial-gradient(#432c28_1.5px,transparent_1.5px)] [background-size:24px_24px]"></div>
 
@@ -7393,7 +7388,7 @@ export default function App() {
 
       {/* --- RESTRUCTURED SITE FOOTER --- */}
       {!isAuthRoute && (
-        <footer className="bg-[#1c1410] text-[#fbf9f6] py-14 px-4 md:px-8 border-t border-stone-800 mt-16 shrink-0 select-none">
+        <footer className="bg-[#111A4A] text-[#fbf9f6] py-14 px-4 md:px-8 border-t border-white/10 mt-16 shrink-0 select-none">
           <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 text-left text-xs">
             {/* Column 1: Thương hiệu / giới thiệu ngắn */}
             <div className="space-y-4">

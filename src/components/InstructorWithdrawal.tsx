@@ -162,7 +162,6 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = ({ inst
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white p-5 rounded-xl shadow-md relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
           <span className="text-[10px] font-bold uppercase tracking-wider opacity-80 block relative z-10">Số Dư Có Thể Rút</span>
           <span className="text-3xl font-black block mt-2 relative z-10">{formatVND(balance.withdrawableBalance)}</span>
         </div>

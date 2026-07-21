@@ -1110,7 +1110,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 onClick={() => { setActiveTab('students'); }}
                 className="bg-brand-normal border border-brand-hover rounded-2xl p-5 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group relative overflow-hidden"
               >
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-colors"></div>
                 <div className="flex justify-between items-center mb-2 relative z-10">
                   <span className="text-[11px] uppercase font-bold text-brand-light tracking-wider">Tổng lượt ghi danh</span>
                   <Users className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
@@ -1126,7 +1125,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 onClick={() => { setActiveTab('revenue'); }}
                 className="bg-emerald-600 border border-emerald-500 rounded-2xl p-5 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group relative overflow-hidden"
               >
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-colors"></div>
                 <div className="flex justify-between items-center mb-2 relative z-10">
                   <span className="text-[11px] uppercase font-bold text-emerald-100 tracking-wider">Doanh thu tháng này</span>
                   <Activity className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
@@ -1143,7 +1141,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 onClick={() => { setActiveTab('transactions'); }}
                 className="bg-[#5c3e21] border border-[#8b5e3c] rounded-2xl p-5 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group relative overflow-hidden"
               >
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-colors"></div>
                 <div className="flex justify-between items-center mb-2 relative z-10">
                   <span className="text-[11px] uppercase font-bold text-[#e6ccb8] tracking-wider">Số dư có thể rút</span>
                   <DollarSign className="w-5 h-5 text-[#e6ccb8] group-hover:scale-110 transition-transform" />
@@ -1160,7 +1157,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 onClick={() => { setActiveTab('qa'); }}
                 className="bg-indigo-600 border border-indigo-500 rounded-2xl p-5 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1 group relative overflow-hidden"
               >
-                <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:bg-white/20 transition-colors"></div>
                 <div className="flex justify-between items-center mb-2 relative z-10">
                   <span className="text-[11px] uppercase font-bold text-indigo-100 tracking-wider">Câu hỏi chưa trả lời</span>
                   <HelpCircle className="w-5 h-5 text-indigo-100 group-hover:scale-110 transition-transform" />
@@ -1550,7 +1546,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                         className="w-full text-xs p-2.5 border rounded-xl"
                         required
                       />
-                    </div>
+                    </div> 
                   </div>
 
                   <div className="space-y-3">
