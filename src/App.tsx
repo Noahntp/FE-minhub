@@ -1790,7 +1790,7 @@ export default function App() {
     }
   }, [courses, selectedCategory]);
 
-  const filteredCourses = courses.filter((c) => {
+  const filteredCourses = useMemo(() => courses.filter((c) => {
     const matchesSearch =
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1819,7 +1819,7 @@ export default function App() {
       matchesPurchase &&
       isVisibleForCurrentRole
     );
-  });
+  }), [courses, searchQuery, selectedCategory, selectedSubcategory, coursePurchaseFilter, enrolledCourseIds, currentUser.role]);
 
   const sortedCourses = [...filteredCourses].sort((a, b) => {
     if (sortBy === "rating") return b.rating - a.rating;
@@ -1942,7 +1942,7 @@ export default function App() {
     if (item.type === "category") {
       setSelectedCategory(item.value);
       setSelectedSubcategory("All");
-      setSearchQuery("");
+setCoursesPage(1);
     } else if (item.type === "subcategory") {
       const parentCourse = courses.find((c) => c.subcategory === item.value);
       if (parentCourse) {
@@ -2077,7 +2077,7 @@ export default function App() {
                 </button>
               ) : (
                 <button
-                  onClick={() => handleBuyCourseNow(c.id)}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyCourseNow(c.id); }}
                   className="bg-deep-indigo hover:bg-deep-indigo/95 text-white text-[10px] font-bold py-2.5 px-5 rounded-xl transition-all flex items-center justify-center cursor-pointer whitespace-nowrap"
                 >
                   Mua Ngay
@@ -4290,7 +4290,12 @@ export default function App() {
                         Ghi danh & Học tập
                       </p>
                       <div>
-                        {viewedCourse.salePrice ? (
+                        {enrolledCourseIds.includes(String(viewedCourse.id)) ? (
+                          <div className="bg-emerald-50 text-emerald-700 px-4 py-2.5 rounded-lg border border-emerald-100 flex items-center justify-center gap-2 text-xs font-semibold mb-2 shadow-3xs cursor-default">
+                            <span className="text-[14px]">✔</span>
+                            Bạn đã sở hữu khóa học
+                          </div>
+                        ) : viewedCourse.salePrice ? (
                           <div className="space-y-1">
                             <span className="text-xl md:text-2xl font-black text-rose-650 block">
                               {formatVND(viewedCourse.salePrice)}
@@ -4314,11 +4319,13 @@ export default function App() {
                             }}
                             className="w-full bg-[#432c28] hover:bg-[#5c3e38] flex items-center justify-center gap-1.5 text-white py-3.5 px-6 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
                           >
-                            Vào Học Ngay
+                            Tiếp tục học
                           </button>
                         ) : (
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               handleBuyCourseNow(viewedCourse.id);
                             }}
                             className="w-full bg-deep-indigo hover:bg-deep-indigo/95 flex items-center justify-center text-white py-3.5 px-6 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
@@ -4949,7 +4956,8 @@ export default function App() {
                                   setSearchQuery("");
                                   setSelectedCategory("All");
                                   setSelectedSubcategory("All");
-                                  setCoursePurchaseFilter("all");
+setCoursePurchaseFilter("all");
+setCoursesPage(1);
                                 }}
                                 className="mt-2 px-5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs rounded-xl transition-all cursor-pointer border border-stone-300"
                               >
@@ -4965,9 +4973,26 @@ export default function App() {
                         </div>
                       ) : (
                         <>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {paginatedCourses.map((c) => renderCourseCard(c))}
-                          </div>
+                          
+                            {paginatedCourses.length === 0 ? (
+                              <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white rounded-2xl border border-stone-100 shadow-sm">
+                                <div className="w-24 h-24 mb-6 bg-stone-50 rounded-full flex items-center justify-center">
+                                  <svg className="w-12 h-12 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                  </svg>
+                                </div>
+                                <h3 className="text-xl font-bold text-stone-700 mb-2">Không tìm thấy khóa học nào</h3>
+                                <p className="text-stone-500 max-w-md mx-auto mb-6">Rất tiếc, chúng tôi không thể tìm thấy khóa học phù hợp với bộ lọc hiện tại. Vui lòng thử lại với các tiêu chí khác.</p>
+                                <button onClick={() => { setSelectedCategory('All'); setSelectedSubcategory('All'); setSearchQuery(''); setCoursePurchaseFilter('all'); setCoursesPage(1); }} className="px-6 py-2.5 bg-brand-normal text-white rounded-xl font-bold hover:bg-brand-dark transition-colors">
+                                  Xóa bộ lọc
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {paginatedCourses.map((c) => renderCourseCard(c))}
+                              </div>
+                            )}
+
 
                           {/* Elegant Pagination controls */}
                           {totalCoursesPages > 1 && (
@@ -6629,7 +6654,8 @@ export default function App() {
                         )
                           return false;
                         // Status filter
-                        const compRate = c.completionRate || 60;
+                        const backendProgress = enrolledCoursesData.find((ed: any) => String(ed.course?.id || ed.id) === String(c.id))?.progress_percent;
+                        const compRate = backendProgress !== undefined ? backendProgress : (c.completionRate || 0);
                         if (myCoursesStatus === "not_started" && compRate > 0)
                           return false;
                         if (
@@ -6717,7 +6743,8 @@ export default function App() {
                       <div className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                           {paginatedList.map((c) => {
-                            const compRate = c.completionRate || 60;
+                            const backendProgress = enrolledCoursesData.find((ed: any) => String(ed.course?.id || ed.id) === String(c.id))?.progress_percent;
+                            const compRate = backendProgress !== undefined ? backendProgress : (c.completionRate || 0);
                             const totalLessons =
                               c.chapters?.reduce(
                                 (acc, ch) => acc + ch.lessons.length,
@@ -7083,7 +7110,7 @@ export default function App() {
                                     </button>
                                   ) : (
                                     <button
-                                      onClick={() => handleBuyCourseNow(c.id)}
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleBuyCourseNow(c.id); }}
                                       className="bg-deep-indigo hover:bg-deep-indigo/90 text-white text-xs font-extrabold py-2.5 px-6 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-1"
                                     >
                                       Mua Ngay
