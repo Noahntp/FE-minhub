@@ -6,7 +6,7 @@ import {
     getRevenues,
     getWithdrawals,
     getInstructorUpgrades
-} from "../assets/js/mocks/mock-repository.js";
+} from "@/assets/js/mocks/mock-repository.js";
 
 /**
  * Dữ liệu giả lập (mock data) cho trang Dashboard Admin MindHub tuân thủ API Contract V2.

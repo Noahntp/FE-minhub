@@ -1,4 +1,4 @@
-import { MOCK_DB } from "./mock-database.js";
+import { MOCK_DB } from "@/assets/js/mocks/mock-database.js";
 
 const STORAGE_KEY = "mindhub_admin_mock_db";
 

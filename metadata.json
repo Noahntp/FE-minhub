@@ -1,6 +1,0 @@
-{
-  "name": "MindHub",
-  "description": "Nền tảng học trực tuyến thông minh với lộ trình học cá nhân hóa, AI Mentor, tích hợp quản lý toàn diện cho Học viên, Giảng viên, Kiểm duyệt viên và Quản trị viên.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

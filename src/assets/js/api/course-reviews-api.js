@@ -10,7 +10,7 @@ import {
   getCourseById,
   populateCourse,
   getPopulatedCourseReview,
-} from "../mocks/mock-repository.js";
+} from "@/assets/js/mocks/mock-repository.js";
 
 export const USE_MOCK = true;
 export const USE_MOCK_DATA = true;

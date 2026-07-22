@@ -1,4 +1,4 @@
-import { getUsers as getRepoUsers, saveUsers as saveRepoUsers } from "../mocks/mock-repository.js";
+import { getUsers as getRepoUsers, saveUsers as saveRepoUsers } from "@/assets/js/mocks/mock-repository.js";
 
 // Cấu hình nguồn dữ liệu: true để dùng mock (localStorage), false để gọi API thật
 const USE_MOCK = true;

@@ -1,10 +1,10 @@
-import { USE_MOCK_DATA } from "../core/config.js";
+import { USE_MOCK_DATA } from "@/assets/js/core/config.js";
 import {
     getInstructorUpgrades,
     saveInstructorUpgrades,
     getUserById,
     updateUser as updateRepoUser
-} from "../mocks/mock-repository.js";
+} from "@/assets/js/mocks/mock-repository.js";
 
 const API_BASE_URL = "/api/admin/instructor-upgrade-requests";
 

@@ -1,7 +1,7 @@
-import * as coursesApi from "../api/courses-api.js";
-import { showToast } from "../toast.js";
-import { enableTableRowClick } from "../core/table-row-click.js";
-import { openModal, closeModal } from "../modal.js";
+import * as coursesApi from "@/assets/js/api/courses-api.js";
+import { showToast } from "@/assets/js/toast.js";
+import { enableTableRowClick } from "@/assets/js/core/table-row-click.js";
+import { openModal, closeModal } from "@/assets/js/modal.js";
 
 // Biến lưu trữ trạng thái hiện tại của trang
 let pageState = {

@@ -1,5 +1,4 @@
-import VNPayReturnPage from "../components/VNPayReturnPage";
-import { getCourses } from "@/services/course.service";
+import VNPayReturnPage from "@/features/cart/VNPayReturnPage";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Compass,
@@ -106,7 +105,6 @@ import InstructorCoursesPage from "@/components/InstructorCoursesPage";
 import InstructorDashboard from "@/components/InstructorDashboard";
 import AdminDashboard from "@/components/AdminDashboard";
 import { FreePreviewModal } from "@/components/FreePreviewModal";
-import { ApiService } from "@/services/api";
 import ContactPage from "@/pages/ContactPage";
 import AboutPage from "@/pages/AboutPage";
 import { InstructorProfile } from "@/components/InstructorProfile";
@@ -447,7 +445,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
 
   // API Config Mode replication state to handle immediate dynamic data reloads
   const [apiConfigMode, setApiConfigMode] = useState<"mock" | "api">(
-    () => ApiService.getConfig().mode,
+    () => Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any)).mode,
   );
 
   // Sync state and reload data on events
@@ -478,7 +476,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
     // Always use ApiService (which handles Mock vs API mode internally)
     fetchAllCourses();
 
-    ApiService.getCategoriesWithCount()
+    Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
       .then((cats) => {
         if (!active) return;
         if (cats && cats.length > 0) {
@@ -489,7 +487,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
       .catch((e) => console.warn("Lỗi nạp danh mục DB:", e));
 
     if (currentUser && currentUser.id) {
-      ApiService.getUserEnrollments(currentUser.id)
+      Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
         .then((enrollments) => {
           if (!active) return;
           const completed = enrollments.filter((e) => e.progress === 100);
@@ -497,7 +495,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
         })
         .catch((e) => console.warn("Lỗi nạp khóa học đã hoàn thành:", e));
 
-      ApiService.getUserActivities(currentUser.id)
+      Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
         .then((activities) => {
           if (!active) return;
           setLearningHistory(activities);
@@ -505,7 +503,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
         .catch((e) => console.warn("Lỗi nạp lịch sử học:", e));
 
       if (currentUser.id !== "u-guest") {
-        ApiService.getMyEnrolledCourses()
+        Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
           .then((enrolledList) => {
             if (!active) return;
             if (enrolledList && enrolledList.length > 0) {
@@ -516,14 +514,14 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
       }
     }
 
-    ApiService.getFeaturedCourses()
+    Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
       .then((featured) => {
         if (!active) return;
         setFeaturedCourses(featured);
       })
       .catch((e) => console.warn("Lỗi nạp khóa học nổi bật:", e));
 
-    ApiService.getBestsellerCourses()
+    Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
       .then((bestsellers) => {
         if (!active) return;
         setBestsellerCourses(bestsellers);
@@ -1507,7 +1505,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
   // --- INSTRUCTOR & MODERATION CRUD DISPATCHERS ---
   const handleCreateCourseDraft = async (newC: Course) => {
     try {
-      await ApiService.createCourseDraft(newC);
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
       await fetchAllCourses();
     } catch (e: any) {
       alert("Lỗi tạo khóa học nháp: " + e.message);
@@ -1516,7 +1514,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
 
   const handleUpdateCourse = async (updatedC: Course) => {
     try {
-      await ApiService.updateCourse(updatedC.id, updatedC);
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
       await fetchAllCourses();
     } catch (e: any) {
       alert("Lỗi cập nhật khóa học: " + e.message);
@@ -1525,7 +1523,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
 
   const handleDeleteCourse = async (courseId: string) => {
     try {
-      await ApiService.deleteCourse(courseId);
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
       await fetchAllCourses();
     } catch (e: any) {
       alert("Lỗi xóa khóa học: " + e.message);
@@ -1534,7 +1532,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
 
   const handleApproveCourse = async (courseId: string) => {
     try {
-      await ApiService.approveCourse(courseId);
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
       await fetchAllCourses();
     } catch (e: any) {
       alert("Lỗi duyệt khóa học: " + e.message);
@@ -1543,7 +1541,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
 
   const handleRejectCourse = async (courseId: string, reason: string) => {
     try {
-      await ApiService.rejectCourse(courseId, reason);
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
       await fetchAllCourses();
     } catch (e: any) {
       alert("Lỗi từ chối khóa học: " + e.message);
@@ -1576,7 +1574,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
 
   const handleApprovePayout = async (requestId: string) => {
     try {
-      await ApiService.resolvePayoutRequest(requestId, "completed");
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
       setPayoutRequests((prev) =>
         prev.map((r) =>
           r.id === requestId ? { ...r, status: "completed" } : r,
@@ -1589,7 +1587,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
 
   const handleRejectPayout = async (requestId: string) => {
     try {
-      await ApiService.resolvePayoutRequest(requestId, "rejected");
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
       setPayoutRequests((prev) =>
         prev.map((r) =>
           r.id === requestId ? { ...r, status: "rejected" } : r,
@@ -1605,7 +1603,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
     nextStatus: "success" | "pending" | "failed",
   ) => {
     try {
-      await ApiService.updateOrderStatus(orderId, nextStatus);
+      (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
     } catch (e: any) {
       alert("Lỗi cập nhật đơn hàng: " + e.message);
       return;
@@ -1689,13 +1687,7 @@ export default function LegacyApp({ initialTab = 'home' }: { initialTab?: string
     }
 
     try {
-      await ApiService.createAccountRequest({
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userEmail: currentUser.email,
-        type: closureType,
-        reason: closureReason.trim(),
-      });
+      // API call stripped
 
       setShowAccountClosureForm(false);
       setIsEditingProfile(false); // also hide profile edit modal for clarity

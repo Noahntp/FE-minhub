@@ -1,16 +1,60 @@
 # MindHub Frontend
 
 ## Giới thiệu dự án (Project Introduction)
-MindHub là một dự án ứng dụng web hiện đại, được xây dựng với các công nghệ Frontend tiên tiến nhất nhằm mang lại trải nghiệm người dùng mượt mà và tối ưu hóa hiệu suất. Dự án có sự tích hợp của công nghệ AI (Google GenAI) để cung cấp các tính năng thông minh.
+MindHub là một dự án ứng dụng web hiện đại, được xây dựng với các công nghệ Frontend tiên tiến nhất nhằm mang lại trải nghiệm người dùng mượt mà và tối ưu hóa hiệu suất. Dự án áp dụng kiến trúc **Feature-based Colocation** giúp code dễ dàng mở rộng và bảo trì.
 
 **Công nghệ sử dụng:**
 - **[React 19](https://react.dev/)**: Thư viện UI cốt lõi.
 - **[Vite](https://vitejs.dev/)**: Công cụ build siêu tốc và phát triển frontend.
-- **[TypeScript](https://www.typescriptlang.org/)**: Hỗ trợ định kiểu mạnh mẽ giúp code an toàn và dễ bảo trì.
+- **[TypeScript](https://www.typescriptlang.org/)**: Hỗ trợ định kiểu mạnh mẽ giúp code an toàn.
 - **[Tailwind CSS v4](https://tailwindcss.com/)**: Framework CSS utility-first để tạo kiểu nhanh chóng.
 - **[Framer Motion](https://motion.dev/)**: Thư viện tạo animation mượt mà.
 - **[Lucide React](https://lucide.dev/)**: Thư viện icon đẹp và nhẹ.
-- **[Express](https://expressjs.com/)**: Hỗ trợ chạy server local hoặc API (nếu cần thiết).
+
+---
+
+## Kiến trúc & Cấu trúc thư mục (Architecture & Folder Structure)
+
+Dự án áp dụng mô hình **Feature-based Colocation**. Mọi thành phần liên quan đến một tính năng nghiệp vụ cụ thể (components, utils, types, API calls...) đều được gom chung vào một thư mục tính năng đó thay vì phân tán.
+
+```text
+src/
+├── app/                  # File khởi chạy app (main.tsx, App.tsx, CSS toàn cục)
+├── assets/               # File tĩnh như hình ảnh, font chữ
+├── shared/               # Code dùng chung trên toàn hệ thống
+│   ├── components/ui/    # UI cơ bản (Button, Loading, ErrorState...)
+│   ├── utils/            # Hàm tiện ích chung (format.ts, safeStorage.ts...)
+│   ├── lib/              # Cấu hình thư viện (axios, media-url...)
+│   └── types.ts          # Định nghĩa Type TypeScript toàn cục
+├── features/             # Các nghiệp vụ chính của ứng dụng
+│   ├── admin/            # Dashboard quản trị viên
+│   ├── instructor/       # Màn hình giảng viên
+│   ├── auth/             # Đăng nhập, đăng ký, OTP
+│   ├── classroom/        # Trải nghiệm học tập (Video, Comment)
+│   ├── courses/          # Tìm kiếm, danh mục, chi tiết khóa học
+│   ├── cart/             # Giỏ hàng & Thanh toán
+│   ├── profile/          # Hồ sơ người dùng cá nhân
+│   ├── coupons/          # Quản lý mã giảm giá
+│   └── qa/               # Quản lý Hỏi đáp
+├── layouts/              # Bố cục trang (Navbar, Footer, MainLayout)
+├── pages/                # Các trang tĩnh tổng hợp tính năng (About, Contact)
+└── router/               # Cấu hình định tuyến (Routing)
+```
+
+## Import bằng Alias (Absolute Imports)
+
+Để tránh tình trạng "Import Hell" (ví dụ: `../../../../components/ui/Button`), dự án đã cấu hình alias trỏ thẳng vào thư mục `src/`. Khi import, hãy sử dụng `@/` thay vì đường dẫn tương đối.
+
+**Ví dụ:**
+```tsx
+// ❌ KHÔNG DÙNG:
+import { Loading } from '../../shared/components/ui/Loading';
+
+// ✅ KHUYÊN DÙNG:
+import { Loading } from '@/shared/components/ui/Loading/Loading';
+import { formatCurrency } from '@/shared/utils/format';
+import { UserProfile } from '@/features/profile/types';
+```
 
 ---
 
@@ -34,7 +78,7 @@ MindHub là một dự án ứng dụng web hiện đại, được xây dựng 
    ```
 
 3. **Thiết lập biến môi trường:**
-   Copy file mẫu `.env.example` thành file `.env` và cấu hình các thông số phù hợp (ví dụ: API keys, URL,...).
+   Copy file mẫu `.env.example` thành file `.env` và cấu hình các thông số phù hợp.
    ```bash
    cp .env.example .env
    ```
@@ -43,7 +87,7 @@ MindHub là một dự án ứng dụng web hiện đại, được xây dựng 
    ```bash
    npm run dev
    ```
-   *Ứng dụng sẽ mặc định khởi chạy tại địa chỉ: `http://localhost:3000` hoặc `http://0.0.0.0:3000`.*
+   *Ứng dụng sẽ mặc định khởi chạy tại địa chỉ: `http://localhost:5173` (Vite).*
 
 ---
 
@@ -52,7 +96,7 @@ MindHub là một dự án ứng dụng web hiện đại, được xây dựng 
 - `npm run dev`: Khởi chạy ứng dụng ở chế độ phát triển (Development mode).
 - `npm run build`: Đóng gói ứng dụng để chuẩn bị cho môi trường Production (kết quả nằm trong thư mục `dist`).
 - `npm run preview`: Chạy thử bản build production trên môi trường local.
-- `npm run clean`: Xóa các file build cũ (`dist`) và file tự tạo để dọn dẹp thư mục dự án.
+- `npm run clean`: Xóa các file build cũ (`dist`).
 - `npm run lint`: Chạy trình kiểm tra cú pháp và lỗi type của TypeScript.
 
 ---
@@ -63,14 +107,12 @@ Quy tắc chung để đặt tên nhánh:
 `<type>/<issue-id>-<mô-tả-ngắn-gọn>`
 
 Các `<type>` được phép sử dụng:
-- `feature/` hoặc `feat/`: Khi thêm một tính năng mới (VD: `feature/login-page`).
-- `bugfix/` hoặc `fix/`: Khi sửa một lỗi (VD: `fix/header-layout`).
-- `hotfix/`: Khi sửa lỗi khẩn cấp trên môi trường Production.
-- `chore/`: Cập nhật cấu hình, dependency, v.v... không liên quan đến logic code (VD: `chore/update-react`).
-- `refactor/`: Tái cấu trúc code (không thêm tính năng, không sửa lỗi) (VD: `refactor/auth-context`).
+- `feature/` hoặc `feat/`: Thêm tính năng mới (VD: `feature/login-page`).
+- `bugfix/` hoặc `fix/`: Sửa một lỗi (VD: `fix/header-layout`).
+- `hotfix/`: Sửa lỗi khẩn cấp trên Production.
+- `chore/`: Cập nhật cấu hình, dependency (VD: `chore/update-react`).
+- `refactor/`: Tái cấu trúc code (VD: `refactor/frontend-colocation`).
 - `docs/`: Thêm hoặc chỉnh sửa tài liệu.
-
-**Ví dụ một nhánh chuẩn:** `feature/TICKET-123-add-dark-mode`
 
 ---
 
@@ -89,12 +131,7 @@ Các `<type>` phổ biến:
 - `test`: Thêm hoặc sửa mã kiểm thử.
 - `chore`: Cập nhật quy trình build, cấu hình hoặc thư viện bên ngoài.
 
-**Quy tắc viết phần `<subject>`:**
-- Viết bằng tiếng Anh (hoặc tiếng Việt tùy quy định team), bắt đầu bằng động từ, viết thường, không viết hoa chữ cái đầu (VD: `add`, `change`, `remove`).
-- Không có dấu chấm `.` ở cuối câu.
-- Có thể đính kèm mã Issue/Ticket ở cuối.
-
 **Ví dụ:**
-- `feat(auth): add login form validation (#123)`
+- `feat(auth): add login form validation`
 - `fix(header): resolve overlapping logo issue`
-- `chore: update dependencies`
+- `refactor(arch): colocate components by features`

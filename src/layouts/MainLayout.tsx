@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import Navbar from "./Navbar";
+import Navbar from "@/layouts/Navbar";
 import CategoryFilterBar from "@/components/CategoryFilterBar";
 import FooterLegal from "@/components/FooterLegal";
 import { useState } from "react";

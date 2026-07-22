@@ -1,5 +1,5 @@
-import { initializeLayout } from "./layout.js";
-import "./core/custom-select.js";
+import { initializeLayout } from "@/assets/js/layout.js";
+import "@/assets/js/core/custom-select.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log("MindHub Admin đã khởi động.");

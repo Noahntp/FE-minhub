@@ -1,5 +1,5 @@
-import * as usersApi from "../api/users-api.js";
-import { showToast } from "../toast.js";
+import * as usersApi from "@/assets/js/api/users-api.js";
+import { showToast } from "@/assets/js/toast.js";
 
 // ID của Admin giả lập đang đăng nhập
 const CURRENT_ADMIN_ID = 1;

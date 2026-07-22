@@ -1,5 +1,5 @@
-import * as categoriesApi from "../api/categories-api.js";
-import { showToast } from "../toast.js";
+import * as categoriesApi from "@/assets/js/api/categories-api.js";
+import { showToast } from "@/assets/js/toast.js";
 
 // Trạng thái hiện tại của trang
 let pageState = {

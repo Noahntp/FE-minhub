@@ -1,5 +1,5 @@
-import * as upgradesApi from "../api/instructor-upgrades-api.js";
-import { showToast } from "../toast.js";
+import * as upgradesApi from "@/assets/js/api/instructor-upgrades-api.js";
+import { showToast } from "@/assets/js/toast.js";
 
 // Biến lưu trữ trạng thái hiện tại của trang
 let pageState = {

@@ -1,4 +1,4 @@
-import { initializeInteractions } from "./sidebar.js";
+import { initializeInteractions } from "@/assets/js/sidebar.js";
 
 /**
  * Xác định tiền tố đường dẫn tương đối dựa trên độ sâu của trang hiện tại.

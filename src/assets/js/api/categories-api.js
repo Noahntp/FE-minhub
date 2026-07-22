@@ -12,7 +12,7 @@ import {
   deleteCategory as deleteRepoCategory,
   restoreCategory as restoreRepoCategory,
   getCourses
-} from "../mocks/mock-repository.js";
+} from "@/assets/js/mocks/mock-repository.js";
 
 // Cấu hình nguồn dữ liệu: true để dùng mock (localStorage), false để gọi API thật
 const USE_MOCK = true;

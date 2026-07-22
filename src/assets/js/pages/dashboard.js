@@ -1,5 +1,5 @@
-import { getDashboardMockData } from "../../../data/dashboard.js";
-import { showToast } from "../toast.js";
+import { getDashboardMockData } from "@/data/dashboard.js";
+import { showToast } from "@/assets/js/toast.js";
 
 let myChart = null;
 

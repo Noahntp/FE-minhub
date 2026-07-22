@@ -1,4 +1,4 @@
-import { getCourses as getRepoCourses, saveCourses as saveRepoCourses, populateCourse } from "../mocks/mock-repository.js";
+import { getCourses as getRepoCourses, saveCourses as saveRepoCourses, populateCourse } from "@/assets/js/mocks/mock-repository.js";
 
 // Cấu hình nguồn dữ liệu: true để dùng mock (localStorage), false để gọi API thật
 const USE_MOCK = true;

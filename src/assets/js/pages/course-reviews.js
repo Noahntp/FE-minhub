@@ -8,9 +8,9 @@ import {
   getCourseReview,
   approveCourse,
   rejectCourse,
-} from "../api/course-reviews-api.js";
-import { showToast } from "../toast.js";
-import { enableTableRowClick } from "../core/table-row-click.js";
+} from "@/assets/js/api/course-reviews-api.js";
+import { showToast } from "@/assets/js/toast.js";
+import { enableTableRowClick } from "@/assets/js/core/table-row-click.js";
 
 // Helper lấy ngày gửi kiểm duyệt chính thức của khóa học
 function getCourseReviewSubmittedDate(item) {
