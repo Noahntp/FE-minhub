@@ -1,5 +1,5 @@
 import React from "react";
-import LegacyApp from "@/pages/LegacyApp";
+import AppRouter from "@/router/AppRouter";
 
 export default function CourseListPage() {
   return <LegacyApp initialTab="home" />;

@@ -1,4 +1,4 @@
-import { resolveMediaUrl } from "@/lib/media-url";
+import { resolveMediaUrl } from "@/shared/lib/media-url";
 
 interface CourseImageProps {
   src?: string | null;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { resolveMediaUrl } from '@/lib/media-url';
+import { resolveMediaUrl } from '@/shared/lib/media-url';
 import { BookOpen, PlayCircle, Trophy } from 'lucide-react';
 
 export default function MyCoursesPage() {
