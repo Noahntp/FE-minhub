@@ -10,10 +10,10 @@ export default function Footer() {
           <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 text-left text-xs">
             {/* Column 1: Thương hiệu / giới thiệu ngắn */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2.5 text-white">
-                <span className="font-suisseintl font-black text-xl tracking-tighter text-white footer-section-title">
-                  MindHub
-                </span>
+              <div className="flex items-center text-white mb-2">
+                <div className="bg-white/95 px-3 py-1.5 rounded-lg shadow-sm">
+                  <img src="/header-logo.png" alt="MindHub Logo" className="h-6 w-auto" />
+                </div>
               </div>
               <p className="text-white/80 leading-relaxed text-xs font-normal">
                 Hệ thống đào tạo trực tuyến thông minh kiến tạo tri thức từ việc
@@ -31,28 +31,28 @@ export default function Footer() {
               </span>
               <div className="space-y-2 text-white/80 font-medium">
                 <button
-                  onClick={() => navigate('/home')}
+                  onClick={() => navigate('/courses')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
                   Khóa học hiện có
                 </button>
                 <button
-                  onClick={() => navigate('/home')}
+                  onClick={() => navigate('/search')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Danh mục khóa học
+                  Tìm kiếm & Danh mục
                 </button>
                 <button
-                  onClick={() => navigate('/home')}
+                  onClick={() => navigate('/roadmaps')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Khóa học nổi bật
+                  Lộ trình học tập
                 </button>
                 <button
-                  onClick={() => navigate('/intro')}
+                  onClick={() => navigate('/about')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Giới thiệu nền tảng & Giảng viên
+                  Về chúng tôi
                 </button>
               </div>
             </div>
@@ -64,37 +64,37 @@ export default function Footer() {
               </span>
               <div className="space-y-2 text-white/80 font-medium">
                 <button
-                  onClick={() => navigate('/legal')}
+                  onClick={() => navigate('/faq')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
                   Câu hỏi thường gặp (FAQ)
                 </button>
                 <button
-                  onClick={() => navigate('/legal')}
+                  onClick={() => navigate('/pricing')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Hướng dẫn học & Điều khoản
+                  Bảng giá & Gói học
                 </button>
                 <button
                   onClick={() => navigate('/legal')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Hướng dẫn thanh toán
+                  Điều khoản sử dụng
                 </button>
                 <button
                   onClick={() => navigate('/legal')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Chính sách hoàn tiền 100%
+                  Chính sách bảo mật
                 </button>
                 <button
-                  onClick={() => navigate('/legal')}
+                  onClick={() => navigate('/contact')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Hướng dẫn liên hệ hỗ trợ
+                  Liên hệ hỗ trợ
                 </button>
                 <button
-                  onClick={() => navigate('/legal')}
+                  onClick={() => navigate('/contact')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
                   Báo lỗi & Gửi phản hồi

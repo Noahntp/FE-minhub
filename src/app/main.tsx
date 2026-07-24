@@ -149,7 +149,8 @@ try {
 
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
-import { ErrorBoundary } from '@/layouts/ErrorBoundary';
+import { GlobalErrorBoundary } from '@/shared/components/ui/GlobalErrorBoundary';
+import { Toaster } from 'sonner';
 import '@/app/index.css';
 
 import { AppProvider } from '@/app/AppContext';
@@ -157,10 +158,11 @@ import AppRouter from '@/router/AppRouter';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>
+    <GlobalErrorBoundary>
       <AppProvider>
         <AppRouter />
+        <Toaster position="bottom-right" richColors theme="system" />
       </AppProvider>
-    </ErrorBoundary>
+    </GlobalErrorBoundary>
   </StrictMode>,
 );

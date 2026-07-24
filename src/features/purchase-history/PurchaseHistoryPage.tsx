@@ -1,0 +1,165 @@
+import React, { useState } from 'react';
+import { PageTransition } from '@/shared/components/ui/PageTransition';
+import { Receipt, Search, Download, CreditCard, ChevronRight } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
+import { Input } from '@/shared/components/ui/input';
+import { toast } from 'sonner';
+
+// Mock Data for Orders
+const MOCK_ORDERS = [
+  {
+    id: 'ORD-2026-9821A',
+    date: '2026-05-15T10:30:00Z',
+    items: [
+      { id: 'course-1', title: 'Chinh Phục React 19 & Next.js 15', price: 799000 }
+    ],
+    total: 799000,
+    status: 'success',
+    paymentMethod: 'VNPay'
+  },
+  {
+    id: 'ORD-2026-7734B',
+    date: '2026-04-02T14:15:00Z',
+    items: [
+      { id: 'course-3', title: 'Figma to Code: UI/UX Masterclass', price: 599000 },
+      { id: 'course-4', title: 'Python cho Data Science', price: 899000 }
+    ],
+    total: 1498000,
+    status: 'success',
+    paymentMethod: 'Momo'
+  },
+  {
+    id: 'ORD-2026-1192C',
+    date: '2026-06-20T09:00:00Z',
+    items: [
+      { id: 'course-5', title: 'Khóa học không tồn tại', price: 500000 }
+    ],
+    total: 500000,
+    status: 'failed',
+    paymentMethod: 'Credit Card'
+  }
+];
+
+export default function PurchaseHistoryPage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const filteredOrders = MOCK_ORDERS.filter(order => 
+    order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    order.items.some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const handleDownloadInvoice = (orderId: string) => {
+    toast.success(`Đang tải hóa đơn cho mã: ${orderId}`);
+  };
+
+  return (
+    <PageTransition>
+      <div className="max-w-5xl mx-auto py-8 px-4">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black font-suisseintl tracking-tight">Lịch sử thanh toán</h1>
+            <p className="text-muted-foreground mt-2">
+              Theo dõi và quản lý các giao dịch mua khóa học của bạn.
+            </p>
+          </div>
+          <div className="relative w-full md:w-72">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Tìm mã đơn hoặc tên khóa..."
+              className="pl-9 bg-background rounded-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {MOCK_ORDERS.length === 0 ? (
+          <EmptyState
+            icon={Receipt}
+            title="Chưa có giao dịch nào"
+            description="Bạn chưa mua khóa học nào trên hệ thống."
+            actionLabel="Khám phá ngay"
+            onAction={() => window.location.href = '/courses'}
+          />
+        ) : filteredOrders.length === 0 ? (
+          <div className="text-center py-20 text-muted-foreground">
+            Không tìm thấy kết quả nào cho "{searchQuery}"
+          </div>
+        ) : (
+          <div className="bg-card border rounded-3xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-muted/50 border-b uppercase text-muted-foreground text-xs font-bold tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4">Mã đơn hàng</th>
+                    <th className="px-6 py-4">Ngày giao dịch</th>
+                    <th className="px-6 py-4">Chi tiết</th>
+                    <th className="px-6 py-4">Tổng tiền</th>
+                    <th className="px-6 py-4">Trạng thái</th>
+                    <th className="px-6 py-4 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4 font-mono text-sm font-medium">
+                        {order.id}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">
+                        {new Date(order.date).toLocaleDateString('vi-VN')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1 max-w-[200px]">
+                          {order.items.map((item, idx) => (
+                            <span key={idx} className="truncate font-medium" title={item.title}>
+                              {item.title}
+                            </span>
+                          ))}
+                          {order.items.length > 1 && (
+                            <span className="text-xs text-muted-foreground">
+                              (Và {order.items.length - 1} mục khác)
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-bold">
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.total)}
+                      </td>
+                      <td className="px-6 py-4">
+                        {order.status === 'success' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                            Thành công
+                          </span>
+                        ) : order.status === 'failed' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800 border border-rose-200">
+                            Thất bại
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                            Đang chờ
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="gap-2 text-primary"
+                          disabled={order.status !== 'success'}
+                          onClick={() => handleDownloadInvoice(order.id)}
+                        >
+                          <Download className="w-4 h-4" /> Hoá đơn
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </PageTransition>
+  );
+}

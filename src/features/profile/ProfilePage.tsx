@@ -5,6 +5,9 @@ import { OTPModal } from '@/features/auth/components/OTPModal';
 import { AppRoutes, RoleLabels } from '@/router/routes';
 import { InstructorProfile } from '@/features/instructor/components/InstructorProfile';
 import { InstructorProfessional } from '@/features/instructor/InstructorProfessional';
+import { PublicProfile } from './PublicProfile';
+import { useParams } from 'react-router-dom';
+import { INITIAL_USER } from '@/shared/data';
 
 const AVAILABLE_AVATARS = [
   "https://i.pravatar.cc/150?img=11",
@@ -24,6 +27,14 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({ currentUser, setCurrentUser, navigateTo, onLogout }: ProfilePageProps) {
+  const { userId } = useParams();
+  
+  if (userId && userId !== currentUser.id) {
+    // Return mock public user for now
+    const mockPublicUser = { ...INITIAL_USER, id: userId, name: `User ${userId}`, role: 'student' as const };
+    return <PublicProfile user={mockPublicUser} />;
+  }
+
   const [activeTab, setActiveTab] = useState<'personal' | 'professional' | 'security' | 'roles' | 'history'>('personal');
   
   // Forms state
@@ -492,38 +503,95 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo, onLogout 
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-1.5">Họ và tên</label>
+                        <div className="space-y-1.5">
+                          <label className="block text-sm font-semibold text-stone-700">Họ và tên</label>
                           <input
                             type="text"
-                            value={editUser.name}
+                            value={editUser.name || ''}
                             onChange={(e) => setEditUser({...editUser, name: e.target.value})}
-                            className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
+                            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
+                            placeholder="Nguyễn Văn A"
                             required
                           />
                         </div>
                         
-                        <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                            Email <span className="text-xs font-normal text-stone-500">(Không thể tự đổi)</span>
+                        <div className="space-y-1.5">
+                          <label className="block text-sm font-semibold text-stone-700">
+                            Email <span className="text-xs font-normal text-stone-400 ml-1">(Cố định)</span>
                           </label>
                           <input
                             type="email"
-                            value={editUser.email}
+                            value={editUser.email || ''}
                             disabled
-                            className="w-full px-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-500 cursor-not-allowed"
+                            className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50 text-stone-500 cursor-not-allowed"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-sm font-semibold text-stone-700">Số điện thoại</label>
+                          <input
+                            type="tel"
+                            value={editUser.phone || ''}
+                            onChange={(e) => setEditUser({...editUser, phone: e.target.value})}
+                            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
+                            placeholder="0912345678"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-sm font-semibold text-stone-700">Ngày sinh</label>
+                          <input
+                            type="date"
+                            value={editUser.dob || ''}
+                            onChange={(e) => setEditUser({...editUser, dob: e.target.value})}
+                            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
                           />
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-semibold text-stone-700 mb-1.5">Giới thiệu ngắn (Bio)</label>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-stone-700">Địa chỉ / Khu vực</label>
+                        <input
+                          type="text"
+                          value={editUser.address || ''}
+                          onChange={(e) => setEditUser({...editUser, address: e.target.value})}
+                          className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
+                          placeholder="Quận 1, TP. Hồ Chí Minh"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-stone-700">Liên kết mạng xã hội (Tùy chọn)</label>
+                        <div className="flex gap-3">
+                          <input
+                            type="url"
+                            value={editUser.facebookUrl || ''}
+                            onChange={(e) => setEditUser({...editUser, facebookUrl: e.target.value})}
+                            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
+                            placeholder="Link Facebook"
+                          />
+                          <input
+                            type="url"
+                            value={editUser.linkedinUrl || ''}
+                            onChange={(e) => setEditUser({...editUser, linkedinUrl: e.target.value})}
+                            className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors"
+                            placeholder="Link LinkedIn"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-semibold text-stone-700 flex justify-between items-center">
+                          Giới thiệu bản thân
+                          <span className="text-xs font-normal text-stone-400">Tối đa 300 ký tự</span>
+                        </label>
                         <textarea
                           value={editUser.bio || ''}
                           onChange={(e) => setEditUser({...editUser, bio: e.target.value})}
-                          rows={3}
-                          className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors resize-none"
-                          placeholder="Một vài điều về bản thân bạn..."
+                          rows={4}
+                          maxLength={300}
+                          className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:border-brand-normal focus:ring-1 focus:ring-brand-normal focus:outline-none transition-colors resize-none leading-relaxed"
+                          placeholder="Chia sẻ một chút về mục tiêu học tập, sở thích và kinh nghiệm của bạn..."
                         ></textarea>
                       </div>
 

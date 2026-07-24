@@ -42,7 +42,80 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        .initial-loader-wrapper {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background-color: #FAFAF9;
+          z-index: 9999;
+          font-family: system-ui, -apple-system, sans-serif;
+        }
+        .mindhub-logo-anim {
+          position: relative;
+          width: 80px;
+          height: 80px;
+          margin-bottom: 2rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .mindhub-cube {
+          position: absolute;
+          width: 24px;
+          height: 24px;
+          background-color: #8b5e3c;
+          border-radius: 6px;
+          animation: mindhub-cube-spin 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        .mindhub-cube-1 { top: 10px; left: 10px; animation-delay: 0s; }
+        .mindhub-cube-2 { top: 10px; right: 10px; animation-delay: 0.1s; }
+        .mindhub-cube-3 { bottom: 10px; left: 10px; animation-delay: 0.2s; }
+        .mindhub-cube-4 { bottom: 10px; right: 10px; animation-delay: 0.3s; }
+        .mindhub-core {
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          background-color: #f59e0b;
+          border-radius: 3px;
+          z-index: 10;
+          animation: mindhub-core-pulse 3s linear infinite;
+        }
+        @keyframes mindhub-cube-spin {
+          0%, 10% { transform: scale(0) rotate(0deg); opacity: 0; }
+          30%, 50% { transform: scale(1) rotate(90deg); opacity: 1; }
+          80%, 100% { transform: scale(0) rotate(180deg); opacity: 0; }
+        }
+        @keyframes mindhub-core-pulse {
+          0%, 100% { transform: scale(0.5) rotate(0deg); }
+          50% { transform: scale(1.2) rotate(180deg); }
+        }
+        .loading-text {
+          font-size: 14px;
+          font-weight: 500;
+          color: #78716c;
+          animation: pulse-text 2s ease-in-out infinite;
+        }
+        @keyframes pulse-text {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+      </style>
+      <div class="initial-loader-wrapper">
+        <div class="mindhub-logo-anim">
+          <div class="mindhub-cube mindhub-cube-1"></div>
+          <div class="mindhub-cube mindhub-cube-2"></div>
+          <div class="mindhub-cube mindhub-cube-3"></div>
+          <div class="mindhub-cube mindhub-cube-4"></div>
+          <div class="mindhub-core"></div>
+        </div>
+        <div class="loading-text">Đang tải tri thức...</div>
+      </div>
+    </div>
     <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>
