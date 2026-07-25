@@ -1,52 +1,76 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import React, { Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 
 // Layouts
 import MainLayout from '@/layouts/MainLayout';
-
-// Pages
-import { ProfilePage } from '@/features/profile/ProfilePage';
-import CartAndCheckout from '@/features/cart/CartAndCheckout';
-import VNPayReturnPage from '@/features/cart/VNPayReturnPage';
-import InstructorCoursesPage from '@/features/instructor/components/InstructorCoursesPage';
-import InstructorDashboard from '@/features/instructor/InstructorDashboard';
-import AdminDashboard from '@/features/admin/AdminDashboard';
-import { InstructorProfile } from '@/features/instructor/components/InstructorProfile';
-import AuthScreens from '@/features/auth/components/AuthScreens';
-import ClassroomScreen from '@/features/classroom/components/ClassroomScreen';
-import CourseDetailPage from '@/features/courses/CourseDetailPage';
-import CourseListPage from '@/features/courses/CourseListPage';
-import MyCoursesPage from '@/features/courses/MyCoursesPage';
-import ClassroomPage from '@/features/classroom/ClassroomPage';
-import { NotFoundPage } from '@/features/errors/NotFoundPage';
-
-import AboutPage from '@/pages/AboutPage';
-import ContactPage from '@/pages/ContactPage';
 import { useApp } from '@/app/AppContext';
 
-// Simple placeholder components for missing pages until they are migrated
-import HomePage from '@/features/home/HomePage';
-const ExplorePage = () => <div className="p-10 text-center"><h1 className="text-3xl font-bold">Khám Phá (Đang cập nhật)</h1></div>;
+// Loading Fallback
+const PageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-normal"></div>
+  </div>
+);
 
-import LegalPage from '@/pages/LegalPage';
-import SettingsPage from '@/features/settings/SettingsPage';
-import FavoritesPage from '@/features/courses/FavoritesPage';
-import RoadmapsPage from '@/features/roadmaps/RoadmapsPage';
-import RoadmapDetailPage from '@/features/roadmaps/RoadmapDetailPage';
-import InstructorsPage from '@/features/instructor/InstructorsPage';
-import AchievementsPage from '@/features/profile/AchievementsPage';
-import NotificationPage from '@/features/notifications/NotificationPage';
-import CertificateCenterPage from '@/features/certificates/CertificateCenterPage';
-import PurchaseHistoryPage from '@/features/purchase-history/PurchaseHistoryPage';
-import SearchPage from '@/features/search/SearchPage';
-import CategoryDetailPage from '@/features/category/CategoryDetailPage';
-import LearningCalendarPage from '@/features/calendar/LearningCalendarPage';
-import InstructorProfilePage from '@/features/instructor/InstructorProfilePage';
-import FAQPage from '@/pages/FAQPage';
-import PricingPage from '@/pages/PricingPage';
-import { ForbiddenPage } from '@/features/errors/ForbiddenPage';
-import { ServerErrorPage } from '@/features/errors/ServerErrorPage';
+// Lazy Loaded Pages
+const HomePage = React.lazy(() => import('@/features/home/HomePage').then(m => ({ default: m.default })));
+const CourseDetailPage = React.lazy(() => import('@/features/courses/CourseDetailPage').then(m => ({ default: m.default })));
+const CourseListPage = React.lazy(() => import('@/features/courses/CourseListPage').then(m => ({ default: m.default })));
+const CategoryDetailPage = React.lazy(() => import('@/features/category/CategoryDetailPage').then(m => ({ default: m.default })));
+const RoadmapsPage = React.lazy(() => import('@/features/roadmaps/RoadmapsPage').then(m => ({ default: m.default })));
+const RoadmapDetailPage = React.lazy(() => import('@/features/roadmaps/RoadmapDetailPage').then(m => ({ default: m.default })));
+const InstructorsPage = React.lazy(() => import('@/features/instructor/InstructorsPage').then(m => ({ default: m.default })));
+const MyCoursesPage = React.lazy(() => import('@/features/courses/MyCoursesPage').then(m => ({ default: m.default })));
+const FavoritesPage = React.lazy(() => import('@/features/courses/FavoritesPage').then(m => ({ default: m.default })));
+const AchievementsPage = React.lazy(() => import('@/features/profile/AchievementsPage').then(m => ({ default: m.default })));
+const NotificationPage = React.lazy(() => import('@/features/notifications/NotificationPage').then(m => ({ default: m.default })));
+const LearningCalendarPage = React.lazy(() => import('@/features/calendar/LearningCalendarPage').then(m => ({ default: m.default })));
+const CertificateCenterPage = React.lazy(() => import('@/features/certificates/CertificateCenterPage').then(m => ({ default: m.default })));
+const PurchaseHistoryPage = React.lazy(() => import('@/features/purchase-history/PurchaseHistoryPage').then(m => ({ default: m.default })));
+const SettingsPage = React.lazy(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.default })));
+const SearchPage = React.lazy(() => import('@/features/search/SearchPage').then(m => ({ default: m.default })));
+const AboutPage = React.lazy(() => import('@/pages/AboutPage').then(m => ({ default: m.default })));
+const ContactPage = React.lazy(() => import('@/pages/ContactPage').then(m => ({ default: m.default })));
+const LegalPage = React.lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.default })));
+const FAQPage = React.lazy(() => import('@/pages/FAQPage').then(m => ({ default: m.default })));
+const PricingPage = React.lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.default })));
+const ClassroomPage = React.lazy(() => import('@/features/classroom/ClassroomPage').then(m => ({ default: m.default })));
+const ProfilePage = React.lazy(() => import('@/features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const AuthScreens = React.lazy(() => import('@/features/auth/components/AuthScreens').then(m => ({ default: m.default })));
+const CartAndCheckout = React.lazy(() => import('@/features/cart/CartAndCheckout').then(m => ({ default: m.default })));
+const VNPayReturnPage = React.lazy(() => import('@/features/cart/VNPayReturnPage').then(m => ({ default: m.default })));
+const InstructorDashboard = React.lazy(() => import('@/features/instructor/InstructorDashboard').then(m => ({ default: m.default })));
+const AdminDashboard = React.lazy(() => import('@/features/admin/AdminDashboard').then(m => ({ default: m.default })));
+const InstructorProfilePage = React.lazy(() => import('@/features/instructor/InstructorProfilePage').then(m => ({ default: m.default })));
+const InstructorCoursesPage = React.lazy(() => import('@/features/instructor/components/InstructorCoursesPage').then(m => ({ default: m.default })));
+const ForbiddenPage = React.lazy(() => import('@/features/errors/ForbiddenPage').then(m => ({ default: m.ForbiddenPage })));
+const ServerErrorPage = React.lazy(() => import('@/features/errors/ServerErrorPage').then(m => ({ default: m.ServerErrorPage })));
+const NotFoundPage = React.lazy(() => import('@/features/errors/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
+
+// Helper component to pass params and course card to InstructorCoursesPage
+const InstructorCoursesPageWrapper = () => {
+  const { instructorId } = useParams<{ instructorId: string }>();
+  const navigate = useNavigate();
+  const { currentUser } = useApp();
+  
+  // Lazy load CourseCard to prevent circular dependencies in router
+  const CourseCard = React.lazy(() => import('@/features/courses/components/CourseCard').then(m => ({ default: m.CourseCard })));
+  
+  return (
+    <Suspense fallback={<PageLoader />}>
+      {instructorId && currentUser ? (
+        <InstructorCoursesPage 
+          instructorId={instructorId}
+          navigateTo={(path) => navigate(path.startsWith('/') ? path : `/${path}`)}
+          // @ts-ignore
+          renderCourseCard={(course) => <CourseCard key={course.id} course={course} />}
+          currentUser={currentUser}
+        />
+      ) : <PageLoader />}
+    </Suspense>
+  );
+};
 
 function AppRoutes() {
   const { isLoggedIn, currentUser, enrolledCourseIds, courses, favorites } = useApp();
@@ -59,134 +83,110 @@ function AppRoutes() {
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {/* Auth Routes */}
-        <Route path="/login" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
-        <Route path="/register" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
-        
-        {/* Main Layout Routes (Navbar + Footer) */}
-        <Route element={<MainLayout />}>
-        <Route path="/" element={<HomePage />} />
-        
-        {/* Course Discovery & Learning */}
-        <Route path="/courses/:courseId" element={<CourseDetailPage />} />
-        <Route path="/courses" element={<CourseListPage />} />
-        <Route path="/category/:slug" element={<CategoryDetailPage />} />
-        <Route path="/roadmaps" element={<RoadmapsPage />} />
-        <Route path="/roadmaps/:roadmapId" element={<RoadmapDetailPage />} />
-        <Route path="/instructors" element={<InstructorsPage />} />
-        
-        {/* Personal & Account */}
-        <Route path="/my-courses" element={
-          isLoggedIn ? <MyCoursesPage /> : <Navigate to="/login" replace />
-        } />
-        <Route path="/favorites" element={
-          isLoggedIn ? <FavoritesPage /> : <Navigate to="/login" replace />
-        } />
-        <Route path="/achievements" element={
-          isLoggedIn ? <AchievementsPage /> : <Navigate to="/login" replace />
-        } />
-        <Route path="/notifications" element={
-          isLoggedIn ? <NotificationPage /> : <Navigate to="/login" replace />
-        } />
+      <Suspense fallback={<PageLoader />}>
+        <Routes location={location} key={location.pathname}>
+          {/* Auth Routes */}
+          <Route path="/login" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
+          <Route path="/register" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
+          
+          {/* Main Layout Routes (Navbar + Footer) */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            
+            {/* Course Discovery & Learning */}
+            <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+            <Route path="/courses" element={<CourseListPage />} />
+            <Route path="/category/:slug" element={<CategoryDetailPage />} />
+            <Route path="/roadmaps" element={<RoadmapsPage />} />
+            <Route path="/roadmaps/:roadmapId" element={<RoadmapDetailPage />} />
+            <Route path="/instructors" element={<InstructorsPage />} />
+            
+            {/* Personal & Account */}
+            <Route path="/my-courses" element={isLoggedIn ? <MyCoursesPage /> : <Navigate to="/login" replace />} />
+            <Route path="/favorites" element={isLoggedIn ? <FavoritesPage /> : <Navigate to="/login" replace />} />
+            <Route path="/achievements" element={isLoggedIn ? <AchievementsPage /> : <Navigate to="/login" replace />} />
+            <Route path="/notifications" element={isLoggedIn ? <NotificationPage /> : <Navigate to="/login" replace />} />
+            <Route path="/calendar" element={isLoggedIn ? <LearningCalendarPage /> : <Navigate to="/login" replace />} />
+            <Route path="/certificates" element={isLoggedIn ? <CertificateCenterPage /> : <Navigate to="/login" replace />} />
+            <Route path="/purchase-history" element={isLoggedIn ? <PurchaseHistoryPage /> : <Navigate to="/login" replace />} />
+            <Route path="/settings" element={isLoggedIn ? <SettingsPage /> : <Navigate to="/login" replace />} />
+            
+            {/* Search Route */}
+            <Route path="/search" element={<SearchPage />} />
 
-        <Route path="/calendar" element={
-          isLoggedIn ? <LearningCalendarPage /> : <Navigate to="/login" replace />
-        } />
+            {/* Legal & Static Pages */}
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/legal" element={<LegalPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/privacy" element={<Navigate to="/legal" replace />} />
+            
+            <Route path="/cart" element={
+              <CartAndCheckout 
+                wishlistCourseIds={favorites}
+                allCourses={courses}
+                enrolledCourseIds={enrolledCourseIds}
+                onEnrollSuccess={() => {}}
+                onClose={() => navigate('/')}
+                onToggleFavorite={() => {}}
+                onEnterLesson={() => {}}
+                initialCourseId={null}
+              />
+            } />
+            <Route path="/checkout" element={<Navigate to="/cart" replace />} />
+            <Route path="/vnpay-return" element={
+              // @ts-ignore
+              <VNPayReturnPage onNavigate={navigateTo} />
+            } />
+            
+            {/* Protected Profile Route */}
+            <Route path="/profile/:userId?" element={
+              isLoggedIn ? (
+                <ProfilePage 
+                  currentUser={currentUser} 
+                  setCurrentUser={() => {}} 
+                  navigateTo={navigateTo} 
+                  onLogout={() => {}} 
+                />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } />
 
-        <Route path="/certificates" element={
-          isLoggedIn ? <CertificateCenterPage /> : <Navigate to="/login" replace />
-        } />
-        <Route path="/purchase-history" element={
-          isLoggedIn ? <PurchaseHistoryPage /> : <Navigate to="/login" replace />
-        } />
-        <Route path="/settings" element={
-          isLoggedIn ? <SettingsPage /> : <Navigate to="/login" replace />
-        } />
-        
-        {/* Search Route */}
-        <Route path="/search" element={<SearchPage />} />
+            <Route path="/instructors/:instructorId" element={<InstructorProfilePage />} />
+            <Route path="/instructors/:instructorId/courses" element={<InstructorCoursesPageWrapper />} />
+          </Route>
 
-        {/* Legal & Static Pages */}
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/legal" element={<LegalPage />} />
-        <Route path="/faq" element={<FAQPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/privacy" element={<Navigate to="/legal" replace />} />
-        
-        <Route path="/cart" element={
-          <CartAndCheckout 
-            wishlistCourseIds={favorites}
-            allCourses={courses}
-            enrolledCourseIds={enrolledCourseIds}
-            onEnrollSuccess={() => {}}
-            onClose={() => navigate('/')}
-            onToggleFavorite={() => {}}
-            onEnterLesson={() => {}}
-            initialCourseId={null}
-          />
-        } />
-        <Route path="/checkout" element={<Navigate to="/cart" replace />} />
-        <Route path="/vnpay-return" element={
-          // @ts-ignore
-          <VNPayReturnPage onNavigate={navigateTo} />
-        } />
-        
-        {/* Protected Profile Route */}
-        <Route path="/profile/:userId?" element={
-          isLoggedIn ? (
-            <ProfilePage 
-              currentUser={currentUser} 
-              setCurrentUser={() => {}} 
-              navigateTo={navigateTo} 
-              onLogout={() => {}} 
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        } />
+          {/* Instructor Workspace (No Main Navbar/Footer) */}
+          <Route path="/instructor/:instructorId/*" element={
+            // @ts-ignore
+            isLoggedIn ? <InstructorDashboard currentUser={currentUser} /> : <Navigate to="/login" replace />
+          } />
 
-        <Route path="/instructors/:instructorId" element={<InstructorProfilePage />} />
-        <Route path="/instructors/:instructorId/courses" element={
-          // @ts-ignore
-          <InstructorCoursesPage 
-            instructorId={""} 
-            navigateTo={navigateTo} 
-            renderCourseCard={() => <></>} 
-            currentUser={currentUser} 
-          />
-        } />
-      </Route>
-
-      {/* Instructor Workspace (No Main Navbar/Footer) */}
-      <Route path="/instructor/:instructorId/*" element={
-        // @ts-ignore
-        isLoggedIn ? <InstructorDashboard currentUser={currentUser} /> : <Navigate to="/login" replace />
-      } />
-
-      {/* Admin Workspace */}
-      <Route path="/admin/:adminId/*" element={
-        // @ts-ignore
-        isLoggedIn && currentUser.role === 'admin' ? (
-          <AdminDashboard />
-        ) : (
-          <Navigate to="/" replace />
-        )
-      } />
-      
-      {/* Classroom (Fullscreen Learning) */}
-      <Route path="/learn/:courseId" element={
-        isLoggedIn ? <ClassroomPage /> : <Navigate to="/login" replace />
-      } />
-      
-      {/* Error Pages */}
-      <Route path="/403" element={<ForbiddenPage />} />
-      <Route path="/500" element={<ServerErrorPage />} />
-      
-      {/* Fallback */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+          {/* Admin Workspace */}
+          <Route path="/admin/:adminId/*" element={
+            // @ts-ignore
+            isLoggedIn && currentUser.role === 'admin' ? (
+              <AdminDashboard />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          } />
+          
+          {/* Classroom (Fullscreen Learning) */}
+          <Route path="/learn/:courseId" element={
+            isLoggedIn ? <ClassroomPage /> : <Navigate to="/login" replace />
+          } />
+          
+          {/* Error Pages */}
+          <Route path="/403" element={<ForbiddenPage />} />
+          <Route path="/500" element={<ServerErrorPage />} />
+          
+          {/* Fallback */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     </AnimatePresence>
   );
 }
