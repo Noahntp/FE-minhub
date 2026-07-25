@@ -8,6 +8,7 @@ import { InstructorProfessional } from '@/features/instructor/InstructorProfessi
 import { PublicProfile } from './PublicProfile';
 import { useParams } from 'react-router-dom';
 import { INITIAL_USER } from '@/shared/data';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 
 const AVAILABLE_AVATARS = [
   "https://i.pravatar.cc/150?img=11",
@@ -959,16 +960,13 @@ export function ProfilePage({ currentUser, setCurrentUser, navigateTo, onLogout 
                   </h3>
                   
                   {learningHistory.length === 0 ? (
-                    <div className="text-center py-10 bg-stone-50 rounded-xl border border-stone-100">
-                      <Clock className="w-12 h-12 text-stone-300 mx-auto mb-3" />
-                      <p className="text-stone-500 font-medium">Chưa có hoạt động học tập nào được ghi nhận.</p>
-                      <button 
-                        onClick={() => navigateTo('home')} 
-                        className="mt-4 px-6 py-2 bg-[#8b5e3c] text-white rounded-xl text-sm font-bold shadow-md hover:bg-[#724a2d] transition-all"
-                      >
-                        Bắt đầu học ngay
-                      </button>
-                    </div>
+                    <EmptyState 
+                      icon={Clock}
+                      title="Chưa có hoạt động"
+                      description="Chưa có hoạt động học tập nào được ghi nhận."
+                      actionLabel="Bắt đầu học ngay"
+                      onAction={() => navigateTo('home')}
+                    />
                   ) : (
                     <div className="relative border-l-2 border-stone-100 ml-4 pl-6 space-y-8">
                       {learningHistory.map((activity: any, index: number) => (

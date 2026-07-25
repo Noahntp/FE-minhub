@@ -7,6 +7,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { CourseCard } from '@/features/courses/components/CourseCard';
+import { CourseCardSkeleton } from '@/features/courses/components/CourseCardSkeleton';
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
@@ -16,6 +17,7 @@ export default function SearchPage() {
   const [localQuery, setLocalQuery] = useState(query);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortOption, setSortOption] = useState('relevant');
+  const [isLoading, setIsLoading] = useState(false);
   
   const [filteredCourses, setFilteredCourses] = useState(INITIAL_COURSES);
 
@@ -42,7 +44,13 @@ export default function SearchPage() {
       result.sort((a, b) => b.rating - a.rating);
     }
     
-    setFilteredCourses([...result]);
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+      setFilteredCourses([...result]);
+      setIsLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [query, sortOption]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -144,7 +152,13 @@ export default function SearchPage() {
           
           {/* Results */}
           <div className="flex-1">
-            {filteredCourses.length === 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <CourseCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : filteredCourses.length === 0 ? (
               <EmptyState 
                 icon={Search}
                 title="Không tìm thấy kết quả"
@@ -153,7 +167,7 @@ export default function SearchPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredCourses.map(course => (
-                  <CourseCard key={course.id} course={course} />
+                  <CourseCard key={course.id} course={course as any} />
                 ))}
               </div>
             )}

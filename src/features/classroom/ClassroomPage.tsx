@@ -2,8 +2,8 @@ import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Menu } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
-import { GlobalLoader } from "@/shared/components/ui/GlobalLoader";
 import { EmptyState } from "@/shared/components/ui/EmptyState";
+import { ClassroomSkeleton } from "./components/ClassroomSkeleton";
 import { useClassroom } from "./hooks/useClassroom";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { CurriculumSidebar } from "./components/CurriculumSidebar";
@@ -28,7 +28,7 @@ export default function ClassroomPage() {
   } = useClassroom(courseId);
 
   if (isLoading) {
-    return <GlobalLoader />;
+    return <ClassroomSkeleton />;
   }
 
   if (error || !course) {

@@ -10,7 +10,7 @@ import { useApp } from '@/app/AppContext';
 import { useCourseDetail } from './hooks/useCourseDetail';
 import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
-import { GlobalLoader } from '@/shared/components/ui/GlobalLoader';
+import { CourseDetailSkeleton } from './components/CourseDetailSkeleton';
 import { CourseCard, CourseData } from './components/CourseCard';
 import { ReviewList } from '@/features/reviews/ReviewList';
 import { INITIAL_COURSES } from '@/shared/data';
@@ -50,8 +50,19 @@ export default function CourseDetailPage() {
     navigate('/checkout');
   };
 
-  if (isLoading) return <GlobalLoader />;
-  if (error || !course) return <EmptyState title="Không tìm thấy khoá học" description="Khoá học bạn đang tìm kiếm không tồn tại hoặc đã bị gỡ." />;
+  if (isLoading) return <CourseDetailSkeleton />;
+  if (error || !course) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <EmptyState 
+          title="Không tìm thấy khoá học" 
+          description="Khoá học bạn đang tìm kiếm không tồn tại hoặc đã bị gỡ." 
+          actionLabel="Trở về trang chủ"
+          onAction={() => navigate("/")}
+        />
+      </div>
+    );
+  }
 
   const isEnrolled = enrolledCourseIds.includes(course.id);
   
