@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import InstructorDashboard from '@/components/InstructorDashboard';
+import InstructorDashboard from './InstructorDashboard';
+import { User, Course } from '@/shared/types';
 
 export default function InstructorPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 

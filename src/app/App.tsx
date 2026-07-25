@@ -445,7 +445,7 @@ export default function App() {
 
   // API Config Mode replication state to handle immediate dynamic data reloads
   const [apiConfigMode, setApiConfigMode] = useState<"mock" | "api">(
-    () => Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any)).mode,
+    () => "mock",
   );
 
   // Sync state and reload data on events
@@ -4361,7 +4361,7 @@ setCoursesPage(1);
 
 
           ) : activeTab === "vnpay-return" ? (
-            <VNPayReturnPage />
+            <VNPayReturnPage onNavigate={(path: string) => window.location.href = path} />
           ) : activeTab === "instructor" ? (
             currentUser.role === "instructor" &&
             currentUser.id === routeUserId ? (
@@ -4394,25 +4394,27 @@ setCoursesPage(1);
           ) : activeTab === "admin" ? (
             currentUser.role === "admin" ? (
               <AdminDashboard
-                currentUser={currentUser}
-                courses={courses}
-                onUpdateCourses={(updated) => setCourses(updated)}
-                payoutRequests={payoutRequests}
-                onApprovePayout={handleApprovePayout}
-                onRejectPayout={handleRejectPayout}
-                onClose={() => navigateTo("/")}
-                orders={orders}
-                onUpdateOrderStatus={handleUpdateOrderStatus}
-                categoriesList={categoriesList}
-                onUpdateCategories={setCategoriesList}
-                banners={banners}
-                onUpdateBanners={saveBanners}
-                notifications={notifications}
-                onUpdateNotifications={(updated) => setNotifications(updated)}
-                flaggedReviews={flaggedReviews}
-                onResolveFlag={handleResolveFlag}
-                onApproveCourse={handleApproveCourse}
-                onRejectCourse={handleRejectCourse}
+                {...({
+                  currentUser,
+                  courses,
+                  onUpdateCourses: (updated: any) => setCourses(updated),
+                  payoutRequests,
+                  onApprovePayout: handleApprovePayout,
+                  onRejectPayout: handleRejectPayout,
+                  onClose: () => navigateTo("/"),
+                  orders,
+                  onUpdateOrderStatus: handleUpdateOrderStatus,
+                  categoriesList,
+                  onUpdateCategories: setCategoriesList,
+                  banners,
+                  onUpdateBanners: saveBanners,
+                  notifications,
+                  onUpdateNotifications: (updated: any) => setNotifications(updated),
+                  flaggedReviews,
+                  onResolveFlag: handleResolveFlag,
+                  onApproveCourse: handleApproveCourse,
+                  onRejectCourse: handleRejectCourse,
+                } as any)}
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-20 animate-fade-in">

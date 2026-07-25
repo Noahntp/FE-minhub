@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, BookOpen, Clock, Award, CheckCircle, Circle, PlayCircle } from 'lucide-react';
-import { ApiService } from '@/features/services/api';
 
 interface StudentDetailDrawerProps {
   enrollmentId: number;

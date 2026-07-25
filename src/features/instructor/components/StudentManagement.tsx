@@ -3,7 +3,6 @@ import { Users, Search, BookOpen, Clock, CheckCircle } from 'lucide-react';
 import StudentDetailDrawer from '@/features/instructor/components/StudentDetailDrawer';
 
 // Fetch from API directly inside this component.
-import { ApiService } from '@/features/services/api';
 
 interface StudentManagementProps {
   instructorCourses: any[];

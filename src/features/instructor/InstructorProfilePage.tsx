@@ -103,7 +103,7 @@ export default function InstructorProfilePage() {
             {activeTab === 'courses' ? (
               <div className="grid sm:grid-cols-2 gap-6">
                 {instructorCourses.map(course => (
-                  <CourseCard key={course.id} course={course} />
+                  <CourseCard key={course.id} course={course as any} />
                 ))}
               </div>
             ) : (

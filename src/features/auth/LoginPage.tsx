@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import AuthScreens from '@/components/AuthScreens';
-import { User } from '@/types';
+import AuthScreens from './components/AuthScreens';
+import { User } from '@/shared/types';
 
 export default function LoginPage() {
   const navigate = useNavigate();

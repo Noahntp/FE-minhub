@@ -3,7 +3,6 @@ import {
   Search, Filter, ChevronLeft, ChevronRight, Activity,
   CheckCircle, Clock, XCircle, DollarSign, BookOpen, Eye
 } from 'lucide-react';
-import { ApiService } from '@/features/services/api';
 import TransactionDetailDrawer from '@/features/instructor/components/TransactionDetailDrawer';
 
 interface TransactionManagementProps {

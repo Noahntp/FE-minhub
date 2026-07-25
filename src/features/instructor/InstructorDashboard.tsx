@@ -681,7 +681,7 @@ export default function InstructorDashboard({
 
     // If Mode is Mock, we want to simulate some progression with descriptive status.
     // If Mode is API, ApiService.uploadLessonVideo will directly execute an actual XMLHttpRequest with progress events!
-    const isMock = Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any)).mode === 'mock';
+    const isMock = true;
     
     if (isMock) {
       let currentProg = 0;

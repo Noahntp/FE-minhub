@@ -14,6 +14,10 @@ export interface User {
   expertise?: string;
   experienceYears?: string;
   portfolioUrl?: string;
+  dob?: string;
+  address?: string;
+  facebookUrl?: string;
+  linkedinUrl?: string;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
   roleRequestStatus?: 'none' | 'pending_instructor' | 'pending_admin' | 'approved' | 'rejected' | 'pending_leave_instructor';

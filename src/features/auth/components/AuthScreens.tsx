@@ -159,7 +159,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const isApi = true;
     if (isApi) {
       setSuccessMsg(`Đang thử kết nối trực tiếp đến database với tài khoản ${seed.email}...`);
-      Promise.resolve({ id: 'dummy', email: emailTrimmed, name: 'User', role: 'student', avatar: '' })
+      Promise.resolve({ id: 'dummy', email: seed.email, name: 'User', role: 'student', avatar: '' })
         .then(res => {
           const apiUser = normalizeUser({
             ...res,
@@ -202,7 +202,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const emailTrimmed = email.trim().toLowerCase();
 
     setSuccessMsg('Đang tạo tài khoản mới...');
-    Promise.resolve({ id: 'dummy', email: formData.email, name: formData.fullName, role: 'student', avatar: '' })
+    Promise.resolve({ id: 'dummy', email: emailTrimmed, name: name, role: 'student', avatar: '' })
       .then((res: any) => {
         const token = res?.session_token || res?.token || res?.data?.token || res?.data?.session_token;
         if (token) {

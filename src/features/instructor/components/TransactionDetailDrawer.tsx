@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, Clock, XCircle, FileText, User, CreditCard, Calendar, Activity, BookOpen } from 'lucide-react';
-import { ApiService } from '@/features/services/api';
 
 interface TransactionDetailDrawerProps {
   transactionId: number | string;

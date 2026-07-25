@@ -96,7 +96,7 @@ export default function RoadmapDetailPage() {
                     <h4 className="text-sm font-semibold mb-4">Khóa học đề xuất:</h4>
                     <div className="grid grid-cols-1 gap-4">
                       {step.courses.map(course => (
-                        <CourseCard key={course.id} course={course} />
+                        <CourseCard key={course.id} course={course as any} />
                       ))}
                     </div>
                   </div>
