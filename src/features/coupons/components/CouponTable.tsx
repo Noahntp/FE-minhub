@@ -1,159 +1,345 @@
 import React, { useState } from 'react';
-import { Eye, Edit, Trash2, Power, PowerOff } from 'lucide-react';
-import { Coupon } from '@/features/coupons/types';
+import { Edit, Trash2, Power, PowerOff, Copy, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Coupon } from '../types';
 
 interface Props {
   coupons: Coupon[];
   isLoading: boolean;
-  onView: (coupon: Coupon) => void;
+  pagination: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+  onPageChange: (page: number) => void;
+  onPerPageChange: (perPage: number) => void;
   onEdit: (coupon: Coupon) => void;
   onToggleStatus: (coupon: Coupon) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string | number) => void;
+  onCopy: (code: string) => void;
 }
 
-export const CouponTable: React.FC<Props> = ({ coupons, isLoading, onView, onEdit, onToggleStatus, onDelete }) => {
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+export const CouponTable: React.FC<Props> = ({ 
+  coupons, 
+  isLoading, 
+  pagination,
+  onPageChange,
+  onPerPageChange,
+  onEdit, 
+  onToggleStatus, 
+  onDelete, 
+  onCopy 
+}) => {
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | number | null>(null);
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+  };
 
-  const renderBadge = (status: Coupon['status']) => {
+  const formatDateTime = (isoString?: string | null) => {
+    if (!isoString) return '—';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  };
+
+  const renderBadge = (coupon: Coupon) => {
+    const status = coupon.effective_status || coupon.status;
     switch (status) {
       case 'active':
-        return <span className="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200">Đang hoạt động</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-emerald-150">Đang hoạt động</span>;
       case 'inactive':
-        return <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium border border-gray-200">Đã tắt</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-slate-200">Tạm tắt</span>;
       case 'expired':
-        return <span className="px-2.5 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium border border-red-200">Hết hạn</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-rose-50 text-rose-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-rose-150">Đã hết hạn</span>;
       case 'used_up':
-        return <span className="px-2.5 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium border border-orange-200">Hết lượt</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-amber-150">Đã dùng hết</span>;
+      case 'scheduled':
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-150">Sắp diễn ra</span>;
       default:
-        return null;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-slate-200">{coupon.status_label || status}</span>;
     }
   };
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-100 text-sm text-gray-500">
-              {['Mã', 'Tên', 'Loại giảm', 'Mức giảm', 'Lượt dùng', 'Thời hạn', 'Trạng thái', 'Thao tác'].map((h, i) => (
-                <th key={i} className="p-4 font-medium">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <tr key={i} className="border-b border-gray-50 animate-pulse">
-                <td className="p-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
-                <td className="p-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
-                <td className="p-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
-                <td className="p-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
-                <td className="p-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
-                <td className="p-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
-                <td className="p-4"><div className="h-6 bg-gray-200 rounded-full w-24"></div></td>
-                <td className="p-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 overflow-hidden">
+        <div className="p-12 text-center text-slate-400 font-bold text-xs">Đang tải danh sách mã giảm giá...</div>
       </div>
     );
   }
 
   if (coupons.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-16 text-center flex flex-col items-center">
-        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-          <Trash2 className="w-8 h-8 text-gray-300" />
+      <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 p-16 text-center flex flex-col items-center">
+        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+          <Trash2 className="w-8 h-8 text-slate-350" />
         </div>
-        <h3 className="text-lg font-medium text-gray-800">Không tìm thấy mã giảm giá nào</h3>
-        <p className="text-gray-500 text-sm mt-1">Vui lòng điều chỉnh bộ lọc hoặc tạo mã mới.</p>
+        <h3 className="text-sm font-black text-slate-800">Không tìm thấy mã giảm giá nào</h3>
+        <p className="text-slate-400 text-xs font-semibold mt-1">Vui lòng điều chỉnh bộ lọc hoặc tạo mã mới.</p>
       </div>
     );
   }
 
+  const fromCount = (pagination.current_page - 1) * pagination.per_page + 1;
+  const toCount = Math.min(pagination.current_page * pagination.per_page, pagination.total);
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
+    <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 overflow-hidden relative">
+      <div className="overflow-x-auto tactile-scrollbar">
+        <table className="w-full text-left border-collapse min-w-[1100px]">
           <thead>
-            <tr className="bg-gray-50/50 border-b border-gray-100 text-sm text-gray-500">
-              <th className="p-4 font-medium">Mã</th>
-              <th className="p-4 font-medium">Tên</th>
-              <th className="p-4 font-medium">Loại giảm</th>
-              <th className="p-4 font-medium">Mức giảm</th>
-              <th className="p-4 font-medium">Lượt dùng</th>
-              <th className="p-4 font-medium">Thời hạn</th>
-              <th className="p-4 font-medium">Trạng thái</th>
-              <th className="p-4 font-medium text-center">Thao tác</th>
+            <tr className="bg-slate-50/50 border-b border-slate-100 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
+              <th className="p-4 font-bold whitespace-nowrap">Mã</th>
+              <th className="p-4 font-bold whitespace-nowrap min-w-[260px]">Khóa học</th>
+              <th className="p-4 font-bold whitespace-nowrap min-w-[90px]">Loại</th>
+              <th className="p-4 font-bold whitespace-nowrap">Giá trị</th>
+              <th className="p-4 font-bold whitespace-nowrap">Bắt đầu</th>
+              <th className="p-4 font-bold whitespace-nowrap">Kết thúc</th>
+              <th className="p-4 font-bold whitespace-nowrap text-center">Đã dùng</th>
+              <th className="p-4 font-bold whitespace-nowrap text-center">Giới hạn</th>
+              <th className="p-4 font-bold whitespace-nowrap text-center min-w-[130px]">Trạng thái</th>
+              <th className="p-4 font-bold whitespace-nowrap text-center min-w-[120px]">Thao tác</th>
             </tr>
           </thead>
-          <tbody>
-            {coupons.map((coupon) => (
-              <tr key={coupon.id} className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors group">
-                <td className="p-4 font-semibold text-gray-800">
-                  <span className="px-2 py-1 bg-gray-100 rounded text-sm font-mono border border-gray-200">{coupon.code}</span>
-                </td>
-                <td className="p-4 text-gray-700 font-medium">{coupon.name}</td>
-                <td className="p-4 text-gray-600 text-sm">
-                  {coupon.discount_type === 'percent' ? 'Phần trăm' : 'Cố định'}
-                </td>
-                <td className="p-4 font-semibold text-blue-600">
-                  {coupon.discount_type === 'percent' ? `${coupon.discount_value}%` : formatCurrency(coupon.discount_value)}
-                </td>
-                <td className="p-4 text-gray-600 text-sm">
-                  <span className="font-medium text-gray-800">{coupon.used_count}</span> / {coupon.usage_limit || '∞'}
-                </td>
-                <td className="p-4 text-sm text-gray-500">
-                  {new Date(coupon.start_at).toLocaleDateString('vi-VN')} - {new Date(coupon.end_at).toLocaleDateString('vi-VN')}
-                </td>
-                <td className="p-4">{renderBadge(coupon.status)}</td>
-                <td className="p-4">
-                  <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onView(coupon)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Xem chi tiết">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => onEdit(coupon)} className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors" title="Chỉnh sửa">
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => onToggleStatus(coupon)} className={`p-2 rounded-lg transition-colors ${coupon.status === 'active' ? 'text-gray-400 hover:text-gray-700 hover:bg-gray-100' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`} title={coupon.status === 'active' ? 'Tắt mã' : 'Bật mã'}>
-                      {coupon.status === 'active' ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => setDeleteConfirmId(coupon.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Xóa">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+          <tbody className="divide-y divide-slate-50 font-semibold text-slate-800">
+            {coupons.map((coupon) => {
+              const courseTitle = coupon.course?.title || 'Áp dụng tất cả khóa học';
+              const isPercent = coupon.discount_type === 'percent' || coupon.discount_type === 'percentage';
+
+              return (
+                <tr key={coupon.id} className="hover:bg-slate-50/50 transition-colors group">
+                  {/* Code */}
+                  <td className="p-4 whitespace-nowrap">
+                    <span className="px-2.5 py-1 bg-slate-50 text-slate-800 rounded font-mono text-xs font-black border border-slate-100">
+                      {coupon.code}
+                    </span>
+                  </td>
+
+                  {/* Course Details */}
+                  <td className="p-4 min-w-[260px]">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-slate-800 truncate max-w-[240px] whitespace-nowrap inline-block" title={courseTitle}>
+                        {courseTitle}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Type */}
+                  <td className="p-4 min-w-[90px] whitespace-nowrap">
+                    {isPercent ? (
+                      <span className="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 bg-blue-50 text-blue-750 text-[10px] font-bold rounded border border-blue-100">
+                        Phần trăm
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 bg-purple-50 text-purple-750 text-[10px] font-bold rounded border border-purple-100">
+                        Số tiền
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Value */}
+                  <td className="p-4 font-black text-xs text-slate-800 whitespace-nowrap">
+                    {isPercent ? `${coupon.discount_value}%` : formatCurrency(Number(coupon.discount_value))}
+                  </td>
+
+                  {/* Start Date */}
+                  <td className="p-4 text-[11px] text-slate-500 font-bold whitespace-nowrap">
+                    {formatDateTime(coupon.start_at)}
+                  </td>
+
+                  {/* End Date */}
+                  <td className="p-4 text-[11px] text-slate-500 font-bold whitespace-nowrap">
+                    {formatDateTime(coupon.end_at)}
+                  </td>
+
+                  {/* Used Count */}
+                  <td className="p-4 text-center text-xs font-black text-slate-800 whitespace-nowrap">
+                    {coupon.used_count}
+                  </td>
+
+                  {/* Usage Limit */}
+                  <td className="p-4 text-center text-xs font-bold text-slate-400 whitespace-nowrap">
+                    {coupon.usage_limit ?? 'Không giới hạn'}
+                  </td>
+
+                  {/* Status Badge */}
+                  <td className="p-4 text-center min-w-[130px] whitespace-nowrap">
+                    {renderBadge(coupon)}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="p-4 min-w-[120px] whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-2 whitespace-nowrap">
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onCopy(coupon.code);
+                        }} 
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-450 hover:text-brand-normal hover:bg-slate-100 transition-colors cursor-pointer" 
+                        title="Copy mã"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onToggleStatus(coupon);
+                        }} 
+                        className={`h-8 w-8 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                          coupon.status === 'active' 
+                            ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' 
+                            : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                        }`} 
+                        title={coupon.status === 'active' ? 'Tạm tắt mã' : 'Bật mã'}
+                      >
+                        {coupon.status === 'active' ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onEdit(coupon);
+                        }}
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-450 hover:text-orange-600 hover:bg-orange-50 transition-colors cursor-pointer"
+                        title="Chỉnh sửa"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDeleteConfirmId(coupon.id);
+                        }} 
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-slate-450 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer" 
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {deleteConfirmId && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
-          <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-100 max-w-sm w-full mx-4 text-center transform scale-100 animate-in fade-in zoom-in duration-200">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-6 h-6 text-red-600" />
+      {/* Pagination Footer */}
+      <div className="px-5 py-4 border-t border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/20 text-slate-500 font-bold text-xs text-left">
+        <div>
+          Hiển thị {pagination.total > 0 ? `${fromCount} đến ${toCount}` : 0} trong tổng số {pagination.total} mã
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <select
+              value={String(pagination.per_page)}
+              onChange={(e) => onPerPageChange(Number(e.target.value))}
+              className="appearance-none px-3 py-1.5 border border-slate-200 bg-white rounded-lg outline-none cursor-pointer pr-8 relative font-bold text-slate-700"
+              style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237c7f88' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat' }}
+            >
+              <option value="10">10 / trang</option>
+              <option value="20">20 / trang</option>
+              <option value="50">50 / trang</option>
+            </select>
+          </div>
+
+          {pagination.last_page > 1 && (
+            <div className="flex items-center gap-1">
+              <button 
+                type="button"
+                disabled={pagination.current_page <= 1}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onPageChange(pagination.current_page - 1);
+                }}
+                className="p-1.5 border border-slate-200 rounded-lg bg-white text-slate-400 hover:text-slate-700 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              
+              {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map((p) => (
+                <button
+                  type="button"
+                  key={p}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onPageChange(p);
+                  }}
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center font-black text-xs transition-colors cursor-pointer ${
+                    p === pagination.current_page 
+                      ? 'bg-brand-normal text-white' 
+                      : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+
+              <button 
+                type="button"
+                disabled={pagination.current_page >= pagination.last_page}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onPageChange(pagination.current_page + 1);
+                }}
+                className="p-1.5 border border-slate-200 rounded-lg bg-white text-slate-400 hover:text-slate-700 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Xóa mã giảm giá?</h3>
-            <p className="text-gray-500 text-sm mb-6">Bạn có chắc chắn muốn xóa mã giảm giá này? Hành động này không thể hoàn tác.</p>
-            <div className="flex justify-center gap-3">
+          )}
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="absolute inset-0 bg-[#011821]/30 backdrop-blur-3xs flex items-center justify-center z-30">
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 max-w-xs w-full mx-4 text-center animate-in fade-in zoom-in duration-200">
+            <div className="w-11 h-11 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Trash2 className="w-5 h-5 text-rose-600" />
+            </div>
+            <h3 className="text-sm font-black text-slate-800 mb-1">Xóa mã giảm giá?</h3>
+            <p className="text-slate-400 text-xs font-semibold mb-4 leading-normal">Bạn có chắc chắn muốn xóa mã giảm giá này? Hành động này không thể hoàn tác.</p>
+            <div className="flex gap-2">
               <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm flex-1"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDeleteConfirmId(null);
+                }}
+                className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors font-bold text-xs flex-1 cursor-pointer"
               >
                 Hủy
               </button>
               <button
-                onClick={() => {
-                  onDelete(deleteConfirmId);
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (deleteConfirmId) onDelete(deleteConfirmId);
                   setDeleteConfirmId(null);
                 }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium text-sm flex-1"
+                className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl transition-colors font-bold text-xs flex-1 cursor-pointer"
               >
-                Xác nhận xóa
+                Xóa
               </button>
             </div>
           </div>

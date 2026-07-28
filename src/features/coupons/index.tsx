@@ -1,70 +1,135 @@
-import React, { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { Coupon } from '@/features/coupons/types';
-import { CouponOverview } from '@/features/coupons/components/CouponOverview';
-import { CouponFilter } from '@/features/coupons/components/CouponFilter';
-import { CouponTable } from '@/features/coupons/components/CouponTable';
-import { CouponForm } from '@/features/coupons/components/CouponForm';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Coupon, CouponSummary, CourseOption } from './types';
+import { CouponOverview } from './components/CouponOverview';
+import { CouponFilter } from './components/CouponFilter';
+import { CouponTable } from './components/CouponTable';
+import { CouponForm } from './components/CouponForm';
+import { ApiService } from '../../services/api';
+import { Sparkles, AlertCircle } from 'lucide-react';
 
 export const CouponManagement: React.FC = () => {
-  // Mock data for initial state visualization
-  const [coupons, setCoupons] = useState<Coupon[]>([
-    {
-      id: '1',
-      code: 'SUMMER2024',
-      name: 'Giảm giá mùa hè',
-      course_id: 'course_1',
-      discount_type: 'percent',
-      discount_value: 20,
-      max_order_amount: 500000,
-      usage_limit: 100,
-      used_count: 45,
-      start_at: '2024-06-01T00:00:00Z',
-      end_at: '2024-08-31T23:59:59Z',
-      status: 'active'
-    },
-    {
-      id: '2',
-      code: 'WELCOME500',
-      name: 'Chào bạn mới',
-      course_id: 'course_2',
-      discount_type: 'fixed',
-      discount_value: 500000,
-      usage_limit: 50,
-      used_count: 50,
-      start_at: '2024-01-01T00:00:00Z',
-      end_at: '2024-12-31T23:59:59Z',
-      status: 'used_up'
-    }
-  ]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [summary, setSummary] = useState<CouponSummary>({
+    active_coupons: 0,
+    expired_coupons: 0,
+    used_up_coupons: 0,
+    total_usage_count: 0,
+  });
+  const [courseOptions, setCourseOptions] = useState<CourseOption[]>([]);
   
-  const [isLoading, setIsLoading] = useState(false);
-  
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 10,
+    total: 0,
+  });
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [courseFilter, setCourseFilter] = useState('all');
+  const [discountTypeFilter, setDiscountTypeFilter] = useState('all');
 
-  // Form states
+  // Form / Drawer states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
 
-  // Stats derivation
-  const stats = {
-    total: coupons.length,
-    active: coupons.filter(c => c.status === 'active').length,
-    inactive: coupons.filter(c => c.status === 'inactive').length,
-    expired: coupons.filter(c => c.status === 'expired').length,
-    usedUp: coupons.filter(c => c.status === 'used_up').length,
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const handleFilterClick = (status: string | null) => {
-    setStatusFilter(status || 'all');
-  };
+  // Fetch Summary Data
+  const fetchSummary = useCallback(async () => {
+    setIsSummaryLoading(true);
+    try {
+      const res = await ApiService.getInstructorCouponSummary({ course_id: courseFilter });
+      const data = res?.data || res;
+      setSummary({
+        active_coupons: Number(data.active_coupons || 0),
+        expired_coupons: Number(data.expired_coupons || 0),
+        used_up_coupons: Number(data.used_up_coupons || 0),
+        total_usage_count: Number(data.total_usage_count || 0),
+        inactive_coupons: Number(data.inactive_coupons || 0),
+        total_coupons: Number(data.total_coupons || 0),
+      });
+    } catch (err: any) {
+      console.error('Error fetching coupon summary:', err);
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  }, [courseFilter]);
 
-  const handleAddClick = () => {
-    setSelectedCoupon(null);
-    setIsFormOpen(true);
+  // Fetch Course Options
+  const fetchCourseOptions = useCallback(async () => {
+    try {
+      const res: any = await ApiService.getInstructorCouponCourseOptions();
+      const items = res?.data || (Array.isArray(res) ? res : []);
+      setCourseOptions(items);
+    } catch (err) {
+      console.error('Error fetching course options:', err);
+      setCourseOptions([]);
+    }
+  }, []);
+
+  // Fetch Coupons List
+  const fetchCoupons = useCallback(async () => {
+    setIsLoading(true);
+    setApiError(null);
+    try {
+      const res = await ApiService.getInstructorCoupons({
+        page: pagination.current_page,
+        per_page: pagination.per_page,
+        status: statusFilter,
+        type: discountTypeFilter,
+        course_id: courseFilter,
+        search: searchQuery.trim() || undefined,
+      });
+
+      const items = res?.data || res?.items || (Array.isArray(res) ? res : []);
+      const meta = res?.meta || res?.pagination || {};
+
+      setCoupons(items);
+      setPagination(prev => ({
+        ...prev,
+        current_page: meta.current_page ?? prev.current_page,
+        last_page: meta.last_page ?? 1,
+        total: meta.total ?? items.length,
+        per_page: meta.per_page ?? prev.per_page,
+      }));
+    } catch (err: any) {
+      console.error('Error fetching coupons:', err);
+      setApiError('Không thể tải danh sách mã giảm giá. Vui lòng thử lại sau.');
+      setCoupons([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pagination.current_page, pagination.per_page, statusFilter, discountTypeFilter, courseFilter, searchQuery]);
+
+  useEffect(() => {
+    fetchCourseOptions();
+  }, [fetchCourseOptions]);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
+  useEffect(() => {
+    fetchCoupons();
+  }, [fetchCoupons]);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setCourseFilter('all');
+    setDiscountTypeFilter('all');
+    setPagination(prev => ({ ...prev, current_page: 1 }));
+    showToast('Đã xóa tất cả bộ lọc.');
   };
 
   const handleEditClick = (coupon: Coupon) => {
@@ -72,94 +137,164 @@ export const CouponManagement: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleViewClick = (coupon: Coupon) => {
-    console.log('View coupon', coupon);
+  const handleToggleStatus = async (coupon: Coupon) => {
+    try {
+      const isCurrentlyActive = coupon.status === 'active';
+      if (isCurrentlyActive) {
+        await ApiService.disableInstructorCoupon(coupon.id);
+        showToast(`Đã tạm tắt mã ${coupon.code}`);
+      } else {
+        await ApiService.enableInstructorCoupon(coupon.id);
+        showToast(`Đã kích hoạt mã ${coupon.code}`);
+      }
+      fetchCoupons();
+      fetchSummary();
+    } catch (err: any) {
+      showToast(err.message || 'Không thể cập nhật trạng thái mã.', 'error');
+    }
   };
 
-  const handleToggleStatus = (coupon: Coupon) => {
-    const newStatus = coupon.status === 'active' ? 'inactive' : 'active';
-    setCoupons(prev => prev.map(c => c.id === coupon.id ? { ...c, status: newStatus } : c));
+  const handleDelete = async (id: string | number) => {
+    try {
+      await ApiService.deleteInstructorCoupon(id);
+      showToast('Đã xóa mã giảm giá thành công.');
+      fetchCoupons();
+      fetchSummary();
+    } catch (err: any) {
+      showToast(err.message || 'Không thể xóa mã giảm giá.', 'error');
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setCoupons(prev => prev.filter(c => c.id !== id));
+  const handleCopyCode = async (code: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      showToast(`Đã sao chép mã ${code}`);
+    } catch (err) {
+      showToast(`Đã sao chép mã ${code}`);
+    }
   };
 
   const handleSubmitForm = async (data: Partial<Coupon>) => {
-    // Simulate API call
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        if (selectedCoupon) {
-          // Update
-          setCoupons(prev => prev.map(c => c.id === selectedCoupon.id ? { ...c, ...data } as Coupon : c));
-        } else {
-          // Create
-          const newCoupon: Coupon = {
-            ...data,
-            id: Math.random().toString(36).substr(2, 9),
-            used_count: 0,
-            status: 'active',
-          } as Coupon;
-          setCoupons(prev => [newCoupon, ...prev]);
-        }
-        resolve();
-      }, 800);
-    });
+    try {
+      if (selectedCoupon && selectedCoupon.id) {
+        await ApiService.updateInstructorCoupon(selectedCoupon.id, data);
+        showToast('Cập nhật mã giảm giá thành công.');
+      } else {
+        await ApiService.createInstructorCoupon(data);
+        showToast('Tạo mã giảm giá thành công.');
+      }
+      setIsFormOpen(false);
+      fetchCoupons();
+      fetchSummary();
+    } catch (err: any) {
+      throw err;
+    }
   };
 
-  const filteredCoupons = coupons.filter(c => {
-    const matchSearch = c.code.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        c.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus = statusFilter === 'all' || c.status === statusFilter;
-    const matchCourse = courseFilter === 'all' || c.course_id === courseFilter;
-    return matchSearch && matchStatus && matchCourse;
-  });
-
   return (
-    <div className="w-full">
-      {isFormOpen ? (
-        <CouponForm 
-          onClose={() => setIsFormOpen(false)}
-          coupon={selectedCoupon}
-          onSubmit={handleSubmitForm}
-        />
-      ) : (
-        <>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý mã giảm giá</h1>
-              <p className="text-gray-500 text-sm mt-1">Tạo và quản lý các chương trình khuyến mãi cho khóa học của bạn.</p>
-            </div>
-            <button
-              onClick={handleAddClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm hover:shadow active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              Tạo mã mới
-            </button>
-          </div>
+    <div className="w-full text-left relative pb-12">
+      {/* Toast Alert */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-50 bg-[#111a4a] text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-2.5 animate-in fade-in slide-in-from-top-4 duration-300 border border-brand-light/20">
+          <Sparkles className="w-4 h-4 text-emerald-400" />
+          <span className="text-xs font-black tracking-wide">{toast.message}</span>
+        </div>
+      )}
 
-          <CouponOverview stats={stats} onFilter={handleFilterClick} />
+      {/* Page Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Mã giảm giá</h1>
+        <div className="flex items-center gap-1 text-[11px] text-slate-400 font-bold mt-1">
+          <span>Trang chủ</span>
+          <span>&gt;</span>
+          <span className="text-brand-normal">Mã giảm giá</span>
+        </div>
+      </div>
+
+      {/* Main Grid Layout */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Left side: Overview, Filter, Table */}
+        <div className="flex-1 w-full min-w-0">
+          <CouponOverview 
+            stats={summary} 
+            isLoading={isSummaryLoading}
+            activeFilterStatus={statusFilter} 
+            onFilter={(status) => {
+              setStatusFilter(status);
+              setPagination(prev => ({ ...prev, current_page: 1 }));
+            }} 
+          />
           
           <CouponFilter 
             searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            setSearchQuery={(q) => {
+              setSearchQuery(q);
+              setPagination(prev => ({ ...prev, current_page: 1 }));
+            }}
             statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
+            setStatusFilter={(s) => {
+              setStatusFilter(s);
+              setPagination(prev => ({ ...prev, current_page: 1 }));
+            }}
             courseFilter={courseFilter}
-            setCourseFilter={setCourseFilter}
+            setCourseFilter={(c) => {
+              setCourseFilter(c);
+              setPagination(prev => ({ ...prev, current_page: 1 }));
+            }}
+            discountTypeFilter={discountTypeFilter}
+            setDiscountTypeFilter={(t) => {
+              setDiscountTypeFilter(t);
+              setPagination(prev => ({ ...prev, current_page: 1 }));
+            }}
+            courseOptions={courseOptions}
+            onClearFilters={handleClearFilters}
+            onCreateClick={() => {
+              setSelectedCoupon(null);
+              setIsFormOpen(true);
+            }}
           />
 
-          <CouponTable 
-            coupons={filteredCoupons}
-            isLoading={isLoading}
-            onView={handleViewClick}
-            onEdit={handleEditClick}
-            onToggleStatus={handleToggleStatus}
-            onDelete={handleDelete}
-          />
-        </>
-      )}
+          {apiError ? (
+            <div className="bg-white p-8 rounded-2xl border border-rose-100 text-center text-rose-600 font-bold text-xs flex items-center justify-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              <span>{apiError}</span>
+            </div>
+          ) : (
+            <CouponTable 
+              coupons={coupons}
+              isLoading={isLoading}
+              pagination={pagination}
+              onPageChange={(p) => setPagination(prev => ({ ...prev, current_page: p }))}
+              onPerPageChange={(pp) => setPagination(prev => ({ ...prev, per_page: pp, current_page: 1 }))}
+              onEdit={handleEditClick}
+              onToggleStatus={handleToggleStatus}
+              onDelete={handleDelete}
+              onCopy={handleCopyCode}
+            />
+          )}
+        </div>
+
+        {/* Right side: Drawer Form (conditionally docked) */}
+        {isFormOpen && (
+          <aside className="w-full lg:w-[380px] shrink-0 self-stretch lg:sticky lg:top-6">
+            <CouponForm 
+              coupon={selectedCoupon}
+              courseOptions={courseOptions}
+              onClose={() => setIsFormOpen(false)}
+              onSubmit={handleSubmitForm}
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 };

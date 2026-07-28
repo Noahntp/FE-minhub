@@ -3,8 +3,10 @@ export type Role = 'student' | 'instructor' | 'admin';
 export interface User {
   id: string;
   name: string;
+  full_name?: string;
   email: string;
   avatar: string;
+  avatar_url?: string;
   role: Role;
   streak: number;
   lastActiveDate: string;
@@ -42,6 +44,36 @@ export interface User {
   lastPasswordChange?: string;
 }
 
+export interface SendPasswordOtpPayload {
+  currentPassword: string;
+  password: string;
+  passwordConfirmation: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  password: string;
+  passwordConfirmation: string;
+  otp: string;
+}
+
+export interface UserSession {
+  id: string;
+  device: string;
+  platform: string;
+  ipAddress: string | null;
+  lastActivityAt: string;
+  isCurrent: boolean;
+}
+
+export interface PrivacySettings {
+  profileVisibility: 'public' | 'private' | 'students_only';
+  showEmail: boolean;
+  showPhone: boolean;
+  showSocialLinks: boolean;
+  allowMessages: boolean;
+}
+
 export interface Resource {
   id: string;
   title: string;
@@ -75,9 +107,13 @@ export interface Lesson {
   id: string;
   title: string;
   type: 'video' | 'quiz' | 'assignment' | 'doc';
+  lesson_type?: 'video' | 'quiz' | 'assignment' | 'doc';
   duration: string; // e.g. "12:30" or "5 Qs"
+  video_duration_seconds?: number;
   videoUrl?: string;
+  video_url?: string;
   isPreview?: boolean;
+  is_preview?: boolean;
   quiz?: Quiz;
   assignment?: Assignment;
   resources?: Resource[];
@@ -111,6 +147,10 @@ export interface FAQItem {
 export interface Course {
   id: string;
   title: string;
+  slug?: string;
+  level?: string;
+  language?: string;
+  introVideoUrl?: string;
   subtitle: string;
   description: string;
   category: string;
@@ -131,11 +171,14 @@ export interface Course {
   isNew?: boolean;
   image: string;
   chapters: Chapter[];
-  reviews: CourseReview[];
-  faqs: FAQItem[];
-  requirements: string[];
-  willLearn: string[];
-  status: 'draft' | 'pending' | 'active' | 'rejected' | 'hidden' | 'archived' | 'suspended';
+  reviews?: CourseReview[];
+  faqs?: FAQItem[];
+  requirements?: string[];
+  willLearn?: string[];
+  status: 'draft' | 'pending' | 'active' | 'rejected' | 'hidden' | 'archived' | 'suspended' | 'published' | 'approved';
+  rawStatus?: string;
+  statusLabel?: string;
+  category_id?: number | string;
   rejectionReason?: string;
   isHidden?: boolean;
   allowSkip?: boolean;
@@ -143,6 +186,7 @@ export interface Course {
   allowDiscussion?: boolean;
   giveCertificate?: boolean;
   createdAt?: string;
+  updatedAt?: string;
   allowFreeDoc?: boolean;
   allowFreeVideo?: boolean;
   freeVideoDuration?: number; // duration in seconds
@@ -466,4 +510,111 @@ export interface InstructorCreditTransaction {
   // relations
   order?: { order_code: string; package_snapshot_name: string; amount: number } | null;
   course?: { title: string } | null;
+}
+
+export interface InstructorCourseSummary {
+  total: number;
+  published: number;
+  draft: number;
+  pending_review: number;
+  rejected: number;
+  approved: number;
+  hidden: number;
+}
+
+export interface InstructorEnrollmentSummary {
+  total_enrollments: number;
+  active_enrollments: number;
+  completed_enrollments: number;
+}
+
+export interface InstructorRevenueSummary {
+  gross_amount_this_month: string;
+  instructor_amount_this_month: string;
+  platform_fee_this_month: string;
+}
+
+export interface InstructorWithdrawSummary {
+  available_revenue: string;
+  pending_withdraw_amount: string;
+  available_balance: string;
+}
+
+export interface InstructorDashboardOverview {
+  course_summary: InstructorCourseSummary;
+  enrollment_summary: InstructorEnrollmentSummary;
+  revenue_summary: InstructorRevenueSummary;
+  withdraw_summary: InstructorWithdrawSummary;
+  interaction_summary: {
+    unanswered_questions: number;
+  };
+  filters: {
+    date_from: string;
+    date_to: string;
+  };
+}
+
+export interface RevenueChartPoint {
+  period: string;
+  gross_amount: string;
+  instructor_amount: string;
+  platform_fee_amount: string;
+}
+
+export interface EnrollmentChartPoint {
+  period: string;
+  enrollment_count: number;
+  completed_count: number;
+}
+
+export interface InstructorTopCourse {
+  course_id: number;
+  title: string;
+  status: string;
+  enrollment_count: number;
+  unique_learner_count: number;
+}
+
+export interface InstructorUnansweredQuestion {
+  id: number;
+  comment_id: number;
+  content: string;
+  status: string;
+  is_answered: boolean;
+  status_label: string;
+  created_at: string;
+  learner: {
+    id: number;
+    full_name: string;
+    email: string;
+    avatar_url?: string | null;
+  };
+  course: {
+    id: number;
+    title: string;
+  };
+  lesson: {
+    id: number;
+    title: string;
+  };
+  reply_count: number;
+  instructor_reply_count: number;
+  answer_count: number;
+}
+
+export interface InstructorIncompleteCourse {
+  id: number;
+  title: string;
+  status: string;
+  missing_items?: string[];
+  warnings?: string[];
+}
+
+export interface InstructorDashboardAlert {
+  type: string;
+  title: string;
+  message: string;
+  created_at: string;
+  action_url?: string | null;
+  read_at?: string | null;
 }

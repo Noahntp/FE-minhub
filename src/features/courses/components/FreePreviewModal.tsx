@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Lock, Play, FileText, Video, ShoppingBag, BookOpen, Sparkles, RefreshCw, Info } from 'lucide-react';
-import { Course, Lesson } from '@/shared/types';
+import { Course, Lesson } from '../types';
+import { resolveMediaUrl } from '../utils/format';
 
 interface FreePreviewModalProps {
   previewLesson: { lesson: Lesson; course: Course };
@@ -12,6 +13,14 @@ export function FreePreviewModal({ previewLesson, onClose, onBuyNow }: FreePrevi
   const { lesson, course } = previewLesson;
   const [isLocked, setIsLocked] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const resolvedVideoUrl = resolveMediaUrl(lesson.videoUrl || (lesson as any).video_url) || "https://www.w3schools.com/html/mov_bbb.mp4";
+
+  useEffect(() => {
+    if (videoRef.current && resolvedVideoUrl) {
+      videoRef.current.load();
+    }
+  }, [resolvedVideoUrl]);
 
   // Helper to format VND currency safely
   const formatVND = (num: number) => {
@@ -86,12 +95,26 @@ export function FreePreviewModal({ previewLesson, onClose, onBuyNow }: FreePrevi
                 {/* Embedded HTML5 Video player */}
                 <video
                   ref={videoRef}
-                  src={lesson.videoUrl || "https://www.w3schools.com/html/mov_bbb.mp4"}
-                  className="w-full h-full object-contain"
+                  key={resolvedVideoUrl}
                   controls
                   autoPlay
+                  preload="metadata"
+                  playsInline
+                  className="w-full h-full object-contain"
                   onTimeUpdate={handleTimeUpdate}
-                />
+                  onError={(e) => {
+                    const v = e.currentTarget;
+                    console.error('[Preview Video Error Details]', {
+                      networkState: v.networkState,
+                      readyState: v.readyState,
+                      error: v.error ? { code: v.error.code, message: v.error.message } : null,
+                      src: resolvedVideoUrl,
+                    });
+                  }}
+                >
+                  <source src={resolvedVideoUrl} type={resolvedVideoUrl.endsWith('.webm') ? 'video/webm' : resolvedVideoUrl.endsWith('.mov') ? 'video/quicktime' : 'video/mp4'} />
+                  Trình duyệt không hỗ trợ xem video này.
+                </video>
 
                 {/* Locked limit overlays */}
                 {isLocked && (

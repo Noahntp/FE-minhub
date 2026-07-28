@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Percent, Banknote } from 'lucide-react';
-import { Coupon } from '@/features/coupons/types';
+import { X, Calendar } from 'lucide-react';
+import { Coupon, CourseOption } from '../types';
 
 interface Props {
   coupon?: Coupon | null;
+  courseOptions: CourseOption[];
   onClose: () => void;
   onSubmit: (data: Partial<Coupon>) => Promise<void>;
 }
 
-export const CouponForm: React.FC<Props> = ({ coupon, onClose, onSubmit }) => {
+export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, onSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Partial<Coupon>>({
     code: '',
@@ -20,183 +20,328 @@ export const CouponForm: React.FC<Props> = ({ coupon, onClose, onSubmit }) => {
     usage_limit: undefined,
     start_at: '',
     end_at: '',
-    max_order_amount: undefined,
+    status: 'active',
+    description: '',
   });
+
+  const [validationError, setValidationError] = useState<string>('');
 
   useEffect(() => {
     if (coupon) {
-      setFormData(coupon);
+      // Format dates for input datetime-local
+      const start = coupon.start_at ? coupon.start_at.substring(0, 16) : '';
+      const end = coupon.end_at ? coupon.end_at.substring(0, 16) : '';
+      setFormData({
+        ...coupon,
+        discount_type: (coupon.discount_type === 'percentage' ? 'percent' : coupon.discount_type) as any,
+        start_at: start,
+        end_at: end
+      });
     } else {
       setFormData({
         code: '',
         name: '',
-        course_id: '',
+        course_id: courseOptions.length > 0 ? String(courseOptions[0].id) : '',
         discount_type: 'percent',
         discount_value: 0,
         usage_limit: undefined,
         start_at: '',
         end_at: '',
-        max_order_amount: undefined,
+        status: 'active',
+        description: '',
       });
     }
-  }, [coupon]);
+    setValidationError('');
+  }, [coupon, courseOptions]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     
     if (name === 'code') {
       setFormData(prev => ({ ...prev, [name]: value.replace(/\s+/g, '').toUpperCase() }));
-    } else if (type === 'number') {
+    } else if (name === 'discount_value' || name === 'usage_limit') {
       setFormData(prev => ({ ...prev, [name]: value ? Number(value) : undefined }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
+  const validate = (): boolean => {
+    if (!formData.code) {
+      setValidationError('Mã giảm giá không được để trống.');
+      return false;
+    }
+    if (!formData.discount_value || formData.discount_value <= 0) {
+      setValidationError('Giá trị giảm giá phải lớn hơn 0.');
+      return false;
+    }
+    if ((formData.discount_type === 'percent' || formData.discount_type === 'percentage') && formData.discount_value > 100) {
+      setValidationError('Phần trăm giảm giá không được vượt quá 100%.');
+      return false;
+    }
+    if (!formData.start_at || !formData.end_at) {
+      setValidationError('Vui lòng chọn ngày bắt đầu và kết thúc.');
+      return false;
+    }
+    
+    const start = new Date(formData.start_at).getTime();
+    const end = new Date(formData.end_at).getTime();
+    if (end <= start) {
+      setValidationError('Ngày kết thúc phải sau ngày bắt đầu.');
+      return false;
+    }
+
+    if (!formData.course_id) {
+      setValidationError('Vui lòng chọn khóa học áp dụng.');
+      return false;
+    }
+
+    setValidationError('');
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (!validate()) return;
+
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      // Format payload for backend
+      const payload = {
+        ...formData,
+        code: formData.code?.toUpperCase().trim(),
+        name: formData.name || `Khuyến mãi ${formData.code}`,
+        course_id: Number(formData.course_id),
+        discount_type: formData.discount_type === 'percentage' ? 'percent' : formData.discount_type,
+        start_at: new Date(formData.start_at!).toISOString(),
+        end_at: new Date(formData.end_at!).toISOString(),
+      };
+      await onSubmit(payload);
       onClose();
+    } catch (err: any) {
+      const fieldErrors = err?.errors || err?.data?.errors;
+      if (fieldErrors && typeof fieldErrors === 'object') {
+        const firstErr = Object.values(fieldErrors).flat()[0];
+        if (firstErr) {
+          setValidationError(String(firstErr));
+          return;
+        }
+      }
+      setValidationError(err.message || 'Lỗi lưu thông tin mã giảm giá.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden"
-    >
-      <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
-        <div className="flex items-center gap-4">
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h2 className="text-xl font-bold text-gray-800">
-            {coupon ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá mới'}
-          </h2>
-        </div>
+    <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 flex flex-col h-[750px] overflow-hidden text-left">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between shrink-0 bg-slate-50/50">
+        <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+          {coupon ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá'}
+        </h2>
+        <button 
+          type="button" 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }} 
+          className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="flex-1 p-6">
-        <form id="coupon-form" onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Khóa học & Mã */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Khóa học áp dụng *</label>
-              <select required name="course_id" value={formData.course_id || ''} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer">
-                <option value="">Chọn khóa học...</option>
-                <option value="course_1">React Cơ Bản</option>
-                <option value="course_2">NodeJS Nâng Cao</option>
+      {/* Form Content */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {validationError && (
+          <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl text-[11px] font-bold">
+            {validationError}
+          </div>
+        )}
+
+        <form id="coupon-drawer-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {/* Mã giảm giá */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mã giảm giá *</label>
+            <input 
+              required 
+              type="text" 
+              name="code" 
+              value={formData.code || ''} 
+              onChange={handleChange} 
+              placeholder="Nhập mã (VD: WELCOME20)" 
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal uppercase font-mono font-bold" 
+            />
+            <p className="text-[9px] text-slate-400 font-semibold">Mã sẽ được viết hoa tự động, không dấu cách.</p>
+          </div>
+
+          {/* Tên mã giảm giá */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tên chương trình *</label>
+            <input 
+              required 
+              type="text" 
+              name="name" 
+              value={formData.name || ''} 
+              onChange={handleChange} 
+              placeholder="Nhập tên chương trình khuyến mãi" 
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-bold" 
+            />
+          </div>
+
+          {/* Loại giảm giá */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Loại giảm giá *</label>
+            <div className="flex gap-2">
+              <select 
+                required 
+                name="discount_type" 
+                value={formData.discount_type || 'percent'} 
+                onChange={handleChange} 
+                className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer"
+              >
+                <option value="percent">Phần trăm (%)</option>
+                <option value="fixed">Số tiền cố định (đ)</option>
               </select>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Mã giảm giá *</label>
-              <input required type="text" name="code" value={formData.code || ''} onChange={handleChange} placeholder="VD: SUMMER2024" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono placeholder:font-sans transition-all" />
+          {/* Giá trị */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Giá trị *</label>
+            <input 
+              required 
+              type="number" 
+              name="discount_value" 
+              value={formData.discount_value || ''} 
+              onChange={handleChange} 
+              placeholder="Nhập giá trị" 
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-bold" 
+            />
+            <p className="text-[9px] text-slate-400 font-semibold">
+              Ví dụ: {formData.discount_type === 'percent' || formData.discount_type === 'percentage' ? '20 cho 20%' : '100000 cho 100.000đ'}
+            </p>
+          </div>
+
+          {/* Giới hạn sử dụng */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Giới hạn sử dụng</label>
+            <input 
+              type="number" 
+              name="usage_limit" 
+              value={formData.usage_limit ?? ''} 
+              onChange={handleChange} 
+              placeholder="Để trống nếu không giới hạn" 
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
+            />
+          </div>
+
+          {/* Ngày bắt đầu */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày bắt đầu *</label>
+            <div className="relative">
+              <input 
+                required 
+                type="datetime-local" 
+                name="start_at" 
+                value={formData.start_at || ''} 
+                onChange={handleChange} 
+                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
+              />
+              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
             </div>
+          </div>
 
-            {/* Tên */}
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-semibold text-gray-700">Tên chương trình *</label>
-              <input required type="text" name="name" value={formData.name || ''} onChange={handleChange} placeholder="VD: Khuyến mãi chào hè" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+          {/* Ngày kết thúc */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày kết thúc *</label>
+            <div className="relative">
+              <input 
+                required 
+                type="datetime-local" 
+                name="end_at" 
+                value={formData.end_at || ''} 
+                onChange={handleChange} 
+                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
+              />
+              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
             </div>
+          </div>
 
-            {/* Loại giảm */}
-            <div className="space-y-3 md:col-span-2">
-              <label className="text-sm font-semibold text-gray-700">Loại giảm giá</label>
-              <div className="grid grid-cols-2 gap-4">
-                <label className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${formData.discount_type === 'percent' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <input type="radio" name="discount_type" value="percent" checked={formData.discount_type === 'percent'} onChange={handleChange} className="hidden" />
-                  <div className={`p-2 rounded-lg ${formData.discount_type === 'percent' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                    <Percent className="w-5 h-5" />
-                  </div>
-                  <span className={`font-medium ${formData.discount_type === 'percent' ? 'text-blue-700' : 'text-gray-600'}`}>Phần trăm (%)</span>
-                </label>
-                <label className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${formData.discount_type === 'fixed' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <input type="radio" name="discount_type" value="fixed" checked={formData.discount_type === 'fixed'} onChange={handleChange} className="hidden" />
-                  <div className={`p-2 rounded-lg ${formData.discount_type === 'fixed' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                    <Banknote className="w-5 h-5" />
-                  </div>
-                  <span className={`font-medium ${formData.discount_type === 'fixed' ? 'text-blue-700' : 'text-gray-600'}`}>Số tiền cố định</span>
-                </label>
-              </div>
-            </div>
+          {/* Khóa học áp dụng */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Khóa học áp dụng *</label>
+            <select 
+              required 
+              name="course_id" 
+              value={formData.course_id || ''} 
+              onChange={handleChange} 
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer"
+            >
+              <option value="">Chọn khóa học</option>
+              {courseOptions.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Mức giảm */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">
-                Mức giảm * {formData.discount_type === 'percent' ? '(%)' : '(VND)'}
-              </label>
-              <div className="relative">
-                <input required type="number" min="1" max={formData.discount_type === 'percent' ? 100 : undefined} name="discount_value" value={formData.discount_value || ''} onChange={handleChange} className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all pr-10" />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
-                  {formData.discount_type === 'percent' ? '%' : '₫'}
-                </span>
-              </div>
-            </div>
+          {/* Trạng thái */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trạng thái *</label>
+            <select 
+              required 
+              name="status" 
+              value={formData.status || 'active'} 
+              onChange={handleChange} 
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer"
+            >
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Tạm tắt</option>
+            </select>
+          </div>
 
-            {/* Giảm tối đa (chỉ cho phần trăm) */}
-            {formData.discount_type === 'percent' ? (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">Giảm tối đa (VND)</label>
-                <input type="number" min="0" name="max_order_amount" value={formData.max_order_amount || ''} onChange={handleChange} placeholder="Không giới hạn" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
-              </motion.div>
-            ) : (
-              <div className="hidden md:block"></div>
-            )}
-
-            {/* Lượt dùng */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Giới hạn lượt dùng</label>
-              <input type="number" min="1" name="usage_limit" value={formData.usage_limit || ''} onChange={handleChange} placeholder="Không giới hạn" className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Đã dùng</label>
-              <input type="number" value={formData.used_count || 0} readOnly className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 font-medium cursor-not-allowed" />
-            </div>
-
-            {/* Thời gian */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Ngày bắt đầu *</label>
-              <div className="relative">
-                <input required type="date" name="start_at" value={formData.start_at ? formData.start_at.split('T')[0] : ''} onChange={handleChange} className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
-                <Calendar className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Ngày kết thúc *</label>
-              <div className="relative">
-                <input required type="date" name="end_at" value={formData.end_at ? formData.end_at.split('T')[0] : ''} onChange={handleChange} min={formData.start_at ? formData.start_at.split('T')[0] : undefined} className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
-                <Calendar className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
+          {/* Mô tả */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mô tả tùy chọn</label>
+            <textarea 
+              name="description" 
+              value={formData.description || ''} 
+              onChange={handleChange} 
+              placeholder="Nhập mô tả cho mã giảm giá" 
+              rows={2} 
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-medium" 
+            />
           </div>
         </form>
       </div>
 
-      <div className="bg-gray-50 border-t border-gray-100 px-6 py-4 flex justify-end gap-3 rounded-b-xl">
-        <button type="button" onClick={onClose} className="px-5 py-2.5 text-gray-600 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+      {/* Footer Actions */}
+      <div className="px-5 py-4 border-t border-slate-50 flex justify-end gap-2 shrink-0 bg-slate-50/50">
+        <button 
+          type="button" 
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }} 
+          className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl font-bold transition-all text-xs cursor-pointer"
+        >
           Hủy
         </button>
-        <button form="coupon-form" type="submit" disabled={isSubmitting} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2">
-          {isSubmitting ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Đang lưu...
-            </>
-          ) : (
-            'Lưu mã'
-          )}
+        <button 
+          type="submit" 
+          form="coupon-drawer-form" 
+          disabled={isSubmitting}
+          className="px-4 py-2 bg-brand-normal hover:bg-brand-hover text-white rounded-xl font-bold transition-all text-xs shadow-sm cursor-pointer disabled:opacity-50"
+        >
+          {isSubmitting ? 'Đang lưu...' : (coupon ? 'Lưu thay đổi' : 'Tạo mã mới')}
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 };

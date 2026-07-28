@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Search, RotateCcw, Plus } from 'lucide-react';
+import { CourseOption } from '../types';
 
 interface Props {
   searchQuery: string;
@@ -8,6 +9,11 @@ interface Props {
   setStatusFilter: (val: string) => void;
   courseFilter: string;
   setCourseFilter: (val: string) => void;
+  discountTypeFilter: string;
+  setDiscountTypeFilter: (val: string) => void;
+  courseOptions: CourseOption[];
+  onClearFilters: () => void;
+  onCreateClick: () => void;
 }
 
 export const CouponFilter: React.FC<Props> = ({
@@ -17,42 +23,107 @@ export const CouponFilter: React.FC<Props> = ({
   setStatusFilter,
   courseFilter,
   setCourseFilter,
+  discountTypeFilter,
+  setDiscountTypeFilter,
+  courseOptions,
+  onClearFilters,
+  onCreateClick,
 }) => {
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-      <div className="relative w-full md:w-96">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-        <input
-          type="text"
-          placeholder="Tìm kiếm theo mã hoặc tên..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-        />
-      </div>
+    <div className="bg-white p-5 rounded-2xl shadow-3xs border border-slate-100 mb-6 text-left">
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+          {/* Trạng thái */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Trạng thái</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full text-xs font-semibold px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white cursor-pointer"
+            >
+              <option value="all">Tất cả</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="expired">Đã hết hạn</option>
+              <option value="used_up">Đã dùng hết</option>
+              <option value="inactive">Tạm tắt</option>
+            </select>
+          </div>
 
-      <div className="flex gap-4 w-full md:w-auto">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white w-full md:w-48 cursor-pointer"
-        >
-          <option value="all">Tất cả trạng thái</option>
-          <option value="active">Đang hoạt động</option>
-          <option value="inactive">Đã tắt</option>
-          <option value="expired">Hết hạn</option>
-          <option value="used_up">Hết lượt dùng</option>
-        </select>
+          {/* Loại giảm giá */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Loại giảm giá</label>
+            <select
+              value={discountTypeFilter}
+              onChange={(e) => setDiscountTypeFilter(e.target.value)}
+              className="w-full text-xs font-semibold px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white cursor-pointer"
+            >
+              <option value="all">Tất cả</option>
+              <option value="percent">Phần trăm</option>
+              <option value="fixed">Số tiền</option>
+            </select>
+          </div>
 
-        <select
-          value={courseFilter}
-          onChange={(e) => setCourseFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white w-full md:w-48 cursor-pointer"
-        >
-          <option value="all">Tất cả khóa học</option>
-          <option value="course_1">React Cơ Bản</option>
-          <option value="course_2">NodeJS Nâng Cao</option>
-        </select>
+          {/* Khóa học */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Khóa học</label>
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              className="w-full text-xs font-semibold px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white cursor-pointer"
+            >
+              <option value="all">Tất cả khóa học</option>
+              {courseOptions.map((course) => (
+                <option key={course.id} value={String(course.id)}>
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Từ khóa */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Từ khóa</label>
+            <div className="relative w-full">
+              <input
+                type="text"
+                placeholder="Tìm theo mã, mô tả..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 text-xs font-medium border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white"
+              />
+              <Search className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
+            </div>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClearFilters();
+            }}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 text-slate-650 hover:bg-slate-100 text-xs font-bold rounded-xl transition-all cursor-pointer h-10"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Xóa bộ lọc
+          </button>
+          
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCreateClick();
+            }}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-normal hover:bg-brand-hover text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer h-10"
+          >
+            <Plus className="w-4 h-4" />
+            Tạo mã giảm giá
+          </button>
+        </div>
       </div>
     </div>
   );

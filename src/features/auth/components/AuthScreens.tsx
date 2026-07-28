@@ -3,12 +3,13 @@ import { Database, User, Shield, Lock, Mail, Eye, EyeOff, UserPlus, LogIn, Key, 
 import { User as UserType, normalizeUser } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
-
+import { ApiService, ApiError } from '@/services/api';
+import { getDashboardRouteByRole } from '@/router/routes';
 
 const DB_SEED_ACCOUNTS = [
-  { id: 'db-1', name: 'Student Test', email: 'student.test@mindhub.local', password: 'password123', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
-  { id: 'db-2', name: 'Instructor Test', email: 'instructor.test@mindhub.local', password: 'password123', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên' },
-  { id: 'db-3', name: 'Admin Test', email: 'admin.test@mindhub.local', password: 'password123', role: 'admin', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150', description: 'Quản trị viên' },
+  { id: 'db-1', name: 'Student Test', email: 'learner1@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
+  { id: 'db-2', name: 'Instructor Test', email: 'instructor1@mindhub.test', password: '12345678', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên' },
+  { id: 'db-3', name: 'Admin Test', email: 'admin@mindhub.test', password: '12345678', role: 'admin', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150', description: 'Quản trị viên' },
 ];
 
 interface AuthScreensProps {
@@ -116,6 +117,25 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     });
   };
 
+  const mapAuthError = (err: any) => {
+    if (err instanceof ApiError) {
+      if (err.status === 401) {
+        return 'Email hoặc mật khẩu không chính xác.';
+      } else if (err.status === 403) {
+        return 'Tài khoản đang bị khóa, vô hiệu hóa hoặc chưa được kích hoạt.';
+      } else if (err.status === 422) {
+        const firstErr = err.errors ? Object.values(err.errors)[0] : null;
+        return Array.isArray(firstErr) ? firstErr[0] : (err.message || 'Dữ liệu đăng nhập không hợp lệ.');
+      } else if (err.status === 429) {
+        return 'Bạn thao tác quá nhiều lần. Vui lòng thử lại sau.';
+      } else if (err.status === 500) {
+        return 'Máy chủ đang gặp lỗi. Vui lòng thử lại sau.';
+      }
+      return err.message || 'Có lỗi xảy ra, vui lòng thử lại.';
+    }
+    return err.message || 'Không thể kết nối đến máy chủ Backend.';
+  };
+
   // Perform standard login simulator with structural email verification block
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +147,8 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const emailTrimmed = email.trim().toLowerCase();
     
     setSuccessMsg('Đang đăng nhập...');
-    Promise.resolve({ id: 'dummy', email: emailTrimmed, name: 'User', role: 'student', avatar: '' })
+    setErrorMsg('');
+    ApiService.login({ email: emailTrimmed, password })
       .then(res => {
         const apiUser = normalizeUser({
           ...res,
@@ -136,52 +157,57 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);
         onClose();
+        if (navigateTo) {
+          navigateTo(getDashboardRouteByRole(apiUser.role));
+        }
       })
       .catch(err => {
-        setErrorMsg(`Thất bại kết nối database / API: ${err.message || err.toString()}`);
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
       });
   };
 
   const handleHistoryClick = (userObj: UserType) => {
-    // Proceed if verified
     saveToHistory(userObj);
     onLoginSuccess(userObj);
     onClose();
+    if (navigateTo) {
+      navigateTo(getDashboardRouteByRole(userObj.role));
+    }
   };
 
   const handleSeedClick = (seed: typeof DB_SEED_ACCOUNTS[0]) => {
     setEmail(seed.email);
     setPassword(seed.password);
     setErrorMsg('');
-    setSuccessMsg(`Đã tự động cấu hình hòm thư: ${seed.email}. Vui lòng nhấn "Truy cập hệ thống" để kết nối database!`);
+    setSuccessMsg(`Đã điền tài khoản mẫu: ${seed.email}. Đang kết nối xác thực...`);
     
-    // Auto-login instantly for rapid testing in API mode!
-    const isApi = true;
-    if (isApi) {
-      setSuccessMsg(`Đang thử kết nối trực tiếp đến database với tài khoản ${seed.email}...`);
-      Promise.resolve({ id: 'dummy', email: seed.email, name: 'User', role: 'student', avatar: '' })
-        .then(res => {
-          const apiUser = normalizeUser({
-            ...res,
-            isEmailVerified: true
-          });
-          saveToHistory(apiUser);
-          onLoginSuccess(apiUser);
-          onClose();
-        })
-        .catch(err => {
-          setErrorMsg(`Không kết nối được: ${err.message || err.toString()}. Hãy chắc chắn DB đã seed và Backend đang hoạt động.`);
+    ApiService.login({ email: seed.email, password: seed.password })
+      .then(res => {
+        const apiUser = normalizeUser({
+          ...res.user,
+          isEmailVerified: true
+
         });
-    }
+        saveToHistory(apiUser);
+        onLoginSuccess(apiUser);
+        onClose();
+        if (navigateTo) {
+          navigateTo(getDashboardRouteByRole(apiUser.role));
+        }
+      })
+      .catch(err => {
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
+      });
   };
 
-  // Perform quick account login in 1-click
+  // Perform quick account login by populating form and executing API login
   const handleQuickLogin = (role: 'student' | 'instructor' | 'admin') => {
-    const userObj = SYSTEM_ROLE_USERS[role];
-    const withCheck: UserType = { ...userObj, isEmailVerified: true };
-    saveToHistory(withCheck);
-    onLoginSuccess(withCheck);
-    onClose();
+    const matchedSeed = DB_SEED_ACCOUNTS.find(s => s.role === role);
+    if (matchedSeed) {
+      handleSeedClick(matchedSeed);
+    }
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -202,27 +228,34 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const emailTrimmed = email.trim().toLowerCase();
 
     setSuccessMsg('Đang tạo tài khoản mới...');
-    Promise.resolve({ id: 'dummy', email: emailTrimmed, name: name, role: 'student', avatar: '' })
-      .then((res: any) => {
-        const token = res?.session_token || res?.token || res?.data?.token || res?.data?.session_token;
-        if (token) {
-          const apiUser = normalizeUser({
-            ...res,
-            role: registerRole,
-            isEmailVerified: true
-          });
-          saveToHistory(apiUser);
-          onLoginSuccess(apiUser);
-          alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
-          onClose();
-        } else {
-          setSuccessMsg('');
-          alert('Đăng ký tài khoản thành công! Vui lòng xác thực email để kích hoạt tài khoản hoặc chờ Admin phê duyệt.');
-          setMode('login');
+    ApiService.register({ 
+      full_name: name.trim(), 
+      email: emailTrimmed, 
+      password,
+      password_confirmation: confirmPassword,
+      role: registerRole,
+      expertise: registerRole === 'instructor' ? instructorSpecialty : undefined,
+      bio: registerRole === 'instructor' ? instructorBio : undefined,
+      experience_years: registerRole === 'instructor' ? instructorExperience : undefined
+    })
+      .then(res => {
+        const apiUser = normalizeUser({
+          ...res.user,
+          role: registerRole,
+          isEmailVerified: true
+        });
+        saveToHistory(apiUser);
+        onLoginSuccess(apiUser);
+        alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
+        onClose();
+        if (navigateTo) {
+          navigateTo(getDashboardRouteByRole(apiUser.role));
+
         }
       })
       .catch(err => {
-        setErrorMsg(`Thất bại tạo tài khoản: ${err.message || err.toString()}`);
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
       });
   };
 
@@ -244,45 +277,25 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       setErrorMsg('Vui lòng điền email của bạn.');
       return;
     }
-
-    const matchedUserIndex = localRegisteredUsers.findIndex(u => u.email.toLowerCase() === emailTrimmed);
-    if (matchedUserIndex === -1) {
-      setErrorMsg('Tài khoản với email này chưa được đăng ký trên hệ thống. Hãy kiểm tra lại hoặc tạo tài khoản mới.');
-      return;
-    }
-
-    // Generate a secure 6-digit reference OTP
-    const recoveryOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const updated = localRegisteredUsers.map(u => 
-      u.email.toLowerCase() === emailTrimmed 
-        ? { ...u, resetOtp: recoveryOtp } as any
-        : u
-    );
-    saveRegisteredUsers(updated);
-
+    
     setErrorMsg('');
-    setSuccessMsg(`Đã gửi mã khôi phục mật khẩu bảo vệ đến tài khoản ${emailTrimmed}. Vui lòng nhập mã và thiết lập mật khẩu mới.`);
-    setVerificationCode(''); // Clear OTP input
-    setPassword(''); // Clear new password input
-    handleModeChange('reset-password');
+    setSuccessMsg('Đang gửi yêu cầu khôi phục mật khẩu...');
+    ApiService.requestPasswordReset(emailTrimmed)
+      .then(() => {
+        setSuccessMsg('Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.');
+      })
+      .catch(err => {
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
+      });
   };
 
   const handleReset = (e: React.FormEvent) => {
     e.preventDefault();
     const emailTrimmed = email.trim().toLowerCase();
-    const matchedUserIndex = localRegisteredUsers.findIndex(u => u.email.toLowerCase() === emailTrimmed);
     
-    if (matchedUserIndex === -1) {
-      setErrorMsg('Không thể tìm thấy tài khoản học viên.');
-      return;
-    }
-
-    const targetUser = localRegisteredUsers[matchedUserIndex];
-    // Read stored OTP or fallback to bypass code
-    const expectedOtp = (targetUser as any).resetOtp || '123456';
-
-    if (verificationCode !== expectedOtp && verificationCode !== '123456') {
-      setErrorMsg(`Mã xác thực khôi phục không chính xác! Vui lòng nhập đúng mã khôi phục đang hiển thị.`);
+    if (!emailTrimmed || !verificationCode || !password) {
+      setErrorMsg('Vui lòng điền đầy đủ các thông tin yêu cầu.');
       return;
     }
 
@@ -291,31 +304,37 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       return;
     }
 
-    // Change password & clean resetOtp
-    const updatedUser = {
-      ...targetUser,
-      password: password,
-      resetOtp: undefined
-    };
-
-    const updated = [...localRegisteredUsers];
-    updated[matchedUserIndex] = updatedUser as any;
-    saveRegisteredUsers(updated);
-
-    setErrorMsg('');
-    setSuccessMsg('Đặt lại mật khẩu thành công! Giờ đây bạn đã có thể đăng nhập bằng mật khẩu mới.');
     handleModeChange('login');
   };
 
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const handleGoogleLogin = () => {
-    setErrorMsg('Cổng kết nối Google OAuth 2.0 trực tiếp hiện đang tạm hoãn hoạt động. Xin vui lòng sử dụng tài khoản hệ thống hoặc Ghi danh bằng Email OTP!');
-    setSuccessMsg('');
+    setGoogleLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('Đang kết nối Google OAuth 2.0...');
+    ApiService.getGoogleRedirectUrl()
+      .then(url => {
+        if (url) {
+          window.location.assign(url);
+        } else {
+          setGoogleLoading(false);
+          setSuccessMsg('');
+          setErrorMsg('Đăng nhập Google chưa được cấu hình trên máy chủ.');
+        }
+      })
+      .catch(err => {
+        setGoogleLoading(false);
+        setSuccessMsg('');
+        if (err instanceof ApiError && err.status === 503) {
+          setErrorMsg('Đăng nhập Google chưa được cấu hình trên máy chủ.');
+        } else {
+          setErrorMsg(err.message || 'Không thể kết nối đến Google OAuth 2.0.');
+        }
+      });
   };
 
-  const handleGoogleRegister = () => {
-    setErrorMsg('Cổng ghi danh Google OAuth 2.0 trực tiếp hiện đang tạm hoãn hoạt động. Xin vui lòng dùng Ghi danh bằng Email OTP!');
-    setSuccessMsg('');
-  };
+  const handleGoogleRegister = handleGoogleLogin;
 
   return (
     <div className="min-h-[85vh] bg-stone-50 flex items-center justify-center p-4">
@@ -436,16 +455,21 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
                 <button 
                   type="button"
+                  disabled={googleLoading}
                   onClick={handleGoogleLogin}
-                  className="w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2"
+                  className={`w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 ${googleLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.74 14.89 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.6 2.79C6.01 7.23 8.79 5.04 12 5.04z" />
-                    <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.73-2.38 3.58l3.63 2.81c2.13-1.97 3.78-4.87 3.78-8.49z" />
-                    <path fill="#FBBC05" d="M5.05 10.29c-.24-.73-.38-1.5-.38-2.29s.14-1.56.38-2.29L1.45 2.92C.53 4.75 0 6.81 0 9s.53 4.25 1.45 6.08l3.6-2.79z" />
-                    <path fill="#34A853" d="M12 23c3.24 0 5.97-1.09 7.96-2.96l-3.63-2.81c-1.1.74-2.51 1.18-4.33 1.18-3.21 0-5.99-2.19-6.95-5.25l-3.6 2.79C3.39 20.35 7.35 23 12 23z" />
-                  </svg>
-                  Đăng nhập bằng tài khoản Google
+                  {googleLoading ? (
+                    <div className="w-4 h-4 border-2 border-stone-600 border-t-transparent rounded-full animate-spin shrink-0"></div>
+                  ) : (
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.74 14.89 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.6 2.79C6.01 7.23 8.79 5.04 12 5.04z" />
+                      <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.73-2.38 3.58l3.63 2.81c2.13-1.97 3.78-4.87 3.78-8.49z" />
+                      <path fill="#FBBC05" d="M5.05 10.29c-.24-.73-.38-1.5-.38-2.29s.14-1.56.38-2.29L1.45 2.92C.53 4.75 0 6.81 0 9s.53 4.25 1.45 6.08l3.6-2.79z" />
+                      <path fill="#34A853" d="M12 23c3.24 0 5.97-1.09 7.96-2.96l-3.63-2.81c-1.1.74-2.51 1.18-4.33 1.18-3.21 0-5.99-2.19-6.95-5.25l-3.6 2.79C3.39 20.35 7.35 23 12 23z" />
+                    </svg>
+                  )}
+                  {googleLoading ? 'Đang kết nối Google...' : 'Đăng nhập bằng tài khoản Google'}
                 </button>
 
                 <div className="text-center pt-1 border-t border-stone-100 mt-2">

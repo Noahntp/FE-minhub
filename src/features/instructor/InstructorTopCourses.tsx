@@ -238,7 +238,7 @@ export const InstructorTopCourses: React.FC<InstructorTopCoursesProps> = ({ inst
                     </td>
                     <td className="py-4 text-right">
                       <a href={"/instructor/students?courseId=" + c.id} className="inline-flex items-center justify-end font-bold text-rose-600 hover:text-rose-700 transition-colors group-hover:scale-105">
-                        {formatNumber(c.studentCount || 0)} <span className="text-xs font-normal text-gray-500 ml-1">HV</span>
+                        {formatNumber(c.enrollment_count ?? c.unique_learner_count ?? c.studentCount ?? 0)} <span className="text-xs font-normal text-gray-500 ml-1">HV</span>
                       </a>
                     </td>
                     <td className="py-4 text-center">
