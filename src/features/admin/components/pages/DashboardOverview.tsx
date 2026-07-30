@@ -334,7 +334,7 @@ export default function DashboardOverview() {
             titleFont: {
               family: "Geist, Inter, sans-serif",
               size: 11,
-              weight: "600"
+              weight: 600
             },
             bodyFont: {
               family: "Geist, Inter, sans-serif",
@@ -384,6 +384,9 @@ export default function DashboardOverview() {
             }
           },
           zoom: {
+            limits: {
+              x: { min: startMs, max: endMs, minRange: minRange }
+            },
             zoom: {
               wheel: {
                 enabled: true,
@@ -393,9 +396,6 @@ export default function DashboardOverview() {
                 enabled: true,
               },
               mode: "x",
-              limits: {
-                x: { min: startMs, max: endMs, minRange: minRange }
-              },
               onZoom: function ({ chart }: any) {
                 setIsZoomedOrPanned(true);
                 const min = chart.scales.x.min;
@@ -428,9 +428,6 @@ export default function DashboardOverview() {
               enabled: true,
               mode: "x",
               threshold: 2,
-              limits: {
-                x: { min: startMs, max: endMs }
-              },
               onPan: function () {
                 setIsZoomedOrPanned(true);
               }
@@ -495,7 +492,7 @@ export default function DashboardOverview() {
             }
           }
         }
-      }
+      } as any
     });
 
     return () => {
