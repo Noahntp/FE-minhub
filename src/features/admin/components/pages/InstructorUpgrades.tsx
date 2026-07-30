@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as upgradesApi from '@/assets/js/api/instructor-upgrades-api.js';
 import { toast } from 'sonner';
@@ -62,6 +62,14 @@ function PayoutStatusMarker({ status }: { status: string }) {
   }
 }
 
+// Common experience colors helper mapping (7-8px dot)
+const getExperienceColor = (years: number) => {
+  if (years < 1) return { color: 'text-neutral-500', bg: 'bg-neutral-400' };
+  if (years <= 2) return { color: 'text-blue-600', bg: 'bg-blue-600' };
+  if (years <= 5) return { color: 'text-amber-600', bg: 'bg-amber-600' };
+  return { color: 'text-emerald-600', bg: 'bg-emerald-600' };
+};
+
 export default function InstructorUpgrades() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -73,6 +81,11 @@ export default function InstructorUpgrades() {
   const sortByParam = searchParams.get('sort_by') || 'newest';
   const pageParam = Number(searchParams.get('page')) || 1;
   const perPageParam = Number(searchParams.get('per_page')) || 20;
+
+  // New Column-level filters parameters
+  const experienceRangeParam = searchParams.get('experience_range') || '';
+  const payoutFilterParam = searchParams.get('payout_filter') || '';
+  const datePresetParam = searchParams.get('date_preset') || '';
 
   // Local Filter Form State (before Applying)
   const [formSearch, setFormSearch] = useState(searchParam);
@@ -110,6 +123,7 @@ export default function InstructorUpgrades() {
 
   // UI Interactive States
   const [activeActionMenu, setActiveActionMenu] = useState<number | null>(null);
+  const [activeColumnMenu, setActiveColumnMenu] = useState<string | null>(null);
   const [activeDetailUser, setActiveDetailUser] = useState<any | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isPayoutVisible, setIsPayoutVisible] = useState(false);
@@ -131,6 +145,9 @@ export default function InstructorUpgrades() {
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      if (!target.closest('[data-column-menu]')) {
+        setActiveColumnMenu(null);
+      }
       if (!target.closest('[data-action-td]')) {
         setActiveActionMenu(null);
       }
@@ -139,12 +156,13 @@ export default function InstructorUpgrades() {
     return () => window.removeEventListener('click', handleOutsideClick);
   }, []);
 
-  // Keyboard events for Drawer & Modals
+  // Keyboard events for Drawer & Modals & Esc to close column menu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsDrawerOpen(false);
         setConfirmModal({ open: false, type: '', user: null, error: '' });
+        setActiveColumnMenu(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -179,6 +197,7 @@ export default function InstructorUpgrades() {
   const handleResetFilters = () => {
     setSearchParams(new URLSearchParams());
     setActiveActionMenu(null);
+    setActiveColumnMenu(null);
   };
 
   // Form Submit handler
@@ -194,6 +213,7 @@ export default function InstructorUpgrades() {
       date_from: formDateFrom,
       date_to: formDateTo,
       sort_by: formSortBy,
+      date_preset: '', // Reset date preset when custom date is manually applied
       page: 1
     });
   };
@@ -226,6 +246,37 @@ export default function InstructorUpgrades() {
     return `${day}/${month}/${year}`;
   };
 
+  // Helper to map date preset to actual from/to values for form input display
+  useEffect(() => {
+    if (datePresetParam) {
+      const now = new Date();
+      const formatYMD = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const dateToText = formatYMD(now);
+      let dateFromText = '';
+
+      if (datePresetParam === 'today') {
+        dateFromText = dateToText;
+      } else if (datePresetParam === '7_days') {
+        const fromD = new Date();
+        fromD.setDate(now.getDate() - 7);
+        dateFromText = formatYMD(fromD);
+      } else if (datePresetParam === '30_days') {
+        const fromD = new Date();
+        fromD.setDate(now.getDate() - 30);
+        dateFromText = formatYMD(fromD);
+      }
+
+      setFormDateFrom(dateFromText);
+      setFormDateTo(dateToText);
+    }
+  }, [datePresetParam]);
+
   // Fetch data
   const loadData = async () => {
     setLoading(true);
@@ -239,7 +290,10 @@ export default function InstructorUpgrades() {
         date_to: dateToParam,
         sort_by: sortByParam,
         page: pageParam,
-        per_page: perPageParam
+        per_page: perPageParam,
+        experience_range: experienceRangeParam,
+        payout_filter: payoutFilterParam,
+        date_preset: datePresetParam
       };
 
       const tableRes = await upgradesApi.getUpgradeRequests(queryParams);
@@ -252,8 +306,8 @@ export default function InstructorUpgrades() {
         setMeta(tableRes.meta);
         setSummary(allRes.data.summary);
 
-        const allItems = allRes.data.items;
-        calculateAttentionKPIs(allItems);
+        const allItemsData = allRes.data.items;
+        calculateAttentionKPIs(allItemsData);
 
         // Auto Page Adjustment
         if (tableRes.meta && pageParam > tableRes.meta.last_page) {
@@ -276,7 +330,18 @@ export default function InstructorUpgrades() {
 
   useEffect(() => {
     loadData();
-  }, [searchParam, statusParam, dateFromParam, dateToParam, sortByParam, pageParam, perPageParam]);
+  }, [
+    searchParam,
+    statusParam,
+    dateFromParam,
+    dateToParam,
+    sortByParam,
+    pageParam,
+    perPageParam,
+    experienceRangeParam,
+    payoutFilterParam,
+    datePresetParam
+  ]);
 
   // Compute stats helper
   const calculateAttentionKPIs = (items: any[]) => {
@@ -573,11 +638,11 @@ export default function InstructorUpgrades() {
 
           {/* Item 3 */}
           <div className="flex flex-col border-l border-hairline/40 pl-5 md:pl-8 lg:pl-6">
-            <div className="flex items-center gap-1.5 text-mid-gray">
+            <div className="flex items-center gap-1.5 text-warning">
               <svg className="w-4 h-4 text-warning shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none">Chờ lâu nhất</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider select-none">Chờ lâu nhất</span>
             </div>
             <div className="text-lg font-bold text-ink mt-1 font-sans">
               {attentionData.pendingCount > 0 ? `${attentionData.oldestDays} ngày` : '0 ngày'}
@@ -601,7 +666,7 @@ export default function InstructorUpgrades() {
 
           {/* Item 5 */}
           <div className="flex flex-col border-l border-hairline/40 pl-5 md:pl-8 lg:pl-6">
-            <div className="flex items-center gap-1.5 text-danger-brick font-bold">
+            <div className="flex items-center gap-1.5 text-danger-brick">
               <svg className="w-4 h-4 text-danger-brick shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
@@ -703,7 +768,11 @@ export default function InstructorUpgrades() {
               <select
                 id="filter-status"
                 value={formStatus}
-                onChange={(e) => setFormStatus(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormStatus(val);
+                  updateFilters({ status: val, page: 1 });
+                }}
                 className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
               >
                 <option value="">Tất cả trạng thái</option>
@@ -741,7 +810,7 @@ export default function InstructorUpgrades() {
               />
             </div>
 
-            {/* SẮP XẾP THEO */}
+            {/* SẮP XẾP THEO (Rút gọn nhãn) */}
             <div className="flex flex-col gap-1.5 w-full">
               <label htmlFor="filter-sort" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
                 SẮP XẾP THEO
@@ -749,14 +818,21 @@ export default function InstructorUpgrades() {
               <select
                 id="filter-sort"
                 value={formSortBy}
-                onChange={(e) => setFormSortBy(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormSortBy(val);
+                  updateFilters({ sort_by: val, page: 1 });
+                }}
                 className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
               >
-                <option value="newest">Mới gửi gần đây</option>
+                <option value="newest">Mới nhất</option>
                 <option value="oldest">Cũ nhất</option>
-                <option value="reviewed_newest">Được xử lý gần đây</option>
-                <option value="name_asc">Tên người gửi (A-Z)</option>
-                <option value="name_desc">Tên người gửi (Z-A)</option>
+                <option value="name_asc">Tên A–Z</option>
+                <option value="name_desc">Tên Z–A</option>
+                <option value="specialty_asc">Chuyên môn A–Z</option>
+                <option value="specialty_desc">Chuyên môn Z–A</option>
+                <option value="experience_asc">Kinh nghiệm tăng dần</option>
+                <option value="experience_desc">Kinh nghiệm giảm dần</option>
               </select>
             </div>
 
@@ -780,7 +856,7 @@ export default function InstructorUpgrades() {
         </form>
 
         {/* 3.3 Active Filter Chips */}
-        {(searchParam || statusParam || dateFromParam || dateToParam) && (
+        {(searchParam || statusParam || dateFromParam || dateToParam || experienceRangeParam || payoutFilterParam || datePresetParam) && (
           <div id="filter-chips-container" className="px-4 py-2 border-b border-hairline bg-surface-alt/30 flex items-center justify-between gap-4 select-none text-xs">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider text-mid-gray shrink-0">Đang lọc:</span>
@@ -797,16 +873,37 @@ export default function InstructorUpgrades() {
                     <button type="button" onClick={() => updateFilters({ status: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
                   </div>
                 )}
-                {dateFromParam && (
+                {datePresetParam ? (
                   <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                    <span>Từ ngày: {dateFromParam}</span>
-                    <button type="button" onClick={() => updateFilters({ date_from: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                    <span>Ngày gửi: {datePresetParam === 'today' ? 'Hôm nay' : datePresetParam === '7_days' ? '7 ngày qua' : '30 ngày qua'}</span>
+                    <button type="button" onClick={() => updateFilters({ date_preset: '', date_from: '', date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                  </div>
+                ) : (
+                  <>
+                    {dateFromParam && (
+                      <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
+                        <span>Từ ngày: {dateFromParam}</span>
+                        <button type="button" onClick={() => updateFilters({ date_from: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                      </div>
+                    )}
+                    {dateToParam && (
+                      <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
+                        <span>Đến ngày: {dateToParam}</span>
+                        <button type="button" onClick={() => updateFilters({ date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                      </div>
+                    )}
+                  </>
+                )}
+                {experienceRangeParam && (
+                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
+                    <span>Kinh nghiệm: {experienceRangeParam === 'under_1' ? 'Dưới 1 năm' : experienceRangeParam === '1_2' ? '1–2 năm' : experienceRangeParam === '3_5' ? '3–5 năm' : 'Trên 5 năm'}</span>
+                    <button type="button" onClick={() => updateFilters({ experience_range: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
                   </div>
                 )}
-                {dateToParam && (
+                {payoutFilterParam && (
                   <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                    <span>Đến ngày: {dateToParam}</span>
-                    <button type="button" onClick={() => updateFilters({ date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                    <span>Tài khoản: {payoutFilterParam === 'linked' ? 'Đã liên kết' : payoutFilterParam === 'unlinked' ? 'Chưa liên kết' : payoutFilterParam === 'active' ? 'Đã kích hoạt' : 'Chờ xác minh'}</span>
+                    <button type="button" onClick={() => updateFilters({ payout_filter: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
                   </div>
                 )}
               </div>
@@ -823,17 +920,227 @@ export default function InstructorUpgrades() {
         )}
 
         {/* 3.4 Data Table */}
-        <div className="overflow-x-auto relative flex-1 custom-scrollbar">
+        <div className="overflow-x-auto relative flex-1 custom-scrollbar min-h-[450px]">
           <table className="w-full text-left border-collapse text-xs table-auto min-w-[900px]">
             <thead className="bg-surface-alt text-mid-gray border-b border-hairline uppercase tracking-wider font-semibold sticky top-0 z-10 text-[10px] select-none h-10">
               <tr>
-                <th className="p-3.5 pl-5 font-bold">Người đăng ký</th>
+                {/* Column header: Người đăng ký */}
+                <th className="p-3.5 pl-5 relative" data-column-menu>
+                  <button
+                    type="button"
+                    onClick={() => setActiveColumnMenu(activeColumnMenu === 'user' ? null : 'user')}
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:text-ink transition-colors cursor-pointer font-bold bg-transparent border-none text-[10px] uppercase",
+                      ['name_asc', 'name_desc', 'newest', 'oldest'].includes(sortByParam) ? 'text-blue-600' : 'text-mid-gray'
+                    )}
+                  >
+                    Người đăng ký
+                    <svg className="w-3 h-3 transition-transform duration-200" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {activeColumnMenu === 'user' && (
+                    <div className="absolute left-5 top-9 z-30 w-52 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case">
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'name_asc' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'name_asc' && 'bg-blue-50/40 text-blue-600 font-bold')}>Từ A đến Z (↑)</button>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'name_desc' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'name_desc' && 'bg-blue-50/40 text-blue-600 font-bold')}>Từ Z đến A (↓)</button>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'newest' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'newest' && 'bg-blue-50/40 text-blue-600 font-bold')}>Mới đăng ký gần đây</button>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'oldest' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'oldest' && 'bg-blue-50/40 text-blue-600 font-bold')}>Cũ nhất</button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: '' }); setActiveColumnMenu(null); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-danger-brick rounded-[4px] transition-colors font-semibold cursor-pointer border-none bg-transparent">Bỏ sắp xếp</button>
+                    </div>
+                  )}
+                </th>
+
+                {/* Column header: Thông tin liên hệ (No filter menu as requested) */}
                 <th className="p-3.5 font-bold">Thông tin liên hệ</th>
-                <th className="p-3.5 font-bold">Chuyên môn</th>
-                <th className="p-3.5 font-bold">Kinh nghiệm</th>
-                <th className="p-3.5 font-bold">Tài khoản nhận tiền</th>
-                <th className="p-3.5 font-bold">Ngày gửi</th>
-                <th className="p-3.5 font-bold">Trạng thái</th>
+
+                {/* Column header: Chuyên môn */}
+                <th className="p-3.5 relative" data-column-menu>
+                  <button
+                    type="button"
+                    onClick={() => setActiveColumnMenu(activeColumnMenu === 'expertise' ? null : 'expertise')}
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:text-ink transition-colors cursor-pointer font-bold bg-transparent border-none text-[10px] uppercase",
+                      ['specialty_asc', 'specialty_desc'].includes(sortByParam) ? 'text-blue-600' : 'text-mid-gray'
+                    )}
+                  >
+                    Chuyên môn
+                    <svg className="w-3 h-3 transition-transform duration-200" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {activeColumnMenu === 'expertise' && (
+                    <div className="absolute left-3.5 top-9 z-30 w-48 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case">
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'specialty_asc' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'specialty_asc' && 'bg-blue-50/40 text-blue-600 font-bold')}>Chuyên môn A–Z</button>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'specialty_desc' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'specialty_desc' && 'bg-blue-50/40 text-blue-600 font-bold')}>Chuyên môn Z–A</button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: '' }); setActiveColumnMenu(null); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-danger-brick rounded-[4px] transition-colors font-semibold cursor-pointer border-none bg-transparent">Bỏ sắp xếp</button>
+                    </div>
+                  )}
+                </th>
+
+                {/* Column header: Kinh nghiệm */}
+                <th className="p-3.5 relative" data-column-menu>
+                  <button
+                    type="button"
+                    onClick={() => setActiveColumnMenu(activeColumnMenu === 'experience' ? null : 'experience')}
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:text-ink transition-colors cursor-pointer font-bold bg-transparent border-none text-[10px] uppercase",
+                      (experienceRangeParam || ['experience_asc', 'experience_desc'].includes(sortByParam)) ? 'text-blue-600' : 'text-mid-gray'
+                    )}
+                  >
+                    Kinh nghiệm
+                    <svg className="w-3 h-3 transition-transform duration-200" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {activeColumnMenu === 'experience' && (
+                    <div className="absolute left-3.5 top-9 z-30 w-56 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case">
+                      <button
+                        type="button"
+                        onClick={() => { updateFilters({ experience_range: '' }); setActiveColumnMenu(null); }}
+                        className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700 flex items-center gap-2", !experienceRangeParam && !['experience_asc', 'experience_desc'].includes(sortByParam) && 'bg-blue-50/40 text-blue-600 font-bold')}
+                      >
+                        <span className="h-[7px] w-[7px] rounded-full bg-neutral-400"></span>
+                        Tất cả kinh nghiệm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { updateFilters({ experience_range: 'under_1' }); setActiveColumnMenu(null); }}
+                        className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700 flex items-center gap-2", experienceRangeParam === 'under_1' && 'bg-blue-50/40 text-blue-600 font-bold')}
+                      >
+                        <span className="h-[7px] w-[7px] rounded-full bg-neutral-400"></span>
+                        Dưới 1 năm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { updateFilters({ experience_range: '1_2' }); setActiveColumnMenu(null); }}
+                        className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent flex items-center gap-2", experienceRangeParam === '1_2' ? 'bg-blue-50/40 text-blue-600 font-bold' : 'text-blue-600')}
+                      >
+                        <span className="h-[7px] w-[7px] rounded-full bg-blue-600"></span>
+                        Từ 1–2 năm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { updateFilters({ experience_range: '3_5' }); setActiveColumnMenu(null); }}
+                        className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent flex items-center gap-2", experienceRangeParam === '3_5' ? 'bg-blue-50/40 text-amber-600 font-bold' : 'text-amber-600')}
+                      >
+                        <span className="h-[7px] w-[7px] rounded-full bg-amber-600"></span>
+                        Từ 3–5 năm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { updateFilters({ experience_range: 'over_5' }); setActiveColumnMenu(null); }}
+                        className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent flex items-center gap-2", experienceRangeParam === 'over_5' ? 'bg-blue-50/40 text-emerald-600 font-bold' : 'text-emerald-600')}
+                      >
+                        <span className="h-[7px] w-[7px] rounded-full bg-emerald-600"></span>
+                        Trên 5 năm
+                      </button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'experience_asc' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-purple-600", sortByParam === 'experience_asc' && 'bg-blue-50/40 text-purple-600 font-bold')}>Kinh nghiệm tăng dần (↑)</button>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'experience_desc' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-purple-600", sortByParam === 'experience_desc' && 'bg-blue-50/40 text-purple-600 font-bold')}>Kinh nghiệm giảm dần (↓)</button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ experience_range: '', sort_by: sortByParam.includes('experience') ? '' : sortByParam }); setActiveColumnMenu(null); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-danger-brick rounded-[4px] transition-colors font-semibold cursor-pointer border-none bg-transparent">Bỏ lọc và sắp xếp</button>
+                    </div>
+                  )}
+                </th>
+
+                {/* Column header: Tài khoản nhận tiền */}
+                <th className="p-3.5 relative" data-column-menu>
+                  <button
+                    type="button"
+                    onClick={() => setActiveColumnMenu(activeColumnMenu === 'payout' ? null : 'payout')}
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:text-ink transition-colors cursor-pointer font-bold bg-transparent border-none text-[10px] uppercase",
+                      payoutFilterParam ? 'text-blue-600' : 'text-mid-gray'
+                    )}
+                  >
+                    Tài khoản nhận tiền
+                    <svg className="w-3 h-3 transition-transform duration-200" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {activeColumnMenu === 'payout' && (
+                    <div className="absolute left-3.5 top-9 z-30 w-44 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case">
+                      <button type="button" onClick={() => { updateFilters({ payout_filter: '' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", !payoutFilterParam && 'bg-blue-50/40 text-blue-600 font-bold')}>Tất cả</button>
+                      <button type="button" onClick={() => { updateFilters({ payout_filter: 'linked' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", payoutFilterParam === 'linked' && 'bg-blue-50/40 text-blue-600 font-bold')}>Đã liên kết</button>
+                      <button type="button" onClick={() => { updateFilters({ payout_filter: 'unlinked' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", payoutFilterParam === 'unlinked' && 'bg-blue-50/40 text-blue-600 font-bold')}>Chưa liên kết</button>
+                      <button type="button" onClick={() => { updateFilters({ payout_filter: 'active' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", payoutFilterParam === 'active' && 'bg-blue-50/40 text-blue-600 font-bold')}>Đã kích hoạt</button>
+                      <button type="button" onClick={() => { updateFilters({ payout_filter: 'pending_verification' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", payoutFilterParam === 'pending_verification' && 'bg-blue-50/40 text-blue-600 font-bold')}>Chờ xác minh</button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ payout_filter: '' }); setActiveColumnMenu(null); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-danger-brick rounded-[4px] transition-colors font-semibold cursor-pointer border-none bg-transparent">Bỏ lọc</button>
+                    </div>
+                  )}
+                </th>
+
+                {/* Column header: Ngày gửi */}
+                <th className="p-3.5 relative" data-column-menu>
+                  <button
+                    type="button"
+                    onClick={() => setActiveColumnMenu(activeColumnMenu === 'date' ? null : 'date')}
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:text-ink transition-colors cursor-pointer font-bold bg-transparent border-none text-[10px] uppercase",
+                      (datePresetParam || ['newest', 'oldest'].includes(sortByParam)) ? 'text-blue-600' : 'text-mid-gray'
+                    )}
+                  >
+                    Ngày gửi
+                    <svg className="w-3 h-3 transition-transform duration-200" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {activeColumnMenu === 'date' && (
+                    <div className="absolute left-3.5 top-9 z-30 w-48 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case">
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'newest', date_preset: '' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'newest' && !datePresetParam && 'bg-blue-50/40 text-blue-600 font-bold')}>Mới nhất</button>
+                      <button type="button" onClick={() => { updateFilters({ sort_by: 'oldest', date_preset: '' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", sortByParam === 'oldest' && !datePresetParam && 'bg-blue-50/40 text-blue-600 font-bold')}>Cũ nhất</button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ date_preset: 'today' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", datePresetParam === 'today' && 'bg-blue-50/40 text-blue-600 font-bold')}>Hôm nay</button>
+                      <button type="button" onClick={() => { updateFilters({ date_preset: '7_days' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", datePresetParam === '7_days' && 'bg-blue-50/40 text-blue-600 font-bold')}>7 ngày qua</button>
+                      <button type="button" onClick={() => { updateFilters({ date_preset: '30_days' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", datePresetParam === '30_days' && 'bg-blue-50/40 text-blue-600 font-bold')}>30 ngày qua</button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveColumnMenu(null);
+                          document.getElementById('filter-date-from')?.focus();
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700"
+                      >
+                        Tùy chọn khoảng ngày
+                      </button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ date_preset: '', date_from: '', date_to: '', sort_by: '' }); setActiveColumnMenu(null); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-danger-brick rounded-[4px] transition-colors font-semibold cursor-pointer border-none bg-transparent">Bỏ lọc/sắp xếp</button>
+                    </div>
+                  )}
+                </th>
+
+                {/* Column header: Trạng thái */}
+                <th className="p-3.5 relative" data-column-menu>
+                  <button
+                    type="button"
+                    onClick={() => setActiveColumnMenu(activeColumnMenu === 'status' ? null : 'status')}
+                    className={cn(
+                      "inline-flex items-center gap-1 hover:text-ink transition-colors cursor-pointer font-bold bg-transparent border-none text-[10px] uppercase",
+                      statusParam ? 'text-blue-600' : 'text-mid-gray'
+                    )}
+                  >
+                    Trạng thái
+                    <svg className="w-3 h-3 transition-transform duration-200" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {activeColumnMenu === 'status' && (
+                    <div className="absolute right-5 top-9 z-30 w-40 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case">
+                      <button type="button" onClick={() => { updateFilters({ status: '' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", !statusParam && 'bg-blue-50/40 text-blue-600 font-bold')}>Tất cả</button>
+                      <button type="button" onClick={() => { updateFilters({ status: 'pending' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", statusParam === 'pending' && 'bg-blue-50/40 text-blue-600 font-bold')}>Chờ xử lý</button>
+                      <button type="button" onClick={() => { updateFilters({ status: 'approved' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", statusParam === 'approved' && 'bg-blue-50/40 text-blue-600 font-bold')}>Đã duyệt</button>
+                      <button type="button" onClick={() => { updateFilters({ status: 'rejected' }); setActiveColumnMenu(null); }} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent text-neutral-700", statusParam === 'rejected' && 'bg-blue-50/40 text-blue-600 font-bold')}>Đã từ chối</button>
+                      <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                      <button type="button" onClick={() => { updateFilters({ status: '' }); setActiveColumnMenu(null); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50 text-danger-brick rounded-[4px] transition-colors font-semibold cursor-pointer border-none bg-transparent">Bỏ lọc</button>
+                    </div>
+                  )}
+                </th>
+
+                {/* Column header: Thao tác (No filter/sort) */}
                 <th className="p-3.5 pr-5 text-right font-bold w-20">Thao tác</th>
               </tr>
             </thead>
@@ -891,17 +1198,17 @@ export default function InstructorUpgrades() {
                       </svg>
                       <div>
                         <h4 className="text-sm font-bold text-ink">
-                          {searchParam || statusParam || dateFromParam || dateToParam
+                          {searchParam || statusParam || dateFromParam || dateToParam || experienceRangeParam || payoutFilterParam || datePresetParam
                             ? 'Không tìm thấy yêu cầu phù hợp'
                             : 'Chưa có yêu cầu lên giảng viên'}
                         </h4>
                         <p className="text-xs text-mid-gray mt-1">
-                          {searchParam || statusParam || dateFromParam || dateToParam
+                          {searchParam || statusParam || dateFromParam || dateToParam || experienceRangeParam || payoutFilterParam || datePresetParam
                             ? 'Không tìm thấy hồ sơ phù hợp với bộ lọc.'
                             : 'Các hồ sơ đăng ký mới sẽ xuất hiện tại đây.'}
                         </p>
                       </div>
-                      {(searchParam || statusParam || dateFromParam || dateToParam) && (
+                      {(searchParam || statusParam || dateFromParam || dateToParam || experienceRangeParam || payoutFilterParam || datePresetParam) && (
                         <button
                           type="button"
                           onClick={handleResetFilters}
@@ -918,7 +1225,12 @@ export default function InstructorUpgrades() {
                   const firstLetter = item.user?.full_name ? item.user.full_name.charAt(0).toUpperCase() : 'U';
                   const isPending = item.application_status === 'pending';
                   const rawExpertise = item.instructor_profile?.expertise || 'Chưa cập nhật';
-                  const displayExpertise = rawExpertise.length > 32 ? `${rawExpertise.substring(0, 30)}...` : rawExpertise;
+                  
+                  // Truncate specialty to 1-2 lines concisely
+                  const displayExpertise = rawExpertise.length > 40 ? `${rawExpertise.substring(0, 38)}...` : rawExpertise;
+
+                  // Map experience colors
+                  const expColor = getExperienceColor(item.instructor_profile?.experience_years || 0);
 
                   return (
                     <tr
@@ -965,17 +1277,24 @@ export default function InstructorUpgrades() {
                         </div>
                       </td>
 
-                      {/* Expertise */}
+                      {/* Expertise (Clean formatting, no badges, truncated) */}
                       <td className="p-3.5">
                         <div className="font-medium text-ink max-w-[200px] truncate" title={rawExpertise}>
                           {displayExpertise}
                         </div>
                       </td>
 
-                      {/* Experience */}
+                      {/* Experience (Beautiful inline dot layout) */}
                       <td className="p-3.5">
-                        <div className="font-medium text-ink">{item.instructor_profile?.experience_years} năm</div>
-                        <div className="text-[10px] text-mid-gray mt-0.5 font-medium">{item.instructor_profile?.level || 'Chưa phân cấp'}</div>
+                        <div className="flex flex-col gap-0.5 justify-center">
+                          <div className={cn("font-semibold flex items-center gap-1.5 text-xs select-none", expColor.color)}>
+                            <span className={cn("h-2 w-2 rounded-full shrink-0", expColor.bg)}></span>
+                            {item.instructor_profile?.experience_years} năm
+                          </div>
+                          <div className="text-[10px] text-mid-gray/80 font-medium pl-3.5">
+                            {item.instructor_profile?.level || 'Chưa phân cấp'}
+                          </div>
+                        </div>
                       </td>
 
                       {/* Payout Account */}
@@ -1076,9 +1395,9 @@ export default function InstructorUpgrades() {
               <span className="font-semibold text-ink">
                 {Math.min(pageParam * perPageParam, meta.total)}
               </span>
-              {' '}trong tổng số{' '}
+              {' trong tổng số '}
               <span className="font-semibold text-ink">{meta.total}</span>
-              {' '}yêu cầu
+              {' yêu cầu'}
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 text-xs">
