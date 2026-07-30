@@ -16,7 +16,7 @@ import {
   parseDurationToSeconds, 
   getVideoDurationSecondsFromFile, 
   generateSlug 
-} from '../../utils/format';
+} from '@/shared/utils/format';
 
 interface CourseCurriculumStepProps {
   chapters: any[];

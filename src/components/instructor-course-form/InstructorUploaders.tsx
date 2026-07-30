@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Film, FileText, CheckCircle, AlertCircle } from 'lucide-react';
-import { ApiService } from '../../services/api';
-import { getVideoDurationSecondsFromFile, resolveMediaUrl } from '../../utils/format';
+import { ApiService } from '@/services/api';
+import { getVideoDurationSecondsFromFile, resolveMediaUrl } from '@/shared/utils/format';
 
 interface UploaderProps {
   value: string;

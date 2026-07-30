@@ -4,6 +4,7 @@ import {
   CheckCircle, Clock, XCircle, DollarSign, BookOpen, Eye
 } from 'lucide-react';
 import TransactionDetailDrawer from '@/features/instructor/components/TransactionDetailDrawer';
+import { ApiService } from '@/services/api';
 
 interface TransactionManagementProps {
   instructorId: string | number;

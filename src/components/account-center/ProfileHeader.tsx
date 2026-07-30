@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldCheck, LayoutDashboard, ArrowRight } from 'lucide-react';
-import { ROUTES } from '../../utils/routes';
+import { ROUTES } from '@/router/routes';
 
 interface ProfileHeaderProps {
   status?: string;

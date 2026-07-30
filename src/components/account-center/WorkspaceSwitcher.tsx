@@ -1,6 +1,6 @@
 import React from 'react';
 import { BookOpen, GraduationCap, ArrowRight, LayoutDashboard, ShieldAlert } from 'lucide-react';
-import { ROUTES } from '../../utils/routes';
+import { ROUTES } from '@/router/routes';
 
 interface WorkspaceSwitcherProps {
   currentUser: any;

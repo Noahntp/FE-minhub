@@ -5,7 +5,7 @@ import {
   formatDuration, 
   parseDurationToSeconds, 
   generateSlug 
-} from '../../utils/format';
+} from '@/shared/utils/format';
 
 interface LessonModalProps {
   isOpen: boolean;

@@ -25,9 +25,27 @@ export interface ApiConfig {
   isLogEnabled: boolean;
 }
 
+/**
+ * Helper to ensure the API Base URL always points to the /api namespace
+ * regardless of whether .env or localStorage supplied http://localhost:8000 or http://localhost:8000/api
+ */
+export function getNormalizedBaseUrl(rawUrl?: string): string {
+  let url = (rawUrl || '').trim();
+  if (!url) {
+    url = 'http://localhost:8000/api';
+  }
+  url = url.replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url += '/api';
+  }
+  return url;
+}
+
 // Read configuration from local storage or environment variables
 const initialMode = (import.meta as any).env?.VITE_API_MODE === 'api' ? 'api' : 'mock';
-const initialBaseUrl = localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const initialBaseUrl = getNormalizedBaseUrl(
+  localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL
+);
 
 const config: ApiConfig = {
   mode: initialMode,
@@ -82,7 +100,10 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     throw new Error('apiFetch called while in mock mode.');
   }
 
-  const url = `${config.baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+  const baseUrl = getNormalizedBaseUrl(config.baseUrl);
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+  const url = `${baseUrl}${cleanEndpoint}`;
+
   const headers = new Headers(options.headers || {});
   
   if (!(options.body instanceof FormData)) {
@@ -94,16 +115,20 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     headers.set('Authorization', `Bearer ${config.authToken}`);
   }
 
-  let response;
+  let response: Response;
   try {
     response = await fetch(url, {
       credentials: 'include',
       ...options,
       headers,
     });
-  } catch (netErr) {
+  } catch (netErr: any) {
     devLog('Network Error', String(netErr), { url });
-    throw new Error('Không thể kết nối đến máy chủ Backend.');
+    throw new ApiError(
+      `Không thể kết nối đến máy chủ API (${netErr?.message || 'Failed to fetch'}). Vui lòng kiểm tra Server Backend.`,
+      0,
+      { isNetworkError: true, originalError: String(netErr), url }
+    );
   }
 
   if (!response.ok) {

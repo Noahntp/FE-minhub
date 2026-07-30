@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InstructorDashboard from './InstructorDashboard';
 import { User, Course } from '@/shared/types';
+import { ApiService } from '@/services/api';
 
 export default function InstructorPage() {
   const navigate = useNavigate();
@@ -10,28 +11,40 @@ export default function InstructorPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     async function loadData() {
       try {
-        const currentUser = await (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
-        if (!currentUser) {
+        const currentUserRes = await ApiService.getCurrentUser();
+        const currentUserData = (currentUserRes as any)?.data || currentUserRes;
+        if (!currentUserData && isMounted) {
           navigate('/login');
           return;
         }
-        setUser(currentUser);
+        if (isMounted) {
+          setUser(currentUserData);
+        }
         
-        const myCourses = await Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any));
-        setCourses(myCourses);
+        const coursesRes = await ApiService.getInstructorCourses({ per_page: 100 });
+        const coursesList = Array.isArray(coursesRes) ? coursesRes : (coursesRes?.data || []);
+        if (isMounted) {
+          setCourses(coursesList);
+        }
       } catch (e) {
-        console.error(e);
+        console.error("Error loading instructor page data:", e);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     loadData();
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
 
   if (loading || !user) {
-    return <div className="p-20 text-center">Đang tải dữ liệu giảng viên...</div>;
+    return <div className="p-20 text-center text-stone-500 font-medium">Đang tải dữ liệu giảng viên...</div>;
   }
 
   return (

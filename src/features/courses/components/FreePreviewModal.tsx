@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Lock, Play, FileText, Video, ShoppingBag, BookOpen, Sparkles, RefreshCw, Info } from 'lucide-react';
-import { Course, Lesson } from '../types';
-import { resolveMediaUrl } from '../utils/format';
+import { Course, Lesson } from '@/shared/types';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 interface FreePreviewModalProps {
   previewLesson: { lesson: Lesson; course: Course };
