@@ -3,49 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getDashboardMockData } from '@/data/dashboard';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
+import { Chart } from 'chart.js/auto';
+import zoomPlugin from 'chartjs-plugin-zoom';
 
-const SCRIPTS = [
-  "https://cdn.jsdelivr.net/npm/chart.js",
-  "https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js",
-  "https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"
-];
-
-function useExternalScripts(urls: string[]) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let promises = urls.map(url => {
-      return new Promise<void>((resolve, reject) => {
-        const existing = document.querySelector(`script[src="${url}"]`);
-        if (existing) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = url;
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject();
-        document.head.appendChild(script);
-      });
-    });
-
-    const loadAll = async () => {
-      try {
-        await Promise.all([promises[0], promises[1]]);
-        // Load zoom plugin after chart.js & hammer.js are loaded
-        await promises[2];
-        setReady(true);
-      } catch (err) {
-        console.error("Lỗi nạp scripts CDN:", err);
-      }
-    };
-
-    loadAll();
-  }, [urls]);
-
-  return ready;
-}
+// Đăng ký plugin zoom với Chart.js
+Chart.register(zoomPlugin);
 
 // Helper to group chart data by interval (translated from groupDashboardChartData in legacy js)
 function groupDashboardChartData(reportData: any[], start: Date, end: Date, interval: string) {
@@ -155,9 +117,39 @@ export default function DashboardOverview() {
   // Tab cho dữ liệu gần đây
   const [activeTab, setActiveTab] = useState<'orders' | 'courses'>('orders');
 
-  const scriptsReady = useExternalScripts(SCRIPTS);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any>(null);
+  const [isZoomedOrPanned, setIsZoomedOrPanned] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleMouseDown = () => {
+    if (isZoomedOrPanned) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleResetZoom = () => {
+    const chart = chartInstanceRef.current;
+    if (chart) {
+      chart.resetZoom();
+      setIsZoomedOrPanned(false);
+      
+      const initialInterval = chart.options.initialInterval;
+      const initialGroupedData = chart.options.initialGroupedData;
+      if (initialInterval && initialGroupedData) {
+        chart.options.currentAutoInterval = initialInterval;
+        chart.data.datasets[0].data = initialGroupedData.map((d: any) => ({ x: d.x, y: d.gross_amount }));
+        chart.data.datasets[1].data = initialGroupedData.map((d: any) => ({ x: d.x, y: d.instructor_amount }));
+        chart.data.datasets[2].data = initialGroupedData.map((d: any) => ({ x: d.x, y: d.platform_fee_amount }));
+        chart.options.currentGroupedData = initialGroupedData;
+        chart.update("none");
+      }
+    }
+  };
 
   // Load data mock
   const loadDashboardData = React.useCallback((filterType: string, from?: string, to?: string) => {
@@ -201,7 +193,9 @@ export default function DashboardOverview() {
 
   // Khởi tạo Chart.js trên canvas
   useEffect(() => {
-    if (uiState !== 'loaded' || !scriptsReady || !canvasRef.current || !dashboardData) return;
+    if (uiState !== 'loaded' || !canvasRef.current || !dashboardData) return;
+
+    setIsZoomedOrPanned(false);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -262,8 +256,6 @@ export default function DashboardOverview() {
 
     const groupedData = groupDashboardChartData(items, start, end, initialInterval);
 
-    const Chart = (window as any).Chart;
-
     chartInstanceRef.current = new Chart(ctx, {
       type: "line",
       data: {
@@ -311,6 +303,8 @@ export default function DashboardOverview() {
         maintainAspectRatio: false,
         currentAutoInterval: initialInterval,
         currentGroupedData: groupedData,
+        initialInterval: initialInterval,
+        initialGroupedData: groupedData,
         interaction: {
           mode: "index",
           intersect: false
@@ -403,6 +397,7 @@ export default function DashboardOverview() {
                 x: { min: startMs, max: endMs, minRange: minRange }
               },
               onZoom: function ({ chart }: any) {
+                setIsZoomedOrPanned(true);
                 const min = chart.scales.x.min;
                 const max = chart.scales.x.max;
                 const diffMs = max - min;
@@ -435,6 +430,9 @@ export default function DashboardOverview() {
               threshold: 2,
               limits: {
                 x: { min: startMs, max: endMs }
+              },
+              onPan: function () {
+                setIsZoomedOrPanned(true);
               }
             },
           },
@@ -505,7 +503,7 @@ export default function DashboardOverview() {
         chartInstanceRef.current.destroy();
       }
     };
-  }, [scriptsReady, uiState, dashboardData, activeFilter, customFrom, customTo]);
+  }, [uiState, dashboardData, activeFilter, customFrom, customTo]);
 
   // Bộ lọc tùy chỉnh ngày
   const handleApplyCustomDate = () => {
@@ -1343,20 +1341,37 @@ export default function DashboardOverview() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             {/* Khung biểu đồ doanh thu */}
             <div className="rounded-[6px] border border-border-strong bg-paper p-4 shadow-sm lg:col-span-2 flex flex-col justify-between relative min-w-0">
-              <div className="border-l-3 border-success pl-2.5 mb-2.5">
-                <h2 className="text-sm font-semibold text-ink leading-snug">
-                  Biểu đồ Doanh thu & Phí nền tảng
-                </h2>
-                <p className="text-[11px] text-mid-gray mt-0.5 leading-normal">
-                  Xu hướng biến động tài chính theo bộ lọc thời gian (Kéo để Pan, Cuộn để Zoom)
-                </p>
+              <div className="flex items-start justify-between mb-2.5">
+                <div className="border-l-3 border-success pl-2.5">
+                  <h2 className="text-sm font-semibold text-ink leading-snug">
+                    Biểu đồ Doanh thu & Phí nền tảng
+                  </h2>
+                  <p className="text-[11px] text-mid-gray mt-0.5 leading-normal">
+                    Xu hướng biến động tài chính theo bộ lọc thời gian (Kéo để Pan, Cuộn để Zoom)
+                  </p>
+                </div>
+                {isZoomedOrPanned && (
+                  <button
+                    type="button"
+                    onClick={handleResetZoom}
+                    className="px-2.5 py-1 text-[10px] font-semibold bg-canvas hover:bg-hairline text-ink border border-hairline rounded-full shadow-sm transition-colors cursor-pointer shrink-0"
+                  >
+                    Đặt lại biểu đồ
+                  </button>
+                )}
               </div>
 
               {/* Vùng vẽ biểu đồ */}
-              <div className="mt-3.5 h-60 w-full relative overflow-x-auto custom-scrollbar">
-                <div className="min-w-[450px] h-full relative">
-                  <canvas ref={canvasRef} id="revenue-chart-canvas"></canvas>
-                </div>
+              <div className="mt-3.5 h-60 w-full relative">
+                <canvas 
+                  ref={canvasRef} 
+                  id="revenue-chart-canvas"
+                  className="w-full h-full"
+                  style={{ cursor: isDragging ? 'grabbing' : (isZoomedOrPanned ? 'grab' : 'default') }}
+                  onMouseDown={handleMouseDown}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                ></canvas>
                 {/* Chart empty state overlay */}
                 <div id="chart-empty-state" className="hidden absolute inset-0 bg-paper/90 flex flex-col items-center justify-center text-center z-10">
                   <p className="text-xs font-semibold text-mid-gray">Không có dữ liệu biểu đồ</p>
