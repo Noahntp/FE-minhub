@@ -1,944 +1,1479 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import * as upgradesApi from '@/assets/js/api/instructor-upgrades-api.js';
+import { toast } from 'sonner';
+import { cn } from '@/shared/lib/utils';
 
-import { initPage } from '@/assets/js/pages/instructor-upgrades';
-import React, { useState, useEffect } from 'react';
+// Helper: safe percentage calculation
+const calculatePercentage = (value: number, total: number) => {
+  if (!total || total <= 0) return 0;
+  return Math.round((value / total) * 1000) / 10;
+};
+
+// User Status Dot Marker
+function UpgradeStatusMarker({ status }: { status: string }) {
+  if (status === 'pending') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning select-none">
+        <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
+        Chờ xử lý
+      </span>
+    );
+  } else if (status === 'approved') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success select-none">
+        <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0"></span>
+        Đã duyệt
+      </span>
+    );
+  } else {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-danger-brick select-none">
+        <span className="h-1.5 w-1.5 rounded-full bg-danger-brick shrink-0"></span>
+        Đã từ chối
+      </span>
+    );
+  }
+}
+
+// User Payout Status Dot Marker
+function PayoutStatusMarker({ status }: { status: string }) {
+  if (status === 'active') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-success select-none">
+        <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0"></span>
+        Đã kích hoạt
+      </span>
+    );
+  } else if (status === 'pending_verification') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-warning select-none">
+        <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
+        Chờ xác minh
+      </span>
+    );
+  } else {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-mid-gray select-none">
+        <span className="h-1.5 w-1.5 rounded-full bg-mid-gray shrink-0"></span>
+        Vô hiệu hóa
+      </span>
+    );
+  }
+}
 
 export default function InstructorUpgrades() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Search parameters sync
+  const searchParam = searchParams.get('search') || '';
+  const statusParam = searchParams.get('status') || '';
+  const dateFromParam = searchParams.get('date_from') || '';
+  const dateToParam = searchParams.get('date_to') || '';
+  const sortByParam = searchParams.get('sort_by') || 'newest';
+  const pageParam = Number(searchParams.get('page')) || 1;
+  const perPageParam = Number(searchParams.get('per_page')) || 20;
+
+  // Local Filter Form State (before Applying)
+  const [formSearch, setFormSearch] = useState(searchParam);
+  const [formStatus, setFormStatus] = useState(statusParam);
+  const [formDateFrom, setFormDateFrom] = useState(dateFromParam);
+  const [formDateTo, setFormDateTo] = useState(dateToParam);
+  const [formSortBy, setFormSortBy] = useState(sortByParam);
+
+  // Sync Form States when query parameters change (e.g. Back/Forward button, Reset)
   useEffect(() => {
-    try {
-      initPage();
-    } catch (err) {
-      console.error('Error initializing vanilla JS:', err);
-    }
+    setFormSearch(searchParam);
+    setFormStatus(statusParam);
+    setFormDateFrom(dateFromParam);
+    setFormDateTo(dateToParam);
+    setFormSortBy(sortByParam);
+  }, [searchParam, statusParam, dateFromParam, dateToParam, sortByParam]);
+
+  // Data States
+  const [paginatedItems, setPaginatedItems] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>({ total: 0, pending: 0, approved: 0, rejected: 0 });
+  const [meta, setMeta] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('---');
+
+  // Attention KPI values
+  const [attentionData, setAttentionData] = useState({
+    pendingCount: 0,
+    new7DaysCount: 0,
+    oldestDays: 0,
+    oldestDateText: 'Chưa có hồ sơ tồn đọng',
+    avgProcessDays: '---',
+    missingPayoutCount: 0
+  });
+
+  // UI Interactive States
+  const [activeActionMenu, setActiveActionMenu] = useState<number | null>(null);
+  const [activeDetailUser, setActiveDetailUser] = useState<any | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isPayoutVisible, setIsPayoutVisible] = useState(false);
+
+  // Confirmation Modals State
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    type: 'approve' | 'reject' | '';
+    user: any | null;
+    error?: string;
+  }>({
+    open: false,
+    type: '',
+    user: null,
+    error: ''
+  });
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-action-td]')) {
+        setActiveActionMenu(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
   }, []);
+
+  // Keyboard events for Drawer & Modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDrawerOpen(false);
+        setConfirmModal({ open: false, type: '', user: null, error: '' });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Update query parameters helper
+  const updateFilters = (newFilters: Record<string, any>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    
+    let resetPage = true;
+    if (newFilters.page !== undefined) {
+      resetPage = false;
+    }
+
+    Object.keys(newFilters).forEach(key => {
+      const val = newFilters[key];
+      if (val === undefined || val === null || val === '') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+
+    if (resetPage) {
+      nextParams.delete('page');
+    }
+
+    setSearchParams(nextParams);
+  };
+
+  const handleResetFilters = () => {
+    setSearchParams(new URLSearchParams());
+    setActiveActionMenu(null);
+  };
+
+  // Form Submit handler
+  const handleApplyFilters = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formDateFrom && formDateTo && new Date(formDateTo) < new Date(formDateFrom)) {
+      toast.error('Đến ngày gửi không được nhỏ hơn Từ ngày gửi.');
+      return;
+    }
+    updateFilters({
+      search: formSearch,
+      status: formStatus,
+      date_from: formDateFrom,
+      date_to: formDateTo,
+      sort_by: formSortBy,
+      page: 1
+    });
+  };
+
+  // KPI Card clicks -> updates status param
+  const handleTabChange = (tabValue: string) => {
+    updateFilters({ status: tabValue, page: 1 });
+  };
+
+  // Date/Time Format Helpers
+  const formatDateTime = (isoString: string) => {
+    if (!isoString) return '---';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '---';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  };
+
+  const formatDateOnly = (isoString: string) => {
+    if (!isoString) return '---';
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '---';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Fetch data
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 1. Fetch paginated filtered list
+      const queryParams: any = {
+        search: searchParam,
+        status: statusParam,
+        date_from: dateFromParam,
+        date_to: dateToParam,
+        sort_by: sortByParam,
+        page: pageParam,
+        per_page: perPageParam
+      };
+
+      const tableRes = await upgradesApi.getUpgradeRequests(queryParams);
+
+      // 2. Fetch all list to compute KPIs & Attention Card details
+      const allRes = await upgradesApi.getUpgradeRequests({ per_page: 99999 });
+
+      if (tableRes.success && allRes.success) {
+        setPaginatedItems(tableRes.data.items);
+        setMeta(tableRes.meta);
+        setSummary(allRes.data.summary);
+
+        const allItems = allRes.data.items;
+        calculateAttentionKPIs(allItems);
+
+        // Auto Page Adjustment
+        if (tableRes.meta && pageParam > tableRes.meta.last_page) {
+          updateFilters({ page: 1 });
+        }
+      } else {
+        setError(tableRes.message || 'Lỗi khi tải dữ liệu.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Không thể kết nối đến máy chủ.');
+    } finally {
+      setLoading(false);
+      const now = new Date();
+      setLastUpdated(
+        `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+      );
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [searchParam, statusParam, dateFromParam, dateToParam, sortByParam, pageParam, perPageParam]);
+
+  // Compute stats helper
+  const calculateAttentionKPIs = (items: any[]) => {
+    const now = new Date();
+
+    // 1. Pending requests count
+    const pendingItems = items.filter(r => r.application_status === 'pending');
+    const pendingCount = pendingItems.length;
+
+    // 2. New 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    const new7DaysCount = items.filter(r => new Date(r.submitted_at) >= sevenDaysAgo).length;
+
+    // 3. Oldest waiting days
+    let oldestDays = 0;
+    let oldestDateText = 'Chưa có hồ sơ tồn đọng';
+    if (pendingCount > 0) {
+      const sortedPending = [...pendingItems].sort(
+        (a, b) => new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime()
+      );
+      const oldest = sortedPending[0];
+      const diffMs = Math.abs(now.getTime() - new Date(oldest.submitted_at).getTime());
+      oldestDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      oldestDateText = `Gửi ngày ${formatDateOnly(oldest.submitted_at)}`;
+    }
+
+    // 4. Average Processing Days
+    const processedItems = items.filter(r => r.application_status !== 'pending' && r.reviewed_at && r.submitted_at);
+    let avgProcessDays = 'Chưa có dữ liệu';
+    if (processedItems.length > 0) {
+      const totalDuration = processedItems.reduce((sum, r) => {
+        const diff = new Date(r.reviewed_at).getTime() - new Date(r.submitted_at).getTime();
+        return sum + diff;
+      }, 0);
+      const avgMs = totalDuration / processedItems.length;
+      const avgDays = Math.round((avgMs / (1000 * 60 * 60 * 24)) * 10) / 10;
+      avgProcessDays = `${avgDays.toLocaleString('vi-VN')} ngày`;
+    }
+
+    // 5. Missing payout account details
+    const missingPayoutCount = pendingItems.filter(
+      r =>
+        !r.payout_account ||
+        r.payout_account.status !== 'active' ||
+        !r.payout_account.account_name ||
+        !r.payout_account.account_number_masked
+    ).length;
+
+    setAttentionData({
+      pendingCount,
+      new7DaysCount,
+      oldestDays,
+      oldestDateText,
+      avgProcessDays,
+      missingPayoutCount
+    });
+  };
+
+  // Open Drawer trigger
+  const openDetailDrawer = async (userId: number) => {
+    try {
+      const res = await upgradesApi.getUpgradeRequest(userId);
+      if (res && res.success) {
+        setActiveDetailUser(res.data);
+        setIsPayoutVisible(false);
+        setIsDrawerOpen(true);
+      } else {
+        toast.error(res ? res.message : 'Không thể lấy chi tiết hồ sơ.');
+      }
+    } catch (e) {
+      toast.error('Lỗi khi kết nối chi tiết hồ sơ.');
+    }
+  };
+
+  // Action submit triggers
+  const handleConfirmSubmit = async () => {
+    const { type, user } = confirmModal;
+    if (!user) return;
+
+    try {
+      let res: any;
+      if (type === 'approve') {
+        res = await upgradesApi.approveUpgradeRequest(user.user.id);
+      } else if (type === 'reject') {
+        res = await upgradesApi.rejectUpgradeRequest(user.user.id);
+      }
+
+      if (res && res.success) {
+        toast.success(res.message || 'Thực hiện thành công.');
+        setConfirmModal({ open: false, type: '', user: null, error: '' });
+        setIsDrawerOpen(false);
+        loadData();
+      } else {
+        toast.error(res ? res.message : 'Thao tác thất bại.');
+        setConfirmModal(prev => ({ ...prev, error: res ? res.message : 'Lỗi hệ thống.' }));
+      }
+    } catch (e) {
+      toast.error('Có lỗi xảy ra trong quá trình phê duyệt.');
+    }
+  };
+
+  // Derived Summary calculations
+  const pendingRate = calculatePercentage(summary.pending, summary.total);
+  const approvedRate = calculatePercentage(summary.approved, summary.total);
+  const rejectedRate = calculatePercentage(summary.rejected, summary.total);
+
+  const processedTotal = summary.approved + summary.rejected;
+  const processedApprovedRate = processedTotal > 0 ? calculatePercentage(summary.approved, processedTotal) : 0;
+  const processedRejectedRate = processedTotal > 0 ? calculatePercentage(summary.rejected, processedTotal) : 0;
+
   return (
-    <>
-      {/*  Page Title & Actions  */}
-          <div
-            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0"
+    <div className="space-y-4">
+      {/* Page Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+        <div>
+          <h1 className="text-[28px] lg:text-[30px] font-bold tracking-tight text-ink leading-tight flex items-center gap-2">
+            Yêu cầu lên giảng viên
+          </h1>
+          <p className="text-xs text-mid-gray mt-0.5">
+            Xem xét và xử lý hồ sơ đăng ký trở thành giảng viên trên hệ thống. Tổng số:{' '}
+            <span className="font-bold text-ink">{summary.total}</span> yêu cầu.
+          </p>
+          <p className="text-[10px] text-mid-gray/80 mt-1">
+            Cập nhật lần cuối: <span className="font-medium text-mid-gray">{lastUpdated}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={loading}
+            className="h-9 w-9 flex items-center justify-center rounded-full border border-hairline hover:bg-canvas text-ink shrink-0 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+            aria-label="Làm mới dữ liệu"
           >
-            <div>
-              <h1
-                className="text-[28px] lg:text-[30px] font-bold tracking-tight text-ink leading-tight flex items-center gap-2"
-              >
-                Yêu cầu lên giảng viên
-              </h1>
-              <p className="text-xs text-mid-gray mt-0.5" id="page-description">
-                Xem xét và xử lý hồ sơ đăng ký trở thành giảng viên trên hệ
-                thống. Tổng số:
-                <span id="title-total-requests" className="font-bold text-ink"
-                  >0</span
-                >
-                yêu cầu.
-              </p>
-              <p className="text-[10px] text-mid-gray/80 mt-1">
-                Cập nhật lần cuối:
-                <span id="last-update-time" className="font-medium text-mid-gray"
-                  >---</span
-                >
-              </p>
+            <svg
+              className={cn("w-4 h-4 text-ink", loading && "animate-spin")}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* 1. KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* KPI: Tổng yêu cầu */}
+        <button
+          type="button"
+          onClick={() => handleTabChange('')}
+          className="text-left w-full rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none select-none group"
+        >
+          <div className="flex items-center justify-between text-mid-gray w-full">
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Tổng yêu cầu</span>
+            <svg className="w-4 h-4 text-mid-gray/80 group-hover:text-ink transition-colors" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+            </svg>
+          </div>
+          <div className="mt-1">
+            <span className="text-2xl font-bold text-ink leading-none font-sans">{summary.total}</span>
+            <p className="text-[9px] text-mid-gray mt-0.5">Tất cả hồ sơ đã gửi</p>
+          </div>
+          <div className="mt-2 space-y-1.5 w-full">
+            <div className="flex items-center justify-between text-[9px] text-mid-gray select-none">
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-warning"></span>Chờ: <strong>{summary.pending}</strong>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-success"></span>Duyệt: <strong>{summary.approved}</strong>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-danger-brick"></span>Từ chối: <strong>{summary.rejected}</strong>
+              </span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/*  Nút làm mới dữ liệu  */}
-              <button
-                type="button"
-                id="btn-refresh-data"
-                className="h-9 w-9 flex items-center justify-center rounded-full border border-hairline hover:bg-canvas text-ink shrink-0 transition-colors shadow-sm cursor-pointer"
-                aria-label="Làm mới dữ liệu"
-              >
-                <svg
-                  className="w-4 h-4 transition-transform duration-500"
-                  id="refresh-icon"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                  />
-                </svg>
-              </button>
+            <div className="h-1 w-full bg-canvas rounded-full flex overflow-hidden">
+              <div className="bg-warning transition-all duration-500" style={{ width: `${pendingRate}%` }} />
+              <div className="bg-success transition-all duration-500" style={{ width: `${approvedRate}%` }} />
+              <div className="bg-danger-brick transition-all duration-500" style={{ width: `${rejectedRate}%` }} />
             </div>
           </div>
+        </button>
 
-          {/*  1. KPI Thống kê (4 cards, bo góc 6px, padding p-4, gap-3)  */}
-          {/*  State: Loaded KPI  */}
-          <div
-            id="kpi-content-wrapper"
-            className="grid grid-cols-2 lg:grid-cols-4 gap-3"
-          >
-            {/*  KPI: Tổng yêu cầu  */}
-            <button
-              type="button"
-              id="kpi-card-total"
-              className="text-left w-full rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-mid-gray/40 select-none"
-            >
-              <div
-                className="flex items-center justify-between text-mid-gray w-full"
-              >
-                <span className="text-[10px] font-semibold uppercase tracking-wider"
-                  >Tổng yêu cầu</span
-                >
-                <svg
-                  className="w-4 h-4 text-mid-gray/80"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"
-                  />
-                </svg>
-              </div>
-              <div className="mt-1">
-                <span
-                  id="kpi-total"
-                  className="text-2xl font-bold text-ink leading-none font-sans"
-                  >0</span
-                >
-                <p className="text-[9px] text-mid-gray mt-0.5">
-                  Tất cả hồ sơ đã gửi
-                </p>
-              </div>
-              {/*  Phân bổ nhỏ & Thanh tỷ lệ phân đoạn  */}
-              <div className="mt-2 space-y-1.5 w-full">
-                <div
-                  className="flex items-center justify-between text-[9px] text-mid-gray select-none"
-                >
-                  <span className="flex items-center gap-1"
-                    ><span className="h-1.5 w-1.5 rounded-full bg-warning"></span
-                    >Chờ:
-                    <strong id="kpi-total-pending-sub" className="text-ink"
-                      >0</strong
-                    ></span
-                  >
-                  <span className="flex items-center gap-1"
-                    ><span className="h-1.5 w-1.5 rounded-full bg-success"></span
-                    >Duyệt:
-                    <strong id="kpi-total-approved-sub" className="text-ink"
-                      >0</strong
-                    ></span
-                  >
-                  <span className="flex items-center gap-1"
-                    ><span
-                      className="h-1.5 w-1.5 rounded-full bg-danger-brick"
-                    ></span
-                    >Từ chối:
-                    <strong id="kpi-total-rejected-sub" className="text-ink"
-                      >0</strong
-                    ></span
-                  >
-                </div>
-                {/*  Progress bar phân đoạn  */}
-                <div
-                  className="h-1 w-full bg-canvas rounded-full flex overflow-hidden"
-                >
-                  <div
-                    id="kpi-total-pending-bar"
-                    className="bg-warning transition-all duration-500"
-                    style={{width: '0%'}}
-                  ></div>
-                  <div
-                    id="kpi-total-approved-bar"
-                    className="bg-success transition-all duration-500"
-                    style={{width: '0%'}}
-                  ></div>
-                  <div
-                    id="kpi-total-rejected-bar"
-                    className="bg-danger-brick transition-all duration-500"
-                    style={{width: '0%'}}
-                  ></div>
-                </div>
-              </div>
-            </button>
-
-            {/*  KPI: Chờ xử lý (Viền trên màu cam warning)  */}
-            <button
-              type="button"
-              id="kpi-card-pending"
-              className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-warning bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-warning/40 select-none"
-            >
-              <div
-                className="flex items-center justify-between text-mid-gray w-full"
-              >
-                <span className="text-[10px] font-semibold uppercase tracking-wider"
-                  >Chờ xử lý</span
-                >
-                <span
-                  id="kpi-pending-link"
-                  className="text-[9px] font-semibold text-warning hover:underline cursor-pointer select-none"
-                  >Xem hồ sơ</span
-                >
-              </div>
-              <div className="mt-1">
-                <span
-                  id="kpi-pending"
-                  className="text-2xl font-bold text-warning leading-none font-sans"
-                  >0</span
-                >
-                <p className="text-[9px] text-mid-gray mt-0.5">
-                  Hồ sơ cần Admin xử lý
-                </p>
-              </div>
-              <div className="mt-2 space-y-1 w-full">
-                <div
-                  className="text-[9px] text-mid-gray flex justify-between select-none"
-                >
-                  <span id="kpi-pending-percent">0% tổng hồ sơ</span>
-                </div>
-                <div
-                  className="h-1 w-full bg-warning-soft rounded-full overflow-hidden"
-                >
-                  <div
-                    id="kpi-pending-bar"
-                    className="h-full bg-warning transition-all duration-500"
-                    style={{width: '0%'}}
-                  ></div>
-                </div>
-              </div>
-            </button>
-
-            {/*  KPI: Đã duyệt (Viền trên màu xanh success)  */}
-            <button
-              type="button"
-              id="kpi-card-approved"
-              className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-success bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-success/40 select-none"
-            >
-              <div
-                className="flex items-center justify-between text-mid-gray w-full"
-              >
-                <span className="text-[10px] font-semibold uppercase tracking-wider"
-                  >Đã duyệt</span
-                >
-                <svg
-                  className="w-4 h-4 text-success/80"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m9 12 2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div className="mt-1">
-                <span
-                  id="kpi-approved"
-                  className="text-2xl font-bold text-success leading-none font-sans"
-                  >0</span
-                >
-                <p className="text-[9px] text-mid-gray mt-0.5">
-                  Hồ sơ đã được chấp thuận
-                </p>
-              </div>
-              <div className="mt-2 space-y-1 w-full">
-                <div
-                  className="text-[9px] text-mid-gray flex justify-between select-none"
-                >
-                  <span id="kpi-approved-percent">Tỷ lệ duyệt: 0%</span>
-                </div>
-                <div
-                  className="h-1 w-full bg-success-soft rounded-full overflow-hidden"
-                >
-                  <div
-                    id="kpi-approved-bar"
-                    className="h-full bg-success transition-all duration-500"
-                    style={{width: '0%'}}
-                  ></div>
-                </div>
-              </div>
-            </button>
-
-            {/*  KPI: Đã từ chối (Viền trên màu đỏ danger-brick)  */}
-            <button
-              type="button"
-              id="kpi-card-rejected"
-              className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-danger-brick bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-danger-brick/40 select-none"
-            >
-              <div
-                className="flex items-center justify-between text-mid-gray w-full"
-              >
-                <span className="text-[10px] font-semibold uppercase tracking-wider"
-                  >Đã từ chối</span
-                >
-                <svg
-                  className="w-4 h-4 text-danger-brick/80"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
-                  />
-                </svg>
-              </div>
-              <div className="mt-1">
-                <span
-                  id="kpi-rejected"
-                  className="text-2xl font-bold text-danger-brick leading-none font-sans"
-                  >0</span
-                >
-                <p className="text-[9px] text-mid-gray mt-0.5">
-                  Hồ sơ không đạt yêu cầu
-                </p>
-              </div>
-              <div className="mt-2 space-y-1 w-full">
-                <div
-                  className="text-[9px] text-mid-gray flex justify-between select-none"
-                >
-                  <span id="kpi-rejected-percent">Tỷ lệ từ chối: 0%</span>
-                </div>
-                <div
-                  className="h-1 w-full bg-danger-brick-soft rounded-full overflow-hidden"
-                >
-                  <div
-                    id="kpi-rejected-bar"
-                    className="h-full bg-danger-brick transition-all duration-500"
-                    style={{width: '0%'}}
-                  ></div>
-                </div>
-              </div>
-            </button>
+        {/* KPI: Chờ xử lý */}
+        <button
+          type="button"
+          onClick={() => handleTabChange('pending')}
+          className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-warning bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none select-none group"
+        >
+          <div className="flex items-center justify-between text-mid-gray w-full">
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Chờ xử lý</span>
+            <span className="text-[9px] font-bold text-warning underline select-none">Xem hồ sơ</span>
           </div>
-
-          {/*  State: Loading KPI Skeleton  */}
-          <div
-            id="kpi-loading-wrapper"
-            className="hidden grid grid-cols-2 lg:grid-cols-4 gap-3"
-          >
-            <div
-              className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle space-y-3 min-h-[92px]"
-            >
-              <div className="h-3 w-16 bg-canvas rounded-full skeleton"></div>
-              <div className="h-6 w-10 bg-canvas rounded-full skeleton"></div>
+          <div className="mt-1">
+            <span className="text-2xl font-bold text-warning leading-none font-sans">{summary.pending}</span>
+            <p className="text-[9px] text-mid-gray mt-0.5">Hồ sơ cần Admin xử lý</p>
+          </div>
+          <div className="mt-2 space-y-1 w-full">
+            <div className="text-[9px] text-mid-gray flex justify-between select-none">
+              <span>{pendingRate.toLocaleString('vi-VN')}% tổng hồ sơ</span>
             </div>
-            <div
-              className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle space-y-3 min-h-[92px]"
-            >
-              <div className="h-3 w-12 bg-canvas rounded-full skeleton"></div>
-              <div className="h-6 w-12 bg-canvas rounded-full skeleton"></div>
-            </div>
-            <div
-              className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle space-y-3 min-h-[92px]"
-            >
-              <div className="h-3 w-16 bg-canvas rounded-full skeleton"></div>
-              <div className="h-6 w-8 bg-canvas rounded-full skeleton"></div>
-            </div>
-            <div
-              className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle space-y-3 min-h-[92px]"
-            >
-              <div className="h-3 w-20 bg-canvas rounded-full skeleton"></div>
-              <div className="h-6 w-10 bg-canvas rounded-full skeleton"></div>
+            <div className="h-1 w-full bg-warning-soft rounded-full overflow-hidden">
+              <div className="h-full bg-warning transition-all duration-500" style={{ width: `${pendingRate}%` }} />
             </div>
           </div>
+        </button>
 
-          {/*  2. Tình trạng xử lý hồ sơ (Quick Insight Bar, data-source="mock")  */}
-          <div
-            className="rounded-[6px] border border-hairline bg-surface-alt p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:h-[96px]"
-            data-source="mock"
-            id="attention-panel"
-          >
-            <div
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-y-4 gap-x-5 lg:gap-x-8 flex-grow"
-            >
-              {/*  1. Đang chờ xử lý  */}
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5 text-mid-gray">
-                  <svg
-                    className="w-4 h-4 text-warning shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none"
-                    >Đang chờ xử lý</span
-                  >
-                </div>
-                <div
-                  className="text-lg font-bold text-ink mt-1 font-sans"
-                  id="notice-pending-count"
-                >
-                  0 hồ sơ
-                </div>
-                <div
-                  className="text-[11px] text-mid-gray mt-0.5 select-none leading-none"
-                >
-                  Cần Admin xem xét
-                </div>
-              </div>
-
-              {/*  2. Hồ sơ mới 7 ngày  */}
-              <div
-                className="flex flex-col border-l-0 sm:border-l border-hairline/40 pl-0 sm:pl-5 md:pl-8 lg:pl-6"
-              >
-                <div className="flex items-center gap-1.5 text-mid-gray">
-                  <svg
-                    className="w-4 h-4 text-success shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008z"
-                    />
-                  </svg>
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none"
-                    >Mới 7 ngày</span
-                  >
-                </div>
-                <div
-                  className="text-lg font-bold text-ink mt-1 font-sans"
-                  id="notice-new-7days-count"
-                >
-                  0 hồ sơ
-                </div>
-                <div
-                  className="text-[11px] text-mid-gray mt-0.5 select-none leading-none"
-                >
-                  Được gửi gần đây
-                </div>
-              </div>
-
-              {/*  3. Chờ lâu nhất  */}
-              <div
-                className="flex flex-col border-l border-hairline/40 pl-5 md:pl-8 lg:pl-6"
-              >
-                <div className="flex items-center gap-1.5 text-mid-gray">
-                  <svg
-                    className="w-4 h-4 text-warning shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
-                    />
-                  </svg>
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none"
-                    >Chờ lâu nhất</span
-                  >
-                </div>
-                <div
-                  className="text-lg font-bold text-ink mt-1 font-sans"
-                  id="notice-oldest-date"
-                >
-                  ---
-                </div>
-                <div
-                  className="text-[11px] text-mid-gray mt-0.5 leading-none truncate"
-                  id="notice-oldest-date-sub"
-                >
-                  Chưa có hồ sơ tồn đọng
-                </div>
-              </div>
-
-              {/*  4. Thời gian xử lý trung bình  */}
-              <div
-                className="flex flex-col border-l-0 md:border-l border-hairline/40 pl-0 md:pl-8 lg:pl-6"
-              >
-                <div className="flex items-center gap-1.5 text-mid-gray">
-                  <svg
-                    className="w-4 h-4 text-success shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"
-                    />
-                  </svg>
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none"
-                    >Xử lý trung bình</span
-                  >
-                </div>
-                <div
-                  className="text-lg font-bold text-ink mt-1 font-sans"
-                  id="notice-avg-process-time"
-                >
-                  ---
-                </div>
-                <div
-                  className="text-[11px] text-mid-gray mt-0.5 select-none leading-none"
-                >
-                  Dựa trên hồ sơ đã xử lý
-                </div>
-              </div>
-
-              {/*  5. Thiếu tài khoản nhận tiền  */}
-              <div
-                className="flex flex-col border-l border-hairline/40 pl-5 md:pl-8 lg:pl-6"
-              >
-                <div className="flex items-center gap-1.5 text-mid-gray">
-                  <svg
-                    className="w-4 h-4 text-danger-brick shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-                    />
-                  </svg>
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none font-bold"
-                    >Thiếu tài khoản</span
-                  >
-                </div>
-                <div
-                  className="text-lg font-bold text-danger-brick mt-1 font-sans"
-                  id="notice-no-payout-count"
-                >
-                  0 hồ sơ
-                </div>
-                <div
-                  className="text-[11px] text-mid-gray mt-0.5 select-none leading-none"
-                >
-                  Cần bổ sung thông tin
-                </div>
-              </div>
+        {/* KPI: Đã duyệt */}
+        <button
+          type="button"
+          onClick={() => handleTabChange('approved')}
+          className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-success bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none select-none group"
+        >
+          <div className="flex items-center justify-between text-mid-gray w-full">
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Đã duyệt</span>
+            <svg className="w-4 h-4 text-success/80" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="mt-1">
+            <span className="text-2xl font-bold text-success leading-none font-sans">{summary.approved}</span>
+            <p className="text-[9px] text-mid-gray mt-0.5">Hồ sơ đã được phê duyệt</p>
+          </div>
+          <div className="mt-2 space-y-1 w-full">
+            <div className="text-[9px] text-mid-gray flex justify-between select-none">
+              <span>{processedTotal > 0 ? `Tỷ lệ duyệt: ${processedApprovedRate.toLocaleString('vi-VN')}%` : 'Chưa có hồ sơ đã xử lý'}</span>
             </div>
+            <div className="h-1 w-full bg-success-soft rounded-full overflow-hidden">
+              <div className="h-full bg-success transition-all duration-500" style={{ width: `${processedTotal > 0 ? processedApprovedRate : 0}%` }} />
+            </div>
+          </div>
+        </button>
 
-            {/*  Nút xem danh sách  */}
-            <button
-              type="button"
-              id="btn-show-pending-only"
-              className="h-9 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1 shadow-sm shrink-0 cursor-pointer self-stretch lg:self-auto select-none"
-            >
-              Xem hồ sơ chờ
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
-                />
+        {/* KPI: Đã từ chối */}
+        <button
+          type="button"
+          onClick={() => handleTabChange('rejected')}
+          className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-danger-brick bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[110px] hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer focus:outline-none select-none group"
+        >
+          <div className="flex items-center justify-between text-mid-gray w-full">
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Đã từ chối</span>
+            <svg className="w-4 h-4 text-danger-brick/80" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+            </svg>
+          </div>
+          <div className="mt-1">
+            <span className="text-2xl font-bold text-danger-brick leading-none font-sans">{summary.rejected}</span>
+            <p className="text-[9px] text-mid-gray mt-0.5">Hồ sơ không đạt yêu cầu</p>
+          </div>
+          <div className="mt-2 space-y-1 w-full">
+            <div className="text-[9px] text-mid-gray flex justify-between select-none">
+              <span>{processedTotal > 0 ? `Tỷ lệ từ chối: ${processedRejectedRate.toLocaleString('vi-VN')}%` : 'Chưa có hồ sơ đã xử lý'}</span>
+            </div>
+            <div className="h-1 w-full bg-danger-brick-soft rounded-full overflow-hidden">
+              <div className="h-full bg-danger-brick transition-all duration-500" style={{ width: `${processedTotal > 0 ? processedRejectedRate : 0}%` }} />
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* 2. Tình trạng xử lý hồ sơ (Quick Insight Bar) */}
+      <div className="rounded-[6px] border border-hairline bg-surface-alt p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:h-[96px]">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-y-4 gap-x-5 lg:gap-x-8 flex-grow">
+          {/* Item 1 */}
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5 text-mid-gray">
+              <svg className="w-4 h-4 text-warning shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none">Đang chờ xử lý</span>
+            </div>
+            <div className="text-lg font-bold text-ink mt-1 font-sans">{attentionData.pendingCount} hồ sơ</div>
+            <div className="text-[11px] text-mid-gray mt-0.5 select-none leading-none">Cần Admin xem xét</div>
+          </div>
+
+          {/* Item 2 */}
+          <div className="flex flex-col border-l-0 sm:border-l border-hairline/40 pl-0 sm:pl-5 md:pl-8 lg:pl-6">
+            <div className="flex items-center gap-1.5 text-mid-gray">
+              <svg className="w-4 h-4 text-success shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008z" />
+              </svg>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none">Mới 7 ngày</span>
+            </div>
+            <div className="text-lg font-bold text-ink mt-1 font-sans">{attentionData.new7DaysCount} hồ sơ</div>
+            <div className="text-[11px] text-mid-gray mt-0.5 select-none leading-none">Được gửi gần đây</div>
+          </div>
+
+          {/* Item 3 */}
+          <div className="flex flex-col border-l border-hairline/40 pl-5 md:pl-8 lg:pl-6">
+            <div className="flex items-center gap-1.5 text-mid-gray">
+              <svg className="w-4 h-4 text-warning shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none">Chờ lâu nhất</span>
+            </div>
+            <div className="text-lg font-bold text-ink mt-1 font-sans">
+              {attentionData.pendingCount > 0 ? `${attentionData.oldestDays} ngày` : '0 ngày'}
+            </div>
+            <div className="text-[11px] text-mid-gray mt-0.5 leading-none truncate font-medium">
+              {attentionData.oldestDateText}
+            </div>
+          </div>
+
+          {/* Item 4 */}
+          <div className="flex flex-col border-l-0 md:border-l border-hairline/40 pl-0 md:pl-8 lg:pl-6">
+            <div className="flex items-center gap-1.5 text-mid-gray">
+              <svg className="w-4 h-4 text-success shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-mid-gray select-none">Xử lý trung bình</span>
+            </div>
+            <div className="text-lg font-bold text-ink mt-1 font-sans">{attentionData.avgProcessDays}</div>
+            <div className="text-[11px] text-mid-gray mt-0.5 select-none leading-none">Dựa trên hồ sơ đã xử lý</div>
+          </div>
+
+          {/* Item 5 */}
+          <div className="flex flex-col border-l border-hairline/40 pl-5 md:pl-8 lg:pl-6">
+            <div className="flex items-center gap-1.5 text-danger-brick font-bold">
+              <svg className="w-4 h-4 text-danger-brick shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <span className="text-[11px] font-semibold uppercase tracking-wider select-none font-bold">Thiếu tài khoản</span>
+            </div>
+            <div className="text-lg font-bold text-danger-brick mt-1 font-sans">{attentionData.missingPayoutCount} hồ sơ</div>
+            <div className="text-[11px] text-mid-gray mt-0.5 select-none leading-none">Cần bổ sung thông tin</div>
+          </div>
+        </div>
+
+        {/* View Pending Button */}
+        <button
+          type="button"
+          onClick={() => handleTabChange('pending')}
+          className="h-9 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1 shadow-sm shrink-0 cursor-pointer self-stretch lg:self-auto select-none border-none"
+        >
+          Xem hồ sơ chờ
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+
+      {/* 3. Main Board Section */}
+      <div id="upgrade-list-section" style={{ scrollMarginTop: '16px' }} className="rounded-[6px] border border-hairline bg-paper shadow-subtle flex flex-col overflow-hidden">
+        {/* Quick Tabs */}
+        <div className="border-b border-hairline bg-surface-alt/40 flex items-center overflow-x-auto scrollbar-none" id="quick-tabs-container">
+          <button
+            type="button"
+            onClick={() => handleTabChange('')}
+            className={cn(
+              "px-5 py-3 text-xs select-none whitespace-nowrap cursor-pointer transition-all border-none bg-transparent",
+              !statusParam ? "font-semibold border-b-2 border-ink text-ink" : "font-medium text-mid-gray hover:text-ink"
+            )}
+          >
+            Tất cả (<span className="tab-count">{summary.total}</span>)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('pending')}
+            className={cn(
+              "px-5 py-3 text-xs select-none whitespace-nowrap cursor-pointer transition-all border-none bg-transparent",
+              statusParam === 'pending' ? "font-semibold border-b-2 border-ink text-ink" : "font-medium text-mid-gray hover:text-ink"
+            )}
+          >
+            Chờ xử lý (<span className="tab-count">{summary.pending}</span>)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('approved')}
+            className={cn(
+              "px-5 py-3 text-xs select-none whitespace-nowrap cursor-pointer transition-all border-none bg-transparent",
+              statusParam === 'approved' ? "font-semibold border-b-2 border-ink text-ink" : "font-medium text-mid-gray hover:text-ink"
+            )}
+          >
+            Đã duyệt (<span className="tab-count">{summary.approved}</span>)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange('rejected')}
+            className={cn(
+              "px-5 py-3 text-xs select-none whitespace-nowrap cursor-pointer transition-all border-none bg-transparent",
+              statusParam === 'rejected' ? "font-semibold border-b-2 border-ink text-ink" : "font-medium text-mid-gray hover:text-ink"
+            )}
+          >
+            Đã từ chối (<span className="tab-count">{summary.rejected}</span>)
+          </button>
+        </div>
+
+        {/* 3.2 Main Filter Form (Aligned properly on one row on desktop) */}
+        <form onSubmit={handleApplyFilters} id="filter-form" className="p-4 border-b border-hairline bg-paper flex flex-col gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-[1.4fr_0.8fr_0.7fr_0.7fr_0.9fr_auto] gap-3.5 items-end w-full">
+            {/* TÌM KIẾM */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label htmlFor="filter-search" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
+                TÌM KIẾM
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="filter-search"
+                  value={formSearch}
+                  onChange={(e) => setFormSearch(e.target.value)}
+                  placeholder="Tên, email, số điện thoại..."
+                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                />
+                <svg className="w-3.5 h-3.5 text-mid-gray/60 absolute left-3 top-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+            </div>
+
+            {/* TRẠNG THÁI HỒ SƠ */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label htmlFor="filter-status" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
+                TRẠNG THÁI HỒ SƠ
+              </label>
+              <select
+                id="filter-status"
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value)}
+                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="pending">Chờ xử lý</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Đã từ chối</option>
+              </select>
+            </div>
+
+            {/* TỪ NGÀY GỬI */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label htmlFor="filter-date-from" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
+                TỪ NGÀY GỬI
+              </label>
+              <input
+                type="date"
+                id="filter-date-from"
+                value={formDateFrom}
+                onChange={(e) => setFormDateFrom(e.target.value)}
+                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+              />
+            </div>
+
+            {/* ĐẾN NGÀY GỬI */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label htmlFor="filter-date-to" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
+                ĐẾN NGÀY GỬI
+              </label>
+              <input
+                type="date"
+                id="filter-date-to"
+                value={formDateTo}
+                onChange={(e) => setFormDateTo(e.target.value)}
+                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+              />
+            </div>
+
+            {/* SẮP XẾP THEO */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <label htmlFor="filter-sort" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
+                SẮP XẾP THEO
+              </label>
+              <select
+                id="filter-sort"
+                value={formSortBy}
+                onChange={(e) => setFormSortBy(e.target.value)}
+                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
+              >
+                <option value="newest">Mới gửi gần đây</option>
+                <option value="oldest">Cũ nhất</option>
+                <option value="reviewed_newest">Được xử lý gần đây</option>
+                <option value="name_asc">Tên người gửi (A-Z)</option>
+                <option value="name_desc">Tên người gửi (Z-A)</option>
+              </select>
+            </div>
+
+            {/* Actions Buttons Group (locked-together, flex-shrink-0) */}
+            <div className="flex gap-2 items-center h-10 shrink-0 lg:col-span-1 sm:col-span-2 col-span-full justify-self-end w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="flex-1 sm:flex-none px-4 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas hover:bg-hairline text-ink transition-colors cursor-pointer"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                className="flex-1 sm:flex-none px-5 h-10 text-xs font-semibold rounded-[6px] bg-ink hover:opacity-90 text-white transition-opacity cursor-pointer border-none"
+              >
+                Áp dụng bộ lọc
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {/* 3.3 Active Filter Chips */}
+        {(searchParam || statusParam || dateFromParam || dateToParam) && (
+          <div id="filter-chips-container" className="px-4 py-2 border-b border-hairline bg-surface-alt/30 flex items-center justify-between gap-4 select-none text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-mid-gray shrink-0">Đang lọc:</span>
+              <div id="filter-chips-list" className="flex flex-wrap gap-1.5">
+                {searchParam && (
+                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
+                    <span>Từ khóa: "{searchParam}"</span>
+                    <button type="button" onClick={() => updateFilters({ search: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                  </div>
+                )}
+                {statusParam && (
+                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
+                    <span>Trạng thái: {statusParam === 'pending' ? 'Chờ xử lý' : statusParam === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}</span>
+                    <button type="button" onClick={() => updateFilters({ status: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                  </div>
+                )}
+                {dateFromParam && (
+                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
+                    <span>Từ ngày: {dateFromParam}</span>
+                    <button type="button" onClick={() => updateFilters({ date_from: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                  </div>
+                )}
+                {dateToParam && (
+                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
+                    <span>Đến ngày: {dateToParam}</span>
+                    <button type="button" onClick={() => updateFilters({ date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              id="btn-clear-all-chips"
+              className="text-[10px] text-danger-brick font-semibold shrink-0 cursor-pointer bg-transparent border-none font-sans"
+            >
+              Xóa tất cả
             </button>
           </div>
+        )}
 
-          {/*  3. Bộ lọc & Bảng dữ liệu chung trong một Card trắng lớn  */}
-          <div
-            id="upgrade-list-section"
-            style={{scrollMarginTop: '16px'}}
-            className="rounded-[6px] border border-hairline bg-paper shadow-subtle flex flex-col overflow-hidden"
-          >
-            {/*  3.1. Tab Lọc Nhanh (Quick Tabs)  */}
-            <div
-              className="border-b border-hairline bg-surface-alt/40 flex items-center overflow-x-auto scrollbar-none"
-              id="quick-tabs-container"
-            >
-              <button
-                type="button"
-                data-tab="all"
-                className="px-5 py-3 text-xs font-semibold border-b-2 border-ink text-ink select-none whitespace-nowrap cursor-pointer transition-all"
-              >
-                Tất cả (<span className="tab-count">0</span>)
-              </button>
-              <button
-                type="button"
-                data-tab="pending"
-                className="px-5 py-3 text-xs font-medium border-b-2 border-transparent text-mid-gray hover:text-ink select-none whitespace-nowrap cursor-pointer transition-all"
-              >
-                Chờ xử lý (<span className="tab-count">0</span>)
-              </button>
-              <button
-                type="button"
-                data-tab="approved"
-                className="px-5 py-3 text-xs font-medium border-b-2 border-transparent text-mid-gray hover:text-ink select-none whitespace-nowrap cursor-pointer transition-all"
-              >
-                Đã duyệt (<span className="tab-count">0</span>)
-              </button>
-              <button
-                type="button"
-                data-tab="rejected"
-                className="px-5 py-3 text-xs font-medium border-b-2 border-transparent text-mid-gray hover:text-ink select-none whitespace-nowrap cursor-pointer transition-all"
-              >
-                Đã từ chối (<span className="tab-count">0</span>)
-              </button>
-            </div>
-
-            {/*  3.2. Form lọc chính (Filter Bar)  */}
-            <form
-              id="filter-form"
-              className="p-4 border-b border-hairline bg-paper flex flex-col gap-3"
-            >
-              <div
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3.5"
-              >
-                {/*  Tìm kiếm  */}
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="filter-search"
-                    className="text-[10px] font-bold uppercase tracking-wider text-mid-gray"
-                    >Tìm kiếm</label
-                  >
-                  <div className="relative">
-                    <input
-                      type="text"
-                      id="filter-search"
-                      name="search"
-                      placeholder="Tên, email, số điện thoại..."
-                      className="w-full h-10 pl-8 pr-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink"
-                    />
-                    <svg
-                      className="w-3.5 h-3.5 text-mid-gray/60 absolute left-3 top-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.3-4.3" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/*  Trạng thái  */}
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="filter-status"
-                    className="text-[10px] font-bold uppercase tracking-wider text-mid-gray"
-                    >Trạng thái hồ sơ</label
-                  >
-                  <select
-                    id="filter-status"
-                    name="status"
-                    data-custom-select
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink"
-                  >
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="pending">Chờ xử lý</option>
-                    <option value="approved">Đã duyệt</option>
-                    <option value="rejected">Đã từ chối</option>
-                  </select>
-                </div>
-
-                {/*  Ngày gửi từ  */}
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="filter-date-from"
-                    className="text-[10px] font-bold uppercase tracking-wider text-mid-gray"
-                    >Từ ngày gửi</label
-                  >
-                  <input
-                    type="date"
-                    id="filter-date-from"
-                    name="date_from"
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-mid-gray"
-                  />
-                </div>
-
-                {/*  Ngày gửi đến  */}
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="filter-date-to"
-                    className="text-[10px] font-bold uppercase tracking-wider text-mid-gray"
-                    >Đến ngày gửi</label
-                  >
-                  <input
-                    type="date"
-                    id="filter-date-to"
-                    name="date_to"
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-mid-gray"
-                  />
-                </div>
-
-                {/*  Sắp xếp  */}
-                <div className="flex flex-col gap-1.5 sm:col-span-2 md:col-span-1">
-                  <label
-                    htmlFor="filter-sort"
-                    className="text-[10px] font-bold uppercase tracking-wider text-mid-gray"
-                    >Sắp xếp theo</label
-                  >
-                  <select
-                    id="filter-sort"
-                    name="sort_by"
-                    data-custom-select
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink"
-                  >
-                    <option value="newest">Mới gửi gần đây</option>
-                    <option value="oldest">Cũ nhất</option>
-                    <option value="reviewed_newest">Được xử lý gần đây</option>
-                    <option value="name_asc">Tên người gửi (A-Z)</option>
-                    <option value="name_desc">Tên người gửi (Z-A)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/*  Hàng button điều khiển lọc  */}
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  id="btn-reset-filters"
-                  className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-canvas text-ink hover:bg-hairline transition-all border border-hairline cursor-pointer h-10"
-                >
-                  Đặt lại
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer h-10"
-                >
-                  Áp dụng bộ lọc
-                </button>
-              </div>
-            </form>
-
-            {/*  3.3. Dải Filter Chips hiển thị bộ lọc đang hoạt động  */}
-            <div
-              id="filter-chips-container"
-              className="hidden px-4 py-2 border-b border-hairline bg-surface-alt/30 flex items-center justify-between gap-4"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-[10px] font-bold uppercase tracking-wider text-mid-gray shrink-0"
-                  >Đang lọc:</span
-                >
-                <div id="filter-chips-list" className="flex flex-wrap gap-1.5">
-                  {/*  Chip elements nạp động ở đây  */}
-                </div>
-              </div>
-              <button
-                type="button"
-                id="btn-clear-all-chips"
-                className="btn-clear-chips-red text-[10px] font-semibold shrink-0 cursor-pointer"
-              >
-                Xóa tất cả
-              </button>
-            </div>
-
-            {/*  3.4. Bảng danh sách dữ liệu chính  */}
-            <div className="overflow-x-auto relative flex-1 custom-scrollbar">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead
-                  className="bg-surface-alt text-mid-gray border-b border-hairline uppercase tracking-wider font-semibold sticky top-0 z-10 text-[10px] select-none h-10"
-                >
-                  <tr>
-                    <th className="p-3.5 pl-5 font-bold">Người đăng ký</th>
-                    <th className="p-3.5 font-bold">Thông tin liên hệ</th>
-                    <th className="p-3.5 font-bold">Chuyên môn</th>
-                    <th className="p-3.5 font-bold">Kinh nghiệm</th>
-                    <th className="p-3.5 font-bold">Tài khoản nhận tiền</th>
-                    <th className="p-3.5 font-bold">Ngày gửi</th>
-                    <th className="p-3.5 font-bold">Trạng thái</th>
-                    <th className="p-3.5 pr-5 text-right font-bold w-20">
-                      Thao tác
-                    </th>
+        {/* 3.4 Data Table */}
+        <div className="overflow-x-auto relative flex-1 custom-scrollbar">
+          <table className="w-full text-left border-collapse text-xs table-auto min-w-[900px]">
+            <thead className="bg-surface-alt text-mid-gray border-b border-hairline uppercase tracking-wider font-semibold sticky top-0 z-10 text-[10px] select-none h-10">
+              <tr>
+                <th className="p-3.5 pl-5 font-bold">Người đăng ký</th>
+                <th className="p-3.5 font-bold">Thông tin liên hệ</th>
+                <th className="p-3.5 font-bold">Chuyên môn</th>
+                <th className="p-3.5 font-bold">Kinh nghiệm</th>
+                <th className="p-3.5 font-bold">Tài khoản nhận tiền</th>
+                <th className="p-3.5 font-bold">Ngày gửi</th>
+                <th className="p-3.5 font-bold">Trạng thái</th>
+                <th className="p-3.5 pr-5 text-right font-bold w-20">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="upgrades-table-body" className="divide-y divide-hairline">
+              {loading ? (
+                // Skeletons loading state
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="animate-pulse h-[72px]">
+                    <td className="p-3.5 pl-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-canvas skeleton shrink-0"></div>
+                        <div className="space-y-1.5 flex-grow">
+                          <div className="h-3 w-24 bg-canvas rounded skeleton"></div>
+                          <div className="h-2.5 w-32 bg-canvas rounded skeleton"></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3.5"><div className="h-3.5 w-20 bg-canvas rounded skeleton"></div></td>
+                    <td className="p-3.5"><div className="h-3.5 w-28 bg-canvas rounded skeleton"></div></td>
+                    <td className="p-3.5"><div className="h-3.5 w-16 bg-canvas rounded skeleton"></div></td>
+                    <td className="p-3.5"><div className="h-3.5 w-24 bg-canvas rounded skeleton"></div></td>
+                    <td className="p-3.5"><div className="h-3.5 w-24 bg-canvas rounded skeleton"></div></td>
+                    <td className="p-3.5"><div className="h-3.5 w-16 bg-canvas rounded skeleton"></div></td>
+                    <td className="p-3.5"></td>
                   </tr>
-                </thead>
-                <tbody
-                  id="upgrades-table-body"
-                  className="divide-y divide-hairline"
-                >
-                  {/*  Render dữ liệu dòng nạp động ở đây  */}
-                </tbody>
-              </table>
+                ))
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className="p-8 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-3">
+                      <svg className="w-10 h-10 text-danger-brick/80 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-bold text-danger-brick">Không thể tải dữ liệu</h4>
+                        <p className="text-xs text-mid-gray mt-1">{error}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={loadData}
+                        className="h-8 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedItems.length === 0 ? (
+                // Empty state or Filter empty state
+                <tr>
+                  <td colSpan={8} className="p-12 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-3 select-none">
+                      <svg className="w-10 h-10 text-mid-gray/50 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-bold text-ink">
+                          {searchParam || statusParam || dateFromParam || dateToParam
+                            ? 'Không tìm thấy yêu cầu phù hợp'
+                            : 'Chưa có yêu cầu lên giảng viên'}
+                        </h4>
+                        <p className="text-xs text-mid-gray mt-1">
+                          {searchParam || statusParam || dateFromParam || dateToParam
+                            ? 'Không tìm thấy hồ sơ phù hợp với bộ lọc.'
+                            : 'Các hồ sơ đăng ký mới sẽ xuất hiện tại đây.'}
+                        </p>
+                      </div>
+                      {(searchParam || statusParam || dateFromParam || dateToParam) && (
+                        <button
+                          type="button"
+                          onClick={handleResetFilters}
+                          className="h-8 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                        >
+                          Đặt lại bộ lọc
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedItems.map((item: any) => {
+                  const firstLetter = item.user?.full_name ? item.user.full_name.charAt(0).toUpperCase() : 'U';
+                  const isPending = item.application_status === 'pending';
+                  const rawExpertise = item.instructor_profile?.expertise || 'Chưa cập nhật';
+                  const displayExpertise = rawExpertise.length > 32 ? `${rawExpertise.substring(0, 30)}...` : rawExpertise;
 
-              {/*  3.4.1. UI State: Loading Skeleton  */}
-              <div id="upgrades-loading-state" className="hidden p-8 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-full bg-canvas skeleton shrink-0"
-                  ></div>
-                  <div className="space-y-2 flex-grow">
-                    <div className="h-3 w-1/4 bg-canvas rounded skeleton"></div>
-                    <div className="h-2 w-1/3 bg-canvas rounded skeleton"></div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-full bg-canvas skeleton shrink-0"
-                  ></div>
-                  <div className="space-y-2 flex-grow">
-                    <div className="h-3 w-1/5 bg-canvas rounded skeleton"></div>
-                    <div className="h-2 w-1/4 bg-canvas rounded skeleton"></div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-full bg-canvas skeleton shrink-0"
-                  ></div>
-                  <div className="space-y-2 flex-grow">
-                    <div className="h-3 w-1/6 bg-canvas rounded skeleton"></div>
-                    <div className="h-2 w-1/5 bg-canvas rounded skeleton"></div>
-                  </div>
-                </div>
-              </div>
+                  return (
+                    <tr
+                      key={item.user?.id}
+                      onClick={() => openDetailDrawer(item.user?.id)}
+                      className="hover:bg-canvas/50 transition-colors group cursor-pointer border-b border-hairline/60 h-[72px]"
+                    >
+                      {/* Subscriber Name Card */}
+                      <td className="p-3.5 pl-5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-mid-gray font-bold text-xs select-none">
+                            {firstLetter}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-ink text-sm sm:text-xs leading-tight flex items-center">
+                              {item.user?.full_name}
+                              {item.user?.role === 'admin' ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold bg-ink text-white ml-1.5 rounded select-none">Admin</span>
+                              ) : item.user?.role === 'instructor' ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-medium text-success border border-success/20 bg-success-soft/20 ml-1.5 rounded select-none">Giảng viên</span>
+                              ) : (
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-medium text-mid-gray border border-hairline bg-canvas ml-1.5 rounded select-none">Học viên</span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-mid-gray mt-0.5 truncate">{item.user?.email}</div>
+                          </div>
+                        </div>
+                      </td>
 
-              {/*  3.4.2. UI State: Empty (Không có hồ sơ nào trong hệ thống)  */}
-              <div
-                id="upgrades-empty-state"
-                className="hidden flex-col items-center justify-center p-12 text-center space-y-3 select-none"
-              >
-                <svg
-                  className="w-10 h-10 text-mid-gray/50 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                  />
-                </svg>
-                <div>
-                  <h4 className="text-sm font-bold text-ink">
-                    Chưa có yêu cầu lên giảng viên
-                  </h4>
-                  <p className="text-xs text-mid-gray mt-1">
-                    Các hồ sơ đăng ký mới sẽ xuất hiện tại đây.
-                  </p>
-                </div>
-              </div>
+                      {/* Contact Info */}
+                      <td className="p-3.5">
+                        <div className="font-mono text-[11px] text-ink">{item.user?.phone || '---'}</div>
+                        <div className="text-[10px] mt-0.5">
+                          {item.user?.email_verified_at ? (
+                            <span className="text-success font-medium flex items-center gap-0.5">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                              </svg>
+                              Đã xác minh
+                            </span>
+                          ) : (
+                            <span className="text-mid-gray font-normal">Chưa xác minh</span>
+                          )}
+                        </div>
+                      </td>
 
-              {/*  3.4.3. UI State: Filter Empty (Không tìm thấy kết quả do bộ lọc)  */}
-              <div
-                id="upgrades-filter-empty-state"
-                className="hidden flex-col items-center justify-center p-12 text-center space-y-3 select-none"
-              >
-                <svg
-                  className="w-10 h-10 text-mid-gray/50 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                  />
-                </svg>
-                <div>
-                  <h4 className="text-sm font-bold text-ink">
-                    Không tìm thấy yêu cầu phù hợp
-                  </h4>
-                  <p className="text-xs text-mid-gray mt-1">
-                    Không tìm thấy hồ sơ phù hợp với bộ lọc.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  id="btn-empty-reset"
-                  className="h-8 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer"
-                >
-                  Đặt lại bộ lọc
-                </button>
-              </div>
+                      {/* Expertise */}
+                      <td className="p-3.5">
+                        <div className="font-medium text-ink max-w-[200px] truncate" title={rawExpertise}>
+                          {displayExpertise}
+                        </div>
+                      </td>
 
-              {/*  3.4.4. UI State: Lỗi kết nối (Error State)  */}
-              <div
-                id="upgrades-error-state"
-                className="hidden flex-col items-center justify-center p-12 text-center space-y-3 select-none"
-              >
-                <svg
-                  className="w-10 h-10 text-danger-brick/80 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-                  />
-                </svg>
-                <div>
-                  <h4 className="text-sm font-bold text-danger-brick">
-                    Không thể tải dữ liệu
-                  </h4>
-                  <p className="text-xs text-mid-gray mt-1">
-                    Đã có lỗi xảy ra trong quá trình kết nối dữ liệu. Vui lòng
-                    thử lại.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  id="btn-error-retry"
-                  className="h-8 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer"
-                >
-                  Thử lại
-                </button>
-              </div>
+                      {/* Experience */}
+                      <td className="p-3.5">
+                        <div className="font-medium text-ink">{item.instructor_profile?.experience_years} năm</div>
+                        <div className="text-[10px] text-mid-gray mt-0.5 font-medium">{item.instructor_profile?.level || 'Chưa phân cấp'}</div>
+                      </td>
+
+                      {/* Payout Account */}
+                      <td className="p-3.5">
+                        {item.payout_account ? (
+                          <div>
+                            <div className="font-medium text-ink">{item.payout_account.provider}</div>
+                            <div className="text-[10px] text-mid-gray mt-0.5">{item.payout_account.account_name}</div>
+                            <div className="text-[10px] font-mono text-mid-gray mt-0.5 font-medium tracking-wide">
+                              {item.payout_account.account_number_masked}
+                            </div>
+                            <div className="mt-0.5">
+                              <PayoutStatusMarker status={item.payout_account.status} />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-mid-gray/50 italic select-none">Chưa liên kết</span>
+                        )}
+                      </td>
+
+                      {/* Date Submitted */}
+                      <td className="p-3.5 text-mid-gray text-[11px]">{formatDateTime(item.submitted_at)}</td>
+
+                      {/* Status */}
+                      <td className="p-3.5">
+                        <UpgradeStatusMarker status={item.application_status} />
+                      </td>
+
+                      {/* Actions */}
+                      <td className="p-3.5 pr-5 text-right relative" data-action-td onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveActionMenu(activeActionMenu === item.user?.id ? null : item.user?.id)}
+                          className="btn-action-menu p-1.5 rounded-full hover:bg-canvas text-mid-gray hover:text-ink transition-colors inline-block select-none cursor-pointer bg-transparent border-none"
+                          aria-label="Xem menu thao tác"
+                        >
+                          <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
+                          </svg>
+                        </button>
+                        {activeActionMenu === item.user?.id && (
+                          <div className="action-dropdown absolute right-5 top-10 z-20 w-40 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case animate-in fade-in duration-100">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openDetailDrawer(item.user.id);
+                                setActiveActionMenu(null);
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-xs hover:bg-canvas rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent"
+                            >
+                              Xem chi tiết
+                            </button>
+                            {isPending && (
+                              <>
+                                <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setConfirmModal({ open: true, type: 'approve', user: item, error: '' });
+                                    setActiveActionMenu(null);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-canvas rounded-[4px] transition-colors font-semibold text-success cursor-pointer border-none bg-transparent"
+                                >
+                                  Duyệt yêu cầu
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setConfirmModal({ open: true, type: 'reject', user: item, error: '' });
+                                    setActiveActionMenu(null);
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50/50 hover:text-danger-brick rounded-[4px] transition-colors font-semibold text-danger-brick cursor-pointer border-none bg-transparent"
+                                >
+                                  Từ chối yêu cầu
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 3.5 Pagination Footer */}
+        {meta && (
+          <div id="pagination-wrapper" className="px-4 py-3 bg-surface-alt/30 border-t border-hairline flex flex-col sm:flex-row items-center justify-between gap-3 select-none">
+            <div className="text-xs text-mid-gray">
+              Đang hiển thị{' '}
+              <span className="font-semibold text-ink">
+                {Math.min((pageParam - 1) * perPageParam + 1, meta.total)}
+              </span>
+              {' '}-{' '}
+              <span className="font-semibold text-ink">
+                {Math.min(pageParam * perPageParam, meta.total)}
+              </span>
+              {' '}trong tổng số{' '}
+              <span className="font-semibold text-ink">{meta.total}</span>
+              {' '}yêu cầu
             </div>
-
-            {/*  3.5. Thanh Phân trang (Pagination)  */}
-            <div
-              id="pagination-wrapper"
-              className="px-4 py-3 bg-surface-alt/30 border-t border-hairline flex flex-col sm:flex-row items-center justify-between gap-3 select-none"
-            >
-              <div className="text-xs text-mid-gray">
-                Đang hiển thị
-                <span id="pag-showing-range" className="font-semibold text-ink"
-                  >0-0</span
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-mid-gray">Hiển thị</span>
+                <select
+                  value={perPageParam}
+                  onChange={(e) => updateFilters({ per_page: e.target.value, page: 1 })}
+                  className="h-7 px-2 bg-canvas border border-hairline rounded focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink cursor-pointer"
                 >
-                trong tổng số
-                <span id="pag-total-records" className="font-semibold text-ink"
-                  >0</span
-                >
-                yêu cầu
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                </select>
+                <span className="text-mid-gray">dòng</span>
               </div>
-              <div className="flex items-center gap-4">
-                {/*  Chọn số hàng hiển thị  */}
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-mid-gray">Hiển thị</span>
-                  <select
-                    id="pag-per-page"
-                    data-custom-select
-                    className="h-7 px-2 bg-canvas border border-hairline rounded focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink"
-                  >
-                    <option value="10">10</option>
-                    <option value="20" selected>20</option>
-                    <option value="50">50</option>
-                  </select>
-                  <span className="text-mid-gray">dòng</span>
-                </div>
-                {/*  Khung chứa các nút số trang  */}
-                <div id="pagination-buttons" className="flex items-center gap-1">
-                  {/*  Nạp động các nút số trang ở đây  */}
-                </div>
+              <div id="pagination-buttons" className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={pageParam === 1}
+                  onClick={() => updateFilters({ page: pageParam - 1 })}
+                  className="p-1.5 rounded-full border border-hairline transition-colors flex items-center justify-center shrink-0 hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-ink" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
+                {(() => {
+                  const pages = [];
+                  const maxButtons = 5;
+                  let startPage = Math.max(1, pageParam - Math.floor(maxButtons / 2));
+                  let endPage = startPage + maxButtons - 1;
+
+                  if (endPage > meta.last_page) {
+                    endPage = meta.last_page;
+                    startPage = Math.max(1, endPage - maxButtons + 1);
+                  }
+
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => updateFilters({ page: i })}
+                        className={cn(
+                          "h-7.5 w-7.5 rounded-full text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border-none",
+                          i === pageParam
+                            ? "bg-ink text-white shadow-sm"
+                            : "bg-transparent border border-transparent hover:bg-canvas hover:text-ink text-mid-gray"
+                        )}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+                  return pages;
+                })()}
+                <button
+                  type="button"
+                  disabled={pageParam === meta.last_page}
+                  onClick={() => updateFilters({ page: pageParam + 1 })}
+                  className="p-1.5 rounded-full border border-hairline transition-colors flex items-center justify-center shrink-0 hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 text-ink" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
-    </>
+        )}
+      </div>
+
+      {/* DRAWER: DETAILS INFO VIEW */}
+      {isDrawerOpen && activeDetailUser && (
+        <>
+          <div onClick={() => setIsDrawerOpen(false)} className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300" />
+          <div
+            id="upgrade-detail-drawer"
+            className="fixed inset-y-0 right-0 z-50 w-full max-w-[480px] bg-paper border-l border-hairline shadow-subtle flex flex-col h-full animate-in slide-in-from-right duration-300"
+          >
+            {/* Drawer Header */}
+            <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-hairline">
+              <h2 className="text-sm font-bold text-ink">Chi tiết hồ sơ đăng ký</h2>
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(false)}
+                className="p-1.5 hover:bg-canvas rounded-full text-mid-gray hover:text-ink transition-colors cursor-pointer bg-transparent border-none"
+              >
+                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-grow overflow-y-auto p-5 space-y-6 custom-scrollbar text-xs">
+              {/* Header profile card */}
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white font-bold text-lg shrink-0 select-none">
+                  {activeDetailUser.user?.full_name ? activeDetailUser.user.full_name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-base font-semibold text-ink flex items-center">
+                    {activeDetailUser.user?.full_name}
+                  </h3>
+                  <p className="text-xs text-mid-gray">{activeDetailUser.user?.email}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {activeDetailUser.user?.role === 'admin' ? (
+                      <span className="px-2 py-0.5 text-[9px] font-bold bg-ink text-white rounded">Quản trị viên</span>
+                    ) : activeDetailUser.user?.role === 'instructor' ? (
+                      <span className="px-2 py-0.5 text-[9px] font-medium text-success border border-success/20 bg-success-soft/20 rounded">Giảng viên</span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-[9px] font-medium text-mid-gray border border-hairline bg-canvas rounded">Học viên</span>
+                    )}
+
+                    {activeDetailUser.application_status === 'pending' ? (
+                      <span className="px-2 py-0.5 text-[9px] font-semibold text-warning border border-warning/20 bg-warning-soft/20 rounded">Hồ sơ chờ xử lý</span>
+                    ) : activeDetailUser.application_status === 'approved' ? (
+                      <span className="px-2 py-0.5 text-[9px] font-semibold text-success border border-success/20 bg-success-soft/20 rounded">Đã phê duyệt</span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-[9px] font-semibold text-danger-brick border border-danger-brick/20 bg-danger-brick-soft/20 rounded">Bị từ chối</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 1: Người dùng */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">Thông tin người dùng</h4>
+                <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Họ và tên:</span>
+                    <span className="font-semibold text-ink">{activeDetailUser.user?.full_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Email đăng ký:</span>
+                    <span className="font-medium text-ink">{activeDetailUser.user?.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Số điện thoại:</span>
+                    <span className="font-medium text-ink">{activeDetailUser.user?.phone || '---'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Xác minh email:</span>
+                    <span className="font-medium text-ink">
+                      {activeDetailUser.user?.email_verified_at ? formatDateTime(activeDetailUser.user.email_verified_at) : 'Chưa xác minh'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: Chuyên môn */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">Hồ sơ chuyên môn</h4>
+                <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-mid-gray">Giới thiệu bản thân:</span>
+                    <p className="font-medium text-ink leading-relaxed bg-paper p-2.5 rounded border border-hairline">
+                      {activeDetailUser.instructor_profile?.bio || 'Không có giới thiệu bản thân.'}
+                    </p>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Lĩnh vực chuyên sâu:</span>
+                    <span className="font-semibold text-ink text-right max-w-[240px] truncate" title={activeDetailUser.instructor_profile?.expertise}>
+                      {activeDetailUser.instructor_profile?.expertise || '---'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Kinh nghiệm giảng dạy:</span>
+                    <span className="font-semibold text-ink">{activeDetailUser.instructor_profile?.experience_years} năm kinh nghiệm</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Phân cấp chuyên môn:</span>
+                    <span className="font-semibold text-ink">{activeDetailUser.instructor_profile?.level || 'Chưa phân cấp'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: Tài khoản nhận tiền */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">Tài khoản nhận tiền</h4>
+                {activeDetailUser.payout_account ? (
+                  <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
+                    <div className="flex justify-between">
+                      <span className="text-mid-gray">Phương thức thanh toán:</span>
+                      <span className="font-bold text-ink">{activeDetailUser.payout_account.provider}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-mid-gray">Tên chủ tài khoản:</span>
+                      <span className="font-semibold text-ink">{activeDetailUser.payout_account.account_name}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-mid-gray">Số tài khoản:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-ink tracking-wide font-semibold">
+                          {isPayoutVisible ? activeDetailUser.payout_account.account_number : activeDetailUser.payout_account.account_number_masked}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsPayoutVisible(!isPayoutVisible)}
+                          className="text-mid-gray hover:text-ink transition-colors p-1 rounded-full cursor-pointer bg-transparent border-none"
+                          aria-label={isPayoutVisible ? "Ẩn số tài khoản" : "Hiện số tài khoản"}
+                        >
+                          {isPayoutVisible ? (
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-mid-gray">Trạng thái liên kết:</span>
+                      <PayoutStatusMarker status={activeDetailUser.payout_account.status} />
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-mid-gray">Ngày kết nối:</span>
+                      <span className="font-medium text-ink">{formatDateTime(activeDetailUser.payout_account.connected_at)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-[6px] border border-hairline bg-surface-alt p-4 text-center italic text-mid-gray/60">
+                    Chưa bổ sung thông tin tài khoản nhận tiền.
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 4: Thông tin xử lý */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">Trạng thái & Lịch sử xử lý</h4>
+                <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Trạng thái hồ sơ:</span>
+                    <UpgradeStatusMarker status={activeDetailUser.application_status} />
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-mid-gray">Ngày gửi hồ sơ:</span>
+                    <span className="font-semibold text-ink">{formatDateTime(activeDetailUser.submitted_at)}</span>
+                  </div>
+                  {activeDetailUser.application_status !== 'pending' && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-mid-gray">Ngày xử lý duyệt:</span>
+                        <span className="font-semibold text-ink">{formatDateTime(activeDetailUser.reviewed_at)}</span>
+                      </div>
+                      {activeDetailUser.review_note && (
+                        <div className="flex flex-col gap-1.5 pt-1.5 border-t border-hairline/60">
+                          <span className="text-mid-gray">Ghi chú phê duyệt:</span>
+                          <p className="p-2.5 bg-paper rounded border border-hairline leading-relaxed font-medium">
+                            {activeDetailUser.review_note}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer actions inside drawer */}
+            <div className="p-4 border-t border-hairline bg-surface-alt flex flex-wrap gap-2 justify-end shrink-0">
+              {activeDetailUser.application_status === 'pending' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal({ open: true, type: 'approve', user: activeDetailUser, error: '' })}
+                    className="px-5 py-1.5 text-xs font-semibold rounded-[6px] bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none shadow-sm"
+                  >
+                    Duyệt yêu cầu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal({ open: true, type: 'reject', user: activeDetailUser, error: '' })}
+                    className="px-5 py-1.5 text-xs font-semibold rounded-[6px] bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none shadow-sm"
+                  >
+                    Từ chối yêu cầu
+                  </button>
+                </>
+              ) : activeDetailUser.application_status === 'approved' ? (
+                <div className="px-4 py-1.5 text-xs font-semibold rounded-[6px] bg-success-soft text-success border border-success/20 select-none shadow-sm">
+                  Yêu cầu đã được phê duyệt thành công
+                </div>
+              ) : (
+                <div className="px-4 py-1.5 text-xs font-semibold rounded-[6px] bg-danger-brick-soft text-danger-brick border border-danger-brick/10 select-none shadow-sm">
+                  Yêu cầu đã bị từ chối
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* CONFIRM ACTION MODAL: APPROVE REQUEST */}
+      {confirmModal.open && confirmModal.type === 'approve' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-paper border border-hairline rounded-[6px] w-full max-w-sm shadow-subtle p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-success">Phê duyệt yêu cầu lên Giảng viên</h3>
+              <p className="text-xs text-mid-gray mt-1 leading-normal font-medium">
+                Bạn chuẩn bị phê duyệt tài khoản <span className="font-semibold text-ink">{confirmModal.user?.user?.full_name}</span> ({confirmModal.user?.user?.email}) làm giảng viên.
+              </p>
+            </div>
+            <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-mid-gray">Chuyên môn:</span>
+                <span className="font-semibold text-ink">{confirmModal.user?.instructor_profile?.expertise || '---'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-mid-gray">Kinh nghiệm:</span>
+                <span className="font-semibold text-ink">
+                  {confirmModal.user?.instructor_profile?.experience_years} năm ({confirmModal.user?.instructor_profile?.level || 'Chưa phân cấp'})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-mid-gray">Tài khoản nhận tiền:</span>
+                <span className={cn(
+                  "font-semibold",
+                  confirmModal.user?.payout_account?.status === 'active' ? 'text-success' : 'text-danger-brick'
+                )}>
+                  {confirmModal.user?.payout_account
+                    ? `Đã liên kết (${confirmModal.user.payout_account.provider})`
+                    : 'Chưa liên kết'}
+                </span>
+              </div>
+              {confirmModal.error && (
+                <p className="text-[10px] text-danger-brick mt-1">{confirmModal.error}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
+              <button
+                type="button"
+                onClick={() => setConfirmModal({ open: false, type: '', user: null, error: '' })}
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+              >
+                Xác nhận duyệt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM ACTION MODAL: REJECT REQUEST */}
+      {confirmModal.open && confirmModal.type === 'reject' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-paper border border-hairline rounded-[6px] w-full max-w-sm shadow-subtle p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-danger-brick">Từ chối yêu cầu lên Giảng viên</h3>
+              <p className="text-xs text-mid-gray mt-1 leading-normal font-medium">
+                Bạn chuẩn bị từ chối hồ sơ đăng ký của <span className="font-semibold text-ink">{confirmModal.user?.user?.full_name}</span> ({confirmModal.user?.user?.email}).
+              </p>
+            </div>
+            <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-mid-gray">Chuyên môn đăng ký:</span>
+                <span className="font-semibold text-ink">{confirmModal.user?.instructor_profile?.expertise || '---'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-mid-gray">Ngày gửi hồ sơ:</span>
+                <span className="font-semibold text-ink">{formatDateTime(confirmModal.user?.submitted_at)}</span>
+              </div>
+              {confirmModal.error && (
+                <p className="text-[10px] text-danger-brick mt-1">{confirmModal.error}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
+              <button
+                type="button"
+                onClick={() => setConfirmModal({ open: false, type: '', user: null, error: '' })}
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+              >
+                Xác nhận từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
