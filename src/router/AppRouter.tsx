@@ -73,9 +73,30 @@ const InstructorCoursesPageWrapper = () => {
 };
 
 function AppRoutes() {
-  const { isLoggedIn, currentUser, enrolledCourseIds, courses, favorites } = useApp();
+  const { isLoggedIn: rawIsLoggedIn, currentUser: rawCurrentUser, enrolledCourseIds, courses, favorites } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isAdminPreview = import.meta.env.VITE_ADMIN_PREVIEW === 'true';
+  const isLoggedIn = isAdminPreview ? true : rawIsLoggedIn;
+  const currentUser = isAdminPreview 
+    ? {
+        id: "1",
+        name: "Admin Preview",
+        email: "admin@preview.com",
+        avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Admin",
+        role: 'admin' as const,
+        streak: 0,
+        lastActiveDate: new Date().toISOString().split('T')[0],
+        interestedTopics: [],
+        notificationSettings: {
+          email: true,
+          push: true,
+          app: true,
+          scheduleReminders: true
+        }
+      }
+    : rawCurrentUser;
 
   const navigateTo = (path: string) => {
     navigate(path.startsWith('/') ? path : `/${path}`);

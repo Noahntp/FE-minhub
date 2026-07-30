@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import AdminLayout from '@/features/admin/components/AdminLayout';
 
 // Import all the generated pages
@@ -19,7 +20,27 @@ import Reports from '@/features/admin/components/pages/Reports';
 import Banners from '@/features/admin/components/pages/Banners';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { adminId } = useParams<{ adminId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Extract active tab from URL path (e.g., /admin/1/categories -> categories)
+  const pathParts = location.pathname.split('/');
+  const tabFromPath = pathParts[3] || 'dashboard';
+  const activeTab = tabFromPath === '' ? 'dashboard' : tabFromPath;
+
+  // Redirect /admin/:id or /admin/:id/ to /admin/:id/dashboard
+  useEffect(() => {
+    if (adminId && (location.pathname === `/admin/${adminId}` || location.pathname === `/admin/${adminId}/`)) {
+      navigate(`/admin/${adminId}/dashboard`, { replace: true });
+    }
+  }, [location.pathname, adminId, navigate]);
+
+  const handleTabChange = (tabId: string) => {
+    if (adminId) {
+      navigate(`/admin/${adminId}/${tabId}`);
+    }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -66,7 +87,7 @@ export default function AdminDashboard() {
   return (
     <AdminLayout 
       activeTab={activeTab} 
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       breadcrumbLabel={getBreadcrumb()}
     >
       {renderContent()}
