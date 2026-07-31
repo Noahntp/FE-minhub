@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import * as upgradesApi from '@/assets/js/api/instructor-upgrades-api.js';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
+import FilterSelect, { SelectOption } from './FilterSelect';
 
 // Helper: safe percentage calculation
 const calculatePercentage = (value: number, total: number) => {
@@ -70,6 +71,32 @@ const getExperienceColor = (years: number) => {
   return { color: 'text-emerald-600', bg: 'bg-emerald-600' };
 };
 
+const statusOptions: SelectOption[] = [
+  { value: '', label: 'Tất cả trạng thái', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+  { value: 'pending', label: 'Chờ xử lý', colorClass: 'text-warning', hoverBgClass: 'hover:bg-warning/10' },
+  { value: 'approved', label: 'Đã duyệt', colorClass: 'text-success', hoverBgClass: 'hover:bg-success/10' },
+  { value: 'rejected', label: 'Đã từ chối', colorClass: 'text-danger-brick', hoverBgClass: 'hover:bg-danger-brick/10' }
+];
+
+const sortOptions: SelectOption[] = [
+  { value: 'newest', label: 'Mới nhất', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+  { value: 'oldest', label: 'Cũ nhất', colorClass: 'text-neutral-500', hoverBgClass: 'hover:bg-neutral-50' },
+  { value: 'name_asc', label: 'Tên A–Z', colorClass: 'text-purple-600', hoverBgClass: 'hover:bg-purple-50' },
+  { value: 'name_desc', label: 'Tên Z–A', colorClass: 'text-purple-600', hoverBgClass: 'hover:bg-purple-50' },
+  { value: 'specialty_asc', label: 'Chuyên môn A–Z', colorClass: 'text-teal-600', hoverBgClass: 'hover:bg-teal-50' },
+  { value: 'specialty_desc', label: 'Chuyên môn Z–A', colorClass: 'text-teal-600', hoverBgClass: 'hover:bg-teal-50' },
+  { value: 'experience_asc', label: 'Kinh nghiệm tăng dần', colorClass: 'text-blue-600', hoverBgClass: 'hover:bg-blue-50' },
+  { value: 'experience_desc', label: 'Kinh nghiệm giảm dần', colorClass: 'text-blue-600', hoverBgClass: 'hover:bg-blue-50' }
+];
+
+const timeOptions: SelectOption[] = [
+  { value: 'all', label: 'Tất cả thời gian', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+  { value: 'today', label: 'Hôm nay', colorClass: 'text-emerald-600', hoverBgClass: 'hover:bg-emerald-50' },
+  { value: '7_days', label: '7 ngày qua', colorClass: 'text-blue-600', hoverBgClass: 'hover:bg-blue-50' },
+  { value: '30_days', label: '30 ngày qua', colorClass: 'text-purple-600', hoverBgClass: 'hover:bg-purple-50' },
+  { value: 'custom', label: 'Tùy chọn ngày', colorClass: 'text-rose-700', hoverBgClass: 'hover:bg-rose-50' }
+];
+
 export default function InstructorUpgrades() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -90,18 +117,21 @@ export default function InstructorUpgrades() {
   // Local Filter Form State (before Applying)
   const [formSearch, setFormSearch] = useState(searchParam);
   const [formStatus, setFormStatus] = useState(statusParam);
+  const [formDatePreset, setFormDatePreset] = useState(datePresetParam);
   const [formDateFrom, setFormDateFrom] = useState(dateFromParam);
   const [formDateTo, setFormDateTo] = useState(dateToParam);
   const [formSortBy, setFormSortBy] = useState(sortByParam);
+  const [activeFilterDropdown, setActiveFilterDropdown] = useState<string | null>(null);
 
   // Sync Form States when query parameters change (e.g. Back/Forward button, Reset)
   useEffect(() => {
     setFormSearch(searchParam);
     setFormStatus(statusParam);
+    setFormDatePreset(datePresetParam);
     setFormDateFrom(dateFromParam);
     setFormDateTo(dateToParam);
     setFormSortBy(sortByParam);
-  }, [searchParam, statusParam, dateFromParam, dateToParam, sortByParam]);
+  }, [searchParam, statusParam, datePresetParam, dateFromParam, dateToParam, sortByParam]);
 
   // Data States
   const [paginatedItems, setPaginatedItems] = useState<any[]>([]);
@@ -195,25 +225,34 @@ export default function InstructorUpgrades() {
   };
 
   const handleResetFilters = () => {
+    setFormSearch('');
+    setFormStatus('');
+    setFormDatePreset('');
+    setFormDateFrom('');
+    setFormDateTo('');
+    setFormSortBy('newest');
     setSearchParams(new URLSearchParams());
     setActiveActionMenu(null);
     setActiveColumnMenu(null);
+    setActiveFilterDropdown(null);
   };
 
   // Form Submit handler
   const handleApplyFilters = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formDateFrom && formDateTo && new Date(formDateTo) < new Date(formDateFrom)) {
-      toast.error('Đến ngày gửi không được nhỏ hơn Từ ngày gửi.');
-      return;
+    if (formDatePreset === 'custom') {
+      if (formDateFrom && formDateTo && new Date(formDateTo) < new Date(formDateFrom)) {
+        toast.error('Đến ngày gửi không được nhỏ hơn Từ ngày gửi.');
+        return;
+      }
     }
     updateFilters({
-      search: formSearch,
+      search: formSearch.trim(),
       status: formStatus,
       date_from: formDateFrom,
       date_to: formDateTo,
       sort_by: formSortBy,
-      date_preset: '', // Reset date preset when custom date is manually applied
+      date_preset: formDatePreset,
       page: 1
     });
   };
@@ -738,7 +777,7 @@ export default function InstructorUpgrades() {
 
         {/* 3.2 Main Filter Form (Aligned properly on one row on desktop) */}
         <form onSubmit={handleApplyFilters} id="filter-form" className="p-4 border-b border-hairline bg-paper flex flex-col gap-3.5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-[1.4fr_0.8fr_0.7fr_0.7fr_0.9fr_auto] gap-3.5 items-end w-full">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-[minmax(0,1fr)_190px_190px_190px_160px] xl:items-end w-full">
             {/* TÌM KIẾM */}
             <div className="flex flex-col gap-1.5 w-full">
               <label htmlFor="filter-search" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
@@ -751,7 +790,7 @@ export default function InstructorUpgrades() {
                   value={formSearch}
                   onChange={(e) => setFormSearch(e.target.value)}
                   placeholder="Tên, email, số điện thoại..."
-                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-semibold"
                 />
                 <svg className="w-3.5 h-3.5 text-mid-gray/60 absolute left-3 top-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8" />
@@ -761,158 +800,148 @@ export default function InstructorUpgrades() {
             </div>
 
             {/* TRẠNG THÁI HỒ SƠ */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <label htmlFor="filter-status" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                TRẠNG THÁI HỒ SƠ
-              </label>
-              <select
-                id="filter-status"
-                value={formStatus}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormStatus(val);
-                  updateFilters({ status: val, page: 1 });
-                }}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option value="pending">Chờ xử lý</option>
-                <option value="approved">Đã duyệt</option>
-                <option value="rejected">Đã từ chối</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Trạng thái hồ sơ"
+              value={formStatus}
+              options={statusOptions}
+              onChange={(val) => setFormStatus(val)}
+              placeholder="Tất cả trạng thái"
+              id="upgrade-status"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
 
-            {/* TỪ NGÀY GỬI */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <label htmlFor="filter-date-from" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                TỪ NGÀY GỬI
-              </label>
-              <input
-                type="date"
-                id="filter-date-from"
-                value={formDateFrom}
-                onChange={(e) => setFormDateFrom(e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
-              />
-            </div>
+            {/* THỜI GIAN */}
+            <FilterSelect
+              label="Thời gian"
+              value={formDatePreset}
+              options={timeOptions}
+              onChange={(val) => {
+                setFormDatePreset(val);
+                if (val !== 'custom') {
+                  setFormDateFrom('');
+                  setFormDateTo('');
+                }
+              }}
+              placeholder="Tất cả thời gian"
+              id="upgrade-time"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
 
-            {/* ĐẾN NGÀY GỬI */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <label htmlFor="filter-date-to" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                ĐẾN NGÀY GỬI
-              </label>
-              <input
-                type="date"
-                id="filter-date-to"
-                value={formDateTo}
-                onChange={(e) => setFormDateTo(e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
-              />
-            </div>
+            {/* SẮP XẾP THEO */}
+            <FilterSelect
+              label="Sắp xếp theo"
+              value={formSortBy}
+              options={sortOptions}
+              onChange={(val) => setFormSortBy(val)}
+              placeholder="Mới nhất"
+              id="upgrade-sort"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
 
-            {/* SẮP XẾP THEO (Rút gọn nhãn) */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <label htmlFor="filter-sort" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                SẮP XẾP THEO
-              </label>
-              <select
-                id="filter-sort"
-                value={formSortBy}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormSortBy(val);
-                  updateFilters({ sort_by: val, page: 1 });
-                }}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
-              >
-                <option value="newest">Mới nhất</option>
-                <option value="oldest">Cũ nhất</option>
-                <option value="name_asc">Tên A–Z</option>
-                <option value="name_desc">Tên Z–A</option>
-                <option value="specialty_asc">Chuyên môn A–Z</option>
-                <option value="specialty_desc">Chuyên môn Z–A</option>
-                <option value="experience_asc">Kinh nghiệm tăng dần</option>
-                <option value="experience_desc">Kinh nghiệm giảm dần</option>
-              </select>
-            </div>
-
-            {/* Actions Buttons Group (locked-together, flex-shrink-0) */}
-            <div className="flex gap-2 items-center h-10 shrink-0 lg:col-span-1 sm:col-span-2 col-span-full justify-self-end w-full sm:w-auto">
+            {/* Actions Buttons Group */}
+            <div className="flex gap-2 items-center h-10 shrink-0 justify-end w-full sm:w-auto xl:col-span-1 md:col-span-full">
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="flex-1 sm:flex-none px-4 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas hover:bg-hairline text-ink transition-colors cursor-pointer"
+                className="px-3.5 py-2 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer shrink-0"
               >
                 Đặt lại
               </button>
               <button
                 type="submit"
-                className="flex-1 sm:flex-none px-5 h-10 text-xs font-semibold rounded-[6px] bg-ink hover:opacity-90 text-white transition-opacity cursor-pointer border-none"
+                className="px-4 py-2 h-10 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer shrink-0 border-none"
               >
-                Áp dụng bộ lọc
+                Áp dụng
               </button>
             </div>
           </div>
+
+          {/* Date Picker Row (only when formDatePreset === 'custom') */}
+          {formDatePreset === 'custom' && (
+            <div id="custom-date-group" className="flex flex-wrap items-center gap-3 pt-3 border-t border-hairline/60">
+              <div className="flex items-center gap-2">
+                <label htmlFor="filter-date-from" className="text-xs text-mid-gray font-medium">Từ ngày:</label>
+                <input
+                  type="date"
+                  id="filter-date-from"
+                  value={formDateFrom}
+                  onChange={(e) => setFormDateFrom(e.target.value)}
+                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="filter-date-to" className="text-xs text-mid-gray font-medium">Đến ngày:</label>
+                <input
+                  type="date"
+                  id="filter-date-to"
+                  value={formDateTo}
+                  onChange={(e) => setFormDateTo(e.target.value)}
+                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                />
+              </div>
+            </div>
+          )}
         </form>
 
         {/* 3.3 Active Filter Chips */}
         {(searchParam || statusParam || dateFromParam || dateToParam || experienceRangeParam || payoutFilterParam || datePresetParam) && (
-          <div id="filter-chips-container" className="px-4 py-2 border-b border-hairline bg-surface-alt/30 flex items-center justify-between gap-4 select-none text-xs">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-mid-gray shrink-0">Đang lọc:</span>
-              <div id="filter-chips-list" className="flex flex-wrap gap-1.5">
-                {searchParam && (
-                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                    <span>Từ khóa: "{searchParam}"</span>
-                    <button type="button" onClick={() => updateFilters({ search: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
-                  </div>
-                )}
-                {statusParam && (
-                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                    <span>Trạng thái: {statusParam === 'pending' ? 'Chờ xử lý' : statusParam === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}</span>
-                    <button type="button" onClick={() => updateFilters({ status: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
-                  </div>
-                )}
-                {datePresetParam ? (
-                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                    <span>Ngày gửi: {datePresetParam === 'today' ? 'Hôm nay' : datePresetParam === '7_days' ? '7 ngày qua' : '30 ngày qua'}</span>
-                    <button type="button" onClick={() => updateFilters({ date_preset: '', date_from: '', date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
-                  </div>
-                ) : (
-                  <>
-                    {dateFromParam && (
-                      <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                        <span>Từ ngày: {dateFromParam}</span>
-                        <button type="button" onClick={() => updateFilters({ date_from: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
-                      </div>
-                    )}
-                    {dateToParam && (
-                      <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                        <span>Đến ngày: {dateToParam}</span>
-                        <button type="button" onClick={() => updateFilters({ date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
-                      </div>
-                    )}
-                  </>
-                )}
-                {experienceRangeParam && (
-                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                    <span>Kinh nghiệm: {experienceRangeParam === 'under_1' ? 'Dưới 1 năm' : experienceRangeParam === '1_2' ? '1–2 năm' : experienceRangeParam === '3_5' ? '3–5 năm' : 'Trên 5 năm'}</span>
-                    <button type="button" onClick={() => updateFilters({ experience_range: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
-                  </div>
-                )}
-                {payoutFilterParam && (
-                  <div className="flex items-center gap-1 bg-canvas hover:bg-hairline text-ink rounded-full px-3 py-0.5 font-medium border border-hairline transition-colors text-[10px]">
-                    <span>Tài khoản: {payoutFilterParam === 'linked' ? 'Đã liên kết' : payoutFilterParam === 'unlinked' ? 'Chưa liên kết' : payoutFilterParam === 'active' ? 'Đã kích hoạt' : 'Chờ xác minh'}</span>
-                    <button type="button" onClick={() => updateFilters({ payout_filter: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer">×</button>
-                  </div>
-                )}
-              </div>
+          <div id="filter-chips-container" className="flex flex-wrap items-center gap-2 p-3 bg-canvas/35 border-b border-hairline text-xs select-none">
+            <span className="text-mid-gray text-[10px] font-bold uppercase tracking-wider mr-1">Bộ lọc đang dùng:</span>
+            <div id="filter-chips-list" className="flex flex-wrap gap-1.5">
+              {searchParam && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-canvas border border-hairline text-ink">
+                  Từ khóa: "{searchParam}"
+                  <button type="button" onClick={() => updateFilters({ search: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer text-xs">×</button>
+                </span>
+              )}
+              {statusParam && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-canvas border border-hairline text-ink">
+                  Trạng thái: {statusParam === 'pending' ? 'Chờ xử lý' : statusParam === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}
+                  <button type="button" onClick={() => updateFilters({ status: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer text-xs">×</button>
+                </span>
+              )}
+              {datePresetParam ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-canvas border border-hairline text-ink">
+                  Ngày gửi: {datePresetParam === 'today' ? 'Hôm nay' : datePresetParam === '7_days' ? '7 ngày qua' : datePresetParam === '30_days' ? '30 ngày qua' : 'Tùy chọn'}
+                  <button type="button" onClick={() => updateFilters({ date_preset: '', date_from: '', date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer text-xs">×</button>
+                </span>
+              ) : (
+                <>
+                  {dateFromParam && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-canvas border border-hairline text-ink">
+                      Từ ngày: {dateFromParam}
+                      <button type="button" onClick={() => updateFilters({ date_from: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer text-xs">×</button>
+                    </span>
+                  )}
+                  {dateToParam && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-canvas border border-hairline text-ink">
+                      Đến ngày: {dateToParam}
+                      <button type="button" onClick={() => updateFilters({ date_to: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer text-xs">×</button>
+                    </span>
+                  )}
+                </>
+              )}
+              {experienceRangeParam && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-canvas border border-hairline text-ink">
+                  Kinh nghiệm: {experienceRangeParam === 'under_1' ? 'Dưới 1 năm' : experienceRangeParam === '1_2' ? '1–2 năm' : experienceRangeParam === '3_5' ? '3–5 năm' : 'Trên 5 năm'}
+                  <button type="button" onClick={() => updateFilters({ experience_range: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer text-xs">×</button>
+                </span>
+              )}
+              {payoutFilterParam && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-canvas border border-hairline text-ink">
+                  Tài khoản: {payoutFilterParam === 'linked' ? 'Đã liên kết' : payoutFilterParam === 'unlinked' ? 'Chưa liên kết' : payoutFilterParam === 'active' ? 'Đã kích hoạt' : 'Chờ xác minh'}
+                  <button type="button" onClick={() => updateFilters({ payout_filter: '' })} className="text-mid-gray hover:text-ink ml-1 font-bold bg-transparent border-none cursor-pointer text-xs">×</button>
+                </span>
+              )}
             </div>
             <button
               type="button"
               onClick={handleResetFilters}
               id="btn-clear-all-chips"
-              className="text-[10px] text-danger-brick font-semibold shrink-0 cursor-pointer bg-transparent border-none font-sans"
+              className="text-[10px] font-semibold ml-2 transition-all cursor-pointer bg-transparent border-none text-danger-brick hover:text-danger-brick/80 font-sans"
             >
               Xóa tất cả
             </button>

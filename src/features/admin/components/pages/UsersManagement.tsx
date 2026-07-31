@@ -3,16 +3,9 @@ import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import * as usersApi from '@/assets/js/api/users-api.js';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
+import FilterSelect, { SelectOption } from './FilterSelect';
 
 const CURRENT_ADMIN_ID = 1;
-
-// Define options interfaces
-interface SelectOption {
-  value: string;
-  label: string;
-  colorClass: string;
-  hoverBgClass: string;
-}
 
 // Colors definitions matching business logic
 const roleOptions: SelectOption[] = [
@@ -51,100 +44,6 @@ const timeOptions: SelectOption[] = [
   { value: 'thisMonth', label: 'Tháng này', colorClass: 'text-orange-600', hoverBgClass: 'hover:bg-orange-50' },
   { value: 'custom', label: 'Tùy chọn', colorClass: 'text-rose-700', hoverBgClass: 'hover:bg-rose-50' }
 ];
-
-// Custom Dropdown Component
-function FilterSelect({
-  label,
-  value,
-  options,
-  onChange,
-  placeholder,
-  id,
-  activeId,
-  setActiveId
-}: {
-  label: string;
-  value: string;
-  options: SelectOption[];
-  onChange: (val: string) => void;
-  placeholder: string;
-  id: string;
-  activeId: string | null;
-  setActiveId: (id: string | null) => void;
-}) {
-  const isOpen = activeId === id;
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const selectedOption = options.find(o => o.value === value);
-  const displayLabel = selectedOption ? selectedOption.label : placeholder;
-  const displayColor = selectedOption ? selectedOption.colorClass : 'text-neutral-700';
-
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        if (activeId === id) setActiveId(null);
-      }
-    };
-    if (isOpen) {
-      window.addEventListener('click', handleOutside);
-    }
-    return () => window.removeEventListener('click', handleOutside);
-  }, [isOpen, activeId, id, setActiveId]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        setActiveId(null);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, setActiveId]);
-
-  return (
-    <div ref={containerRef} className="w-full relative flex flex-col">
-      <span className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5 select-none">
-        {label}
-      </span>
-      <button
-        type="button"
-        onClick={() => setActiveId(isOpen ? null : id)}
-        className="w-full h-10 px-3 text-xs bg-paper border border-hairline rounded-[6px] hover:border-mid-gray/40 focus:ring-1 focus:ring-blue-600/40 focus:border-blue-600/40 outline-none flex items-center justify-between transition-all cursor-pointer text-left shadow-subtle"
-      >
-        <span className={cn("truncate font-semibold", displayColor)}>
-          {displayLabel}
-        </span>
-        <svg className={cn("w-3 h-3 text-mid-gray shrink-0 transition-transform duration-200 ml-1.5", isOpen && "rotate-180")} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-        </svg>
-      </button>
-      {isOpen && (
-        <div className="absolute left-0 right-0 top-[62px] z-20 bg-paper border border-hairline rounded-[6px] p-1 shadow-subtle flex flex-col max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in duration-100">
-          {options.map((opt) => {
-            const isSelected = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  onChange(opt.value);
-                  setActiveId(null);
-                }}
-                className={cn(
-                  "w-full text-left px-3 py-2 text-xs rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent flex items-center",
-                  opt.colorClass,
-                  isSelected ? "bg-neutral-50 font-semibold" : opt.hoverBgClass
-                )}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // User Status Dot Marker
 function UserStatusMarker({ locked, status, effectiveStatus }: { locked: boolean; status: string; effectiveStatus: string }) {
@@ -193,6 +92,28 @@ export default function UsersManagement() {
   const no_login = searchParams.get('no_login') || '';
   const page = Number(searchParams.get('page')) || 1;
   const per_page = Number(searchParams.get('per_page')) || 20;
+
+  // Local Form Draft state
+  const [draftSearch, setDraftSearch] = useState(search);
+  const [draftRole, setDraftRole] = useState(role);
+  const [draftStatus, setDraftStatus] = useState(status);
+  const [draftEmailVerified, setDraftEmailVerified] = useState(email_verified);
+  const [draftSortBy, setDraftSortBy] = useState(sort_by);
+  const [draftTimePreset, setDraftTimePreset] = useState(time_preset);
+  const [draftDateFrom, setDraftDateFrom] = useState(date_from);
+  const [draftDateTo, setDraftDateTo] = useState(date_to);
+
+  // Sync draft states when URL params change
+  useEffect(() => {
+    setDraftSearch(search);
+    setDraftRole(role);
+    setDraftStatus(status);
+    setDraftEmailVerified(email_verified);
+    setDraftSortBy(sort_by);
+    setDraftTimePreset(time_preset);
+    setDraftDateFrom(date_from);
+    setDraftDateTo(date_to);
+  }, [search, role, status, email_verified, sort_by, time_preset, date_from, date_to]);
 
   // Data State
   const [data, setData] = useState<any>(null);
@@ -291,6 +212,14 @@ export default function UsersManagement() {
   };
 
   const handleResetFilters = () => {
+    setDraftSearch('');
+    setDraftRole('');
+    setDraftStatus('');
+    setDraftEmailVerified('');
+    setDraftSortBy('newest');
+    setDraftTimePreset('all');
+    setDraftDateFrom('');
+    setDraftDateTo('');
     setSearchParams(new URLSearchParams());
     setSelectedUserIds(new Set());
     setActiveFilterDropdown(null);
@@ -835,8 +764,27 @@ export default function UsersManagement() {
 
       {/* Filter panel */}
       <section className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-[1fr_130px_130px_130px_180px_150px_40px] gap-3 items-end w-full">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (draftTimePreset === 'custom') {
+            if (draftDateFrom && draftDateTo && new Date(draftDateTo) < new Date(draftDateFrom)) {
+              toast.error('Đến ngày không được nhỏ hơn Từ ngày.');
+              return;
+            }
+          }
+          updateFilters({
+            search: draftSearch.trim(),
+            role: draftRole,
+            status: draftStatus,
+            email_verified: draftEmailVerified,
+            sort_by: draftSortBy,
+            time_preset: draftTimePreset,
+            date_from: draftDateFrom,
+            date_to: draftDateTo,
+            page: 1
+          });
+        }} className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-[minmax(0,1fr)_190px_190px_160px_200px_190px_160px] xl:items-end w-full">
             {/* Search filter */}
             <div className="w-full flex flex-col">
               <label htmlFor="filter-search" className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5">
@@ -846,12 +794,12 @@ export default function UsersManagement() {
                 <input
                   type="text"
                   id="filter-search"
-                  value={search}
-                  onChange={(e) => updateFilters({ search: e.target.value })}
+                  value={draftSearch}
+                  onChange={(e) => setDraftSearch(e.target.value)}
                   placeholder="Tìm theo tên, email, SĐT..."
-                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 focus:border-blue-600/40 outline-none text-ink placeholder-mid-gray/70 transition-all font-medium"
+                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 focus:border-blue-600/40 outline-none text-ink placeholder-mid-gray/70 transition-all font-semibold"
                 />
-                <svg className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
@@ -861,9 +809,9 @@ export default function UsersManagement() {
             {/* Custom Dropdown: Role */}
             <FilterSelect
               label="Vai trò"
-              value={role}
+              value={draftRole}
               options={roleOptions}
-              onChange={(val) => updateFilters({ role: val })}
+              onChange={(val) => setDraftRole(val)}
               placeholder="Tất cả vai trò"
               id="role"
               activeId={activeFilterDropdown}
@@ -873,9 +821,9 @@ export default function UsersManagement() {
             {/* Custom Dropdown: Status */}
             <FilterSelect
               label="Trạng thái"
-              value={status}
+              value={draftStatus}
               options={statusOptions}
-              onChange={(val) => updateFilters({ status: val })}
+              onChange={(val) => setDraftStatus(val)}
               placeholder="Tất cả trạng thái"
               id="status"
               activeId={activeFilterDropdown}
@@ -885,9 +833,9 @@ export default function UsersManagement() {
             {/* Custom Dropdown: Email Verified */}
             <FilterSelect
               label="Xác minh email"
-              value={email_verified}
+              value={draftEmailVerified}
               options={verifiedOptions}
-              onChange={(val) => updateFilters({ email_verified: val })}
+              onChange={(val) => setDraftEmailVerified(val)}
               placeholder="Tất cả"
               id="verified"
               activeId={activeFilterDropdown}
@@ -897,9 +845,9 @@ export default function UsersManagement() {
             {/* Custom Dropdown: Sort */}
             <FilterSelect
               label="Sắp xếp"
-              value={sort_by}
+              value={draftSortBy}
               options={sortOptions}
-              onChange={(val) => updateFilters({ sort_by: val })}
+              onChange={(val) => setDraftSortBy(val)}
               placeholder="Mới nhất"
               id="sort"
               activeId={activeFilterDropdown}
@@ -909,44 +857,49 @@ export default function UsersManagement() {
             {/* Custom Dropdown: Time Preset */}
             <FilterSelect
               label="Thời gian"
-              value={time_preset}
+              value={draftTimePreset}
               options={timeOptions}
-              onChange={(val) => updateFilters({ time_preset: val })}
+              onChange={(val) => {
+                setDraftTimePreset(val);
+                if (val !== 'custom') {
+                  setDraftDateFrom('');
+                  setDraftDateTo('');
+                }
+              }}
               placeholder="Tất cả thời gian"
               id="time"
               activeId={activeFilterDropdown}
               setActiveId={setActiveFilterDropdown}
             />
 
-            {/* Red reset X button - Locked in row, aligned vertically */}
-            <div className="w-full flex flex-col justify-end items-center h-full">
-              <span className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5 invisible select-none">
-                Reset
-              </span>
+            {/* Actions Buttons Group */}
+            <div className="flex gap-2 items-center h-10 shrink-0 justify-end w-full sm:w-auto xl:col-span-1 md:col-span-full">
               <button
                 type="button"
                 onClick={handleResetFilters}
-                title="Đặt lại bộ lọc"
-                className="h-10 w-full flex items-center justify-center text-danger-brick hover:text-danger-brick/80 hover:bg-red-50/50 border border-hairline rounded-[6px] transition-colors cursor-pointer bg-paper shrink-0 shadow-subtle"
-                aria-label="Đặt lại bộ lọc"
+                className="px-3.5 py-2 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer shrink-0"
               >
-                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 h-10 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer shrink-0"
+              >
+                Áp dụng
               </button>
             </div>
           </div>
 
-          {/* Date Picker Row (only when time_preset === 'custom') */}
-          {time_preset === 'custom' && (
+          {/* Date Picker Row (only when draftTimePreset === 'custom') */}
+          {draftTimePreset === 'custom' && (
             <div id="custom-date-group" className="flex flex-wrap items-center gap-3 pt-3 border-t border-hairline/60">
               <div className="flex items-center gap-2">
                 <label htmlFor="filter-date-from" className="text-xs text-mid-gray font-medium">Từ ngày:</label>
                 <input
                   type="date"
                   id="filter-date-from"
-                  value={date_from}
-                  onChange={(e) => updateFilters({ date_from: e.target.value })}
+                  value={draftDateFrom}
+                  onChange={(e) => setDraftDateFrom(e.target.value)}
                   aria-label="Từ ngày"
                   className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-semibold"
                 />
@@ -956,15 +909,8 @@ export default function UsersManagement() {
                 <input
                   type="date"
                   id="filter-date-to"
-                  value={date_to}
-                  onChange={(e) => {
-                    const toVal = e.target.value;
-                    if (date_from && toVal && new Date(toVal) < new Date(date_from)) {
-                      toast.error('Đến ngày không được nhỏ hơn Từ ngày.');
-                      return;
-                    }
-                    updateFilters({ date_to: toVal });
-                  }}
+                  value={draftDateTo}
+                  onChange={(e) => setDraftDateTo(e.target.value)}
                   aria-label="Đến ngày"
                   className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-semibold"
                 />
@@ -1088,7 +1034,7 @@ export default function UsersManagement() {
               type="button"
               onClick={handleResetFilters}
               id="btn-clear-all-chips"
-              className="btn-clear-chips-red text-[10px] font-semibold ml-2 transition-all cursor-pointer bg-transparent border-none font-sans"
+              className="text-[10px] font-semibold ml-2 transition-all cursor-pointer bg-transparent border-none text-danger-brick hover:text-danger-brick/80 font-sans"
             >
               Xóa tất cả
             </button>

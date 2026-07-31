@@ -4,6 +4,7 @@ import * as coursesApi from '@/assets/js/api/courses-api.js';
 import { getComments, getUsers } from '@/assets/js/mocks/mock-repository.js';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
+import FilterSelect, { SelectOption } from './FilterSelect';
 import { ApiService } from '@/services/api';
 
 // Format Helpers
@@ -166,6 +167,7 @@ export default function CoursesManagement() {
   const [formDateFrom, setFormDateFrom] = useState(dateFromParam);
   const [formDateTo, setFormDateTo] = useState(dateToParam);
   const [formSortBy, setFormSortBy] = useState(sortByParam);
+  const [activeFilterDropdown, setActiveFilterDropdown] = useState<string | null>(null);
 
   // Sync Local states when query param changes
   useEffect(() => {
@@ -320,7 +322,52 @@ export default function CoursesManagement() {
   };
 
   const handleResetFilters = () => {
+    setFormSearch('');
+    setFormStatus('');
+    setFormCategory('');
+    setFormLevel('');
+    setFormFeatured('');
+    setFormTimePreset('all');
+    setFormDateFrom('');
+    setFormDateTo('');
+    setFormSortBy('updated_at');
     setSearchParams(new URLSearchParams());
+    setActiveFilterDropdown(null);
+  };
+
+  const handleApplyFilters = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formTimePreset === 'custom') {
+      if (formDateFrom && formDateTo && formDateTo < formDateFrom) {
+        toast.error('Ngày kết thúc không được nhỏ hơn ngày bắt đầu.');
+        return;
+      }
+    }
+    
+    const updates: Record<string, any> = {
+      search: formSearch.trim(),
+      status: formStatus,
+      category_id: formCategory,
+      level: formLevel,
+      is_featured: formFeatured,
+      time_preset: formTimePreset,
+      sort_by: formSortBy,
+      page: 1
+    };
+
+    if (formTimePreset === 'custom') {
+      updates.date_from = formDateFrom;
+      updates.date_to = formDateTo;
+    } else if (formTimePreset !== 'all') {
+      const preset = getPresetDates(formTimePreset);
+      updates.date_from = preset.date_from;
+      updates.date_to = preset.date_to;
+    } else {
+      updates.date_from = '';
+      updates.date_to = '';
+    }
+
+    updateFilters(updates);
   };
 
   // Form Field Change - Instant apply
@@ -809,8 +856,8 @@ export default function CoursesManagement() {
 
       {/* V. THANH LỌC (Khớp chính xác giao diện HTML gốc, h-10) */}
       <section className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle w-full min-w-0">
-        <form className="flex flex-col gap-3 p-0" onSubmit={(e) => e.preventDefault()}>
-          <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_120px_130px_110px_100px_130px_180px] xl:items-end">
+        <form className="flex flex-col gap-3.5 p-0" onSubmit={handleApplyFilters}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-end w-full">
             {/* TÌM KIẾM */}
             <div className="flex min-w-0 flex-col gap-1.5">
               <label htmlFor="filter-search" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
@@ -821,15 +868,11 @@ export default function CoursesManagement() {
                   type="text"
                   id="filter-search"
                   value={formSearch}
-                  onChange={(e) => {
-                    setFormSearch(e.target.value);
-                    // Debounce/Instant apply
-                    updateFilters({ search: e.target.value, page: 1 });
-                  }}
+                  onChange={(e) => setFormSearch(e.target.value)}
                   placeholder="Tìm theo tên, slug, giảng viên..."
-                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink font-medium"
+                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink font-semibold"
                 />
-                <svg className="w-3.5 h-3.5 text-mid-gray/60 absolute left-3 top-[13px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 text-mid-gray/60 absolute left-3 top-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
@@ -837,149 +880,152 @@ export default function CoursesManagement() {
             </div>
 
             {/* TRẠNG THÁI */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor="filter-status" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                TRẠNG THÁI
-              </label>
-              <select
-                id="filter-status"
-                value={formStatus}
-                onChange={(e) => handleFieldChange('status', e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all cursor-pointer font-medium"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option value="draft">Bản nháp</option>
-                <option value="pending_review">Chờ duyệt</option>
-                <option value="published">Đã xuất bản</option>
-                <option value="hidden">Đã bị ẩn</option>
-                <option value="rejected">Bị từ chối</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Trạng thái"
+              value={formStatus}
+              options={[
+                { value: '', label: 'Tất cả trạng thái', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: 'draft', label: 'Bản nháp', colorClass: 'text-neutral-500', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: 'pending_review', label: 'Chờ duyệt', colorClass: 'text-warning', hoverBgClass: 'hover:bg-warning/10' },
+                { value: 'published', label: 'Đã xuất bản', colorClass: 'text-success', hoverBgClass: 'hover:bg-success/10' },
+                { value: 'hidden', label: 'Đã bị ẩn', colorClass: 'text-mid-gray', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: 'rejected', label: 'Bị từ chối', colorClass: 'text-danger-brick', hoverBgClass: 'hover:bg-danger-brick/10' }
+              ]}
+              onChange={(val) => setFormStatus(val)}
+              placeholder="Tất cả trạng thái"
+              id="course-status"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
 
             {/* DANH MỤC */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor="filter-category" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                DANH MỤC
-              </label>
-              <select
-                id="filter-category"
-                value={formCategory}
-                onChange={(e) => handleFieldChange('category_id', e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all cursor-pointer font-medium"
-              >
-                <option value="">Tất cả danh mục</option>
-                {uniqueCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
+            <FilterSelect
+              label="Danh mục"
+              value={formCategory}
+              options={[
+                { value: '', label: 'Tất cả danh mục', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+                ...uniqueCategories.map(cat => ({
+                  value: String(cat.id),
+                  label: cat.name,
+                  colorClass: 'text-neutral-700',
+                  hoverBgClass: 'hover:bg-neutral-50'
+                }))
+              ]}
+              onChange={(val) => setFormCategory(val)}
+              placeholder="Tất cả danh mục"
+              id="course-category"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
 
             {/* TRÌNH ĐỘ */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor="filter-level" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                TRÌNH ĐỘ
-              </label>
-              <select
-                id="filter-level"
-                value={formLevel}
-                onChange={(e) => handleFieldChange('level', e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all cursor-pointer font-medium"
-              >
-                <option value="">Tất cả trình độ</option>
-                <option value="beginner">Cơ bản</option>
-                <option value="intermediate">Trung cấp</option>
-                <option value="advanced">Nâng cao</option>
-                <option value="all_levels">Mọi trình độ</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Trình độ"
+              value={formLevel}
+              options={[
+                { value: '', label: 'Tất cả trình độ', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: 'beginner', label: 'Cơ bản', colorClass: 'text-blue-600', hoverBgClass: 'hover:bg-blue-50' },
+                { value: 'intermediate', label: 'Trung cấp', colorClass: 'text-amber-600', hoverBgClass: 'hover:bg-amber-50' },
+                { value: 'advanced', label: 'Nâng cao', colorClass: 'text-rose-700', hoverBgClass: 'hover:bg-rose-50' },
+                { value: 'all_levels', label: 'Mọi trình độ', colorClass: 'text-purple-600', hoverBgClass: 'hover:bg-purple-50' }
+              ]}
+              onChange={(val) => setFormLevel(val)}
+              placeholder="Tất cả trình độ"
+              id="course-level"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
+          </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-end w-full pt-1">
             {/* NỔI BẬT */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor="filter-featured" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                NỔI BẬT
-              </label>
-              <select
-                id="filter-featured"
-                value={formFeatured}
-                onChange={(e) => handleFieldChange('is_featured', e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all cursor-pointer font-medium"
-              >
-                <option value="">Tất cả</option>
-                <option value="true">Đang nổi bật</option>
-                <option value="false">Không nổi bật</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Nổi bật"
+              value={formFeatured}
+              options={[
+                { value: '', label: 'Tất cả', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: 'true', label: 'Đang nổi bật', colorClass: 'text-amber-600', hoverBgClass: 'hover:bg-amber-50' },
+                { value: 'false', label: 'Không nổi bật', colorClass: 'text-neutral-500', hoverBgClass: 'hover:bg-neutral-50' }
+              ]}
+              onChange={(val) => setFormFeatured(val)}
+              placeholder="Tất cả nổi bật"
+              id="course-featured"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
 
             {/* THỜI GIAN */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor="filter-time-preset" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                THỜI GIAN
-              </label>
-              <select
-                id="filter-time-preset"
-                value={formTimePreset}
-                onChange={(e) => {
-                  setFormTimePreset(e.target.value);
-                  handleFieldChange('time_preset', e.target.value);
-                }}
-                className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all cursor-pointer font-medium"
-              >
-                <option value="all">Tất cả thời gian</option>
-                <option value="1_day">1 ngày qua</option>
-                <option value="3_days">3 ngày qua</option>
-                <option value="7_days">7 ngày qua</option>
-                <option value="custom">Tùy chọn ngày</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Thời gian"
+              value={formTimePreset}
+              options={[
+                { value: 'all', label: 'Tất cả thời gian', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: '1_day', label: '1 ngày qua', colorClass: 'text-emerald-600', hoverBgClass: 'hover:bg-emerald-50' },
+                { value: '3_days', label: '3 ngày qua', colorClass: 'text-blue-600', hoverBgClass: 'hover:bg-blue-50' },
+                { value: '7_days', label: '7 ngày qua', colorClass: 'text-purple-600', hoverBgClass: 'hover:bg-purple-50' },
+                { value: 'custom', label: 'Tùy chọn ngày', colorClass: 'text-rose-700', hoverBgClass: 'hover:bg-rose-50' }
+              ]}
+              onChange={(val) => {
+                setFormTimePreset(val);
+                if (val !== 'custom') {
+                  setFormDateFrom('');
+                  setFormDateTo('');
+                }
+              }}
+              placeholder="Tất cả thời gian"
+              id="course-time"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
 
-            {/* SẮP XẾP VÀ Nút X */}
-            <div className="flex min-w-0 items-end gap-2">
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <label htmlFor="filter-sort" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                  SẮP XẾP
-                </label>
-                <select
-                  id="filter-sort"
-                  value={formSortBy}
-                  onChange={(e) => {
-                    setFormSortBy(e.target.value);
-                    handleFieldChange('sort_by', e.target.value);
-                  }}
-                  className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all cursor-pointer font-medium"
-                >
-                  <option value="updated_at">Mới cập nhật</option>
-                  <option value="created_at">Mới tạo</option>
-                  <option value="title">Tên khóa học (A-Z)</option>
-                  <option value="enrollment_count">Lượt ghi danh</option>
-                  <option value="gross_revenue">Doanh thu</option>
-                  <option value="average_rating">Đánh giá cao nhất</option>
-                  <option value="price">Giá bán</option>
-                </select>
-              </div>
+            {/* SẮP XẾP */}
+            <FilterSelect
+              label="Sắp xếp"
+              value={formSortBy}
+              options={[
+                { value: 'updated_at', label: 'Mới cập nhật', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: 'created_at', label: 'Mới tạo', colorClass: 'text-neutral-500', hoverBgClass: 'hover:bg-neutral-50' },
+                { value: 'title', label: 'Tên khóa học (A-Z)', colorClass: 'text-blue-600', hoverBgClass: 'hover:bg-blue-50' },
+                { value: 'enrollment_count', label: 'Lượt ghi danh', colorClass: 'text-emerald-600', hoverBgClass: 'hover:bg-emerald-50' },
+                { value: 'gross_revenue', label: 'Doanh thu', colorClass: 'text-teal-600', hoverBgClass: 'hover:bg-teal-50' },
+                { value: 'average_rating', label: 'Đánh giá cao nhất', colorClass: 'text-amber-600', hoverBgClass: 'hover:bg-amber-50' },
+                { value: 'price', label: 'Giá bán', colorClass: 'text-rose-700', hoverBgClass: 'hover:bg-rose-50' }
+              ]}
+              onChange={(val) => setFormSortBy(val)}
+              placeholder="Mới cập nhật"
+              id="course-sort"
+              activeId={activeFilterDropdown}
+              setActiveId={setActiveFilterDropdown}
+            />
+
+            {/* Actions Buttons Group */}
+            <div className="flex gap-2 items-center h-10 shrink-0 justify-end w-full sm:w-auto">
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="flex h-10 w-8 shrink-0 items-center justify-center rounded-[6px] text-danger-brick hover:bg-danger-brick/10 bg-transparent transition-colors cursor-pointer"
-                title="Đặt lại bộ lọc"
-                aria-label="Đặt lại bộ lọc"
+                className="px-3.5 py-2 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer shrink-0"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 h-10 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer shrink-0 border-none"
+              >
+                Áp dụng
               </button>
             </div>
           </div>
 
           {/* Hàng Tùy chọn ngày (chỉ hiện khi chọn custom) */}
           {formTimePreset === 'custom' && (
-            <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3 pt-2 border-t border-hairline/60">
+            <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-3 pt-3 border-t border-hairline/60">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-mid-gray whitespace-nowrap">Từ ngày:</span>
                 <input
                   type="date"
                   value={formDateFrom}
                   onChange={(e) => setFormDateFrom(e.target.value)}
-                  className="h-9 px-2.5 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink w-full sm:w-[150px]"
+                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink w-full sm:w-[150px] font-semibold"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -988,16 +1034,9 @@ export default function CoursesManagement() {
                   type="date"
                   value={formDateTo}
                   onChange={(e) => setFormDateTo(e.target.value)}
-                  className="h-9 px-2.5 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink w-full sm:w-[150px]"
+                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink w-full sm:w-[150px] font-semibold"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => handleCustomDateSubmit()}
-                className="h-9 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
-              >
-                Lọc ngày
-              </button>
             </div>
           )}
         </form>
