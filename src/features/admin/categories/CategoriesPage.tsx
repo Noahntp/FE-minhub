@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { Plus, Search, RefreshCw, SlidersHorizontal, Ghost, AlertCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ const STORAGE_KEY = "mindhub_admin_categories_expanded";
 
 export default function CategoriesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const resultsSectionRef = useRef<HTMLDivElement>(null);
 
   // 1. Lấy bộ lọc từ URL
   const filters: CategoryFilters = useMemo(() => {
@@ -30,19 +31,14 @@ export default function CategoriesPage() {
       sort_by: (searchParams.get("sort_by") as any) || "newest",
       page: parseInt(searchParams.get("page") || "1", 10),
       per_page: parseInt(searchParams.get("per_page") || "20", 10),
+      empty: searchParams.get("empty") || "",
     };
   }, [searchParams]);
 
-  // 2. Chế độ xem: Tree View vs Flat View
-  const viewMode: ViewMode = useMemo(() => {
-    if (filters.search || filters.type || filters.parent_id || filters.status === "deleted") {
-      return "flat";
-    }
-    return "tree";
-  }, [filters]);
+  // 2. Chế độ xem: Luôn cố định Tree View để giữ cấu trúc cha-con không bị xáo trộn
+  const viewMode: ViewMode = "tree";
 
   // States
-  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
   const [summary, setSummary] = useState<CategorySummary>({
     total_categories: 0,
     active_categories: 0,
@@ -57,6 +53,12 @@ export default function CategoriesPage() {
   
   // Expanded Category IDs (dùng cho Tree View)
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<number>>(new Set());
+
+  // States kéo thả và lưu thứ tự
+  const [isOrderChanged, setIsOrderChanged] = useState(false);
+  const [originalCategoriesCache, setOriginalCategoriesCache] = useState<Category[] | null>(null);
+  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
 
   // Modal / Drawer States
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
@@ -118,67 +120,46 @@ export default function CategoriesPage() {
   }, [searchParams]);
 
   // 5. Hàm tải dữ liệu chính
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchData = useCallback(async (isBackground = false) => {
+    if (!isBackground) {
+      setIsLoading(true);
+      setIsOrderChanged(false);
+      setOriginalCategoriesCache(null);
+    }
     setIsError(false);
     
     try {
-      if (viewMode === "tree") {
-        // Tải toàn bộ tập dữ liệu chưa bị xóa để dựng cây ở Client
-        const res = await CategoriesService.getCategoriesAll(filters.status);
-        if (res.success) {
-          setAllCategoriesCache(res.data.items);
-          setSummary(res.data.summary);
-          
-          // Dựng cây và lọc status
-          const treeData = processTreeViewData(res.data.items, filters.status, expandedCategoryIds);
-          
-          // Thực hiện dọn dẹp sessionStorage expanded IDs
-          cleanExpandedSessionStorage(res.data.items);
-
-          // Phân trang tree
-          const paginatedTree = paginateTreeView(
-            treeData.processedList,
-            treeData.qualifyingRootIds,
-            filters.page,
-            filters.per_page
-          );
-          
-          setCategoriesList(paginatedTree);
-        } else {
-          setIsError(true);
-          setErrorMessage(res.message || "Tải dữ liệu thất bại.");
-        }
+      // Chỉ tải dữ liệu nguồn, filters.status là tham số duy nhất ảnh hưởng tới API tải về
+      const res = await CategoriesService.getCategoriesAll(filters.status);
+      if (res.success) {
+        setAllCategoriesCache(res.data.items);
+        setSummary(res.data.summary);
+        
+        // Thực hiện dọn dẹp sessionStorage expanded IDs
+        cleanExpandedSessionStorage(res.data.items);
       } else {
-        // Flat View: Tải danh mục phân trang phẳng thông thường từ backend/mock
-        const res = await CategoriesService.getCategories(filters);
-        if (res.success) {
-          setCategoriesList(res.data.items);
-          setSummary(res.data.summary);
-          
-          // Nạp cache danh sách cha cho dropdown
-          const cacheRes = await CategoriesService.getCategoriesAll();
-          if (cacheRes.success) {
-            setAllCategoriesCache(cacheRes.data.items);
-          }
-        } else {
+        if (!isBackground) {
           setIsError(true);
           setErrorMessage(res.message || "Tải dữ liệu thất bại.");
         }
       }
     } catch (err: any) {
       console.error("Lỗi khi fetch categories page:", err);
-      setIsError(true);
-      setErrorMessage("Không thể kết nối đến máy chủ dữ liệu.");
+      if (!isBackground) {
+        setIsError(true);
+        setErrorMessage("Không thể kết nối đến máy chủ dữ liệu.");
+      }
     } finally {
-      setIsLoading(false);
+      if (!isBackground) {
+        setIsLoading(false);
+      }
     }
-  }, [viewMode, filters, expandedCategoryIds]);
+  }, [filters.status]);
 
-  // Gọi fetch khi filter hoặc viewMode đổi
+  // Gọi fetch khi bộ lọc status thay đổi
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [filters.status]);
 
   // 6. Xử lý sessionStorage cho expanded IDs
   useEffect(() => {
@@ -315,12 +296,183 @@ export default function CategoriesPage() {
     }
   };
 
+  const handleMovePosition = (id: number, direction: 'up' | 'down') => {
+    const item = allCategoriesCache.find(c => c.id === id);
+    if (!item) return;
+
+    // backupCache
+    if (!isOrderChanged) {
+      setOriginalCategoriesCache(JSON.parse(JSON.stringify(allCategoriesCache)));
+      setIsOrderChanged(true);
+    }
+
+    const sameLevel = allCategoriesCache.filter(c => c.parent_id === item.parent_id);
+    sameLevel.sort((a, b) => {
+      const sa = a.sort_order || 0;
+      const sb = b.sort_order || 0;
+      if (sa > 0 && sb > 0) {
+        if (sa !== sb) return sa - sb;
+        return (a.name || "").localeCompare(b.name || "", "vi");
+      }
+      if (sa > 0 && sb === 0) return -1;
+      if (sa === 0 && sb > 0) return 1;
+      return (a.name || "").localeCompare(b.name || "", "vi");
+    });
+
+    const index = sameLevel.findIndex(c => c.id === id);
+    if (index === -1) return;
+
+    // Không mutate! Clone mảng sibling
+    const sortedSiblings = [...sameLevel];
+    if (direction === 'up' && index > 0) {
+      const temp = sortedSiblings[index];
+      sortedSiblings[index] = sortedSiblings[index - 1];
+      sortedSiblings[index - 1] = temp;
+    } else if (direction === 'down' && index < sortedSiblings.length - 1) {
+      const temp = sortedSiblings[index];
+      sortedSiblings[index] = sortedSiblings[index + 1];
+      sortedSiblings[index + 1] = temp;
+    } else {
+      return;
+    }
+
+    // Map tạo các objects mới với sort_order mới
+    const updatedSiblings = sortedSiblings.map((c, idx) => ({
+      ...c,
+      sort_order: idx + 1
+    }));
+
+    // Cập nhật cache local bằng cách map tạo mảng mới, clone object
+    const newCache = allCategoriesCache.map(c => {
+      const found = updatedSiblings.find(t => t.id === c.id);
+      if (found) {
+        return found;
+      }
+      return c;
+    });
+
+    setAllCategoriesCache(newCache);
+  };
+
+  const handleDragDrop = (draggedCategoryId: number, targetCategoryId: number, dropPosition: 'top' | 'bottom') => {
+    if (draggedCategoryId === targetCategoryId) return;
+
+    const draggedItem = allCategoriesCache.find(c => c.id === draggedCategoryId);
+    const targetItem = allCategoriesCache.find(c => c.id === targetCategoryId);
+    if (!draggedItem || !targetItem || draggedItem.parent_id !== targetItem.parent_id) return;
+
+    // backupCache
+    if (!isOrderChanged) {
+      setOriginalCategoriesCache(JSON.parse(JSON.stringify(allCategoriesCache)));
+      setIsOrderChanged(true);
+    }
+
+    const sameLevel = allCategoriesCache.filter(c => c.parent_id === draggedItem.parent_id);
+    sameLevel.sort((a, b) => {
+      const sa = a.sort_order || 0;
+      const sb = b.sort_order || 0;
+      if (sa > 0 && sb > 0) {
+        if (sa !== sb) return sa - sb;
+        return (a.name || "").localeCompare(b.name || "", "vi");
+      }
+      if (sa > 0 && sb === 0) return -1;
+      if (sa === 0 && sb > 0) return 1;
+      return (a.name || "").localeCompare(b.name || "", "vi");
+    });
+
+    const draggedIndex = sameLevel.findIndex(c => c.id === draggedCategoryId);
+    if (draggedIndex === -1) return;
+
+    // Clone mảng sibling
+    const sortedSiblings = [...sameLevel];
+    // Xóa item kéo
+    const [removed] = sortedSiblings.splice(draggedIndex, 1);
+    
+    // Tìm index mới của target item sau khi đã remove dragged item
+    const targetIndex = sortedSiblings.findIndex(c => c.id === targetCategoryId);
+    if (targetIndex === -1) return;
+
+    // Xác định index chèn dựa trên dropPosition
+    const insertIndex = dropPosition === 'top' ? targetIndex : targetIndex + 1;
+    sortedSiblings.splice(insertIndex, 0, removed);
+
+    // Map tạo các objects mới với sort_order mới
+    const updatedSiblings = sortedSiblings.map((c, idx) => ({
+      ...c,
+      sort_order: idx + 1
+    }));
+
+    const newCache = allCategoriesCache.map(c => {
+      const found = updatedSiblings.find(t => t.id === c.id);
+      if (found) {
+        return found;
+      }
+      return c;
+    });
+
+    setAllCategoriesCache(newCache);
+  };
+
+  const handleCancelReorder = () => {
+    if (originalCategoriesCache) {
+      setAllCategoriesCache(originalCategoriesCache);
+      setIsOrderChanged(false);
+      setOriginalCategoriesCache(null);
+      toast.info("Đã hủy bỏ thay đổi thứ tự hiển thị.");
+    }
+  };
+
+  const handleSaveReorder = async () => {
+    if (!originalCategoriesCache) return;
+
+    const changedItems: Array<{ id: number; sort_order: number; parent_id: number | null }> = [];
+    allCategoriesCache.forEach(c => {
+      const orig = originalCategoriesCache.find(o => o.id === c.id);
+      if (orig && (orig.sort_order !== c.sort_order || orig.parent_id !== c.parent_id)) {
+        changedItems.push({
+          id: c.id,
+          sort_order: c.sort_order,
+          parent_id: c.parent_id
+        });
+      }
+    });
+
+    if (changedItems.length === 0) {
+      setIsOrderChanged(false);
+      setOriginalCategoriesCache(null);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await CategoriesService.reorderCategories(changedItems);
+      if (res.success) {
+        toast.success(res.message);
+        setIsOrderChanged(false);
+        setOriginalCategoriesCache(null);
+        await fetchData(true);
+      } else {
+        toast.error(res.message || "Lưu thứ tự thất bại.");
+        setAllCategoriesCache(originalCategoriesCache);
+        setIsOrderChanged(false);
+        setOriginalCategoriesCache(null);
+      }
+    } catch (e: any) {
+      toast.error("Đã xảy ra sự cố kết nối khi lưu thứ tự.");
+      setAllCategoriesCache(originalCategoriesCache);
+      setIsOrderChanged(false);
+      setOriginalCategoriesCache(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveSortOrder = async (id: number, value: number): Promise<boolean> => {
     try {
       const res = await CategoriesService.updateCategory(id, { sort_order: value });
       if (res.success) {
-        toast.success(`Đã đổi thứ tự hiển thị thành ${value === 0 ? "Chưa xếp" : value}.`);
-        fetchData();
+        toast.success(`Đã đổi thứ tự hiển thị thành ${value}.`);
+        await fetchData(true);
         return true;
       } else {
         toast.error(res.message || "Không thể cập nhật thứ tự.");
@@ -333,36 +485,53 @@ export default function CategoriesPage() {
   };
 
   // 8. Thuật toán lọc Tree View và Phân trang Client-side để tính toán chỉ số hiển thị
+  const fStatus = filters.status;
+  const fSearch = filters.search;
+  const fType = filters.type;
+  const fParentId = filters.parent_id;
+  const fEmpty = filters.empty;
+  const fSortBy = filters.sort_by;
+  const fPage = filters.page;
+  const fPerPage = filters.per_page;
+
+  // 8. Thuật toán lọc Tree View và Phân trang Client-side để tính toán chỉ số hiển thị
   const treeMetrics = useMemo(() => {
     if (viewMode !== "tree") return null;
-    const data = processTreeViewData(allCategoriesCache, filters.status, expandedCategoryIds);
+    const data = processTreeViewData(allCategoriesCache, filters, expandedCategoryIds);
     return data;
-  }, [viewMode, allCategoriesCache, filters.status, expandedCategoryIds]);
+  }, [viewMode, allCategoriesCache, fStatus, fSearch, fType, fParentId, fEmpty, fSortBy, expandedCategoryIds]);
 
   // Phân trang Metadata tính toán
   const paginationMeta = useMemo(() => {
-    const perPage = filters.per_page;
-    const page = filters.page;
-    
     if (viewMode === "tree" && treeMetrics) {
       const total = treeMetrics.totalRootBranches;
-      const lastPage = Math.max(1, Math.ceil(total / perPage));
+      const lastPage = Math.max(1, Math.ceil(total / fPerPage));
       
-      const from = total > 0 ? (page - 1) * perPage + 1 : 0;
-      const to = Math.min(total, page * perPage);
+      const from = total > 0 ? (fPage - 1) * fPerPage + 1 : 0;
+      const to = Math.min(total, fPage * fPerPage);
       
       return { total, lastPage, from, to };
     } else {
-      // Flat View lấy tổng số item trực tiếp từ categoriesList
-      // Thực tế response mock đã phân trang sẵn, ta lấy total từ categoriesList và mock meta
       return {
-        total: summary.total_categories, // Fallback an toàn
-        lastPage: Math.ceil(summary.total_categories / perPage),
-        from: summary.total_categories > 0 ? (page - 1) * perPage + 1 : 0,
-        to: Math.min(summary.total_categories, page * perPage)
+        total: summary.total_categories,
+        lastPage: Math.ceil(summary.total_categories / fPerPage),
+        from: summary.total_categories > 0 ? (fPage - 1) * fPerPage + 1 : 0,
+        to: Math.min(summary.total_categories, fPage * fPerPage)
       };
     }
-  }, [viewMode, treeMetrics, filters, summary]);
+  }, [viewMode, treeMetrics, fPage, fPerPage, summary]);
+
+  // Danh sách hiển thị thực tế đã lọc và phân trang
+  const categoriesList = useMemo(() => {
+    if (!treeMetrics) return [];
+    const paginatedTree = paginateTreeView(
+      treeMetrics.processedList,
+      treeMetrics.qualifyingRootIds,
+      fPage,
+      fPerPage
+    );
+    return paginatedTree;
+  }, [treeMetrics, fPage, fPerPage]);
 
   // Nút chuyển trang pagination
   const handlePageChange = (newPage: number) => {
@@ -385,6 +554,29 @@ export default function CategoriesPage() {
   // Reset toàn bộ bộ lọc
   const handleResetAllFilters = () => {
     setSearchParams(new URLSearchParams());
+  };
+
+  const handleKpiClick = (newFilters: Partial<CategoryFilters>) => {
+    const targetFilters: Record<string, string> = {
+      search: "",
+      status: "",
+      type: "",
+      parent_id: "",
+      empty: "",
+      page: "1"
+    };
+
+    Object.entries(newFilters).forEach(([key, val]) => {
+      targetFilters[key] = String(val);
+    });
+
+    updateUrlParams(targetFilters as any);
+
+    setTimeout(() => {
+      if (resultsSectionRef.current) {
+        resultsSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
   };
 
   // Phân trang numbers builder
@@ -471,6 +663,9 @@ export default function CategoriesPage() {
       const parent = allCategoriesCache.find(c => c.id === Number(filters.parent_id));
       chips.push({ key: "parent_id" as const, label: `Cha: ${parent ? parent.name : filters.parent_id}` });
     }
+    if (filters.empty === "true") {
+      chips.push({ key: "empty" as const, label: "Chưa có khóa học" });
+    }
     return chips;
   }, [filters, allCategoriesCache]);
 
@@ -505,69 +700,112 @@ export default function CategoriesPage() {
             </div>
           ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {/* Tổng danh mục */}
-          <div className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[92px]">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray">Tổng danh mục</span>
-            <div className="mt-2">
-              <span className="text-xl lg:text-2xl font-bold text-ink leading-none font-sans">
-                {summary.total_categories}
-              </span>
-              <p className="text-[9px] text-mid-gray mt-1">Danh mục trên hệ thống</p>
-            </div>
+      ) : (() => {
+        const isTotalActive = !filters.status && !filters.type && filters.empty !== "true" && !filters.search;
+        const isActiveActive = filters.status === "active";
+        const isInactiveActive = filters.status === "inactive";
+        const isRootActive = filters.type === "root";
+        const isEmptyActive = filters.empty === "true";
+
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* Tổng danh mục */}
+            <button
+              type="button"
+              onClick={() => handleKpiClick({})}
+              className={cn(
+                "w-full text-left rounded-[6px] border border-hairline p-4 shadow-subtle flex flex-col justify-between min-h-[92px] transition-all hover:bg-canvas/50 cursor-pointer focus:outline-none",
+                isTotalActive ? "ring-2 ring-ink/20 bg-canvas/35 border-ink/40" : "bg-paper text-ink"
+              )}
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray">Tổng danh mục</span>
+              <div className="mt-2 w-full">
+                <span className="text-xl lg:text-2xl font-bold text-ink leading-none font-sans block">
+                  {summary.total_categories}
+                </span>
+                <p className="text-[9px] text-mid-gray mt-1">Danh mục trên hệ thống</p>
+              </div>
+            </button>
+            {/* Đang hoạt động */}
+            <button
+              type="button"
+              onClick={() => handleKpiClick({ status: "active" })}
+              className={cn(
+                "w-full text-left rounded-[6px] border border-hairline p-4 shadow-subtle flex flex-col justify-between min-h-[92px] transition-all hover:bg-canvas/50 cursor-pointer focus:outline-none",
+                isActiveActive ? "ring-2 ring-success/20 bg-success/5 border-success/40" : "bg-paper text-ink border-t-2 border-t-success"
+              )}
+            >
+              <div className="flex items-center justify-between text-mid-gray w-full">
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Đang hoạt động</span>
+                <span className="flex h-1.5 w-1.5 rounded-full bg-success"></span>
+              </div>
+              <div className="mt-2 w-full">
+                <span className="text-xl lg:text-2xl font-bold text-success leading-none font-sans block">
+                  {summary.active_categories}
+                </span>
+                <p className="text-[9px] text-mid-gray mt-1">Khả dụng hiển thị</p>
+              </div>
+            </button>
+            {/* Ngừng hoạt động */}
+            <button
+              type="button"
+              onClick={() => handleKpiClick({ status: "inactive" })}
+              className={cn(
+                "w-full text-left rounded-[6px] border border-hairline p-4 shadow-subtle flex flex-col justify-between min-h-[92px] transition-all hover:bg-canvas/50 cursor-pointer focus:outline-none",
+                isInactiveActive ? "ring-2 ring-danger-brick/20 bg-danger-brick/5 border-danger-brick/40" : "bg-paper text-ink border-t-2 border-t-danger-brick"
+              )}
+            >
+              <div className="flex items-center justify-between text-mid-gray w-full">
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Ngừng hoạt động</span>
+                <span className="flex h-1.5 w-1.5 rounded-full bg-danger-brick"></span>
+              </div>
+              <div className="mt-2 w-full">
+                <span className="text-xl lg:text-2xl font-bold text-danger-brick leading-none font-sans block">
+                  {summary.inactive_categories}
+                </span>
+                <p className="text-[9px] text-mid-gray mt-1">Đang tạm ẩn</p>
+              </div>
+            </button>
+            {/* Danh mục gốc */}
+            <button
+              type="button"
+              onClick={() => handleKpiClick({ type: "root" })}
+              className={cn(
+                "w-full text-left rounded-[6px] border border-hairline p-4 shadow-subtle flex flex-col justify-between min-h-[92px] transition-all hover:bg-canvas/50 cursor-pointer focus:outline-none",
+                isRootActive ? "ring-2 ring-ink/20 bg-canvas/35 border-ink/40" : "bg-paper text-ink"
+              )}
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray">Danh mục gốc</span>
+              <div className="mt-2 w-full">
+                <span className="text-xl lg:text-2xl font-bold text-ink leading-none font-sans block">
+                  {summary.root_categories}
+                </span>
+                <p className="text-[9px] text-mid-gray mt-1">Danh mục cấp cao nhất</p>
+              </div>
+            </button>
+            {/* Chưa có khóa học */}
+            <button
+              type="button"
+              onClick={() => handleKpiClick({ empty: "true" })}
+              className={cn(
+                "w-full text-left rounded-[6px] border border-hairline p-4 shadow-subtle flex flex-col justify-between min-h-[92px] transition-all hover:bg-canvas/50 cursor-pointer focus:outline-none",
+                isEmptyActive ? "ring-2 ring-warning/20 bg-warning/5 border-warning/40" : "bg-paper text-ink border-t-2 border-t-warning"
+              )}
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray">Chưa có khóa học</span>
+              <div className="mt-2 w-full">
+                <span className="text-xl lg:text-2xl font-bold text-warning leading-none font-sans block">
+                  {summary.empty_categories}
+                </span>
+                <p className="text-[9px] text-mid-gray mt-1">Chưa có nội dung</p>
+              </div>
+            </button>
           </div>
-          {/* Đang hoạt động */}
-          <div className="rounded-[6px] border border-hairline border-t-2 border-t-success bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[92px]">
-            <div className="flex items-center justify-between text-mid-gray">
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Đang hoạt động</span>
-              <span className="flex h-1.5 w-1.5 rounded-full bg-success"></span>
-            </div>
-            <div className="mt-2">
-              <span className="text-xl lg:text-2xl font-bold text-success leading-none font-sans">
-                {summary.active_categories}
-              </span>
-              <p className="text-[9px] text-mid-gray mt-1">Khả dụng hiển thị</p>
-            </div>
-          </div>
-          {/* Ngừng hoạt động */}
-          <div className="rounded-[6px] border border-hairline border-t-2 border-t-danger-brick bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[92px]">
-            <div className="flex items-center justify-between text-mid-gray">
-              <span className="text-[10px] font-semibold uppercase tracking-wider">Ngừng hoạt động</span>
-              <span className="flex h-1.5 w-1.5 rounded-full bg-danger-brick"></span>
-            </div>
-            <div className="mt-2">
-              <span className="text-xl lg:text-2xl font-bold text-danger-brick leading-none font-sans">
-                {summary.inactive_categories}
-              </span>
-              <p className="text-[9px] text-mid-gray mt-1">Đang tạm ẩn</p>
-            </div>
-          </div>
-          {/* Danh mục gốc */}
-          <div className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[92px]">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray">Danh mục gốc</span>
-            <div className="mt-2">
-              <span className="text-xl lg:text-2xl font-bold text-ink leading-none font-sans">
-                {summary.root_categories}
-              </span>
-              <p className="text-[9px] text-mid-gray mt-1">Danh mục cấp cao nhất</p>
-            </div>
-          </div>
-          {/* Chưa có khóa học */}
-          <div className="rounded-[6px] border border-hairline border-t-2 border-t-warning bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[92px]">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray">Chưa có khóa học</span>
-            <div className="mt-2">
-              <span className="text-xl lg:text-2xl font-bold text-warning leading-none font-sans">
-                {summary.empty_categories}
-              </span>
-              <p className="text-[9px] text-mid-gray mt-1">Chưa có nội dung</p>
-            </div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Search & Filter Bar */}
-      <section className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
+      <section ref={resultsSectionRef} className="scroll-mt-24 rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {/* Search */}
           <div className="sm:col-span-2 lg:col-span-1">
@@ -706,22 +944,42 @@ export default function CategoriesPage() {
 
       {/* Main Data Section */}
       <section className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden">
+        {/* Banner Lưu thứ tự hiển thị (Batch Reorder Action Bar) */}
+        {isOrderChanged && (
+          <div className="flex h-12 items-center justify-between px-4 border-b border-warning/20 bg-warning-soft text-warning-brick text-xs font-semibold select-none animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-warning animate-pulse"></span>
+              <span>Bạn có thay đổi chưa lưu về thứ tự hiển thị danh mục.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCancelReorder}
+                className="px-3 py-1 rounded-[4px] border border-warning/30 hover:bg-warning-soft/80 text-warning-brick transition-colors cursor-pointer"
+              >
+                Hủy thay đổi
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveReorder}
+                className="px-3 py-1 rounded-[4px] bg-warning text-warning-brick hover:bg-warning/90 font-bold transition-all cursor-pointer shadow-sm"
+              >
+                Lưu thứ tự
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Table Toolbar */}
         <div className="flex h-12 items-center justify-between px-4 border-b border-hairline bg-surface-alt/40 text-xs text-mid-gray">
           <div>
-            {viewMode === "tree" ? (
-              <span>
-                Hiển thị kết quả thứ <span className="font-semibold text-ink">{paginationMeta.from}</span> đến <span className="font-semibold text-ink">{paginationMeta.to}</span> trong tổng số <span className="font-semibold text-ink">{paginationMeta.total}</span> nhánh danh mục gốc
-              </span>
-            ) : (
-              <span>
-                Hiển thị kết quả thứ <span className="font-semibold text-ink">{paginationMeta.from}</span> đến <span className="font-semibold text-ink">{paginationMeta.to}</span> trong tổng số <span className="font-semibold text-ink">{paginationMeta.total}</span> danh mục
-              </span>
-            )}
+            <span>
+              Hiển thị kết quả thứ <span className="font-semibold text-ink">{paginationMeta.from}</span> đến <span className="font-semibold text-ink">{paginationMeta.to}</span> trong tổng số <span className="font-semibold text-ink">{paginationMeta.total}</span> nhánh danh mục gốc
+            </span>
           </div>
           <button
             type="button"
-            onClick={fetchData}
+            onClick={() => fetchData()}
             disabled={isLoading}
             className="p-1.5 hover:bg-canvas rounded-full text-mid-gray hover:text-ink transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
             title="Làm mới dữ liệu"
@@ -781,22 +1039,48 @@ export default function CategoriesPage() {
                 null
               ) : (
                 categoriesList
-                  .filter(c => viewMode === "flat" || c.visible)
-                  .map(cat => (
-                    <CategoryRow
-                      key={cat.id}
-                      category={cat}
-                      viewMode={viewMode}
-                      onToggleExpand={handleToggleExpand}
-                      onCopySlug={handleCopySlug}
-                      onViewDetail={handleViewDetail}
-                      onEdit={handleEdit}
-                      onChangeStatus={handleChangeStatus}
-                      onDelete={handleDelete}
-                      onRestore={handleRestore}
-                      onSaveSortOrder={handleSaveSortOrder}
-                    />
-                  ))
+                  .filter(c => c.visible)
+                  .map(cat => {
+                    const sameLevel = allCategoriesCache.filter(c => c.parent_id === cat.parent_id);
+                    sameLevel.sort((a, b) => {
+                      const sa = a.sort_order || 0;
+                      const sb = b.sort_order || 0;
+                      if (sa > 0 && sb > 0) {
+                        if (sa !== sb) return sa - sb;
+                        return (a.name || "").localeCompare(b.name || "", "vi");
+                      }
+                      if (sa > 0 && sb === 0) return -1;
+                      if (sa === 0 && sb > 0) return 1;
+                      return (a.name || "").localeCompare(b.name || "", "vi");
+                    });
+                    const idx = sameLevel.findIndex(c => c.id === cat.id);
+                    const isFirstChild = idx === 0;
+                    const isLastChild = idx === sameLevel.length - 1;
+
+                    return (
+                      <CategoryRow
+                        key={cat.id}
+                        category={cat}
+                        viewMode={viewMode}
+                        onToggleExpand={handleToggleExpand}
+                        onCopySlug={handleCopySlug}
+                        onViewDetail={handleViewDetail}
+                        onEdit={handleEdit}
+                        onChangeStatus={handleChangeStatus}
+                        onDelete={handleDelete}
+                        onRestore={handleRestore}
+                        onSaveSortOrder={handleSaveSortOrder}
+                        onMovePosition={handleMovePosition}
+                        onDragDrop={handleDragDrop}
+                        draggedId={draggedId}
+                        setDraggedId={setDraggedId}
+                        dragOverId={dragOverId}
+                        setDragOverId={setDragOverId}
+                        isFirstChild={isFirstChild}
+                        isLastChild={isLastChild}
+                      />
+                    );
+                  })
               )}
             </tbody>
           </table>
@@ -814,7 +1098,7 @@ export default function CategoriesPage() {
                 <p className="text-xs text-mid-gray leading-normal">{errorMessage}</p>
                 <button
                   type="button"
-                  onClick={fetchData}
+                  onClick={() => fetchData()}
                   className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer"
                 >
                   Thử lại

@@ -5,7 +5,8 @@ import {
   updateCategory as mockUpdateCategory,
   deleteCategory as mockDeleteCategory,
   restoreCategory as mockRestoreCategory,
-  getCourses as mockGetCourses
+  getCourses as mockGetCourses,
+  getUsers as mockGetUsers
 } from "@/assets/js/mocks/mock-repository.js";
 import {
   Category,
@@ -115,6 +116,11 @@ export const CategoriesService = {
       if (params.parent_id && params.parent_id !== "" && params.parent_id !== "all") {
         const parentId = Number(params.parent_id);
         filtered = filtered.filter(c => c.parent_id === parentId);
+      }
+
+      // Lọc theo danh mục chưa có khóa học (empty)
+      if (params.empty === "true") {
+        filtered = filtered.filter(c => (courseCounts[c.id] || 0) === 0);
       }
 
       // 3. Sắp xếp dữ liệu
@@ -253,6 +259,44 @@ export const CategoriesService = {
   },
 
   /**
+   * Lưu thứ tự hiển thị hàng loạt
+   */
+  async reorderCategories(
+    items: Array<{ id: number; sort_order: number; parent_id: number | null }>
+  ): Promise<{ success: boolean; message: string }> {
+    if (!USE_MOCK) {
+      // Backend thật chưa có endpoint, ta trả về lỗi báo rõ thông tin endpoint/payload
+      return {
+        success: false,
+        message: `Endpoint reorder hàng loạt chưa được tích hợp trên Backend. Endpoint mong muốn: PUT /api/admin/categories/reorder. Payload: ${JSON.stringify(items)}`
+      };
+    }
+
+    // Giả lập trễ mạng
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    try {
+      // Trong mock mode, duyệt qua và gọi mockUpdateCategory để ghi nhận thay đổi vào localStorage
+      for (const item of items) {
+        mockUpdateCategory(item.id, {
+          sort_order: item.sort_order,
+          parent_id: item.parent_id
+        });
+      }
+      return {
+        success: true,
+        message: "Lưu thứ tự hiển thị danh mục thành công (Mock Mode)."
+      };
+    } catch (e: any) {
+      console.error("Lỗi mock reorder:", e);
+      return {
+        success: false,
+        message: e.message || "Lỗi hệ thống khi cập nhật thứ tự."
+      };
+    }
+  },
+
+  /**
    * Lấy chi tiết một danh mục
    */
   async getCategory(id: number | string): Promise<CategoryDetailResponse> {
@@ -283,6 +327,61 @@ export const CategoriesService = {
     const parentObj = category.parent_id ? rawCategories.find(p => p.id === category.parent_id) : null;
     const childrenObj = rawCategories.filter(c => c.parent_id === catId && c.deleted_at === null);
 
+    // Thu thập toàn bộ ID danh mục con/cháu bằng đệ quy
+    const getDescendantIds = (rootId: number): Set<number> => {
+      const ids = new Set<number>([rootId]);
+      const findChildren = (pId: number) => {
+        rawCategories.forEach(c => {
+          if (c.parent_id === pId && c.deleted_at === null) {
+            ids.add(c.id);
+            findChildren(c.id);
+          }
+        });
+      };
+      findChildren(rootId);
+      return ids;
+    };
+
+    const targetCatIds = getDescendantIds(catId);
+    
+    // Tìm các khóa học thuộc nhánh danh mục này
+    const allCourses = mockGetCourses() || [];
+    const matchedCourses = allCourses.filter((c: any) => {
+      if (c.deleted_at !== null) return false;
+      const catIds = c.category_ids || [];
+      return catIds.some((cid: any) => targetCatIds.has(Number(cid)));
+    });
+
+    // Tính toán thống kê
+    const total = matchedCourses.length;
+    const published = matchedCourses.filter((c: any) => c.status === "published").length;
+    const pending = matchedCourses.filter((c: any) => c.status === "pending_review").length;
+    const draft = matchedCourses.filter((c: any) => c.status === "draft").length;
+    const enrollments = matchedCourses.reduce((sum: number, c: any) => sum + (c.enrollment_count || 0), 0);
+    const reviews = matchedCourses.reduce((sum: number, c: any) => sum + (c.review_count || 0), 0);
+    
+    const ratedCourses = matchedCourses.filter((c: any) => (c.average_rating || 0) > 0);
+    const rating = ratedCourses.length > 0
+      ? Number((ratedCourses.reduce((sum: number, c: any) => sum + (c.average_rating || 0), 0) / ratedCourses.length).toFixed(1))
+      : "Chưa có dữ liệu";
+
+    // Map chi tiết khóa học
+    const usersList = mockGetUsers() || [];
+    const getInstructorName = (instId: number) => {
+      const user = usersList.find((u: any) => u.id === instId);
+      return user ? user.full_name : "Chưa rõ";
+    };
+
+    const courseDetails = matchedCourses.map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      status: c.status,
+      instructor_name: getInstructorName(c.instructor_id),
+      enrollment_count: c.enrollment_count || 0,
+      average_rating: c.average_rating || 0,
+      review_count: c.review_count || 0
+    }));
+
     return {
       success: true,
       message: "Lấy chi tiết danh mục thành công.",
@@ -294,9 +393,19 @@ export const CategoriesService = {
           id: ch.id,
           name: ch.name,
           slug: ch.slug,
-          status: ch.status,
-          sort_order: ch.sort_order
-        }))
+          status: ch.status as any,
+          sort_order: ch.sort_order || 1
+        })),
+        statistics: {
+          total,
+          published,
+          pending,
+          draft,
+          enrollments,
+          reviews,
+          rating
+        },
+        courses: courseDetails
       }
     };
   },

@@ -20,6 +20,7 @@ export interface Category {
   isExpanded?: boolean;
   visible?: boolean;
   isContextual?: boolean;
+  displayOrder?: string;
 }
 
 export interface CategorySummary {
@@ -38,6 +39,7 @@ export interface CategoryFilters {
   sort_by: 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'sort_order_asc' | 'sort_order_desc' | 'courses_desc';
   page: number;
   per_page: number;
+  empty?: string;
 }
 
 export interface PaginationMeta {
@@ -57,6 +59,26 @@ export interface CategoriesResponse {
   meta: PaginationMeta;
 }
 
+export interface CategoryCourseDetail {
+  id: number;
+  title: string;
+  status: string;
+  instructor_name: string;
+  enrollment_count: number;
+  average_rating: number;
+  review_count: number;
+}
+
+export interface CategoryStatistics {
+  total: number;
+  published: number;
+  pending: number;
+  draft: number;
+  enrollments: number;
+  reviews: number;
+  rating: number | string;
+}
+
 export interface CategoryDetailResponse {
   success: boolean;
   message: string;
@@ -69,6 +91,8 @@ export interface CategoryDetailResponse {
       status: 'active' | 'inactive';
       sort_order: number;
     }>;
+    statistics?: CategoryStatistics;
+    courses?: CategoryCourseDetail[];
   };
   error_code?: number;
 }

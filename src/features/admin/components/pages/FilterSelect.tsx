@@ -17,6 +17,7 @@ interface FilterSelectProps {
   id: string;
   activeId: string | null;
   setActiveId: (id: string | null) => void;
+  className?: string;
 }
 
 export default function FilterSelect({
@@ -28,6 +29,7 @@ export default function FilterSelect({
   id,
   activeId,
   setActiveId,
+  className,
 }: FilterSelectProps) {
   const isOpen = activeId === id;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,10 +61,12 @@ export default function FilterSelect({
   }, [isOpen, setActiveId]);
 
   return (
-    <div ref={containerRef} className="w-full relative flex flex-col">
-      <span className="block text-[10px] font-bold text-mid-gray uppercase tracking-wider mb-1.5 select-none">
-        {label}
-      </span>
+    <div ref={containerRef} className={cn("w-full relative flex flex-col", className)}>
+      {label && (
+        <span className="block text-[10px] font-bold text-mid-gray uppercase tracking-wider mb-1.5 select-none">
+          {label}
+        </span>
+      )}
       <button
         type="button"
         onClick={() => setActiveId(isOpen ? null : id)}

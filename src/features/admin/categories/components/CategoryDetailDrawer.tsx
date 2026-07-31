@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { X, ShieldAlert, BookOpen, Layers, Calendar, RefreshCw } from "lucide-react";
+import { X, ShieldAlert, BookOpen, Layers, Calendar, RefreshCw, Star, Users, CheckCircle2, Clock, Edit3, User, MessageSquare } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useNavigate, useParams } from "react-router-dom";
 import { CategoriesService } from "../categories.service";
 import { CategoryDetailResponse } from "../categories.types";
 import { toast } from "sonner";
@@ -15,11 +16,16 @@ interface CategoryDetailDrawerProps {
 export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: CategoryDetailDrawerProps) {
   const [detailData, setDetailData] = useState<CategoryDetailResponse["data"] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+  
+  const navigate = useNavigate();
+  const { adminId } = useParams();
 
   useEffect(() => {
     let active = true;
     if (isOpen && categoryId !== null) {
       setIsLoading(true);
+      setIsError(false);
       CategoriesService.getCategory(categoryId)
         .then(res => {
           if (active) {
@@ -27,7 +33,7 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
               setDetailData(res.data);
             } else {
               toast.error(res.message || "Không thể lấy thông tin chi tiết.");
-              onClose();
+              setIsError(true);
             }
             setIsLoading(false);
           }
@@ -36,7 +42,7 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
           if (active) {
             console.error("Lỗi fetch chi tiết danh mục:", err);
             toast.error("Đã xảy ra lỗi kết nối dữ liệu.");
-            onClose();
+            setIsError(true);
             setIsLoading(false);
           }
         });
@@ -63,6 +69,54 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
+  const handleCourseClick = (courseId: number) => {
+    onClose();
+    // Navigate to courses page with open_course_id parameter
+    const currentAdminId = adminId || "1";
+    navigate(`/admin/${currentAdminId}/courses?open_course_id=${courseId}`);
+  };
+
+  const getCourseStatusBadge = (status: string) => {
+    switch (status) {
+      case "published":
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success">
+            <span className="h-1.5 w-1.5 rounded-full bg-success"></span>Đã xuất bản
+          </span>
+        );
+      case "pending_review":
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-warning">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse"></span>Chờ duyệt
+          </span>
+        );
+      case "draft":
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-mid-gray">
+            <span className="h-1.5 w-1.5 rounded-full bg-mid-gray"></span>Bản nháp
+          </span>
+        );
+      case "rejected":
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-danger-brick">
+            <span className="h-1.5 w-1.5 rounded-full bg-danger-brick"></span>Từ chối
+          </span>
+        );
+      case "approved":
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success">
+            <span className="h-1.5 w-1.5 rounded-full bg-success"></span>Đã duyệt
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-mid-gray">
+            <span className="h-1.5 w-1.5 rounded-full bg-mid-gray"></span>{status}
+          </span>
+        );
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -82,7 +136,7 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="fixed inset-y-0 right-0 z-50 bg-paper border-l border-hairline w-full max-w-md shadow-2xl flex flex-col h-full"
+            className="fixed inset-y-0 right-0 z-50 bg-paper border-l border-hairline w-full max-w-lg shadow-2xl flex flex-col h-full"
           >
             {/* Header */}
             <div className="flex h-14 shrink-0 items-center justify-between px-5 border-b border-hairline bg-surface-alt/40">
@@ -107,6 +161,14 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
                 <div className="py-20 flex flex-col items-center justify-center space-y-3">
                   <div className="w-6 h-6 border-2 border-mid-gray/20 border-t-ink rounded-full animate-spin"></div>
                   <span className="text-xs text-mid-gray">Đang tải thông tin chi tiết...</span>
+                </div>
+              ) : isError ? (
+                <div className="py-20 text-center space-y-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger-brick-soft text-danger-brick mx-auto">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-bold text-danger-brick">Lỗi tải dữ liệu</h4>
+                  <p className="text-xs text-mid-gray">Không thể lấy thông tin chi tiết của danh mục này.</p>
                 </div>
               ) : detailData ? (
                 <>
@@ -188,14 +250,9 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
                         <span className="text-[9px] font-bold text-mid-gray uppercase tracking-wider block mb-1">
                           Số khóa học trực thuộc
                         </span>
-                        {detailData.course_count && detailData.course_count > 0 ? (
-                          <p className="text-xs font-bold text-success flex items-center gap-1">
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span className="underline select-all">{detailData.course_count} khóa học</span>
-                          </p>
-                        ) : (
-                          <p className="text-xs text-mid-gray/80">Chưa có khóa học nào</p>
-                        )}
+                        <p className="text-xs font-bold text-ink">
+                          {detailData.course_count || 0} khóa học
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -218,35 +275,131 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
                     </div>
                   </div>
 
+                  {/* Statistics Section */}
+                  {detailData.statistics && (
+                    <div className="pt-4 border-t border-hairline space-y-3">
+                      <div className="flex items-center gap-1.5 text-ink">
+                        <Layers className="w-4 h-4 text-mid-gray/80" />
+                        <h4 className="text-xs font-bold">Thống kê nhánh danh mục</h4>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-canvas border border-hairline rounded-lg p-3 text-center">
+                          <span className="text-[9px] text-mid-gray font-bold uppercase tracking-wider">Tổng khóa học</span>
+                          <p className="text-lg font-bold text-ink mt-1">{detailData.statistics.total}</p>
+                        </div>
+                        <div className="bg-canvas border border-hairline rounded-lg p-3 text-center">
+                          <span className="text-[9px] text-mid-gray font-bold uppercase tracking-wider">Đã xuất bản</span>
+                          <p className="text-lg font-bold text-success mt-1">{detailData.statistics.published}</p>
+                        </div>
+                        <div className="bg-canvas border border-hairline rounded-lg p-3 text-center">
+                          <span className="text-[9px] text-mid-gray font-bold uppercase tracking-wider">Chờ duyệt</span>
+                          <p className="text-lg font-bold text-warning mt-1">{detailData.statistics.pending}</p>
+                        </div>
+                        <div className="bg-canvas border border-hairline rounded-lg p-3 text-center">
+                          <span className="text-[9px] text-mid-gray font-bold uppercase tracking-wider">Bản nháp</span>
+                          <p className="text-lg font-bold text-mid-gray mt-1">{detailData.statistics.draft}</p>
+                        </div>
+                        <div className="bg-canvas border border-hairline rounded-lg p-3 text-center">
+                          <span className="text-[9px] text-mid-gray font-bold uppercase tracking-wider">Tổng ghi danh</span>
+                          <p className="text-lg font-bold text-ink mt-1">
+                            {new Intl.NumberFormat("vi-VN").format(detailData.statistics.enrollments)}
+                          </p>
+                        </div>
+                        <div className="bg-canvas border border-hairline rounded-lg p-3 text-center">
+                          <span className="text-[9px] text-mid-gray font-bold uppercase tracking-wider">Đánh giá TB</span>
+                          <p className="text-lg font-bold text-warning mt-1 flex items-center justify-center gap-1">
+                            {typeof detailData.statistics.rating === "number" && <Star className="w-4 h-4 fill-warning text-warning" />}
+                            <span>{detailData.statistics.rating}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Subcategories (Children Nodes) */}
+                  {detailData.parent_id === null && (
+                    <div className="pt-4 border-t border-hairline space-y-3">
+                      <div className="flex items-center gap-1.5 text-ink">
+                        <Layers className="w-4 h-4 text-mid-gray/80" />
+                        <h4 className="text-xs font-bold">Danh mục con trực thuộc ({detailData.children?.length || 0})</h4>
+                      </div>
+                      <div className="space-y-1.5">
+                        {detailData.children && detailData.children.length > 0 ? (
+                          detailData.children.map(ch => (
+                            <div
+                              key={ch.id}
+                              className="flex items-center justify-between p-2.5 rounded-lg bg-canvas border border-hairline/60"
+                            >
+                              <div className="truncate mr-3">
+                                <span className="font-bold text-xs text-ink">{ch.name}</span>
+                                <p className="text-[9px] text-mid-gray font-mono">{ch.slug}</p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[9px] text-mid-gray font-semibold">Thứ tự: {ch.sort_order}</span>
+                                {ch.status === "active" ? (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-success-soft text-success font-semibold border border-success/10">Active</span>
+                                ) : (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-canvas text-mid-gray border border-hairline">Inactive</span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-mid-gray/80 italic pl-1">Không có danh mục con trực thuộc.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Courses List Section */}
                   <div className="pt-4 border-t border-hairline space-y-3">
                     <div className="flex items-center gap-1.5 text-ink">
-                      <Layers className="w-4 h-4 text-mid-gray/80" />
-                      <h4 className="text-xs font-bold">Danh mục con trực thuộc ({detailData.children?.length || 0})</h4>
+                      <BookOpen className="w-4 h-4 text-mid-gray/80" />
+                      <h4 className="text-xs font-bold">Danh sách khóa học ({detailData.courses?.length || 0})</h4>
                     </div>
-                    <div className="space-y-1.5">
-                      {detailData.children && detailData.children.length > 0 ? (
-                        detailData.children.map(ch => (
+                    <div className="space-y-2.5">
+                      {detailData.courses && detailData.courses.length > 0 ? (
+                        detailData.courses.map(course => (
                           <div
-                            key={ch.id}
-                            className="flex items-center justify-between p-2.5 rounded-lg bg-canvas border border-hairline/60"
+                            key={course.id}
+                            onClick={() => handleCourseClick(course.id)}
+                            className="p-3 rounded-lg border border-hairline bg-canvas hover:bg-surface-alt/60 hover:border-ink/20 transition-all cursor-pointer select-none space-y-2 group shadow-sm hover:shadow"
                           >
-                            <div className="truncate mr-3">
-                              <span className="font-bold text-xs text-ink">{ch.name}</span>
-                              <p className="text-[9px] text-mid-gray font-mono">{ch.slug}</p>
+                            <div className="flex items-start justify-between gap-3">
+                              <h5 className="text-xs font-bold text-ink group-hover:text-link transition-colors leading-tight">
+                                {course.title}
+                              </h5>
+                              <div className="shrink-0 mt-0.5">
+                                {getCourseStatusBadge(course.status)}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[9px] text-mid-gray font-semibold">Thứ tự: {ch.sort_order}</span>
-                              {ch.status === "active" ? (
-                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-success-soft text-success font-semibold border border-success/10">Active</span>
-                              ) : (
-                                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-canvas text-mid-gray border border-hairline">Inactive</span>
-                              )}
+                            
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-mid-gray">
+                              <div className="flex items-center gap-1">
+                                <User className="w-3.5 h-3.5 text-mid-gray/60" />
+                                <span>Giảng viên: <span className="font-semibold text-ink">{course.instructor_name}</span></span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3.5 h-3.5 text-mid-gray/60" />
+                                <span>{new Intl.NumberFormat("vi-VN").format(course.enrollment_count)} học viên</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Star className="w-3.5 h-3.5 fill-warning text-warning" />
+                                <span className="font-semibold text-ink">{course.average_rating || "0.0"}</span>
+                                {course.review_count > 0 && (
+                                  <span className="flex items-center gap-0.5 text-mid-gray/80">
+                                    <MessageSquare className="w-2.5 h-2.5 ml-0.5" />
+                                    <span>({course.review_count})</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <p className="text-xs text-mid-gray/80 italic pl-1">Không có danh mục con trực thuộc.</p>
+                        <div className="text-center py-6 text-xs text-mid-gray/80 italic bg-canvas rounded-lg border border-dashed border-hairline">
+                          Chưa có khóa học nào thuộc nhánh danh mục này.
+                        </div>
                       )}
                     </div>
                   </div>

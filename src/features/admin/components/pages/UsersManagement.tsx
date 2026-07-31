@@ -93,27 +93,15 @@ export default function UsersManagement() {
   const page = Number(searchParams.get('page')) || 1;
   const per_page = Number(searchParams.get('per_page')) || 20;
 
-  // Local Form Draft state
-  const [draftSearch, setDraftSearch] = useState(search);
-  const [draftRole, setDraftRole] = useState(role);
-  const [draftStatus, setDraftStatus] = useState(status);
-  const [draftEmailVerified, setDraftEmailVerified] = useState(email_verified);
-  const [draftSortBy, setDraftSortBy] = useState(sort_by);
-  const [draftTimePreset, setDraftTimePreset] = useState(time_preset);
-  const [draftDateFrom, setDraftDateFrom] = useState(date_from);
-  const [draftDateTo, setDraftDateTo] = useState(date_to);
+  // Local Form date states
+  const [formDateFrom, setFormDateFrom] = useState(date_from);
+  const [formDateTo, setFormDateTo] = useState(date_to);
 
-  // Sync draft states when URL params change
+  // Sync date form states when URL params change
   useEffect(() => {
-    setDraftSearch(search);
-    setDraftRole(role);
-    setDraftStatus(status);
-    setDraftEmailVerified(email_verified);
-    setDraftSortBy(sort_by);
-    setDraftTimePreset(time_preset);
-    setDraftDateFrom(date_from);
-    setDraftDateTo(date_to);
-  }, [search, role, status, email_verified, sort_by, time_preset, date_from, date_to]);
+    setFormDateFrom(date_from);
+    setFormDateTo(date_to);
+  }, [date_from, date_to]);
 
   // Data State
   const [data, setData] = useState<any>(null);
@@ -212,14 +200,8 @@ export default function UsersManagement() {
   };
 
   const handleResetFilters = () => {
-    setDraftSearch('');
-    setDraftRole('');
-    setDraftStatus('');
-    setDraftEmailVerified('');
-    setDraftSortBy('newest');
-    setDraftTimePreset('all');
-    setDraftDateFrom('');
-    setDraftDateTo('');
+    setFormDateFrom('');
+    setFormDateTo('');
     setSearchParams(new URLSearchParams());
     setSelectedUserIds(new Set());
     setActiveFilterDropdown(null);
@@ -764,40 +746,21 @@ export default function UsersManagement() {
 
       {/* Filter panel */}
       <section className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          if (draftTimePreset === 'custom') {
-            if (draftDateFrom && draftDateTo && new Date(draftDateTo) < new Date(draftDateFrom)) {
-              toast.error('Đến ngày không được nhỏ hơn Từ ngày.');
-              return;
-            }
-          }
-          updateFilters({
-            search: draftSearch.trim(),
-            role: draftRole,
-            status: draftStatus,
-            email_verified: draftEmailVerified,
-            sort_by: draftSortBy,
-            time_preset: draftTimePreset,
-            date_from: draftDateFrom,
-            date_to: draftDateTo,
-            page: 1
-          });
-        }} className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-[minmax(0,1fr)_190px_190px_160px_200px_190px_160px] xl:items-end w-full">
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-3 p-0">
+          <div className="flex flex-wrap items-end gap-3 w-full">
             {/* Search filter */}
-            <div className="w-full flex flex-col">
-              <label htmlFor="filter-search" className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5">
+            <div className="flex-grow min-w-[200px] flex flex-col gap-1.5">
+              <label htmlFor="filter-search" className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5 select-none">
                 Tìm kiếm
               </label>
               <div className="relative">
                 <input
                   type="text"
                   id="filter-search"
-                  value={draftSearch}
-                  onChange={(e) => setDraftSearch(e.target.value)}
+                  value={search}
+                  onChange={(e) => updateFilters({ search: e.target.value, page: 1 })}
                   placeholder="Tìm theo tên, email, SĐT..."
-                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 focus:border-blue-600/40 outline-none text-ink placeholder-mid-gray/70 transition-all font-semibold"
+                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] outline-none text-ink placeholder-mid-gray/70 transition-all font-medium"
                 />
                 <svg className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="8" />
@@ -809,99 +772,106 @@ export default function UsersManagement() {
             {/* Custom Dropdown: Role */}
             <FilterSelect
               label="Vai trò"
-              value={draftRole}
+              value={role}
               options={roleOptions}
-              onChange={(val) => setDraftRole(val)}
+              onChange={(val) => updateFilters({ role: val, page: 1 })}
               placeholder="Tất cả vai trò"
               id="role"
               activeId={activeFilterDropdown}
               setActiveId={setActiveFilterDropdown}
+              className="w-full sm:w-[130px]"
             />
 
             {/* Custom Dropdown: Status */}
             <FilterSelect
               label="Trạng thái"
-              value={draftStatus}
+              value={status}
               options={statusOptions}
-              onChange={(val) => setDraftStatus(val)}
+              onChange={(val) => updateFilters({ status: val, page: 1 })}
               placeholder="Tất cả trạng thái"
               id="status"
               activeId={activeFilterDropdown}
               setActiveId={setActiveFilterDropdown}
+              className="w-full sm:w-[130px]"
             />
 
             {/* Custom Dropdown: Email Verified */}
             <FilterSelect
               label="Xác minh email"
-              value={draftEmailVerified}
+              value={email_verified}
               options={verifiedOptions}
-              onChange={(val) => setDraftEmailVerified(val)}
+              onChange={(val) => updateFilters({ email_verified: val, page: 1 })}
               placeholder="Tất cả"
               id="verified"
               activeId={activeFilterDropdown}
               setActiveId={setActiveFilterDropdown}
+              className="w-full sm:w-[130px]"
             />
 
             {/* Custom Dropdown: Sort */}
             <FilterSelect
               label="Sắp xếp"
-              value={draftSortBy}
+              value={sort_by}
               options={sortOptions}
-              onChange={(val) => setDraftSortBy(val)}
+              onChange={(val) => updateFilters({ sort_by: val, page: 1 })}
               placeholder="Mới nhất"
               id="sort"
               activeId={activeFilterDropdown}
               setActiveId={setActiveFilterDropdown}
+              className="w-full sm:w-[180px]"
             />
 
             {/* Custom Dropdown: Time Preset */}
             <FilterSelect
               label="Thời gian"
-              value={draftTimePreset}
+              value={time_preset}
               options={timeOptions}
               onChange={(val) => {
-                setDraftTimePreset(val);
+                const updates: Record<string, any> = { time_preset: val, page: 1 };
                 if (val !== 'custom') {
-                  setDraftDateFrom('');
-                  setDraftDateTo('');
+                  updates.date_from = '';
+                  updates.date_to = '';
                 }
+                updateFilters(updates);
               }}
               placeholder="Tất cả thời gian"
               id="time"
               activeId={activeFilterDropdown}
               setActiveId={setActiveFilterDropdown}
+              className="w-full sm:w-[150px]"
             />
 
-            {/* Actions Buttons Group */}
-            <div className="flex gap-2 items-center h-10 shrink-0 justify-end w-full sm:w-auto xl:col-span-1 md:col-span-full">
+            {/* Red reset X button - Locked in row, aligned vertically */}
+            <div className="flex flex-col gap-1.5 w-8">
+              <span className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5 invisible select-none">
+                Reset
+              </span>
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-3.5 py-2 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer shrink-0"
+                title="Đặt lại bộ lọc"
+                className="h-10 w-8 flex items-center justify-center text-danger-brick hover:bg-red-50/50 border border-hairline rounded-[6px] transition-colors cursor-pointer bg-paper shrink-0"
+                aria-label="Đặt lại bộ lọc"
               >
-                Đặt lại
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 h-10 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-              >
-                Áp dụng
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
           </div>
 
-          {/* Date Picker Row (only when draftTimePreset === 'custom') */}
-          {draftTimePreset === 'custom' && (
+          {/* Date Picker Row (only when time_preset === 'custom') */}
+          {time_preset === 'custom' && (
             <div id="custom-date-group" className="flex flex-wrap items-center gap-3 pt-3 border-t border-hairline/60">
               <div className="flex items-center gap-2">
                 <label htmlFor="filter-date-from" className="text-xs text-mid-gray font-medium">Từ ngày:</label>
                 <input
                   type="date"
                   id="filter-date-from"
-                  value={draftDateFrom}
-                  onChange={(e) => setDraftDateFrom(e.target.value)}
+                  value={formDateFrom}
+                  onChange={(e) => setFormDateFrom(e.target.value)}
                   aria-label="Từ ngày"
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-semibold"
+                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -909,12 +879,25 @@ export default function UsersManagement() {
                 <input
                   type="date"
                   id="filter-date-to"
-                  value={draftDateTo}
-                  onChange={(e) => setDraftDateTo(e.target.value)}
+                  value={formDateTo}
+                  onChange={(e) => setFormDateTo(e.target.value)}
                   aria-label="Đến ngày"
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-semibold"
+                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (formDateFrom && formDateTo && new Date(formDateTo) < new Date(formDateFrom)) {
+                    toast.error('Đến ngày không được nhỏ hơn Từ ngày.');
+                    return;
+                  }
+                  updateFilters({ date_from: formDateFrom, date_to: formDateTo, page: 1 });
+                }}
+                className="h-10 px-4 text-xs font-semibold rounded-[6px] bg-ink hover:opacity-90 text-white transition-opacity cursor-pointer border-none"
+              >
+                Áp dụng
+              </button>
             </div>
           )}
         </form>
