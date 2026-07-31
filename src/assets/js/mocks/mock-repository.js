@@ -334,6 +334,16 @@ export function getNotifications() {
   return db.notifications || [];
 }
 
+export function getComments() {
+  const db = getDB();
+  return db.comments || [];
+}
+
+export function getReviews() {
+  const db = getDB();
+  return db.reviews || [];
+}
+
 // === ORDER HELPERS ===
 export function getCouponById(id) {
   const db = getDB();

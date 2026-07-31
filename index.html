@@ -5,41 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mindhub E-learning Platform</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <!-- Suppress Cross-Origin/IFrame Script errors early -->
-    <script>
-      (function() {
-        const suppress = function(event) {
-          const msg = String(event.message || '').toLowerCase();
-          const filename = String(event.filename || '').toLowerCase();
-          if (
-            msg.includes('script error') || 
-            !filename || 
-            filename.includes('youtube') || 
-            filename.includes('google')
-          ) {
-            console.warn('[Global HTML Filter] Suppressed cross-origin/sandbox script error:', msg, 'from', filename);
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            return true;
-          }
-        };
-        window.addEventListener('error', suppress, { capture: true });
-        window.addEventListener('unhandledrejection', function(event) {
-          const reasonStr = String(event.reason || '').toLowerCase();
-          if (
-            reasonStr.includes('script error') || 
-            reasonStr.includes('youtube') || 
-            reasonStr.includes('google')
-          ) {
-            console.warn('[Global HTML Filter] Suppressed unhandled rejection:', reasonStr);
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-          }
-        }, { capture: true });
-      })();
-    </script>
+
   </head>
   <body>
     <div id="root">
