@@ -1,0 +1,195 @@
+import type {
+  CategoriesResponse,
+  CategoryDetailResponse,
+  CreateCategoryPayload,
+  UpdateCategoryPayload,
+} from "./categories.types";
+const API_ROOT =
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://127.0.0.1:8000/api";
+const API_BASE_URL = `${API_ROOT}/admin/categories`;
+function getToken(): string {
+  return (
+    import.meta.env.VITE_ADMIN_PREVIEW_TOKEN ||
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("mindhub_api_token") ||
+    ""
+  );
+}
+function buildQuery(
+  params: Record<string, unknown>,
+): string {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== "" &&
+      value !== "all"
+    ) {
+      query.set(key, String(value));
+    }
+  });
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
+}
+async function apiRequest<T>(
+  url: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(options.headers);
+  const token = getToken();
+  headers.set("Accept", "application/json");
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    console.error("Categories network error:", error);
+    return {
+      success: false,
+      message:
+        "Không thể kết nối Backend tại cổng 8000.",
+      errors: {},
+      error_code: 0,
+    } as T;
+  }
+  const payload = await response
+    .json()
+    .catch(() => null);
+  if (!response.ok) {
+    return {
+      success: false,
+      message:
+        payload?.message ||
+        (response.status === 401
+          ? "Phiên Admin Preview đã hết hạn."
+          : response.status === 403
+            ? "Tài khoản không có quyền Admin."
+            : `API trả về lỗi HTTP ${response.status}.`),
+      errors: payload?.errors || {},
+      error_code: response.status,
+    } as T;
+  }
+  return payload as T;
+}
+export const CategoriesService = {
+  async getCategories(
+    params: Record<string, unknown> = {},
+  ): Promise<CategoriesResponse> {
+    return apiRequest<CategoriesResponse>(
+      `${API_BASE_URL}${buildQuery(params)}`,
+    );
+  },
+  async getCategoriesAll(
+    status = "",
+  ): Promise<CategoriesResponse> {
+    const firstResponse = await this.getCategories({
+      page: 1,
+      per_page: 100,
+      status,
+    });
+    if (!firstResponse.success) {
+      return firstResponse;
+    }
+    let allItems = [...firstResponse.data.items];
+    const lastPage = firstResponse.meta.last_page;
+    for (let page = 2; page <= lastPage; page += 1) {
+      const response = await this.getCategories({
+        page,
+        per_page: 100,
+        status,
+      });
+      if (!response.success) {
+        return response;
+      }
+      allItems = allItems.concat(
+        response.data.items,
+      );
+    }
+    return {
+      ...firstResponse,
+      data: {
+        ...firstResponse.data,
+        items: allItems,
+      },
+      meta: {
+        ...firstResponse.meta,
+        current_page: 1,
+        last_page: 1,
+        per_page: allItems.length || 100,
+        total: allItems.length,
+      },
+    };
+  },
+  async getCategory(
+    id: number | string,
+  ): Promise<CategoryDetailResponse> {
+    return apiRequest<CategoryDetailResponse>(
+      `${API_BASE_URL}/${Number(id)}`,
+    );
+  },
+  async createCategory(
+    payload: CreateCategoryPayload,
+  ): Promise<any> {
+    return apiRequest(API_BASE_URL, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  async updateCategory(
+    id: number | string,
+    payload: UpdateCategoryPayload,
+  ): Promise<any> {
+    return apiRequest(
+      `${API_BASE_URL}/${Number(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+  async deleteCategory(
+    id: number | string,
+  ): Promise<any> {
+    return apiRequest(
+      `${API_BASE_URL}/${Number(id)}`,
+      {
+        method: "DELETE",
+      },
+    );
+  },
+  async restoreCategory(
+    id: number | string,
+  ): Promise<any> {
+    return apiRequest(
+      `${API_BASE_URL}/${Number(id)}/restore`,
+      {
+        method: "POST",
+      },
+    );
+  },
+  async reorderCategories(
+    items: Array<{
+      id: number;
+      sort_order: number;
+      parent_id: number | null;
+    }>,
+  ): Promise<any> {
+    return apiRequest(
+      `${API_BASE_URL}/reorder`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ items }),
+      },
+    );
+  },
+};

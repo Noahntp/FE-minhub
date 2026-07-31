@@ -151,15 +151,11 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     ApiService.login({ email: emailTrimmed, password })
       .then(res => {
         const apiUser = normalizeUser({
-          ...res,
+          ...(res.user || {}),
           isEmailVerified: true
         });
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);
-        onClose();
-        if (navigateTo) {
-          navigateTo(getDashboardRouteByRole(apiUser.role));
-        }
       })
       .catch(err => {
         setSuccessMsg('');
@@ -185,16 +181,11 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     ApiService.login({ email: seed.email, password: seed.password })
       .then(res => {
         const apiUser = normalizeUser({
-          ...res.user,
+          ...(res.user || {}),
           isEmailVerified: true
-
         });
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);
-        onClose();
-        if (navigateTo) {
-          navigateTo(getDashboardRouteByRole(apiUser.role));
-        }
       })
       .catch(err => {
         setSuccessMsg('');
@@ -240,18 +231,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     })
       .then(res => {
         const apiUser = normalizeUser({
-          ...res.user,
+          ...(res.user || {}),
           role: registerRole,
           isEmailVerified: true
         });
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);
         alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
-        onClose();
-        if (navigateTo) {
-          navigateTo(getDashboardRouteByRole(apiUser.role));
-
-        }
       })
       .catch(err => {
         setSuccessMsg('');

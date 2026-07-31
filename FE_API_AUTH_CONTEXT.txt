@@ -1,8 +1,79 @@
+
+===== FILE: D:\laragon\www\datn\add-admin\MindHub-Frontend\vite.config.ts =====
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+import { defineConfig, loadEnv } from 'vite';
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+
+  const backendOrigin =
+    env.VITE_BACKEND_ORIGIN || "http://62.171.157.22:8081";
+
+  return {
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
+    server: {
+      host: '0.0.0.0',
+      port: 3000,
+      strictPort: true,
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
+      hmr: process.env.DISABLE_HMR !== 'true',
+      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+
+      host: "0.0.0.0",
+      port: 5173,
+
+      proxy: {
+        "/api": {
+          target: backendOrigin,
+          changeOrigin: true,
+          secure: false,
+
+          configure(proxy) {
+            proxy.on("error", (error) => {
+              console.error("[API proxy error]", error.message);
+            });
+          },
+        },
+        "/storage": {
+          target: backendOrigin,
+          changeOrigin: true,
+          secure: false,
+        },
+        "/videos": {
+          target: backendOrigin,
+          changeOrigin: true,
+          secure: false,
+        },
+        "/thumbnails": {
+          target: backendOrigin,
+          changeOrigin: true,
+          secure: false,
+        },
+        "/demo": {
+          target: backendOrigin,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
+  };
+});
+
+
+===== FILE: D:\laragon\www\datn\add-admin\MindHub-Frontend\src\services\api.ts =====
 import { Course, Chapter, Lesson, Resource, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { MockDB } from './mockDb';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
-import { toast } from 'sonner';
 
 /**
  * MindHub API Service Configuration and Integration Layer
@@ -142,19 +213,6 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     }
     const errMsg = errJson?.message || errJson?.error || `HTTP error! status: ${response.status}`;
     devLog('Error Response', errMsg, { status: response.status, url });
-    
-    if (response.status === 401) {
-      localStorage.removeItem('mindhub_api_token');
-      localStorage.removeItem('mindhub_is_logged_in');
-      localStorage.removeItem('mindhub_current_user');
-      if (window.location.pathname !== '/login') {
-        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1500);
-      }
-    }
-    
     throw new ApiError(errMsg, response.status, errJson?.errors);
   }
 
@@ -218,19 +276,6 @@ async function apiFetchEnvelope<T>(endpoint: string, options: RequestInit = {}):
     }
     const errMsg = errJson?.message || errJson?.error || `HTTP error! status: ${response.status}`;
     devLog('Error Response', errMsg, { status: response.status, url });
-    
-    if (response.status === 401) {
-      localStorage.removeItem('mindhub_api_token');
-      localStorage.removeItem('mindhub_is_logged_in');
-      localStorage.removeItem('mindhub_current_user');
-      if (window.location.pathname !== '/login') {
-        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1500);
-      }
-    }
-    
     throw new ApiError(errMsg, response.status, errJson?.errors);
   }
 
@@ -368,13 +413,12 @@ export const ApiService = {
         password: payload.password,
       }),
     });
-    const token = res?.access_token || res?.data?.access_token || '';
-    const user = res?.user || res?.data?.user || null;
+    const token = res.access_token || '';
     if (token) {
       this.setAuthToken(token);
     }
     return {
-      user: user,
+      user: res.user,
       token: token,
     };
   },
@@ -3256,65 +3300,6 @@ export const ApiService = {
       });
     }
     return { success: true };
-  },
-
-  // ==========================================
-  // MODULE 9. ADMIN CATEGORIES
-  // ==========================================
-
-  async getAdminCategories(params: Record<string, any> = {}): Promise<any> {
-    devLog('AdminCategories', 'Fetch list of categories', params);
-    const query = new URLSearchParams();
-    Object.entries(params).forEach(([key, val]) => {
-      if (val !== undefined && val !== null && val !== "") {
-        query.append(key, String(val));
-      }
-    });
-    const queryStr = query.toString();
-    return apiFetch<any>(`/admin/categories${queryStr ? '?' + queryStr : ''}`);
-  },
-
-  async getAdminCategory(id: number | string): Promise<any> {
-    devLog('AdminCategories', `Fetch detail of category ID: ${id}`);
-    return apiFetch<any>(`/admin/categories/${id}`);
-  },
-
-  async createAdminCategory(payload: any): Promise<any> {
-    devLog('AdminCategories', 'Create category', payload);
-    return apiFetch<any>('/admin/categories', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async updateAdminCategory(id: number | string, payload: any): Promise<any> {
-    devLog('AdminCategories', `Update category ID: ${id}`, payload);
-    return apiFetch<any>(`/admin/categories/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
-  },
-
-  async deleteAdminCategory(id: number | string): Promise<any> {
-    devLog('AdminCategories', `Delete category ID: ${id}`);
-    return apiFetch<any>(`/admin/categories/${id}`, {
-      method: 'DELETE',
-    });
-  },
-
-  async restoreAdminCategory(id: number | string): Promise<any> {
-    devLog('AdminCategories', `Restore category ID: ${id}`);
-    return apiFetch<any>(`/admin/categories/${id}/restore`, {
-      method: 'POST',
-    });
-  },
-
-  async reorderAdminCategories(items: Array<{ id: number; sort_order: number; parent_id: number | null }>): Promise<any> {
-    devLog('AdminCategories', 'Reorder categories list', items);
-    return apiFetch<any>('/admin/categories/reorder', {
-      method: 'PUT',
-      body: JSON.stringify(items),
-    });
   }
 };
 
@@ -3325,4 +3310,2049 @@ interface Section {
   title: string;
   course_id: string;
   order: number;
+}
+
+
+===== FILE: D:\laragon\www\datn\add-admin\MindHub-Frontend\src\router\AppRouter.tsx =====
+import React, { Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+
+// Layouts
+import MainLayout from '@/layouts/MainLayout';
+import { useApp } from '@/app/AppContext';
+
+// Loading Fallback
+const PageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-normal"></div>
+  </div>
+);
+
+// Lazy Loaded Pages
+const HomePage = React.lazy(() => import('@/features/home/HomePage').then(m => ({ default: m.default })));
+const CourseDetailPage = React.lazy(() => import('@/features/courses/CourseDetailPage').then(m => ({ default: m.default })));
+const CourseListPage = React.lazy(() => import('@/features/courses/CourseListPage').then(m => ({ default: m.default })));
+const CategoryDetailPage = React.lazy(() => import('@/features/category/CategoryDetailPage').then(m => ({ default: m.default })));
+const RoadmapsPage = React.lazy(() => import('@/features/roadmaps/RoadmapsPage').then(m => ({ default: m.default })));
+const RoadmapDetailPage = React.lazy(() => import('@/features/roadmaps/RoadmapDetailPage').then(m => ({ default: m.default })));
+const InstructorsPage = React.lazy(() => import('@/features/instructor/InstructorsPage').then(m => ({ default: m.default })));
+const MyCoursesPage = React.lazy(() => import('@/features/courses/MyCoursesPage').then(m => ({ default: m.default })));
+const FavoritesPage = React.lazy(() => import('@/features/courses/FavoritesPage').then(m => ({ default: m.default })));
+const AchievementsPage = React.lazy(() => import('@/features/profile/AchievementsPage').then(m => ({ default: m.default })));
+const NotificationPage = React.lazy(() => import('@/features/notifications/NotificationPage').then(m => ({ default: m.default })));
+const LearningCalendarPage = React.lazy(() => import('@/features/calendar/LearningCalendarPage').then(m => ({ default: m.default })));
+const CertificateCenterPage = React.lazy(() => import('@/features/certificates/CertificateCenterPage').then(m => ({ default: m.default })));
+const PurchaseHistoryPage = React.lazy(() => import('@/features/purchase-history/PurchaseHistoryPage').then(m => ({ default: m.default })));
+const SettingsPage = React.lazy(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.default })));
+const SearchPage = React.lazy(() => import('@/features/search/SearchPage').then(m => ({ default: m.default })));
+const AboutPage = React.lazy(() => import('@/pages/AboutPage').then(m => ({ default: m.default })));
+const ContactPage = React.lazy(() => import('@/pages/ContactPage').then(m => ({ default: m.default })));
+const LegalPage = React.lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.default })));
+const FAQPage = React.lazy(() => import('@/pages/FAQPage').then(m => ({ default: m.default })));
+const PricingPage = React.lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.default })));
+const ClassroomPage = React.lazy(() => import('@/features/classroom/ClassroomPage').then(m => ({ default: m.default })));
+const ProfilePage = React.lazy(() => import('@/features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const AuthScreens = React.lazy(() => import('@/features/auth/components/AuthScreens').then(m => ({ default: m.default })));
+const CartAndCheckout = React.lazy(() => import('@/features/cart/CartAndCheckout').then(m => ({ default: m.default })));
+const VNPayReturnPage = React.lazy(() => import('@/features/cart/VNPayReturnPage').then(m => ({ default: m.default })));
+const InstructorDashboard = React.lazy(() => import('@/features/instructor/InstructorDashboard').then(m => ({ default: m.default })));
+const AdminDashboard = React.lazy(() => import('@/features/admin/AdminDashboard').then(m => ({ default: m.default })));
+const InstructorProfilePage = React.lazy(() => import('@/features/instructor/InstructorProfilePage').then(m => ({ default: m.default })));
+const InstructorCoursesPage = React.lazy(() => import('@/features/instructor/components/InstructorCoursesPage').then(m => ({ default: m.default })));
+const ForbiddenPage = React.lazy(() => import('@/features/errors/ForbiddenPage').then(m => ({ default: m.ForbiddenPage })));
+const ServerErrorPage = React.lazy(() => import('@/features/errors/ServerErrorPage').then(m => ({ default: m.ServerErrorPage })));
+const NotFoundPage = React.lazy(() => import('@/features/errors/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
+
+// Helper component to pass params and course card to InstructorCoursesPage
+const InstructorCoursesPageWrapper = () => {
+  const { instructorId } = useParams<{ instructorId: string }>();
+  const navigate = useNavigate();
+  const { currentUser } = useApp();
+  
+  // Lazy load CourseCard to prevent circular dependencies in router
+  const CourseCard = React.lazy(() => import('@/features/courses/components/CourseCard').then(m => ({ default: m.CourseCard })));
+  
+  return (
+    <Suspense fallback={<PageLoader />}>
+      {instructorId && currentUser ? (
+        <InstructorCoursesPage 
+          instructorId={instructorId}
+          navigateTo={(path) => navigate(path.startsWith('/') ? path : `/${path}`)}
+          // @ts-ignore
+          renderCourseCard={(course) => <CourseCard key={course.id} course={course} />}
+          currentUser={currentUser}
+        />
+      ) : <PageLoader />}
+    </Suspense>
+  );
+};
+
+function AppRoutes() {
+  const { isLoggedIn: rawIsLoggedIn, currentUser: rawCurrentUser, enrolledCourseIds, courses, favorites } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAdminPreview = import.meta.env.VITE_ADMIN_PREVIEW === 'true';
+  const isLoggedIn = isAdminPreview ? true : rawIsLoggedIn;
+  const currentUser = isAdminPreview 
+    ? {
+        id: "1",
+        name: "Admin Preview",
+        email: "admin@preview.com",
+        avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Admin",
+        role: 'admin' as const,
+        streak: 0,
+        lastActiveDate: new Date().toISOString().split('T')[0],
+        interestedTopics: [],
+        notificationSettings: {
+          email: true,
+          push: true,
+          app: true,
+          scheduleReminders: true
+        }
+      }
+    : rawCurrentUser;
+
+  const navigateTo = (path: string) => {
+    navigate(path.startsWith('/') ? path : `/${path}`);
+  };
+
+  return (
+    <AnimatePresence mode="wait">
+      <Suspense fallback={<PageLoader />}>
+        <Routes location={location} key={location.pathname}>
+          {/* Auth Routes */}
+          <Route path="/login" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
+          <Route path="/register" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
+          
+          {/* Main Layout Routes (Navbar + Footer) */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            
+            {/* Course Discovery & Learning */}
+            <Route path="/courses/:courseId" element={<CourseDetailPage />} />
+            <Route path="/courses" element={<CourseListPage />} />
+            <Route path="/category/:slug" element={<CategoryDetailPage />} />
+            <Route path="/roadmaps" element={<RoadmapsPage />} />
+            <Route path="/roadmaps/:roadmapId" element={<RoadmapDetailPage />} />
+            <Route path="/instructors" element={<InstructorsPage />} />
+            
+            {/* Personal & Account */}
+            <Route path="/my-courses" element={isLoggedIn ? <MyCoursesPage /> : <Navigate to="/login" replace />} />
+            <Route path="/favorites" element={isLoggedIn ? <FavoritesPage /> : <Navigate to="/login" replace />} />
+            <Route path="/achievements" element={isLoggedIn ? <AchievementsPage /> : <Navigate to="/login" replace />} />
+            <Route path="/notifications" element={isLoggedIn ? <NotificationPage /> : <Navigate to="/login" replace />} />
+            <Route path="/calendar" element={isLoggedIn ? <LearningCalendarPage /> : <Navigate to="/login" replace />} />
+            <Route path="/certificates" element={isLoggedIn ? <CertificateCenterPage /> : <Navigate to="/login" replace />} />
+            <Route path="/purchase-history" element={isLoggedIn ? <PurchaseHistoryPage /> : <Navigate to="/login" replace />} />
+            <Route path="/settings" element={isLoggedIn ? <SettingsPage /> : <Navigate to="/login" replace />} />
+            
+            {/* Search Route */}
+            <Route path="/search" element={<SearchPage />} />
+
+            {/* Legal & Static Pages */}
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/legal" element={<LegalPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/privacy" element={<Navigate to="/legal" replace />} />
+            
+            <Route path="/cart" element={
+              <CartAndCheckout 
+                wishlistCourseIds={favorites}
+                allCourses={courses}
+                enrolledCourseIds={enrolledCourseIds}
+                onEnrollSuccess={() => {}}
+                onClose={() => navigate('/')}
+                onToggleFavorite={() => {}}
+                onEnterLesson={() => {}}
+                initialCourseId={null}
+              />
+            } />
+            <Route path="/checkout" element={<Navigate to="/cart" replace />} />
+            <Route path="/vnpay-return" element={
+              // @ts-ignore
+              <VNPayReturnPage onNavigate={navigateTo} />
+            } />
+            
+            {/* Protected Profile Route */}
+            <Route path="/profile/:userId?" element={
+              isLoggedIn ? (
+                <ProfilePage 
+                  currentUser={currentUser} 
+                  setCurrentUser={() => {}} 
+                  navigateTo={navigateTo} 
+                  onLogout={() => {}} 
+                />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } />
+
+            <Route path="/instructors/:instructorId" element={<InstructorProfilePage />} />
+            <Route path="/instructors/:instructorId/courses" element={<InstructorCoursesPageWrapper />} />
+          </Route>
+
+          {/* Instructor Workspace (No Main Navbar/Footer) */}
+          <Route path="/instructor/:instructorId/*" element={
+            // @ts-ignore
+            isLoggedIn ? <InstructorDashboard currentUser={currentUser} /> : <Navigate to="/login" replace />
+          } />
+
+          {/* Admin Workspace */}
+          <Route path="/admin/:adminId/*" element={
+            // @ts-ignore
+            isLoggedIn && currentUser.role === 'admin' ? (
+              <AdminDashboard />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          } />
+          
+          {/* Classroom (Fullscreen Learning) */}
+          <Route path="/learn/:courseId" element={
+            isLoggedIn ? <ClassroomPage /> : <Navigate to="/login" replace />
+          } />
+          
+          {/* Error Pages */}
+          <Route path="/403" element={<ForbiddenPage />} />
+          <Route path="/500" element={<ServerErrorPage />} />
+          
+          {/* Fallback */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
+    </AnimatePresence>
+  );
+}
+
+export default function AppRouter() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
+}
+
+
+===== FILE: D:\laragon\www\datn\add-admin\MindHub-Frontend\src\router\routes.ts =====
+/**
+ * Centralized Route Helpers for MindHub
+ * 
+ * Ensures consistent URLs across the application for profiles and workspaces,
+ * standardizing around standard database IDs (`users.id`).
+ */
+
+export const AppRoutes = {
+  // Public routes
+  home: '/',
+  login: '/login',
+  register: '/register',
+  explore: '/explore',
+  
+  // Authenticated Profile Route
+  profile: (userId?: string | number) => `/profile${userId ? `/${userId}` : ''}`,
+  
+  // Instructor Workspace
+  instructorDashboard: () => `/instructor/dashboard`,
+  instructorCourses: () => `/instructor/courses`,
+  instructorCourseCreate: () => `/instructor/courses/create`,
+  instructorCourseEdit: (courseId: string | number) => `/instructor/courses/${courseId}/edit`,
+  
+  // Admin Workspace
+  adminDashboard: (userId?: string | number) => `/admin${userId ? `/${userId}` : ''}/dashboard`,
+  
+  // Public Instructor Profile
+  publicInstructor: (userId: string | number) => `/instructors/${userId}`,
+  
+  // Public Instructor Courses
+  publicInstructorCourses: (userId: string | number) => `/instructors/${userId}/courses`,
+
+  // Instructor Transactions
+  instructorTransactions: () => `/instructor/transactions`,
+
+  // Instructor Q&A Questions
+  instructorQuestions: (questionId?: string | number) => `/instructor/questions${questionId ? `/${questionId}` : ''}`,
+
+  // Instructor Student Management
+  instructorStudents: (studentId?: string | number) => `/instructor/students${studentId ? `/${studentId}` : ''}`,
+
+  // Instructor Discount Codes / Coupons
+  instructorDiscountCodes: () => `/instructor/discount-codes`,
+
+  // Instructor Profile / Account Center
+  instructorProfile: (tab?: string) => `/instructor/profile${tab ? `?tab=${tab}` : ''}`,
+};
+
+export const ROUTES = {
+  home: '/',
+  profile: '/account/profile',
+  instructor: {
+    dashboard: '/instructor/dashboard',
+    profile: '/instructor/profile',
+    courses: '/instructor/courses',
+    payouts: '/instructor/withdrawals',
+  },
+  admin: {
+    dashboard: '/admin/dashboard',
+  }
+};
+
+/**
+ * Helper to resolve the correct dashboard URL according to user role
+ */
+export function getDashboardRouteByRole(role?: string): string {
+  switch (role) {
+    case 'admin':
+      return '/admin/dashboard';
+    case 'instructor':
+      return '/instructor/dashboard';
+    case 'student':
+    case 'learner':
+    default:
+      return '/dashboard';
+  }
+}
+
+/**
+ * Common Role Labels mapping
+ */
+export const RoleLabels: Record<string, string> = {
+  student: 'Học viên',
+  learner: 'Học viên',
+  instructor: 'Giảng viên',
+  admin: 'Quản trị viên'
+};
+
+
+===== FILE: D:\laragon\www\datn\add-admin\MindHub-Frontend\src\features\admin\categories\categories.service.ts =====
+// @ts-ignore
+import {
+  getRawCategories as mockGetRawCategories,
+  createCategory as mockCreateCategory,
+  updateCategory as mockUpdateCategory,
+  deleteCategory as mockDeleteCategory,
+  restoreCategory as mockRestoreCategory,
+  getCourses as mockGetCourses,
+  getUsers as mockGetUsers
+} from "@/assets/js/mocks/mock-repository.js";
+import {
+  Category,
+  CategoriesResponse,
+  CategoryDetailResponse,
+  CreateCategoryPayload,
+  UpdateCategoryPayload,
+  CategorySummary
+} from "./categories.types";
+
+const USE_MOCK = true;
+const API_BASE_URL = "/api/admin/categories";
+
+// Hàm tính số lượng khóa học active thuộc mỗi danh mục từ mock data
+function getCategoryCourseCounts() {
+  try {
+    const courses = mockGetCourses() || [];
+    const activeCourses = courses.filter((c: any) => c.deleted_at === null);
+    const counts: Record<number, number> = {};
+    
+    activeCourses.forEach((course: any) => {
+      const catIds = course.category_ids || [];
+      catIds.forEach((catId: any) => {
+        const idNum = Number(catId);
+        counts[idNum] = (counts[idNum] || 0) + 1;
+      });
+    });
+    return counts;
+  } catch (e) {
+    console.error("Error calculating mock course counts:", e);
+    return {};
+  }
+}
+
+// Kiểm tra đệ quy mối quan hệ cha con (tránh vòng lặp)
+function isDescendant(catId: number, targetParentId: number, allCats: Category[]): boolean {
+  const children = allCats.filter(c => c.parent_id === catId && c.deleted_at === null);
+  if (children.some(child => child.id === targetParentId)) {
+    return true;
+  }
+  return children.some(child => isDescendant(child.id, targetParentId, allCats));
+}
+
+export const CategoriesService = {
+  /**
+   * Gọi API/Mock tải danh sách phân trang phẳng
+   */
+  async getCategories(params: Record<string, any> = {}): Promise<CategoriesResponse> {
+    if (!USE_MOCK) {
+      const query = new URLSearchParams(params).toString();
+      const response = await fetch(`${API_BASE_URL}?${query}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    }
+
+    // Giả lập trễ mạng
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    try {
+      const rawCategories: Category[] = mockGetRawCategories() || [];
+      const activeRepoCategories = rawCategories.filter(c => c.deleted_at === null);
+      const courseCounts = getCategoryCourseCounts();
+
+      // 1. Tính toán các chỉ số thống kê (Summary) trên toàn bộ danh sách chưa bị xóa
+      const summary: CategorySummary = {
+        total_categories: activeRepoCategories.length,
+        active_categories: activeRepoCategories.filter(c => c.status === "active").length,
+        inactive_categories: activeRepoCategories.filter(c => c.status === "inactive").length,
+        root_categories: activeRepoCategories.filter(c => c.parent_id === null).length,
+        empty_categories: activeRepoCategories.filter(c => (courseCounts[c.id] || 0) === 0).length
+      };
+
+      // 2. Lọc dữ liệu
+      let filtered: Category[] = [];
+      if (params.status === "deleted") {
+        filtered = rawCategories.filter(c => c.deleted_at !== null);
+      } else if (params.status === "all_with_deleted") {
+        filtered = [...rawCategories];
+      } else {
+        filtered = [...activeRepoCategories];
+      }
+
+      // Lọc theo search (Tên hoặc slug)
+      if (params.search) {
+        const searchKeyword = params.search.toLowerCase().trim();
+        filtered = filtered.filter(c => 
+          (c.name && c.name.toLowerCase().includes(searchKeyword)) ||
+          (c.slug && c.slug.toLowerCase().includes(searchKeyword))
+        );
+      }
+
+      // Lọc theo trạng thái status
+      if (params.status && params.status !== "" && params.status !== "all" && params.status !== "deleted" && params.status !== "all_with_deleted") {
+        filtered = filtered.filter(c => c.status === params.status);
+      }
+
+      // Lọc theo loại danh mục (type: root/child)
+      if (params.type === "root") {
+        filtered = filtered.filter(c => c.parent_id === null);
+      } else if (params.type === "child") {
+        filtered = filtered.filter(c => c.parent_id !== null);
+      }
+
+      // Lọc theo danh mục cha (parent_id)
+      if (params.parent_id && params.parent_id !== "" && params.parent_id !== "all") {
+        const parentId = Number(params.parent_id);
+        filtered = filtered.filter(c => c.parent_id === parentId);
+      }
+
+      // Lọc theo danh mục chưa có khóa học (empty)
+      if (params.empty === "true") {
+        filtered = filtered.filter(c => (courseCounts[c.id] || 0) === 0);
+      }
+
+      // 3. Sắp xếp dữ liệu
+      const sortBy = params.sort_by || "newest";
+      filtered.sort((a, b) => {
+        if (sortBy === "newest") {
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        } else if (sortBy === "oldest") {
+          return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+        } else if (sortBy === "name_asc") {
+          return (a.name || "").localeCompare(b.name || "", "vi");
+        } else if (sortBy === "name_desc") {
+          return (b.name || "").localeCompare(a.name || "", "vi");
+        } else if (sortBy === "sort_order_asc") {
+          const sa = a.sort_order || 0;
+          const sb = b.sort_order || 0;
+          if (sa > 0 && sb > 0) {
+            if (sa !== sb) return sa - sb;
+            return (a.name || "").localeCompare(b.name || "", "vi");
+          }
+          if (sa > 0 && sb === 0) return -1;
+          if (sa === 0 && sb > 0) return 1;
+          return (a.name || "").localeCompare(b.name || "", "vi");
+        } else if (sortBy === "sort_order_desc") {
+          const sa = a.sort_order || 0;
+          const sb = b.sort_order || 0;
+          if (sa > 0 && sb > 0) {
+            if (sa !== sb) return sb - sa;
+            return (a.name || "").localeCompare(b.name || "", "vi");
+          }
+          if (sa > 0 && sb === 0) return -1;
+          if (sa === 0 && sb > 0) return 1;
+          return (a.name || "").localeCompare(b.name || "", "vi");
+        } else if (sortBy === "courses_desc") {
+          const countA = courseCounts[a.id] || 0;
+          const countB = courseCounts[b.id] || 0;
+          return countB - countA;
+        }
+        return 0;
+      });
+
+      // 4. Nhúng thông tin quan hệ (parent, course_count)
+      const items = filtered.map(c => {
+        let parentObj = null;
+        if (c.parent_id !== null && c.parent_id !== undefined) {
+          const parent = rawCategories.find(p => Number(p.id) === Number(c.parent_id));
+          if (parent) {
+            parentObj = { id: parent.id, name: parent.name };
+          }
+        }
+        return {
+          ...c,
+          course_count: courseCounts[c.id] || 0,
+          parent: parentObj
+        };
+      });
+
+      // 5. Phân trang phẳng
+      const total = items.length;
+      const perPage = parseInt(params.per_page) || 20;
+      const currentPage = parseInt(params.page) || 1;
+      const lastPage = Math.max(1, Math.ceil(total / perPage));
+
+      const startIndex = (currentPage - 1) * perPage;
+      const paginatedItems = items.slice(startIndex, startIndex + perPage);
+
+      return {
+        success: true,
+        message: "Lấy danh mục thành công.",
+        data: {
+          summary: summary,
+          items: paginatedItems
+        },
+        meta: {
+          current_page: currentPage,
+          last_page: lastPage,
+          per_page: perPage,
+          total: total
+        }
+      };
+    } catch (error: any) {
+      console.error("Lỗi Mock API getCategories:", error);
+      return {
+        success: false,
+        message: "Lỗi hệ thống khi tải danh sách danh mục.",
+        data: {
+          summary: { total_categories: 0, active_categories: 0, inactive_categories: 0, root_categories: 0, empty_categories: 0 },
+          items: []
+        },
+        meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 }
+      };
+    }
+  },
+
+  /**
+   * Tải toàn bộ danh mục chưa bị xóa (dành cho dựng cây Tree View)
+   * Có cơ chế tự động tải tiếp các trang sau nếu API giới hạn bản ghi.
+   */
+  async getCategoriesAll(status: string = ""): Promise<CategoriesResponse> {
+    const firstPageResponse = await this.getCategories({ page: 1, per_page: 200, status });
+    if (!firstPageResponse.success) {
+      return firstPageResponse;
+    }
+
+    const { meta, data } = firstPageResponse;
+    let allItems = [...data.items];
+
+    // Nếu còn các trang sau do giới hạn kích thước trang của backend
+    if (meta.last_page > 1) {
+      const pageRequests = [];
+      for (let p = 2; p <= meta.last_page; p++) {
+        pageRequests.push(this.getCategories({ page: p, per_page: 200, status }));
+      }
+      
+      const responses = await Promise.all(pageRequests);
+      responses.forEach(res => {
+        if (res.success && res.data.items) {
+          allItems = allItems.concat(res.data.items);
+        }
+      });
+    }
+
+    return {
+      ...firstPageResponse,
+      data: {
+        ...data,
+        items: allItems
+      },
+      meta: {
+        ...meta,
+        current_page: 1,
+        last_page: 1,
+        total: allItems.length
+      }
+    };
+  },
+
+  /**
+   * Lưu thứ tự hiển thị hàng loạt
+   */
+  async reorderCategories(
+    items: Array<{ id: number; sort_order: number; parent_id: number | null }>
+  ): Promise<{ success: boolean; message: string }> {
+    if (!USE_MOCK) {
+      // Backend thật chưa có endpoint, ta trả về lỗi báo rõ thông tin endpoint/payload
+      return {
+        success: false,
+        message: `Endpoint reorder hàng loạt chưa được tích hợp trên Backend. Endpoint mong muốn: PUT /api/admin/categories/reorder. Payload: ${JSON.stringify(items)}`
+      };
+    }
+
+    // Giả lập trễ mạng
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    try {
+      // Trong mock mode, duyệt qua và gọi mockUpdateCategory để ghi nhận thay đổi vào localStorage
+      for (const item of items) {
+        mockUpdateCategory(item.id, {
+          sort_order: item.sort_order,
+          parent_id: item.parent_id
+        });
+      }
+      return {
+        success: true,
+        message: "Lưu thứ tự hiển thị danh mục thành công (Mock Mode)."
+      };
+    } catch (e: any) {
+      console.error("Lỗi mock reorder:", e);
+      return {
+        success: false,
+        message: e.message || "Lỗi hệ thống khi cập nhật thứ tự."
+      };
+    }
+  },
+
+  /**
+   * Lấy chi tiết một danh mục
+   */
+  async getCategory(id: number | string): Promise<CategoryDetailResponse> {
+    const catId = Number(id);
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    const rawCategories: Category[] = mockGetRawCategories() || [];
+    const category = rawCategories.find(c => c.id === catId);
+
+    if (!category) {
+      return {
+        success: false,
+        message: "Không tìm thấy danh mục.",
+        data: {} as any,
+        error_code: 404
+      };
+    }
+
+    const courseCounts = getCategoryCourseCounts();
+    const parentObj = category.parent_id ? rawCategories.find(p => p.id === category.parent_id) : null;
+    const childrenObj = rawCategories.filter(c => c.parent_id === catId && c.deleted_at === null);
+
+    // Thu thập toàn bộ ID danh mục con/cháu bằng đệ quy
+    const getDescendantIds = (rootId: number): Set<number> => {
+      const ids = new Set<number>([rootId]);
+      const findChildren = (pId: number) => {
+        rawCategories.forEach(c => {
+          if (c.parent_id === pId && c.deleted_at === null) {
+            ids.add(c.id);
+            findChildren(c.id);
+          }
+        });
+      };
+      findChildren(rootId);
+      return ids;
+    };
+
+    const targetCatIds = getDescendantIds(catId);
+    
+    // Tìm các khóa học thuộc nhánh danh mục này
+    const allCourses = mockGetCourses() || [];
+    const matchedCourses = allCourses.filter((c: any) => {
+      if (c.deleted_at !== null) return false;
+      const catIds = c.category_ids || [];
+      return catIds.some((cid: any) => targetCatIds.has(Number(cid)));
+    });
+
+    // Tính toán thống kê
+    const total = matchedCourses.length;
+    const published = matchedCourses.filter((c: any) => c.status === "published").length;
+    const pending = matchedCourses.filter((c: any) => c.status === "pending_review").length;
+    const draft = matchedCourses.filter((c: any) => c.status === "draft").length;
+    const enrollments = matchedCourses.reduce((sum: number, c: any) => sum + (c.enrollment_count || 0), 0);
+    const reviews = matchedCourses.reduce((sum: number, c: any) => sum + (c.review_count || 0), 0);
+    
+    const ratedCourses = matchedCourses.filter((c: any) => (c.average_rating || 0) > 0);
+    const rating = ratedCourses.length > 0
+      ? Number((ratedCourses.reduce((sum: number, c: any) => sum + (c.average_rating || 0), 0) / ratedCourses.length).toFixed(1))
+      : "Chưa có dữ liệu";
+
+    // Map chi tiết khóa học
+    const usersList = mockGetUsers() || [];
+    const getInstructorName = (instId: number) => {
+      const user = usersList.find((u: any) => u.id === instId);
+      return user ? user.full_name : "Chưa rõ";
+    };
+
+    const courseDetails = matchedCourses.map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      status: c.status,
+      instructor_name: getInstructorName(c.instructor_id),
+      enrollment_count: c.enrollment_count || 0,
+      average_rating: c.average_rating || 0,
+      review_count: c.review_count || 0
+    }));
+
+    return {
+      success: true,
+      message: "Lấy chi tiết danh mục thành công.",
+      data: {
+        ...category,
+        course_count: courseCounts[catId] || 0,
+        parent: parentObj ? { id: parentObj.id, name: parentObj.name, slug: parentObj.slug } : null,
+        children: childrenObj.map(ch => ({
+          id: ch.id,
+          name: ch.name,
+          slug: ch.slug,
+          status: ch.status as any,
+          sort_order: ch.sort_order || 1
+        })),
+        statistics: {
+          total,
+          published,
+          pending,
+          draft,
+          enrollments,
+          reviews,
+          rating
+        },
+        courses: courseDetails
+      }
+    };
+  },
+
+  /**
+   * Tạo mới danh mục
+   */
+  async createCategory(payload: CreateCategoryPayload): Promise<any> {
+    if (!USE_MOCK) {
+      const response = await fetch(API_BASE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        if (response.status === 422) {
+          return await response.json();
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Validate phía client
+    const errors: Record<string, string[]> = {};
+    if (!payload.name || payload.name.trim() === "") {
+      errors.name = ["Tên danh mục là bắt buộc."];
+    }
+    if (!payload.slug || payload.slug.trim() === "") {
+      errors.slug = ["Slug danh mục là bắt buộc."];
+    } else if (!/^[a-z0-9-]+$/.test(payload.slug)) {
+      errors.slug = ["Slug chỉ được chứa chữ thường, số và ký tự gạch ngang."];
+    }
+
+    const rawCategories: Category[] = mockGetRawCategories() || [];
+
+    // Kiểm tra trùng slug
+    if (payload.slug && rawCategories.some(c => c.slug.toLowerCase() === payload.slug.toLowerCase())) {
+      return {
+        success: false,
+        message: "Slug danh mục đã tồn tại trong hệ thống.",
+        errors: { slug: ["Slug này đã tồn tại, vui lòng chọn slug khác."] },
+        error_code: 409
+      };
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return {
+        success: false,
+        message: "Thông tin nhập vào không hợp lệ.",
+        errors: errors,
+        error_code: 422
+      };
+    }
+
+    const newCategory = mockCreateCategory(payload);
+    return {
+      success: true,
+      message: "Tạo danh mục thành công.",
+      data: newCategory
+    };
+  },
+
+  /**
+   * Cập nhật danh mục (bao gồm cả thứ tự sort_order và status)
+   */
+  async updateCategory(id: number | string, payload: UpdateCategoryPayload): Promise<any> {
+    const catId = Number(id);
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        if (response.status === 422) {
+          return await response.json();
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const rawCategories: Category[] = mockGetRawCategories() || [];
+    const originalCategory = rawCategories.find(c => c.id === catId);
+    if (!originalCategory) {
+      return {
+        success: false,
+        message: "Không tìm thấy danh mục để cập nhật.",
+        error_code: 404
+      };
+    }
+
+    const errors: Record<string, string[]> = {};
+    if (payload.name !== undefined && (!payload.name || payload.name.trim() === "")) {
+      errors.name = ["Tên danh mục là bắt buộc."];
+    }
+    if (payload.slug !== undefined) {
+      if (!payload.slug || payload.slug.trim() === "") {
+        errors.slug = ["Slug danh mục là bắt buộc."];
+      } else if (!/^[a-z0-9-]+$/.test(payload.slug)) {
+        errors.slug = ["Slug chỉ được chứa chữ thường, số và ký tự gạch ngang."];
+      }
+    }
+
+    // Kiểm tra trùng slug với các danh mục khác
+    if (payload.slug && rawCategories.some(c => c.id !== catId && c.slug.toLowerCase() === payload.slug.toLowerCase())) {
+      return {
+        success: false,
+        message: "Slug danh mục đã tồn tại trong hệ thống.",
+        errors: { slug: ["Slug này đã tồn tại, vui lòng chọn slug khác."] },
+        error_code: 409
+      };
+    }
+
+    // Kiểm tra lỗi vòng lặp cha-con
+    if (payload.parent_id !== undefined && payload.parent_id !== null) {
+      const newParentId = Number(payload.parent_id);
+      if (newParentId === catId) {
+        return {
+          success: false,
+          message: "Không thể chọn chính danh mục hiện tại làm danh mục cha.",
+          errors: { parent_id: ["Không thể tự làm cha của chính mình."] },
+          error_code: 422
+        };
+      }
+      
+      if (isDescendant(catId, newParentId, rawCategories)) {
+        return {
+          success: false,
+          message: "Không thể tạo vòng lặp cha con. Danh mục cha được chọn đang là con/cháu của danh mục này.",
+          errors: { parent_id: ["Không thể chọn danh mục con làm danh mục cha."] },
+          error_code: 422
+        };
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return {
+        success: false,
+        message: "Thông tin nhập vào không hợp lệ.",
+        errors: errors,
+        error_code: 422
+      };
+    }
+
+    const updatedCategory = mockUpdateCategory(catId, payload);
+    return {
+      success: true,
+      message: "Cập nhật danh mục thành công.",
+      data: updatedCategory
+    };
+  },
+
+  /**
+   * Xóa mềm danh mục
+   */
+  async deleteCategory(id: number | string): Promise<any> {
+    const catId = Number(id);
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}`, {
+        method: "DELETE"
+      });
+      if (!response.ok) {
+        if (response.status === 409) {
+          return await response.json();
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 250));
+
+    const rawCategories: Category[] = mockGetRawCategories() || [];
+    const category = rawCategories.find(c => c.id === catId);
+    if (!category) {
+      return {
+        success: false,
+        message: "Không tìm thấy danh mục để xóa.",
+        error_code: 404
+      };
+    }
+
+    // 1. Kiểm tra xem còn danh mục con nào không
+    const hasChildren = rawCategories.some(c => c.parent_id === catId && c.deleted_at === null);
+    if (hasChildren) {
+      return {
+        success: false,
+        message: "Không thể xóa danh mục này vì vẫn còn danh mục con đang hoạt động bên dưới.",
+        error_code: 409
+      };
+    }
+
+    // 2. Kiểm tra xem còn khóa học nào liên kết không
+    const courseCounts = getCategoryCourseCounts();
+    const count = courseCounts[catId] || 0;
+    if (count > 0) {
+      return {
+        success: false,
+        message: `Không thể xóa danh mục này vì đang có ${count} khóa học liên kết.`,
+        error_code: 409
+      };
+    }
+
+    const success = mockDeleteCategory(catId);
+    if (success) {
+      return {
+        success: true,
+        message: "Xóa danh mục thành công."
+      };
+    }
+
+    return {
+      success: false,
+      message: "Lỗi hệ thống khi xóa danh mục.",
+      error_code: 500
+    };
+  },
+
+  /**
+   * Khôi phục danh mục đã xóa mềm
+   */
+  async restoreCategory(id: number | string): Promise<any> {
+    const catId = Number(id);
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}/restore`, {
+        method: "POST"
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        return { success: false, message: errData.message || "Không thể khôi phục danh mục.", error_code: response.status };
+      }
+      return await response.json();
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 250));
+
+    const success = mockRestoreCategory(catId);
+    if (success) {
+      return {
+        success: true,
+        message: "Khôi phục danh mục thành công."
+      };
+    }
+
+    return {
+      success: false,
+      message: "Không tìm thấy danh mục để khôi phục hoặc lỗi hệ thống.",
+      error_code: 404
+    };
+  }
+};
+
+
+===== FILE: D:\laragon\www\datn\add-admin\MindHub-Frontend\src\features\auth\LoginPage.tsx =====
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import AuthScreens from './components/AuthScreens';
+import { User } from '@/shared/types';
+
+export default function LoginPage() {
+  const navigate = useNavigate();
+
+  const handleLoginSuccess = (user: User) => {
+    // Session token is already saved inside auth.service login method.
+    // If we need to sync state or redirect:
+    navigate('/');
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4">
+      <AuthScreens 
+        onLoginSuccess={handleLoginSuccess}
+        onClose={() => navigate('/')}
+        initialMode="login"
+        navigateTo={(path) => {
+          if (path === 'register') navigate('/register');
+          // Add other mappings if needed
+        }}
+      />
+    </div>
+  );
+}
+
+
+===== FILE: D:\laragon\www\datn\add-admin\MindHub-Frontend\src\features\auth\components\AuthScreens.tsx =====
+import React, { useState } from 'react';
+import { Database, User, Shield, Lock, Mail, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X } from 'lucide-react';
+import { User as UserType, normalizeUser } from '@/shared/types';
+import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
+import { SYSTEM_ROLE_USERS } from '@/shared/data';
+import { ApiService, ApiError } from '@/services/api';
+import { getDashboardRouteByRole } from '@/router/routes';
+
+const DB_SEED_ACCOUNTS = [
+  { id: 'db-1', name: 'Student Test', email: 'learner1@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
+  { id: 'db-2', name: 'Instructor Test', email: 'instructor1@mindhub.test', password: '12345678', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên' },
+  { id: 'db-3', name: 'Admin Test', email: 'admin@mindhub.test', password: '12345678', role: 'admin', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150', description: 'Quản trị viên' },
+];
+
+interface AuthScreensProps {
+  onLoginSuccess: (user: UserType) => void;
+  onClose: () => void; // mapped to navigateTo('home')
+  initialMode?: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password';
+  navigateTo?: (path: string) => void;
+}
+
+export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'login', navigateTo }: AuthScreensProps) {
+  const [mode, setMode] = useState<'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password'>(initialMode);
+  
+  React.useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  // Wrapper for setMode to also update URL if navigateTo is provided
+  const handleModeChange = (newMode: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password') => {
+    setMode(newMode);
+    if (navigateTo) {
+      navigateTo(newMode);
+    }
+  };
+
+  const [rightPanelTab, setRightPanelTab] = useState<'seed' | 'recent'>('seed');
+  const [showDevTools, setShowDevTools] = useState(false);
+  
+  // Form fields
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  // Instructor specific registration fields
+  const [registerRole, setRegisterRole] = useState<'student' | 'instructor'>('student');
+  const [instructorSpecialty, setInstructorSpecialty] = useState('Development');
+  const [instructorBio, setInstructorBio] = useState('');
+  const [instructorExperience, setInstructorExperience] = useState('');
+
+  // Local database of registered users with email verification states
+  const [localRegisteredUsers, setLocalRegisteredUsers] = useState<UserType[]>(() => {
+    const stored = localStorage.getItem('mindhub_registered_users_db');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error('Lỗi phân tích cú pháp CSDL tài khoản:', e);
+      }
+    }
+    // Seed standard verified users by default
+    const seeded: UserType[] = [
+      { ...SYSTEM_ROLE_USERS.student, isEmailVerified: true },
+      { ...SYSTEM_ROLE_USERS.instructor, isEmailVerified: true },
+      { ...SYSTEM_ROLE_USERS.admin, isEmailVerified: true }
+    ];
+    // Attach default password to the seeded objects for smooth logic
+    seeded.forEach((u: any) => { u.password = 'password123'; });
+    localStorage.setItem('mindhub_registered_users_db', JSON.stringify(seeded));
+    return seeded;
+  });
+
+  const saveRegisteredUsers = (updatedList: UserType[]) => {
+    setLocalRegisteredUsers(updatedList);
+    localStorage.setItem('mindhub_registered_users_db', JSON.stringify(updatedList));
+  };
+
+  // Load / Prepopulate logged-in accounts history on this device (localStorage)
+  const [loginHistory, setLoginHistory] = useState<UserType[]>(() => {
+    const stored = localStorage.getItem('mindhub_logged_in_history');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error('Lỗi phân tích cú pháp lịch sử đăng nhập:', e);
+      }
+    }
+    // Pre-create/populate standard accounts of each role on this device as requested
+    const defaultHistory = [
+      { ...SYSTEM_ROLE_USERS.student, isEmailVerified: true, password: 'password123' },
+      { ...SYSTEM_ROLE_USERS.instructor, isEmailVerified: true, password: 'password123' },
+      { ...SYSTEM_ROLE_USERS.admin, isEmailVerified: true, password: 'password123' }
+    ] as any[];
+    localStorage.setItem('mindhub_logged_in_history', JSON.stringify(defaultHistory));
+    return defaultHistory;
+  });
+
+  // Save successful logins to device history
+  const saveToHistory = (user: UserType) => {
+    setLoginHistory(prev => {
+      const base = prev.filter(u => u.email !== user.email && u.id !== user.id);
+      const updated = [user, ...base];
+      localStorage.setItem('mindhub_logged_in_history', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const mapAuthError = (err: any) => {
+    if (err instanceof ApiError) {
+      if (err.status === 401) {
+        return 'Email hoặc mật khẩu không chính xác.';
+      } else if (err.status === 403) {
+        return 'Tài khoản đang bị khóa, vô hiệu hóa hoặc chưa được kích hoạt.';
+      } else if (err.status === 422) {
+        const firstErr = err.errors ? Object.values(err.errors)[0] : null;
+        return Array.isArray(firstErr) ? firstErr[0] : (err.message || 'Dữ liệu đăng nhập không hợp lệ.');
+      } else if (err.status === 429) {
+        return 'Bạn thao tác quá nhiều lần. Vui lòng thử lại sau.';
+      } else if (err.status === 500) {
+        return 'Máy chủ đang gặp lỗi. Vui lòng thử lại sau.';
+      }
+      return err.message || 'Có lỗi xảy ra, vui lòng thử lại.';
+    }
+    return err.message || 'Không thể kết nối đến máy chủ Backend.';
+  };
+
+  // Perform standard login simulator with structural email verification block
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setErrorMsg('Vui lòng nhập đầy đủ email và mật khẩu.');
+      return;
+    }
+    
+    const emailTrimmed = email.trim().toLowerCase();
+    
+    setSuccessMsg('Đang đăng nhập...');
+    setErrorMsg('');
+    ApiService.login({ email: emailTrimmed, password })
+      .then(res => {
+        const apiUser = normalizeUser({
+          ...res,
+          isEmailVerified: true
+        });
+        saveToHistory(apiUser);
+        onLoginSuccess(apiUser);
+        onClose();
+        if (navigateTo) {
+          navigateTo(getDashboardRouteByRole(apiUser.role));
+        }
+      })
+      .catch(err => {
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
+      });
+  };
+
+  const handleHistoryClick = (userObj: UserType) => {
+    saveToHistory(userObj);
+    onLoginSuccess(userObj);
+    onClose();
+    if (navigateTo) {
+      navigateTo(getDashboardRouteByRole(userObj.role));
+    }
+  };
+
+  const handleSeedClick = (seed: typeof DB_SEED_ACCOUNTS[0]) => {
+    setEmail(seed.email);
+    setPassword(seed.password);
+    setErrorMsg('');
+    setSuccessMsg(`Đã điền tài khoản mẫu: ${seed.email}. Đang kết nối xác thực...`);
+    
+    ApiService.login({ email: seed.email, password: seed.password })
+      .then(res => {
+        const apiUser = normalizeUser({
+          ...res.user,
+          isEmailVerified: true
+
+        });
+        saveToHistory(apiUser);
+        onLoginSuccess(apiUser);
+        onClose();
+        if (navigateTo) {
+          navigateTo(getDashboardRouteByRole(apiUser.role));
+        }
+      })
+      .catch(err => {
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
+      });
+  };
+
+  // Perform quick account login by populating form and executing API login
+  const handleQuickLogin = (role: 'student' | 'instructor' | 'admin') => {
+    const matchedSeed = DB_SEED_ACCOUNTS.find(s => s.role === role);
+    if (matchedSeed) {
+      handleSeedClick(matchedSeed);
+    }
+  };
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email || !password) {
+      setErrorMsg('Vui lòng điền đủ các thông tin bắt buộc.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg('Mật khẩu nhập lại không trùng khớp.');
+      return;
+    }
+    if (!agreedToTerms) {
+      setErrorMsg('Bạn cần đồng ý với điều khoản sử dụng.');
+      return;
+    }
+
+    const emailTrimmed = email.trim().toLowerCase();
+
+    setSuccessMsg('Đang tạo tài khoản mới...');
+    ApiService.register({ 
+      full_name: name.trim(), 
+      email: emailTrimmed, 
+      password,
+      password_confirmation: confirmPassword,
+      role: registerRole,
+      expertise: registerRole === 'instructor' ? instructorSpecialty : undefined,
+      bio: registerRole === 'instructor' ? instructorBio : undefined,
+      experience_years: registerRole === 'instructor' ? instructorExperience : undefined
+    })
+      .then(res => {
+        const apiUser = normalizeUser({
+          ...res.user,
+          role: registerRole,
+          isEmailVerified: true
+        });
+        saveToHistory(apiUser);
+        onLoginSuccess(apiUser);
+        alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
+        onClose();
+        if (navigateTo) {
+          navigateTo(getDashboardRouteByRole(apiUser.role));
+
+        }
+      })
+      .catch(err => {
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
+      });
+  };
+
+  const handleVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationCode !== '123456') {
+      setErrorMsg(`Mã xác thực không chính xác! (Mã test là 123456).`);
+      return;
+    }
+    // Just mock verification success
+    setSuccessMsg('Xác thực tài khoản thành công!');
+    handleModeChange('login');
+  };
+
+  const handleForgot = (e: React.FormEvent) => {
+    e.preventDefault();
+    const emailTrimmed = email.trim().toLowerCase();
+    if (!emailTrimmed) {
+      setErrorMsg('Vui lòng điền email của bạn.');
+      return;
+    }
+    
+    setErrorMsg('');
+    setSuccessMsg('Đang gửi yêu cầu khôi phục mật khẩu...');
+    ApiService.requestPasswordReset(emailTrimmed)
+      .then(() => {
+        setSuccessMsg('Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.');
+      })
+      .catch(err => {
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
+      });
+  };
+
+  const handleReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    const emailTrimmed = email.trim().toLowerCase();
+    
+    if (!emailTrimmed || !verificationCode || !password) {
+      setErrorMsg('Vui lòng điền đầy đủ các thông tin yêu cầu.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Mật khẩu mới phải từ 6 ký tự trở lên.');
+      return;
+    }
+
+    handleModeChange('login');
+  };
+
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('Đang kết nối Google OAuth 2.0...');
+    ApiService.getGoogleRedirectUrl()
+      .then(url => {
+        if (url) {
+          window.location.assign(url);
+        } else {
+          setGoogleLoading(false);
+          setSuccessMsg('');
+          setErrorMsg('Đăng nhập Google chưa được cấu hình trên máy chủ.');
+        }
+      })
+      .catch(err => {
+        setGoogleLoading(false);
+        setSuccessMsg('');
+        if (err instanceof ApiError && err.status === 503) {
+          setErrorMsg('Đăng nhập Google chưa được cấu hình trên máy chủ.');
+        } else {
+          setErrorMsg(err.message || 'Không thể kết nối đến Google OAuth 2.0.');
+        }
+      });
+  };
+
+  const handleGoogleRegister = handleGoogleLogin;
+
+  return (
+    <div className="min-h-[85vh] bg-stone-50 flex items-center justify-center p-4">
+      <div 
+        id="auth-container" 
+        className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-brand-light-active overflow-hidden flex flex-col text-main-darker animate-fade-in"
+      >
+        {/* Banner with Brand Theme */}
+        <div className="bg-deep-indigo p-5 text-brand-light flex items-center justify-between border-b-4 border-emerald-500 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-pale-cyan rounded-xl flex items-center justify-center">
+              <Globe className="w-5 h-5 text-forest-teal" />
+            </div>
+            <div className="text-left">
+              <h2 className="text-base sm:text-lg font-suisseintl font-bold tracking-tight text-[#f5ece3] leading-tight">MindHub Academic Portal</h2>
+              <p className="text-[10px] text-brand-light/80 font-suisseintlmono uppercase tracking-wider">Học thuật và Quản trị tri thức</p>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            onClick={onClose}
+            className="text-xs font-bold text-white/90 hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            Về trang chủ <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Scrollable Container with Custom Scrolls */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 tactile-scrollbar space-y-4">
+          
+          {errorMsg && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-lg flex items-start gap-2 text-xs border border-red-100 animate-slide-up">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span className="text-left">{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-emerald-50 text-emerald-800 rounded-lg flex items-start gap-2 text-xs border border-emerald-100 animate-slide-up">
+              <Check className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+              <span className="text-left">{successMsg}</span>
+            </div>
+          )}
+
+
+              {/* LOGIN MODE */}
+              {mode === 'login' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: Form inputs */}
+              <form onSubmit={handleLogin} className="space-y-4 lg:col-span-7 text-left">
+                <div>
+                  <h3 className="text-base font-bold text-stone-850 flex items-center gap-1.5 border-b pb-2 mb-3">
+                    Đăng Nhập Thành Viên
+                  </h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-605 mb-1">Địa chỉ Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                      <input 
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="VD: student@gmail.com..."
+                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal focus:outline-none bg-stone-50/50"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <label className="text-xs font-semibold text-stone-605">Mật khẩu</label>
+                      <button 
+                        type="button" 
+                        onClick={() => handleModeChange('forgot-password')} 
+                        className="text-xs text-brand-normal hover:underline"
+                      >
+                        Quên mật khẩu?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                      <input 
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full pl-9 pr-9 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal focus:outline-none bg-stone-50/50"
+                        required
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-2.5 text-stone-400 hover:text-stone-700"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  id="btn-login-submit"
+                  type="submit"
+                  className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex justify-center items-center gap-2 shadow"
+                >
+                  <LogIn className="w-4 h-4" /> Truy cập Hệ thống
+                </button>
+
+                <div className="relative my-3 flex items-center justify-center">
+                  <div className="absolute inset-0 h-px bg-stone-200 flex items-center"></div>
+                  <span className="relative bg-white px-2.5 text-[10px] text-stone-400 font-mono">HOẶC DÙNG GOOGLE</span>
+                </div>
+
+                <button 
+                  type="button"
+                  disabled={googleLoading}
+                  onClick={handleGoogleLogin}
+                  className={`w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 ${googleLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  {googleLoading ? (
+                    <div className="w-4 h-4 border-2 border-stone-600 border-t-transparent rounded-full animate-spin shrink-0"></div>
+                  ) : (
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.74 14.89 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.6 2.79C6.01 7.23 8.79 5.04 12 5.04z" />
+                      <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.73-2.38 3.58l3.63 2.81c2.13-1.97 3.78-4.87 3.78-8.49z" />
+                      <path fill="#FBBC05" d="M5.05 10.29c-.24-.73-.38-1.5-.38-2.29s.14-1.56.38-2.29L1.45 2.92C.53 4.75 0 6.81 0 9s.53 4.25 1.45 6.08l3.6-2.79z" />
+                      <path fill="#34A853" d="M12 23c3.24 0 5.97-1.09 7.96-2.96l-3.63-2.81c-1.1.74-2.51 1.18-4.33 1.18-3.21 0-5.99-2.19-6.95-5.25l-3.6 2.79C3.39 20.35 7.35 23 12 23z" />
+                    </svg>
+                  )}
+                  {googleLoading ? 'Đang kết nối Google...' : 'Đăng nhập bằng tài khoản Google'}
+                </button>
+
+                <div className="text-center pt-1 border-t border-stone-100 mt-2">
+                  <p className="text-xs text-stone-500">
+                    Bạn mới biết đến MindHub?{' '}
+                    <button type="button" onClick={() => handleModeChange('register')} className="text-[#8b5e3c] font-bold hover:underline">
+                      Đăng ký thành viên
+                    </button>
+                  </p>
+                </div>
+              </form>
+
+              {/* Right Column: Previously Logged-in Accounts on this device & Seed Database Accounts */}
+              <div className="lg:col-span-5 bg-stone-50 border border-stone-200 rounded-2xl p-4 text-left flex flex-col justify-between self-stretch">
+                <div>
+                  <div className="flex border-b border-stone-200 mb-3 pb-1.5 justify-between items-center select-none">
+                    <button 
+                      type="button"
+                      onClick={() => setRightPanelTab('seed')}
+                      className={`text-[9px] font-bold uppercase pb-1 tracking-wider border-b-2 transition-all cursor-pointer ${rightPanelTab === 'seed' ? 'border-[#8b5e3c] text-[#8b5e3c]' : 'border-transparent text-stone-400 hover:text-stone-600'}`}
+                    >
+                      💾 CSDL phpMyAdmin
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setRightPanelTab('recent')}
+                      className={`text-[9px] font-bold uppercase pb-1 tracking-wider border-b-2 transition-all cursor-pointer ${rightPanelTab === 'recent' ? 'border-[#8b5e3c] text-[#8b5e3c]' : 'border-transparent text-stone-400 hover:text-stone-600'}`}
+                    >
+                      🕰️ Đăng nhập gần đây
+                    </button>
+                  </div>
+
+                  {rightPanelTab === 'seed' ? (
+                    <div className="space-y-2">
+                      <div className="border-b pb-1 border-stone-200/50 mb-1.5 font-sans">
+                        <span className="text-[8px] font-bold uppercase text-stone-500 block font-mono">DỮ LIỆU THẬT TRONG DATABASE BE</span>
+                        <p className="text-[10px] text-stone-500 leading-normal">Bấm bất kỳ tài khoản nào để tự động điền mật khẩu mẫu <b className="font-mono">12345678</b>:</p>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-[250px] overflow-y-auto tactile-scrollbar pr-0.5">
+                        {DB_SEED_ACCOUNTS.map((seed) => {
+                          let roleBadge = "bg-[#f5ece3] text-[#8b5e3c]";
+                          if (seed.role === 'instructor') {
+                            roleBadge = "bg-blue-50 text-blue-700 border border-blue-100";
+                          } else if (seed.role === 'admin') {
+                            roleBadge = "bg-red-50 text-red-700 border border-red-100";
+                          }
+
+                          return (
+                            <button
+                              type="button"
+                              key={seed.id}
+                              onClick={() => handleSeedClick(seed)}
+                              className="w-full p-2 bg-white hover:bg-[#faf6f2] border border-stone-200 hover:border-[#8b5e3c] rounded-xl text-left transition-all flex items-center gap-2 group relative shadow-3xs cursor-pointer"
+                              title="Click để tự động cấu hình và đăng nhập"
+                            >
+                              <img src={seed.avatar} alt="Seed avatar" className="w-7 h-7 rounded-full object-cover shrink-0 border border-stone-100 shadow-3xs animate-fade-in" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center gap-1">
+                                  <span className="text-[10px] font-bold text-stone-800 group-hover:text-[#8b5e3c] truncate leading-none">{seed.name}</span>
+                                  <span className={`text-[6px] px-1 py-0.2 rounded uppercase font-bold font-mono tracking-wider whitespace-nowrap shrink-0 ${roleBadge}`}>
+                                    {seed.role.toUpperCase()}
+                                  </span>
+                                </div>
+                                <span className="block text-[8px] text-stone-400 truncate font-mono mt-0.5">{seed.email}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 font-sans">
+                      <div className="border-b pb-1 border-stone-200/50 mb-1.5">
+                        <span className="text-[8px] font-bold uppercase text-stone-500 block font-mono">LỊCH SỬ THIẾT BỊ</span>
+                        <p className="text-[10px] text-stone-500 leading-normal">Tài khoản từng đăng nhập gần đây, bấm để truy cập nhanh:</p>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-[250px] overflow-y-auto tactile-scrollbar pr-0.5">
+                        {loginHistory.map((u, i) => {
+                          let badgeColor = "bg-[#f5ece3] text-[#8b5e3c]";
+                          if (u.role === 'instructor') {
+                            badgeColor = "bg-blue-50 text-blue-700 border border-blue-100";
+                          } else if (u.role === 'admin') {
+                            badgeColor = "bg-red-50 text-red-700 border border-red-100";
+                          }
+
+                          return (
+                            <button
+                              type="button"
+                              key={u.id || i}
+                              onClick={() => handleHistoryClick(u)}
+                              className="w-full p-2 bg-white hover:bg-stone-100 border border-stone-200 hover:border-brand-normal rounded-xl text-left transition-all flex items-center gap-2 group relative shadow-3xs cursor-pointer"
+                              title="Bấm để đăng nhập nhanh tức thì"
+                            >
+                              <img src={u.avatar} alt="Avatar profile" className="w-7 h-7 rounded-full object-cover shrink-0 border border-stone-100 shadow-3xs" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center gap-1">
+                                  <span className="text-[10px] font-bold text-stone-800 group-hover:text-brand-dark truncate leading-none">{u.name}</span>
+                                  <span className={`text-[6px] px-1 py-0.2 rounded uppercase font-bold font-mono tracking-wider whitespace-nowrap shrink-0 ${badgeColor}`}>
+                                    {u.role ? u.role.substring(0, 5).toUpperCase() : 'USER'}
+                                  </span>
+                                </div>
+                                <span className="block text-[8px] text-stone-400 truncate font-mono mt-0.5">{u.email}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+
+                        {loginHistory.length === 0 && (
+                          <div className="text-center py-6 text-stone-400 text-[10px] font-serif">
+                            Chưa có lịch sử tài khoản nào trên thiết bị này.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-stone-200/50 flex items-center justify-between mt-3 text-stone-500 text-justify">
+                  <p className="text-[9px] leading-tight font-serif flex-1 mt-1 pr-1.5">
+                    {rightPanelTab === 'seed' 
+                      ? "* Hãy click vào tài khoản DB ở trên để tự cấu hình email/mật khẩu rồi click Truy cập."
+                      : "* Bấm tài khoản lưu vết để bỏ qua gõ phím và đăng nhập lập tức."}
+                  </p>
+                  {rightPanelTab === 'recent' && loginHistory.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử thiết bị không?')) {
+                          localStorage.removeItem('mindhub_logged_in_history');
+                          setLoginHistory([]);
+                          alert('Đã xóa sạch bộ nhớ tạm!');
+                        }
+                      }}
+                      className="text-[8px] text-red-650 hover:underline hover:text-red-700 ml-2 font-mono whitespace-nowrap font-bold cursor-pointer"
+                    >
+                      Xoá lịch sử
+                    </button>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* REGISTER MODE - Optimized as an Elegant 2-Column form on wider screens */}
+          {mode === 'register' && (
+            <form onSubmit={handleRegister} className="space-y-4 text-left">
+              <div>
+                <h3 className="text-base font-bold text-stone-850 flex items-center gap-1.5 border-b pb-2">
+                  Đăng Ký Tài Khoản Mới
+                </h3>
+                <p className="text-[11px] text-stone-500 mt-1">Cơ hội trải nghiệm học tập đỉnh cao tại hòn đảo tri thức của chúng tôi.</p>
+              </div>
+
+              {/* Tab Selector for Student vs Instructor Registration */}
+              <div className="flex bg-stone-100 p-1 rounded-xl border border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => setRegisterRole('student')}
+                  className={`flex-1 text-center py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    registerRole === 'student'
+                      ? 'bg-white text-[#432c28] shadow-sm'
+                      : 'text-stone-500 hover:text-stone-800'
+                  }`}
+                >
+                  🎓 Đăng ký Học viên
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegisterRole('instructor')}
+                  className={`flex-1 text-center py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    registerRole === 'instructor'
+                      ? 'bg-[#432c28] text-white shadow-sm'
+                      : 'text-stone-500 hover:text-stone-[#432c28]'
+                  }`}
+                >
+                  👨‍🏫 Đăng ký Giảng viên
+                </button>
+              </div>
+
+              {registerRole === 'instructor' && (
+                <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 space-y-1">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[#8b5e3c]">Chế độ Đăng ký Đối tác Giảng dạy</span>
+                  <p className="text-[11px] text-stone-500">Form này dành riêng cho các Thầy cô muốn phát triển và xuất bản học liệu trực tuyến trên MindHub.</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">Họ và Tên</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                    <input 
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="VD: Nguyễn Văn A"
+                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">Địa chỉ Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                    <input 
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="VD: name@gmail.com"
+                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">Mật khẩu bảo mật</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                    <input 
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">Nhập lại mật khẩu</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                    <input 
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Instructor specialty & Bio form fields */}
+              {registerRole === 'instructor' && (
+                <div className="space-y-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200 grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-605 mb-1">Lĩnh vực Giảng dạy chuyên môn</label>
+                      <select
+                        value={instructorSpecialty}
+                        onChange={(e) => setInstructorSpecialty(e.target.value)}
+                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal bg-white"
+                      >
+                        <option value="Development">Phát triển phần mềm (Development)</option>
+                        <option value="Design">Thiết kế & Sáng tạo (Design)</option>
+                        <option value="Marketing">Truyền thông & Marketing</option>
+                        <option value="Artificial Intelligence">Trí tuệ nhân tạo (AI)</option>
+                        <option value="Business & Startup">Khởi nghiệp & Kinh doanh</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-605 mb-1">Số năm kinh nghiệm giảng dạy</label>
+                      <input 
+                        type="text"
+                        value={instructorExperience}
+                        onChange={(e) => setInstructorExperience(e.target.value)}
+                        placeholder="VD: Trên 5 năm, Thạc sĩ CNTT..."
+                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-605 mb-1">Tiểu sử tóm tắt (Giới thiệu bản thân)</label>
+                    <textarea
+                      value={instructorBio}
+                      onChange={(e) => setInstructorBio(e.target.value)}
+                      placeholder="Hãy viết vài dòng giới thiệu năng lực chuyên môn và các dự án của Thầy Cô..."
+                      className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal bg-white h-16 resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+               <div className="flex items-start gap-2 bg-stone-50 p-3 rounded-xl border">
+                <input 
+                  type="checkbox"
+                  id="agree"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 shadow-sm rounded border-stone-300 text-[#8b5e3c] focus:ring-[#8b5e3c] cursor-pointer"
+                />
+                <label htmlFor="agree" className="text-[11px] text-stone-600 leading-normal select-none">
+                  Tôi đã đọc và hoàn toàn đồng ý tuân thủ với các{' '}
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-mindhub-legal', { detail: { tab: 'terms' } }))}
+                    className="font-bold text-[#8b5e3c] underline hover:text-black cursor-pointer"
+                  >
+                    Điều khoản sử dụng
+                  </button>
+                  ,{' '}
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-mindhub-legal', { detail: { tab: 'privacy' } }))}
+                    className="font-bold text-[#8b5e3c] underline hover:text-black cursor-pointer"
+                  >
+                    Chính sách bảo mật
+                  </button>{' '}
+                  và{' '}
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-mindhub-legal', { detail: { tab: 'refund' } }))}
+                    className="font-bold text-[#8b5e3c] underline hover:text-black cursor-pointer"
+                  >
+                    Chính sách hoàn học phí
+                  </button>{' '}
+                  của nền tảng học tập MindHub.
+                </label>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex justify-center items-center gap-2 shadow"
+              >
+                <UserPlus className="w-4 h-4" /> Đăng Ký Tài Khoản & Gửi OTP Xác Thực
+              </button>
+
+              <div className="relative my-2.5 flex items-center justify-center">
+                <div className="absolute inset-0 h-px bg-stone-200 flex items-center"></div>
+                <span className="relative bg-white px-2.5 text-[10px] text-stone-400 font-mono">HOẶC GHI DANH NHANH</span>
+              </div>
+
+              <button 
+                type="button"
+                onClick={handleGoogleRegister}
+                className="w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.74 14.89 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.6 2.79C6.01 7.23 8.79 5.04 12 5.04z" />
+                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.73-2.38 3.58l3.63 2.81c2.13-1.97 3.78-4.87 3.78-8.49z" />
+                  <path fill="#FBBC05" d="M5.05 10.29c-.24-.73-.38-1.5-.38-2.29s.14-1.56.38-2.29L1.45 2.92C.53 4.75 0 6.81 0 9s.53 4.25 1.45 6.08l3.6-2.79z" />
+                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.09 7.96-2.96l-3.63-2.81c-1.1.74-2.51 1.18-4.33 1.18-3.21 0-5.99-2.19-6.95-5.25l-3.6 2.79C3.39 20.35 7.35 23 12 23z" />
+                </svg>
+                Đăng ký thành viên bằng tài khoản Google
+              </button>
+
+              <div className="text-center pt-2 border-t border-stone-105 mt-2">
+                <p className="text-xs text-stone-505">
+                  Đã có tài khoản thành viên?{' '}
+                  <button type="button" onClick={() => handleModeChange('login')} className="text-[#8b5e3c] font-black hover:underline">
+                    Quay về Đăng nhập
+                  </button>
+                </p>
+              </div>
+            </form>
+          )}
+
+          {/* EMAIL VERIFICATION MODE */}
+          {mode === 'verify-email' && (() => {
+            const currentRegisteredUser = localRegisteredUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+            const activeOtp = currentRegisteredUser?.verificationOtp || '123456';
+            return (
+              <form onSubmit={handleVerify} className="space-y-4 text-center max-w-sm mx-auto py-4">
+                <div className="w-12 h-12 bg-[#faf6f2] border border-[#e8ded3] rounded-full flex items-center justify-center mx-auto text-[#8b5e3c]">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-stone-850">Xác thực OTP Email của bạn</h3>
+                <p className="text-xs text-stone-500">
+                  Hệ thống bảo mật kiểm soát thư rác đã gửi mã bảo vệ 6 chữ số đến <b>{email || 'bạn'}</b> để phê duyệt tài khóa.
+                </p>
+
+                <div className="py-2">
+                  <input 
+                    type="text"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Nhập 6 số..."
+                    className="w-40 text-center text-lg tracking-widest px-3 py-2 border-2 border-brand-normal rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-stone-50 font-mono font-bold"
+                    required
+                  />
+                  
+                  <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 text-[11px] text-amber-800 text-left mt-4 space-y-1 shadow-3xs">
+                    <p className="font-bold flex items-center gap-1 text-amber-900">
+                      <span>💡</span> Thông báo hệ thống:
+                    </p>
+                    <p className="leading-normal">
+                      Mã OTP xác thực gửi đến email của bạn là: 
+                      <span className="block text-center my-1.5"><b className="font-mono text-sm bg-amber-100 border border-amber-200 px-2.5 py-1 rounded text-amber-950 font-black tracking-widest select-all">{activeOtp}</b></span>
+                      (Chỉ hiển thị trong môi trường Development)
+                    </p>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow"
+                >
+                  Xác Thực và Ghi Danh
+                </button>
+                
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    const freshOtp = Math.floor(100000 + Math.random() * 900000).toString();
+                    const updated = localRegisteredUsers.map(u => 
+                      u.email.toLowerCase() === email.trim().toLowerCase() 
+                        ? { ...u, verificationOtp: freshOtp } as any
+                        : u
+                    );
+                    saveRegisteredUsers(updated);
+                    setSuccessMsg(`Đã tạo lại mã OTP kích hoạt mới!`); 
+                  }}
+                  className="text-xs text-[#8b5e3c] hover:underline block mx-auto font-medium"
+                >
+                  Gửi lại mã OTP mới
+                </button>
+              </form>
+            );
+          })()}
+
+          {/* FORGOT PASSWORD MODE */}
+          {mode === 'forgot-password' && (
+            <form onSubmit={handleForgot} className="space-y-4 max-w-sm mx-auto text-left py-4">
+              <h3 className="text-base font-bold text-stone-850">Nhận Mã Khôi Phục Mật Khẩu</h3>
+              <p className="text-xs text-stone-500 leading-normal">
+                Không sao cả! Hãy cung cấp hòm thư thành viên của bạn. Hệ thống sẽ cấp mã khôi phục cho bạn ngay.
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-605 mb-1">Địa chỉ Email học viên</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                  <input 
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="VD: user@domain.com"
+                    className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all"
+              >
+                Gửi Mã Khôi Phục
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => handleModeChange('login')} 
+                className="text-xs text-[#8b5e3c] font-semibold hover:underline block mx-auto pt-1.5"
+              >
+                Quay lại đăng nhập
+              </button>
+            </form>
+          )}
+
+          {/* RESET PASSWORD MODE */}
+          {mode === 'reset-password' && (() => {
+            const currentRegisteredUser = localRegisteredUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+            const activeOtp = (currentRegisteredUser as any)?.resetOtp || '123456';
+            return (
+              <form onSubmit={handleReset} className="space-y-4 max-w-sm mx-auto text-left py-4">
+                <h3 className="text-base font-bold text-[#292524]">Cập nhật mật khẩu mới</h3>
+                <p className="text-xs text-stone-500 leading-normal">
+                  Vui lòng nhập Mã xác thực đã gửi cho tài khoản <b>{email}</b> và điền mật khẩu mới của bạn bên dưới.
+                </p>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">Mã OTP Khôi Phục (6 chữ số)</label>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Nhập 6 số..."
+                      className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal font-mono font-bold text-center tracking-widest bg-stone-50"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">Mật khẩu mới</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                    <input 
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Tối thiểu 6 ký tự..."
+                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal font-mono font-bold"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 text-[11px] text-amber-800 text-left mt-2 space-y-1 shadow-3xs">
+                  <p className="font-bold flex items-center gap-1 text-amber-900">
+                    <span>💡</span> Thông báo hệ thống:
+                  </p>
+                  <p className="leading-normal">
+                    Mã khôi phục gửi thực tế đến hòm thư là: 
+                    <span className="block text-center my-1.5"><b className="font-mono text-sm bg-amber-100 border border-amber-200 px-2.5 py-1 rounded text-amber-950 font-black tracking-widest select-all">{activeOtp}</b></span>
+                    (Chỉ hiển thị trong môi trường Development)
+                  </p>
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md mt-2"
+                >
+                  Xác nhận thay đổi mật khẩu
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => handleModeChange('forgot-password')} 
+                  className="text-xs text-[#8b5e3c] font-semibold hover:underline block mx-auto pt-1.5"
+                >
+                  Quay lại bước gửi mã
+                </button>
+              </form>
+            );
+          })()}
+
+
+
+        </div>
+
+        {/* Modal footer controls */}
+        <div className="bg-stone-50 border-t border-stone-200/80 p-4 shrink-0 flex justify-between items-center text-[10px] text-stone-400">
+          <span className="flex items-center gap-1 font-mono"><Shield className="w-3 h-3 text-emerald-600" /> 2-FACTOR SECURED</span>
+          <button type="button" onClick={onClose} className="text-[#8b5e3c] hover:text-black font-bold">
+            Đóng cửa sổ [Esc]
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

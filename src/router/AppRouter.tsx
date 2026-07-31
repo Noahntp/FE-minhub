@@ -5,6 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 // Layouts
 import MainLayout from '@/layouts/MainLayout';
 import { useApp } from '@/app/AppContext';
+import { getDashboardRouteByRole } from '@/router/routes';
 
 // Loading Fallback
 const PageLoader = () => (
@@ -73,7 +74,15 @@ const InstructorCoursesPageWrapper = () => {
 };
 
 function AppRoutes() {
-  const { isLoggedIn: rawIsLoggedIn, currentUser: rawCurrentUser, enrolledCourseIds, courses, favorites } = useApp();
+  const { 
+    isLoggedIn: rawIsLoggedIn, 
+    currentUser: rawCurrentUser, 
+    setIsLoggedIn,
+    setCurrentUser,
+    enrolledCourseIds, 
+    courses, 
+    favorites 
+  } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -102,13 +111,45 @@ function AppRoutes() {
     navigate(path.startsWith('/') ? path : `/${path}`);
   };
 
+  const handleLoginSuccess = (user: any) => {
+    setIsLoggedIn(true);
+    setCurrentUser(user);
+    localStorage.setItem('mindhub_is_logged_in', 'true');
+    localStorage.setItem('mindhub_current_user', JSON.stringify(user));
+    
+    // Redirect based on role
+    if (user.role === 'admin') {
+      navigate(`/admin/${user.id}/dashboard`, { replace: true });
+    } else {
+      navigate(getDashboardRouteByRole(user.role), { replace: true });
+    }
+  };
+
   return (
     <AnimatePresence mode="wait">
       <Suspense fallback={<PageLoader />}>
         <Routes location={location} key={location.pathname}>
           {/* Auth Routes */}
-          <Route path="/login" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
-          <Route path="/register" element={<AuthScreens onLoginSuccess={() => {}} onClose={() => {}} />} />
+          <Route path="/login" element={
+            <AuthScreens 
+              onLoginSuccess={handleLoginSuccess} 
+              onClose={() => navigate('/', { replace: true })} 
+              navigateTo={(path) => {
+                if (path === 'register') navigate('/register', { replace: true });
+                else if (path === 'login') navigate('/login', { replace: true });
+              }}
+            />
+          } />
+          <Route path="/register" element={
+            <AuthScreens 
+              onLoginSuccess={handleLoginSuccess} 
+              onClose={() => navigate('/', { replace: true })} 
+              navigateTo={(path) => {
+                if (path === 'register') navigate('/register', { replace: true });
+                else if (path === 'login') navigate('/login', { replace: true });
+              }}
+            />
+          } />
           
           {/* Main Layout Routes (Navbar + Footer) */}
           <Route element={<MainLayout />}>

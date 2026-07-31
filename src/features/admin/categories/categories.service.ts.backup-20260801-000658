@@ -1,4 +1,4 @@
-﻿// @ts-ignore
+// @ts-ignore
 import {
   getRawCategories as mockGetRawCategories,
   createCategory as mockCreateCategory,
@@ -16,13 +16,9 @@ import {
   UpdateCategoryPayload,
   CategorySummary
 } from "./categories.types";
-import { ApiService } from "@/services/api";
 
-const isApiMode = (): boolean => {
-  const useMockEnv = import.meta.env.VITE_USE_MOCK === true || import.meta.env.VITE_USE_MOCK === "true";
-  const apiMode = ApiService.getConfig().mode;
-  return !useMockEnv && apiMode === "api";
-};
+const USE_MOCK = true;
+const API_BASE_URL = "/api/admin/categories";
 
 // Hàm tính số lượng khóa học active thuộc mỗi danh mục từ mock data
 function getCategoryCourseCounts() {
@@ -59,43 +55,13 @@ export const CategoriesService = {
    * Gọi API/Mock tải danh sách phân trang phẳng
    */
   async getCategories(params: Record<string, any> = {}): Promise<CategoriesResponse> {
-    if (isApiMode()) {
-      try {
-        const response = await ApiService.getAdminCategories(params);
-        const items = response?.items || [];
-        const summary = response?.summary || {
-          total_categories: items.length,
-          active_categories: items.filter((c: any) => c.status === "active").length,
-          inactive_categories: items.filter((c: any) => c.status === "inactive").length,
-          root_categories: items.filter((c: any) => c.parent_id === null).length,
-          empty_categories: items.filter((c: any) => (c.course_count || 0) === 0).length,
-        };
-        const meta = response?.meta || {
-          current_page: params.page || 1,
-          last_page: 1,
-          per_page: params.per_page || 20,
-          total: items.length,
-        };
-        return {
-          success: true,
-          message: "Lấy danh mục thành công.",
-          data: {
-            summary,
-            items,
-          },
-          meta,
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: err.message || "Không thể kết nối đến máy chủ dữ liệu.",
-          data: {
-            summary: { total_categories: 0, active_categories: 0, inactive_categories: 0, root_categories: 0, empty_categories: 0 },
-            items: []
-          },
-          meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 }
-        };
+    if (!USE_MOCK) {
+      const query = new URLSearchParams(params).toString();
+      const response = await fetch(`${API_BASE_URL}?${query}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      return await response.json();
     }
 
     // Giả lập trễ mạng
@@ -254,7 +220,7 @@ export const CategoriesService = {
    * Có cơ chế tự động tải tiếp các trang sau nếu API giới hạn bản ghi.
    */
   async getCategoriesAll(status: string = ""): Promise<CategoriesResponse> {
-    const firstPageResponse = await this.getCategories({ page: 1, per_page: 100, status });
+    const firstPageResponse = await this.getCategories({ page: 1, per_page: 200, status });
     if (!firstPageResponse.success) {
       return firstPageResponse;
     }
@@ -266,7 +232,7 @@ export const CategoriesService = {
     if (meta.last_page > 1) {
       const pageRequests = [];
       for (let p = 2; p <= meta.last_page; p++) {
-        pageRequests.push(this.getCategories({ page: p, per_page: 100, status }));
+        pageRequests.push(this.getCategories({ page: p, per_page: 200, status }));
       }
       
       const responses = await Promise.all(pageRequests);
@@ -298,19 +264,12 @@ export const CategoriesService = {
   async reorderCategories(
     items: Array<{ id: number; sort_order: number; parent_id: number | null }>
   ): Promise<{ success: boolean; message: string }> {
-    if (isApiMode()) {
-      try {
-        await ApiService.reorderAdminCategories(items);
-        return {
-          success: true,
-          message: "Cập nhật thứ tự hiển thị danh mục thành công."
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: err.message || "Lỗi khi cập nhật thứ tự danh mục."
-        };
-      }
+    if (!USE_MOCK) {
+      // Backend thật chưa có endpoint, ta trả về lỗi báo rõ thông tin endpoint/payload
+      return {
+        success: false,
+        message: `Endpoint reorder hàng loạt chưa được tích hợp trên Backend. Endpoint mong muốn: PUT /api/admin/categories/reorder. Payload: ${JSON.stringify(items)}`
+      };
     }
 
     // Giả lập trễ mạng
@@ -342,22 +301,12 @@ export const CategoriesService = {
    */
   async getCategory(id: number | string): Promise<CategoryDetailResponse> {
     const catId = Number(id);
-    if (isApiMode()) {
-      try {
-        const response = await ApiService.getAdminCategory(catId);
-        return {
-          success: true,
-          message: "Lấy chi tiết danh mục thành công.",
-          data: response,
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: err.message || "Lỗi khi tải chi tiết danh mục.",
-          data: {} as any,
-          error_code: err.status || 500,
-        };
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      return await response.json();
     }
 
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -465,22 +414,19 @@ export const CategoriesService = {
    * Tạo mới danh mục
    */
   async createCategory(payload: CreateCategoryPayload): Promise<any> {
-    if (isApiMode()) {
-      try {
-        const response = await ApiService.createAdminCategory(payload);
-        return {
-          success: true,
-          message: "Tạo danh mục thành công.",
-          data: response,
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: err.message || "Lỗi tạo danh mục.",
-          errors: err.errors || {},
-          error_code: err.status || 500,
-        };
+    if (!USE_MOCK) {
+      const response = await fetch(API_BASE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        if (response.status === 422) {
+          return await response.json();
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      return await response.json();
     }
 
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -530,22 +476,19 @@ export const CategoriesService = {
    */
   async updateCategory(id: number | string, payload: UpdateCategoryPayload): Promise<any> {
     const catId = Number(id);
-    if (isApiMode()) {
-      try {
-        const response = await ApiService.updateAdminCategory(catId, payload);
-        return {
-          success: true,
-          message: "Cập nhật danh mục thành công.",
-          data: response,
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: err.message || "Lỗi cập nhật danh mục.",
-          errors: err.errors || {},
-          error_code: err.status || 500,
-        };
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        if (response.status === 422) {
+          return await response.json();
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      return await response.json();
     }
 
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -626,21 +569,17 @@ export const CategoriesService = {
    */
   async deleteCategory(id: number | string): Promise<any> {
     const catId = Number(id);
-    if (isApiMode()) {
-      try {
-        const response = await ApiService.deleteAdminCategory(catId);
-        return {
-          success: true,
-          message: "Xóa danh mục thành công.",
-          data: response,
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: err.message || "Lỗi khi xóa danh mục.",
-          error_code: err.status || 500,
-        };
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}`, {
+        method: "DELETE"
+      });
+      if (!response.ok) {
+        if (response.status === 409) {
+          return await response.json();
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      return await response.json();
     }
 
     await new Promise(resolve => setTimeout(resolve, 250));
@@ -696,21 +635,15 @@ export const CategoriesService = {
    */
   async restoreCategory(id: number | string): Promise<any> {
     const catId = Number(id);
-    if (isApiMode()) {
-      try {
-        const response = await ApiService.restoreAdminCategory(catId);
-        return {
-          success: true,
-          message: "Khôi phục danh mục thành công.",
-          data: response,
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: err.message || "Lỗi khi khôi phục danh mục.",
-          error_code: err.status || 500,
-        };
+    if (!USE_MOCK) {
+      const response = await fetch(`${API_BASE_URL}/${catId}/restore`, {
+        method: "POST"
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        return { success: false, message: errData.message || "Không thể khôi phục danh mục.", error_code: response.status };
       }
+      return await response.json();
     }
 
     await new Promise(resolve => setTimeout(resolve, 250));
@@ -730,4 +663,3 @@ export const CategoriesService = {
     };
   }
 };
-
