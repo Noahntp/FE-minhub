@@ -3313,7 +3313,7 @@ export const ApiService = {
     devLog('AdminCategories', 'Reorder categories list', items);
     return apiFetch<any>('/admin/categories/reorder', {
       method: 'PUT',
-      body: JSON.stringify(items),
+      body: JSON.stringify({ items }),
     });
   }
 };

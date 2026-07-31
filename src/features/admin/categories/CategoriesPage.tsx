@@ -13,12 +13,20 @@ import {
   SlidersHorizontal,
   Ghost,
   AlertCircle,
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/shared/components/ui/dialog";
 
 import {
   Category,
@@ -30,6 +38,7 @@ import { CategoriesService } from "./categories.service";
 import { processTreeViewData, paginateTreeView } from "./categories.utils";
 
 import CategoryRow from "./components/CategoryRow";
+import CategorySelect from "./components/CategorySelect";
 import CategoryDetailDrawer from "./components/CategoryDetailDrawer";
 import CategoryFormModal from "./components/CategoryFormModal";
 import CategoryConfirmModal from "./components/CategoryConfirmModal";
@@ -105,16 +114,23 @@ export default function CategoriesPage() {
     "active",
   );
 
-  // Khởi tạo danh sách category cho dropdown cha
+  // Khởi tạo danh sách category cho dropdown cha và cây cơ bản
   const [allCategoriesCache, setAllCategoriesCache] = useState<Category[]>([]);
+  const [allCategoriesBase, setAllCategoriesBase] = useState<Category[]>([]);
 
-  // 3. Hàm cập nhật URL Search Params
+  const draggedParentId = useMemo(() => {
+    if (draggedId === null) return undefined;
+    const cat = allCategoriesBase.find((c) => c.id === draggedId);
+    return cat ? cat.parent_id : undefined;
+  }, [draggedId, allCategoriesBase]);
+
+  // 3. Hàm cập nhật URL Search Params (Mỗi bộ lọc hoạt động độc lập, không tự sửa filter khác)
   const updateUrlParams = useCallback(
     (newFilters: Partial<CategoryFilters>) => {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
 
-        // Merge new filters
+        // Merge new filters directly
         Object.entries(newFilters).forEach(([key, val]) => {
           if (val !== undefined && val !== null && val !== "") {
             // Tránh ghi giá trị default rườm rà
@@ -142,6 +158,57 @@ export default function CategoriesPage() {
     [setSearchParams],
   );
 
+  // 3.1 Unsaved changes shield
+  const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
+  const [pendingFilterAction, setPendingFilterAction] = useState<(() => void) | null>(null);
+
+  const safeFilterAction = useCallback((action: () => void) => {
+    if (isOrderChanged) {
+      setPendingFilterAction(() => action);
+      setShowUnsavedPrompt(true);
+    } else {
+      action();
+    }
+  }, [isOrderChanged]);
+
+  const isReorderAllowed = useMemo(() => {
+    return (
+      !filters.search &&
+      !filters.status &&
+      !filters.type &&
+      !filters.parent_id &&
+      !filters.empty &&
+      filters.sort_by === "sort_order_asc" &&
+      !isLoading
+    );
+  }, [filters, isLoading]);
+
+  // Keep isOrderChanged in a ref to avoid fetchData callback re-creation
+  const isOrderChangedRef = useRef(isOrderChanged);
+  useEffect(() => {
+    isOrderChangedRef.current = isOrderChanged;
+  }, [isOrderChanged]);
+
+  // State searchTerm cục bộ và debouncer
+  const [searchTerm, setSearchTerm] = useState(filters.search);
+
+  // Đồng bộ search value khi URL params bị xóa hoặc thay đổi ngoài (ví dụ: Reset bộ lọc)
+  useEffect(() => {
+    setSearchTerm(filters.search);
+  }, [filters.search]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchTerm.trim() !== filters.search.trim()) {
+        safeFilterAction(() => {
+          updateUrlParams({ search: searchTerm.trim(), page: 1 });
+        });
+      }
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm, filters.search, updateUrlParams, safeFilterAction]);
+
   // 4. Đồng bộ deep link open_category từ URL
   useEffect(() => {
     const openId = searchParams.get("open_category");
@@ -159,24 +226,41 @@ export default function CategoriesPage() {
     async (isBackground = false) => {
       if (!isBackground) {
         setIsLoading(true);
-        setIsOrderChanged(false);
-        setOriginalCategoriesCache(null);
       }
       setIsError(false);
 
       try {
-        // Chỉ tải dữ liệu nguồn, filters.status là tham số duy nhất ảnh hưởng tới API tải về
-        const res = await CategoriesService.getCategoriesAll(filters.status);
-        if (res.success) {
-          setAllCategoriesCache(res.data.items);
-          setSummary(res.data.summary);
+        // Tải dữ liệu lọc thực tế
+        const resFiltered = await CategoriesService.getCategoriesAll({
+          status: filters.status,
+          search: filters.search,
+          type: filters.type,
+          parent_id: filters.parent_id,
+          sort_by: filters.sort_by,
+          empty: filters.empty,
+        });
 
-          // Thực hiện dọn dẹp sessionStorage expanded IDs
-          cleanExpandedSessionStorage(res.data.items);
+        // Tải dữ liệu danh mục gốc đầy đủ từ nguồn cây đầy đủ (status: all_with_deleted)
+        const resBase = await CategoriesService.getCategoriesAll({
+          status: "all_with_deleted",
+        });
+
+        if (resFiltered.success && resBase.success) {
+          setAllCategoriesCache(resFiltered.data.items);
+          setSummary(resBase.data.summary);
+
+          // Snapshot rules:
+          // - Fetch success and no draft: update original and draft.
+          // - Fetch success but has draft: keep draft and original!
+          if (!isOrderChangedRef.current) {
+            setOriginalCategoriesCache(JSON.parse(JSON.stringify(resBase.data.items)));
+            setAllCategoriesBase(resBase.data.items);
+            cleanExpandedSessionStorage(resBase.data.items);
+          }
         } else {
           if (!isBackground) {
             setIsError(true);
-            setErrorMessage(res.message || "Tải dữ liệu thất bại.");
+            setErrorMessage(resFiltered.message || resBase.message || "Tải dữ liệu thất bại.");
           }
         }
       } catch (err: any) {
@@ -191,13 +275,20 @@ export default function CategoriesPage() {
         }
       }
     },
-    [filters.status],
+    [
+      filters.status,
+      filters.search,
+      filters.type,
+      filters.parent_id,
+      filters.sort_by,
+      filters.empty,
+    ],
   );
 
-  // Gọi fetch khi bộ lọc status thay đổi
+  // Gọi fetch khi bất kỳ bộ lọc nào thay đổi
   useEffect(() => {
     fetchData();
-  }, [filters.status]);
+  }, [fetchData]);
 
   // 6. Xử lý sessionStorage cho expanded IDs
   useEffect(() => {
@@ -205,7 +296,7 @@ export default function CategoriesPage() {
       const saved = sessionStorage.getItem(STORAGE_KEY);
       if (saved === null) {
         // Chưa có key: mặc định mở rộng toàn bộ các danh mục gốc chưa bị xóa
-        const roots = allCategoriesCache.filter(
+        const roots = allCategoriesBase.filter(
           (c) => c.parent_id === null && c.deleted_at === null,
         );
         const rootIds = new Set(roots.map((r) => r.id));
@@ -226,7 +317,7 @@ export default function CategoriesPage() {
           console.error("Lỗi parse sessionStorage expanded, reset cache:", e);
           sessionStorage.removeItem(STORAGE_KEY);
           // Quay về mặc định
-          const roots = allCategoriesCache.filter(
+          const roots = allCategoriesBase.filter(
             (c) => c.parent_id === null && c.deleted_at === null,
           );
           const rootIds = new Set(roots.map((r) => r.id));
@@ -234,7 +325,7 @@ export default function CategoriesPage() {
         }
       }
     }
-  }, [viewMode, allCategoriesCache.length]);
+  }, [viewMode, allCategoriesBase.length]);
 
   // Hàm dọn dẹp ID không tồn tại hoặc không còn con khỏi sessionStorage
   const cleanExpandedSessionStorage = (allCats: Category[]) => {
@@ -311,7 +402,7 @@ export default function CategoriesPage() {
   };
 
   const handleChangeStatus = (id: number, status: "active" | "inactive") => {
-    const cat = allCategoriesCache.find((c) => c.id === id);
+    const cat = allCategoriesBase.find((c) => c.id === id);
     if (cat) {
       setSelectedConfirmCategory(cat);
       setTargetStatus(status);
@@ -321,7 +412,7 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = (id: number) => {
-    const cat = allCategoriesCache.find((c) => c.id === id);
+    const cat = allCategoriesBase.find((c) => c.id === id);
     if (cat) {
       setSelectedConfirmCategory(cat);
       setConfirmModalType("delete");
@@ -343,22 +434,20 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleMovePosition = (id: number, direction: "up" | "down") => {
-    const item = allCategoriesCache.find((c) => c.id === id);
-    if (!item) return;
-
-    // backupCache
-    if (!isOrderChanged) {
-      setOriginalCategoriesCache(
-        JSON.parse(JSON.stringify(allCategoriesCache)),
-      );
-      setIsOrderChanged(true);
+  // 7. Xử lý Reordering trong nhóm sibling (draft mode)
+  const reorderWithinSiblings = (
+    parentId: number | null,
+    draggedCategoryId: number,
+    targetCategoryId: number,
+    action: "before" | "after" | "up" | "down"
+  ) => {
+    // Backup cache snapshot before first draft change
+    if (!isOrderChanged && allCategoriesBase) {
+      setOriginalCategoriesCache(JSON.parse(JSON.stringify(allCategoriesBase)));
     }
 
-    const sameLevel = allCategoriesCache.filter(
-      (c) => c.parent_id === item.parent_id,
-    );
-    sameLevel.sort((a, b) => {
+    const siblings = allCategoriesBase.filter((c) => c.parent_id === parentId);
+    siblings.sort((a, b) => {
       const sa = a.sort_order || 0;
       const sb = b.sort_order || 0;
       if (sa > 0 && sb > 0) {
@@ -370,126 +459,65 @@ export default function CategoriesPage() {
       return (a.name || "").localeCompare(b.name || "", "vi");
     });
 
-    const index = sameLevel.findIndex((c) => c.id === id);
-    if (index === -1) return;
+    const oldIndex = siblings.findIndex((c) => c.id === draggedCategoryId);
+    if (oldIndex === -1) return;
 
-    // Không mutate! Clone mảng sibling
-    const sortedSiblings = [...sameLevel];
-    if (direction === "up" && index > 0) {
-      const temp = sortedSiblings[index];
-      sortedSiblings[index] = sortedSiblings[index - 1];
-      sortedSiblings[index - 1] = temp;
-    } else if (direction === "down" && index < sortedSiblings.length - 1) {
-      const temp = sortedSiblings[index];
-      sortedSiblings[index] = sortedSiblings[index + 1];
-      sortedSiblings[index + 1] = temp;
+    const tempSiblings = [...siblings];
+    const [moved] = tempSiblings.splice(oldIndex, 1);
+
+    let newIndex = oldIndex;
+    if (action === "up") {
+      newIndex = Math.max(0, oldIndex - 1);
+    } else if (action === "down") {
+      newIndex = Math.min(siblings.length - 1, oldIndex + 1);
     } else {
-      return;
+      const targetIndexInSpliced = tempSiblings.findIndex((c) => c.id === targetCategoryId);
+      if (targetIndexInSpliced !== -1) {
+        newIndex = action === "before" ? targetIndexInSpliced : targetIndexInSpliced + 1;
+      }
     }
 
-    // Map tạo các objects mới với sort_order mới
-    const updatedSiblings = sortedSiblings.map((c, idx) => ({
+    tempSiblings.splice(newIndex, 0, moved);
+
+    const normalizedSiblings = tempSiblings.map((c, idx) => ({
       ...c,
       sort_order: idx + 1,
     }));
 
-    // Cập nhật cache local bằng cách map tạo mảng mới, clone object
-    const newCache = allCategoriesCache.map((c) => {
-      const found = updatedSiblings.find((t) => t.id === c.id);
-      if (found) {
-        return found;
-      }
-      return c;
+    const nextBase = allCategoriesBase.map((c) => {
+      const found = normalizedSiblings.find((n) => n.id === c.id);
+      return found ? { ...c, sort_order: found.sort_order } : c;
     });
 
-    setAllCategoriesCache(newCache);
+    setAllCategoriesBase(nextBase);
+    setIsOrderChanged(true);
   };
 
-  const handleDragDrop = (
+  const handleMovePosition = useCallback((id: number, direction: "up" | "down") => {
+    const item = allCategoriesBase.find((c) => c.id === id);
+    if (!item) return;
+    reorderWithinSiblings(item.parent_id, id, id, direction);
+  }, [allCategoriesBase, isOrderChanged]);
+
+  const handleDragDrop = useCallback((
     draggedCategoryId: number,
     targetCategoryId: number,
-    dropPosition: "before" | "after",
+    dropPosition: "before" | "after"
   ) => {
     if (draggedCategoryId === targetCategoryId) return;
 
-    const draggedItem = allCategoriesCache.find(
-      (c) => c.id === draggedCategoryId,
-    );
-    const targetItem = allCategoriesCache.find(
-      (c) => c.id === targetCategoryId,
-    );
-    if (
-      !draggedItem ||
-      !targetItem ||
-      draggedItem.parent_id !== targetItem.parent_id ||
-      draggedItem.parent_id === null
-    )
-      return;
+    const draggedItem = allCategoriesBase.find((c) => c.id === draggedCategoryId);
+    const targetItem = allCategoriesBase.find((c) => c.id === targetCategoryId);
+    if (!draggedItem || !targetItem) return;
+    if (draggedItem.parent_id !== targetItem.parent_id) return; // Block dragging across parent boundaries
 
-    // backupCache
-    if (!isOrderChanged) {
-      setOriginalCategoriesCache(
-        JSON.parse(JSON.stringify(allCategoriesCache)),
-      );
-      setIsOrderChanged(true);
-    }
-
-    const sameLevel = allCategoriesCache.filter(
-      (c) => c.parent_id === draggedItem.parent_id,
-    );
-    sameLevel.sort((a, b) => {
-      const sa = a.sort_order || 0;
-      const sb = b.sort_order || 0;
-      if (sa > 0 && sb > 0) {
-        if (sa !== sb) return sa - sb;
-        return (a.name || "").localeCompare(b.name || "", "vi");
-      }
-      if (sa > 0 && sb === 0) return -1;
-      if (sa === 0 && sb > 0) return 1;
-      return (a.name || "").localeCompare(b.name || "", "vi");
-    });
-
-    const draggedIndex = sameLevel.findIndex((c) => c.id === draggedCategoryId);
-    if (draggedIndex === -1) return;
-
-    // Clone mảng sibling
-    const sortedSiblings = [...sameLevel];
-    // Xóa item kéo
-    const [removed] = sortedSiblings.splice(draggedIndex, 1);
-
-    // Tìm index mới của target item sau khi đã remove dragged item
-    const targetIndex = sortedSiblings.findIndex(
-      (c) => c.id === targetCategoryId,
-    );
-    if (targetIndex === -1) return;
-
-    // Xác định index chèn dựa trên dropPosition
-    const insertIndex =
-      dropPosition === "before" ? targetIndex : targetIndex + 1;
-    sortedSiblings.splice(insertIndex, 0, removed);
-
-    // Map tạo các objects mới với sort_order mới
-    const updatedSiblings = sortedSiblings.map((c, idx) => ({
-      ...c,
-      sort_order: idx + 1,
-    }));
-
-    const newCache = allCategoriesCache.map((c) => {
-      const found = updatedSiblings.find((t) => t.id === c.id);
-      if (found) {
-        return found;
-      }
-      return c;
-    });
-
-    setAllCategoriesCache(newCache);
-  };
+    reorderWithinSiblings(draggedItem.parent_id, draggedCategoryId, targetCategoryId, dropPosition);
+  }, [allCategoriesBase, isOrderChanged]);
 
   const handleCancelReorder = () => {
     if (originalCategoriesCache) {
-      setAllCategoriesCache(originalCategoriesCache);
+      setAllCategoriesBase(JSON.parse(JSON.stringify(originalCategoriesCache)));
       setIsOrderChanged(false);
-      setOriginalCategoriesCache(null);
       toast.info("Đã hủy bỏ thay đổi thứ tự hiển thị.");
     }
   };
@@ -502,7 +530,7 @@ export default function CategoriesPage() {
       sort_order: number;
       parent_id: number | null;
     }> = [];
-    allCategoriesCache.forEach((c) => {
+    allCategoriesBase.forEach((c) => {
       const orig = originalCategoriesCache.find((o) => o.id === c.id);
       if (
         orig &&
@@ -518,7 +546,6 @@ export default function CategoriesPage() {
 
     if (changedItems.length === 0) {
       setIsOrderChanged(false);
-      setOriginalCategoriesCache(null);
       return;
     }
 
@@ -527,20 +554,14 @@ export default function CategoriesPage() {
       const res = await CategoriesService.reorderCategories(changedItems);
       if (res.success) {
         toast.success(res.message);
+        setOriginalCategoriesCache(JSON.parse(JSON.stringify(allCategoriesBase)));
         setIsOrderChanged(false);
-        setOriginalCategoriesCache(null);
         await fetchData(true);
       } else {
         toast.error(res.message || "Lưu thứ tự thất bại.");
-        setAllCategoriesCache(originalCategoriesCache);
-        setIsOrderChanged(false);
-        setOriginalCategoriesCache(null);
       }
     } catch (e: any) {
       toast.error("Đã xảy ra sự cố kết nối khi lưu thứ tự.");
-      setAllCategoriesCache(originalCategoriesCache);
-      setIsOrderChanged(false);
-      setOriginalCategoriesCache(null);
     } finally {
       setIsLoading(false);
     }
@@ -581,22 +602,25 @@ export default function CategoriesPage() {
   // 8. Thuật toán lọc Tree View và Phân trang Client-side để tính toán chỉ số hiển thị
   const treeMetrics = useMemo(() => {
     if (viewMode !== "tree") return null;
+    const matchedIds = new Set(allCategoriesCache.map((c) => c.id));
+    const backendSortedIds = isOrderChanged ? undefined : allCategoriesCache.map((c) => c.id);
     const data = processTreeViewData(
-      allCategoriesCache,
-      filters,
+      allCategoriesBase,
+      {
+        ...filters,
+        matchedIds,
+        backendSortedIds,
+      },
       expandedCategoryIds,
     );
     return data;
   }, [
     viewMode,
     allCategoriesCache,
-    fStatus,
-    fSearch,
-    fType,
-    fParentId,
-    fEmpty,
-    fSortBy,
+    allCategoriesBase,
+    filters,
     expandedCategoryIds,
+    isOrderChanged,
   ]);
 
   // Phân trang Metadata tính toán
@@ -633,25 +657,33 @@ export default function CategoriesPage() {
 
   // Nút chuyển trang pagination
   const handlePageChange = (newPage: number) => {
-    updateUrlParams({ page: newPage });
+    safeFilterAction(() => {
+      updateUrlParams({ page: newPage });
+    });
   };
 
   // Thay đổi số dòng mỗi trang
   const handlePerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = parseInt(e.target.value, 10);
-    updateUrlParams({ per_page: val, page: 1 });
+    safeFilterAction(() => {
+      updateUrlParams({ per_page: val, page: 1 });
+    });
   };
 
   // Xóa từng chip bộ lọc
   const handleRemoveFilter = (key: keyof CategoryFilters) => {
-    // Reset page về 1 khi đổi bộ lọc
-    const updates: Partial<CategoryFilters> = { [key]: "", page: 1 };
-    updateUrlParams(updates);
+    safeFilterAction(() => {
+      // Reset page về 1 khi đổi bộ lọc
+      const updates: Partial<CategoryFilters> = { [key]: "", page: 1 };
+      updateUrlParams(updates);
+    });
   };
 
   // Reset toàn bộ bộ lọc
   const handleResetAllFilters = () => {
-    setSearchParams(new URLSearchParams());
+    safeFilterAction(() => {
+      setSearchParams(new URLSearchParams());
+    });
   };
 
   const handleKpiClick = (newFilters: Partial<CategoryFilters>) => {
@@ -668,16 +700,18 @@ export default function CategoriesPage() {
       targetFilters[key] = String(val);
     });
 
-    updateUrlParams(targetFilters as any);
+    safeFilterAction(() => {
+      updateUrlParams(targetFilters as any);
 
-    setTimeout(() => {
-      if (resultsSectionRef.current) {
-        resultsSectionRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }
-    }, 100);
+      setTimeout(() => {
+        if (resultsSectionRef.current) {
+          resultsSectionRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      }, 100);
+    });
   };
 
   // Phân trang numbers builder
@@ -773,7 +807,7 @@ export default function CategoriesPage() {
       chips.push({ key: "type" as const, label: `Loại: ${label}` });
     }
     if (filters.parent_id) {
-      const parent = allCategoriesCache.find(
+      const parent = allCategoriesBase.find(
         (c) => c.id === Number(filters.parent_id),
       );
       chips.push({
@@ -785,7 +819,7 @@ export default function CategoriesPage() {
       chips.push({ key: "empty" as const, label: "Chưa có khóa học" });
     }
     return chips;
-  }, [filters, allCategoriesCache]);
+  }, [filters, allCategoriesBase]);
 
   return (
     <main className="p-5 md:p-8 space-y-6">
@@ -983,10 +1017,8 @@ export default function CategoriesPage() {
               <input
                 type="text"
                 id="filter-search"
-                value={filters.search}
-                onChange={(e) =>
-                  updateUrlParams({ search: e.target.value, page: 1 })
-                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tên hoặc slug danh mục..."
                 disabled={isLoading}
                 className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink placeholder-mid-gray/70 transition-all"
@@ -1002,20 +1034,22 @@ export default function CategoriesPage() {
             >
               Trạng thái
             </label>
-            <select
+            <CategorySelect
               id="filter-status"
               value={filters.status}
-              onChange={(e) =>
-                updateUrlParams({ status: e.target.value as any, page: 1 })
+              onChange={(val) =>
+                safeFilterAction(() =>
+                  updateUrlParams({ status: val as any, page: 1 })
+                )
               }
               disabled={isLoading}
-              className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all"
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="active">Đang hoạt động</option>
-              <option value="inactive">Ngừng hoạt động</option>
-              <option value="deleted">Đã xóa (Thùng rác)</option>
-            </select>
+              options={[
+                { value: "", label: "Tất cả trạng thái" },
+                { value: "active", label: "Đang hoạt động" },
+                { value: "inactive", label: "Ngừng hoạt động" },
+                { value: "deleted", label: "Đã xóa (Thùng rác)" },
+              ]}
+            />
           </div>
           {/* Type */}
           <div>
@@ -1025,19 +1059,21 @@ export default function CategoriesPage() {
             >
               Loại danh mục
             </label>
-            <select
+            <CategorySelect
               id="filter-type"
               value={filters.type}
-              onChange={(e) =>
-                updateUrlParams({ type: e.target.value as any, page: 1 })
+              onChange={(val) =>
+                safeFilterAction(() =>
+                  updateUrlParams({ type: val as any, page: 1 })
+                )
               }
               disabled={isLoading}
-              className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all"
-            >
-              <option value="">Tất cả loại</option>
-              <option value="root">Danh mục gốc</option>
-              <option value="child">Danh mục con</option>
-            </select>
+              options={[
+                { value: "", label: "Tất cả loại" },
+                { value: "root", label: "Danh mục gốc" },
+                { value: "child", label: "Danh mục con" },
+              ]}
+            />
           </div>
           {/* Parent Category */}
           <div>
@@ -1047,24 +1083,31 @@ export default function CategoriesPage() {
             >
               Danh mục cha
             </label>
-            <select
+            <CategorySelect
               id="filter-parent"
               value={filters.parent_id}
-              onChange={(e) =>
-                updateUrlParams({ parent_id: e.target.value, page: 1 })
+              onChange={(val) =>
+                safeFilterAction(() =>
+                  updateUrlParams({ parent_id: val, page: 1 })
+                )
               }
               disabled={isLoading}
-              className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all"
-            >
-              <option value="">Tất cả cha</option>
-              {allCategoriesCache
-                .filter((c) => c.parent_id === null && c.deleted_at === null)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
+              options={[
+                { value: "", label: "Tất cả cha" },
+                ...allCategoriesBase
+                  .filter((c) => c.parent_id === null && c.deleted_at === null)
+                  .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                  .map((c) => {
+                    const childCount = allCategoriesBase.filter(
+                      (ch) => ch.parent_id === c.id && ch.deleted_at === null
+                    ).length;
+                    return {
+                      value: String(c.id),
+                      label: `${c.name} (${childCount})`,
+                    };
+                  }),
+              ]}
+            />
           </div>
           {/* Sort By */}
           <div>
@@ -1074,23 +1117,25 @@ export default function CategoriesPage() {
             >
               Sắp xếp
             </label>
-            <select
+            <CategorySelect
               id="filter-sort"
               value={filters.sort_by}
-              onChange={(e) =>
-                updateUrlParams({ sort_by: e.target.value as any })
+              onChange={(val) =>
+                safeFilterAction(() =>
+                  updateUrlParams({ sort_by: val as any })
+                )
               }
               disabled={isLoading}
-              className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all"
-            >
-              <option value="newest">Mới nhất</option>
-              <option value="oldest">Cũ nhất</option>
-              <option value="name_asc">Tên A-Z</option>
-              <option value="name_desc">Tên Z-A</option>
-              <option value="sort_order_asc">Thứ tự tăng dần</option>
-              <option value="sort_order_desc">Thứ tự giảm dần</option>
-              <option value="courses_desc">Nhiều khóa học nhất</option>
-            </select>
+              options={[
+                { value: "newest", label: "Mới nhất" },
+                { value: "oldest", label: "Cũ nhất" },
+                { value: "name_asc", label: "Tên A-Z" },
+                { value: "name_desc", label: "Tên Z-A" },
+                { value: "sort_order_asc", label: "Thứ tự tăng dần" },
+                { value: "sort_order_desc", label: "Thứ tự giảm dần" },
+                { value: "courses_desc", label: "Nhiều khóa học nhất" },
+              ]}
+            />
           </div>
         </div>
 
@@ -1163,7 +1208,7 @@ export default function CategoriesPage() {
 
         {/* Table Toolbar */}
         <div className="flex h-12 items-center justify-between px-4 border-b border-hairline bg-surface-alt/40 text-xs text-mid-gray">
-          <div>
+          <div className="flex items-center gap-2">
             <span>
               Hiển thị kết quả thứ{" "}
               <span className="font-semibold text-ink">
@@ -1179,6 +1224,13 @@ export default function CategoriesPage() {
               </span>{" "}
               nhánh danh mục gốc
             </span>
+            {treeMetrics && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-canvas border border-hairline text-ink">
+                {filters.status || filters.search || filters.type || filters.parent_id || filters.empty === "true"
+                  ? `Khớp bộ lọc: ${treeMetrics.matchedCategoryCount} danh mục`
+                  : `Tổng cộng: ${treeMetrics.matchedCategoryCount} danh mục`}
+              </span>
+            )}
           </div>
           <button
             type="button"
@@ -1243,8 +1295,8 @@ export default function CategoriesPage() {
                   : categoriesList
                       .filter((c) => c.visible)
                       .map((cat) => {
-                        const sameLevel = allCategoriesCache.filter(
-                          (c) => c.parent_id === cat.parent_id,
+                        const sameLevel = allCategoriesBase.filter(
+                          (c) => c.parent_id === cat.parent_id && c.deleted_at === null,
                         );
                         sameLevel.sort((a, b) => {
                           const sa = a.sort_order || 0;
@@ -1279,15 +1331,16 @@ export default function CategoriesPage() {
                             onChangeStatus={handleChangeStatus}
                             onDelete={handleDelete}
                             onRestore={handleRestore}
-                            onSaveSortOrder={handleSaveSortOrder}
                             onMovePosition={handleMovePosition}
                             onDragDrop={handleDragDrop}
                             draggedId={draggedId}
                             setDraggedId={setDraggedId}
                             dragOverId={dragOverId}
                             setDragOverId={setDragOverId}
+                            draggedParentId={draggedParentId}
                             isFirstChild={isFirstChild}
                             isLastChild={isLastChild}
+                            isReorderAllowed={isReorderAllowed}
                           />
                         );
                       })}
@@ -1318,13 +1371,46 @@ export default function CategoriesPage() {
                 </button>
               </div>
             ) : activeChips.length > 0 ? (
-              <EmptyState
-                icon={Ghost}
-                title="Không tìm thấy danh mục"
-                description="Không có danh mục nào khớp với bộ lọc hiện tại của bạn."
-                actionLabel="Đặt lại bộ lọc"
-                onAction={handleResetAllFilters}
-              />
+              (() => {
+                // Special message when filtering by parent_id on a parent with no children
+                const isParentIdOnly =
+                  filters.parent_id &&
+                  !filters.search &&
+                  !filters.status &&
+                  !filters.type &&
+                  filters.empty !== "true";
+                const selectedParent = isParentIdOnly
+                  ? allCategoriesBase.find((c) => String(c.id) === filters.parent_id)
+                  : null;
+                const selectedParentChildCount = selectedParent
+                  ? allCategoriesBase.filter(
+                      (c) => c.parent_id === selectedParent.id && c.deleted_at === null
+                    ).length
+                  : -1;
+                if (selectedParent && selectedParentChildCount === 0) {
+                  return (
+                    <EmptyState
+                      icon={Ghost}
+                      title="Danh mục này chưa có danh mục con"
+                      description={`"${selectedParent.name}" hiện chưa có danh mục con nào. Bạn có thể thêm danh mục con mới.`}
+                      actionLabel="Thêm danh mục con"
+                      onAction={() => {
+                        handleResetAllFilters();
+                        setTimeout(() => handleCreate(), 50);
+                      }}
+                    />
+                  );
+                }
+                return (
+                  <EmptyState
+                    icon={Ghost}
+                    title="Không tìm thấy danh mục"
+                    description="Không có danh mục nào khớp với bộ lọc hiện tại của bạn."
+                    actionLabel="Đặt lại bộ lọc"
+                    onAction={handleResetAllFilters}
+                  />
+                );
+              })()
             ) : (
               <EmptyState
                 icon={Ghost}
@@ -1394,7 +1480,7 @@ export default function CategoriesPage() {
         isOpen={formModalOpen}
         mode={formModalMode}
         categoryId={selectedFormId}
-        allCategories={allCategoriesCache}
+        allCategories={allCategoriesBase}
         onClose={() => setFormModalOpen(false)}
         onSuccess={fetchData}
       />
@@ -1408,6 +1494,49 @@ export default function CategoriesPage() {
         onClose={() => setConfirmModalOpen(false)}
         onSuccess={fetchData}
       />
+
+      {/* Unsaved Changes Confirmation Modal */}
+      <Dialog open={showUnsavedPrompt} onOpenChange={(open) => !open && setShowUnsavedPrompt(false)}>
+        <DialogContent className="sm:max-w-sm">
+          <div className="space-y-4 py-2">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-warning-brick text-sm font-bold">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+                Thay đổi chưa lưu
+              </DialogTitle>
+            </DialogHeader>
+            <div className="text-xs text-mid-gray leading-normal">
+              Bạn có thay đổi chưa lưu về thứ tự hiển thị danh mục. Nếu bạn chuyển trang hoặc thay đổi bộ lọc, các thay đổi chưa lưu này sẽ bị hủy bỏ.
+              <br />
+              <br />
+              Bạn có chắc muốn tiếp tục không?
+            </div>
+            <DialogFooter className="pt-2 border-t border-hairline/60 gap-2 sm:gap-0">
+              <button
+                type="button"
+                onClick={() => setShowUnsavedPrompt(false)}
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+              >
+                Quay lại
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedPrompt(false);
+                  setIsOrderChanged(false);
+                  if (pendingFilterAction) {
+                    pendingFilterAction();
+                    setPendingFilterAction(null);
+                  }
+                }}
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Tiếp tục và Bỏ qua
+              </button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Detail Drawer */}
       <CategoryDetailDrawer

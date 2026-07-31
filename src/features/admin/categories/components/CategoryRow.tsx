@@ -33,7 +33,7 @@ interface CategoryRowProps {
   onChangeStatus: (id: number, targetStatus: "active" | "inactive") => void;
   onDelete: (id: number) => void;
   onRestore: (id: number) => void;
-  onSaveSortOrder: (id: number, value: number) => Promise<boolean>;
+
   onMovePosition?: (id: number, direction: "up" | "down") => void;
   onDragDrop?: (
     draggedId: number,
@@ -44,8 +44,10 @@ interface CategoryRowProps {
   setDraggedId?: (id: number | null) => void;
   dragOverId?: number | null;
   setDragOverId?: (id: number | null) => void;
+  draggedParentId?: number | null;
   isFirstChild?: boolean;
   isLastChild?: boolean;
+  isReorderAllowed?: boolean;
 }
 
 export default function CategoryRow({
@@ -64,8 +66,10 @@ export default function CategoryRow({
   setDraggedId,
   dragOverId,
   setDragOverId,
+  draggedParentId,
   isFirstChild = false,
   isLastChild = false,
+  isReorderAllowed = false,
 }: CategoryRowProps) {
   const {
     id,
@@ -86,6 +90,7 @@ export default function CategoryRow({
   );
   // Ref to block detail click directly after drag finishes
   const isJustDragged = useRef(false);
+  const [isGripActive, setIsGripActive] = useState(false);
 
   // Status Badges Render
   const isDeleted = deleted_at !== null;
@@ -171,14 +176,15 @@ export default function CategoryRow({
     }
   };
 
-  // Drag Handlers (Only enabled for child categories)
-  const isDraggable = category.parent_id !== null && !isDeleted;
+  // Drag Handlers (Both root and child categories can be dragged under isReorderAllowed)
+  const isDragEnabled = isReorderAllowed && !isDeleted && !isContextual;
+  const isDraggable = isDragEnabled && isGripActive;
 
   const handleDragStart = (e: React.DragEvent) => {
     const target = e.target as HTMLElement;
     const isGrip = target.closest(".drag-handle");
 
-    if (!isDraggable || !isGrip) {
+    if (!isDragEnabled || !isGrip) {
       e.preventDefault();
       return;
     }
@@ -190,7 +196,7 @@ export default function CategoryRow({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    if (!isDraggable || draggedId === null || draggedId === id) return;
+    if (!isDragEnabled || draggedId === null || draggedId === id || draggedParentId !== category.parent_id) return;
 
     e.preventDefault();
     setDragOverId?.(id);
@@ -210,13 +216,14 @@ export default function CategoryRow({
     const rawDraggedId =
       draggedId ?? Number(e.dataTransfer.getData("text/plain"));
 
-    if (rawDraggedId && rawDraggedId !== id && dropPosition !== null) {
+    if (rawDraggedId && rawDraggedId !== id && dropPosition !== null && draggedParentId === category.parent_id) {
       onDragDrop?.(rawDraggedId, id, dropPosition);
     }
 
     setDropPosition(null);
     setDraggedId?.(null);
     setDragOverId?.(null);
+    setIsGripActive(false);
 
     setTimeout(() => {
       isJustDragged.current = false;
@@ -227,6 +234,7 @@ export default function CategoryRow({
     setDropPosition(null);
     setDraggedId?.(null);
     setDragOverId?.(null);
+    setIsGripActive(false);
 
     setTimeout(() => {
       isJustDragged.current = false;
@@ -266,20 +274,42 @@ export default function CategoryRow({
         }}
       >
         <div className="flex items-center gap-1.5">
-          {/* Grip handle for child categories */}
-          {isDraggable && (
+          {/* Grip handle for root and child categories */}
+          {!isDeleted && (
             <div
-              className="drag-handle p-1 hover:bg-canvas rounded cursor-grab active:cursor-grabbing text-mid-gray/40 hover:text-ink shrink-0 mr-0.5 flex items-center justify-center"
+              className={cn(
+                "drag-handle p-1 hover:bg-canvas rounded shrink-0 mr-0.5 flex items-center justify-center text-mid-gray/40",
+                isDragEnabled
+                  ? "cursor-grab active:cursor-grabbing hover:text-ink"
+                  : "cursor-not-allowed opacity-40"
+              )}
+              title={
+                isDragEnabled
+                  ? "Kéo để đổi thứ tự"
+                  : "Đặt lại bộ lọc và chọn Thứ tự tăng dần để sắp xếp"
+              }
               onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onMouseUp={(e) => e.stopPropagation()}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                if (isDragEnabled) setIsGripActive(true);
+              }}
+              onMouseUp={(e) => {
+                e.stopPropagation();
+                setIsGripActive(false);
+              }}
+              onMouseEnter={() => {
+                if (isDragEnabled) setIsGripActive(true);
+              }}
+              onMouseLeave={() => {
+                setIsGripActive(false);
+              }}
               role="button"
               aria-label="Kéo để đổi thứ tự"
             >
-              <GripVertical className="w-3.5 h-3.5 animate-pulse" />
+              <GripVertical className="w-3.5 h-3.5" />
             </div>
           )}
-          {!isDraggable && depth > 0 && <div className="w-6 shrink-0" />}
+          {isDeleted && depth > 0 && <div className="w-6 shrink-0" />}
 
           {viewMode === "tree" && hasChildren ? (
             <button
@@ -303,20 +333,14 @@ export default function CategoryRow({
 
           <div className="flex flex-col truncate max-w-[260px]" title={name}>
             <span
-              onClick={handleToggleClick}
               className={cn(
                 "truncate",
-                hasChildren && "hover:underline hover:text-ink",
                 fontClass,
               )}
             >
               {name}
             </span>
-            {isContextual && (
-              <span className="text-[9px] text-warning font-semibold tracking-wide uppercase mt-0.5">
-                * Dòng ngữ cảnh
-              </span>
-            )}
+
           </div>
         </div>
       </td>
@@ -388,7 +412,16 @@ export default function CategoryRow({
                 e.stopPropagation();
                 onMovePosition?.(id, "up");
               }}
-              disabled={isDeleted || isFirstChild}
+              disabled={isDeleted || isFirstChild || !isReorderAllowed || isContextual}
+              title={
+                isDeleted
+                  ? "Không thể sắp xếp danh mục đã xóa"
+                  : !isReorderAllowed
+                  ? "Đặt lại bộ lọc và chọn Thứ tự tăng dần để sắp xếp"
+                  : isFirstChild
+                  ? "Đã ở đầu nhóm sibling"
+                  : "Di chuyển lên một vị trí"
+              }
               className="flex items-center justify-center w-7 h-full hover:bg-hairline text-mid-gray hover:text-ink transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed select-none"
             >
               <Minus className="w-3 h-3" />
@@ -410,7 +443,16 @@ export default function CategoryRow({
                 e.stopPropagation();
                 onMovePosition?.(id, "down");
               }}
-              disabled={isDeleted || isLastChild}
+              disabled={isDeleted || isLastChild || !isReorderAllowed || isContextual}
+              title={
+                isDeleted
+                  ? "Không thể sắp xếp danh mục đã xóa"
+                  : !isReorderAllowed
+                  ? "Đặt lại bộ lọc và chọn Thứ tự tăng dần để sắp xếp"
+                  : isLastChild
+                  ? "Đã ở cuối nhóm sibling"
+                  : "Di chuyển xuống một vị trí"
+              }
               className="flex items-center justify-center w-7 h-full hover:bg-hairline text-mid-gray hover:text-ink transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed select-none"
             >
               <Plus className="w-3 h-3" />

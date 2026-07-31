@@ -1,4 +1,4 @@
-﻿// @ts-ignore
+// @ts-ignore
 import {
   getRawCategories as mockGetRawCategories,
   createCategory as mockCreateCategory,
@@ -253,8 +253,8 @@ export const CategoriesService = {
    * Tải toàn bộ danh mục chưa bị xóa (dành cho dựng cây Tree View)
    * Có cơ chế tự động tải tiếp các trang sau nếu API giới hạn bản ghi.
    */
-  async getCategoriesAll(status: string = ""): Promise<CategoriesResponse> {
-    const firstPageResponse = await this.getCategories({ page: 1, per_page: 100, status });
+  async getCategoriesAll(params: Record<string, any> = {}): Promise<CategoriesResponse> {
+    const firstPageResponse = await this.getCategories({ ...params, page: 1, per_page: 100 });
     if (!firstPageResponse.success) {
       return firstPageResponse;
     }
@@ -266,7 +266,7 @@ export const CategoriesService = {
     if (meta.last_page > 1) {
       const pageRequests = [];
       for (let p = 2; p <= meta.last_page; p++) {
-        pageRequests.push(this.getCategories({ page: p, per_page: 100, status }));
+        pageRequests.push(this.getCategories({ ...params, page: p, per_page: 100 }));
       }
       
       const responses = await Promise.all(pageRequests);
