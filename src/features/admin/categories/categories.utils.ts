@@ -7,20 +7,23 @@ interface TreeNode extends Category {
 /**
  * Dựng cấu trúc cây đệ quy từ mảng danh mục phẳng
  */
-export function buildTree(items: Category[], backendSortedIds?: number[]): TreeNode[] {
+export function buildTree(
+  items: Category[],
+  backendSortedIds?: number[],
+): TreeNode[] {
   const itemMap: Record<number, TreeNode> = {};
-  
+
   // Khởi tạo TreeNode cho tất cả items
-  items.forEach(item => {
+  items.forEach((item) => {
     itemMap[item.id] = {
       ...item,
-      childrenNodes: []
+      childrenNodes: [],
     };
   });
-  
+
   const rootNodes: TreeNode[] = [];
-  
-  items.forEach(item => {
+
+  items.forEach((item) => {
     const node = itemMap[item.id];
     if (item.parent_id !== null && itemMap[item.parent_id]) {
       itemMap[item.parent_id].childrenNodes.push(node);
@@ -50,7 +53,7 @@ export function buildTree(items: Category[], backendSortedIds?: number[]): TreeN
       if (sa === 0 && sb > 0) return 1;
       return (a.name || "").localeCompare(b.name || "", "vi");
     });
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (node.childrenNodes.length > 0) {
         sortNodes(node.childrenNodes);
       }
@@ -81,7 +84,7 @@ export function processTreeViewData(
     matchedIds?: Set<number>;
     backendSortedIds?: number[];
   },
-  expandedCategoryIds: Set<number>
+  expandedCategoryIds: Set<number>,
 ): {
   processedList: Category[];
   totalRootBranches: number;
@@ -90,25 +93,32 @@ export function processTreeViewData(
   qualifyingRootIds: number[];
 } {
   const statusFilter = filters.status || "";
-  const searchFilter = filters.search ? filters.search.toLowerCase().trim() : "";
+  const searchFilter = filters.search
+    ? filters.search.toLowerCase().trim()
+    : "";
   const typeFilter = filters.type || "";
   const parentIdFilter = filters.parent_id || "";
   const emptyFilter = filters.empty || "";
 
   // 1. Dựng cây đầy đủ từ tất cả các danh mục
   const fullTree = buildTree(allCategories, filters.backendSortedIds);
-  
+
   // Xác định matched IDs
   const matchedIds = new Set<number>();
   let matchedCount = 0;
-  
-  allCategories.forEach(c => {
+
+  allCategories.forEach((c) => {
     let match = true;
-    
+
     if (filters.matchedIds) {
       match = filters.matchedIds.has(c.id);
     } else {
-      if (statusFilter && statusFilter !== "all" && statusFilter !== "deleted" && statusFilter !== "all_with_deleted") {
+      if (
+        statusFilter &&
+        statusFilter !== "all" &&
+        statusFilter !== "deleted" &&
+        statusFilter !== "all_with_deleted"
+      ) {
         if (c.status !== statusFilter) match = false;
       }
       if (searchFilter) {
@@ -136,7 +146,7 @@ export function processTreeViewData(
         }
       }
     }
-    
+
     if (match) {
       matchedIds.add(c.id);
       matchedCount++;
@@ -144,7 +154,14 @@ export function processTreeViewData(
   });
 
   // Có bộ lọc active nào không
-  const hasActiveFilter = !!(statusFilter || searchFilter || typeFilter || parentIdFilter || emptyFilter === "true" || filters.matchedIds);
+  const hasActiveFilter = !!(
+    statusFilter ||
+    searchFilter ||
+    typeFilter ||
+    parentIdFilter ||
+    emptyFilter === "true" ||
+    filters.matchedIds
+  );
 
   // retainedIds gồm matched IDs và tổ tiên của chúng
   const retainedIds = new Set<number>();
@@ -152,7 +169,7 @@ export function processTreeViewData(
 
   const markAncestors = (catId: number, isSearchMatch: boolean) => {
     retainedIds.add(catId);
-    const cat = allCategories.find(c => c.id === catId);
+    const cat = allCategories.find((c) => c.id === catId);
     if (cat && cat.parent_id !== null) {
       if (isSearchMatch) {
         autoExpandIds.add(cat.parent_id); // Tự động mở cha chứa nó
@@ -162,32 +179,34 @@ export function processTreeViewData(
   };
 
   if (hasActiveFilter) {
-    matchedIds.forEach(id => {
-      const cat = allCategories.find(c => c.id === id);
-      const isSearchMatch = !!(searchFilter && cat && (
-        (cat.name && cat.name.toLowerCase().includes(searchFilter)) ||
-        (cat.slug && cat.slug.toLowerCase().includes(searchFilter))
-      ));
+    matchedIds.forEach((id) => {
+      const cat = allCategories.find((c) => c.id === id);
+      const isSearchMatch = !!(
+        searchFilter &&
+        cat &&
+        ((cat.name && cat.name.toLowerCase().includes(searchFilter)) ||
+          (cat.slug && cat.slug.toLowerCase().includes(searchFilter)))
+      );
       markAncestors(id, isSearchMatch);
     });
   } else {
-    allCategories.forEach(c => retainedIds.add(c.id));
+    allCategories.forEach((c) => retainedIds.add(c.id));
   }
 
   // 2. Hàm lọc cây đệ quy để chỉ giữ lại các node thuộc retainedIds
   const filterTree = (nodes: TreeNode[]): TreeNode[] => {
     return nodes
-      .filter(node => retainedIds.has(node.id))
-      .map(node => ({
+      .filter((node) => retainedIds.has(node.id))
+      .map((node) => ({
         ...node,
-        childrenNodes: filterTree(node.childrenNodes)
+        childrenNodes: filterTree(node.childrenNodes),
       }));
   };
 
   const filteredTree = filterTree(fullTree);
 
   // 3. Qualifying Root Branches
-  const qualifyingRootIds = filteredTree.map(node => node.id);
+  const qualifyingRootIds = filteredTree.map((node) => node.id);
   const totalRootBranches = qualifyingRootIds.length;
 
   const resultList: Category[] = [];
@@ -199,7 +218,7 @@ export function processTreeViewData(
     depth: number,
     parentExpanded: boolean,
     parentVisible: boolean,
-    parentDisplayOrder: string = ""
+    parentDisplayOrder: string = "",
   ) => {
     nodes.forEach((node, idx) => {
       // Tính toán displayOrder của node hiện tại
@@ -207,18 +226,21 @@ export function processTreeViewData(
       if (depth === 0) {
         displayOrder = String(idx + 1);
       } else {
-        displayOrder = parentDisplayOrder ? `${parentDisplayOrder}.${idx + 1}` : String(idx + 1);
+        displayOrder = parentDisplayOrder
+          ? `${parentDisplayOrder}.${idx + 1}`
+          : String(idx + 1);
       }
 
       // Parent được mở khi thuộc expandedCategoryIds hoặc autoExpandIds
-      const isExpanded = autoExpandIds.has(node.id) || expandedCategoryIds.has(node.id);
-      
+      const isExpanded =
+        autoExpandIds.has(node.id) || expandedCategoryIds.has(node.id);
+
       const hasChildren = node.childrenNodes.length > 0;
-      const visible = depth === 0 ? true : (parentExpanded && parentVisible);
-      
+      const visible = depth === 0 ? true : parentExpanded && parentVisible;
+
       const isMatched = hasActiveFilter ? matchedIds.has(node.id) : true;
       const isContextual = !isMatched;
-      
+
       if (isContextual) {
         contextualCount++;
       }
@@ -241,11 +263,17 @@ export function processTreeViewData(
         isExpanded,
         visible,
         isContextual,
-        displayOrder
+        displayOrder,
       });
 
       if (hasChildren) {
-        traverseAndFlatten(node.childrenNodes, depth + 1, isExpanded, visible, displayOrder);
+        traverseAndFlatten(
+          node.childrenNodes,
+          depth + 1,
+          isExpanded,
+          visible,
+          displayOrder,
+        );
       }
     });
   };
@@ -257,7 +285,7 @@ export function processTreeViewData(
     totalRootBranches,
     matchedCategoryCount: matchedCount,
     contextualRowCount: contextualCount,
-    qualifyingRootIds
+    qualifyingRootIds,
   };
 }
 
@@ -268,28 +296,30 @@ export function paginateTreeView(
   processedList: Category[],
   qualifyingRootIds: number[],
   page: number,
-  perPage: number
+  perPage: number,
 ): Category[] {
   // Lấy danh sách root IDs hiển thị ở trang hiện tại
   const startIndex = (page - 1) * perPage;
-  const paginatedRootIds = new Set(qualifyingRootIds.slice(startIndex, startIndex + perPage));
+  const paginatedRootIds = new Set(
+    qualifyingRootIds.slice(startIndex, startIndex + perPage),
+  );
 
-  return processedList.map(item => {
+  return processedList.map((item) => {
     // Tìm tổ tiên gốc (root) của node hiện tại trong processedList
     let current: Category | undefined = item;
     while (current && current.parent_id !== null) {
       const parentId = current.parent_id;
-      current = processedList.find(c => c.id === parentId);
+      current = processedList.find((c) => c.id === parentId);
     }
-    
+
     const rootId = current ? current.id : item.id;
     const isRootInCurrentPage = paginatedRootIds.has(rootId);
-    
+
     // Node chỉ visible thực tế nếu: root của nó thuộc trang hiện tại,
     // và các thuộc tính visible phân cấp (cha expand) thỏa mãn.
     return {
       ...item,
-      visible: isRootInCurrentPage ? item.visible : false
+      visible: isRootInCurrentPage ? item.visible : false,
     };
   });
 }

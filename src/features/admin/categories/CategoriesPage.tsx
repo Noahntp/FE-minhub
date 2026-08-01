@@ -160,16 +160,21 @@ export default function CategoriesPage() {
 
   // 3.1 Unsaved changes shield
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
-  const [pendingFilterAction, setPendingFilterAction] = useState<(() => void) | null>(null);
+  const [pendingFilterAction, setPendingFilterAction] = useState<
+    (() => void) | null
+  >(null);
 
-  const safeFilterAction = useCallback((action: () => void) => {
-    if (isOrderChanged) {
-      setPendingFilterAction(() => action);
-      setShowUnsavedPrompt(true);
-    } else {
-      action();
-    }
-  }, [isOrderChanged]);
+  const safeFilterAction = useCallback(
+    (action: () => void) => {
+      if (isOrderChanged) {
+        setPendingFilterAction(() => action);
+        setShowUnsavedPrompt(true);
+      } else {
+        action();
+      }
+    },
+    [isOrderChanged],
+  );
 
   const isReorderAllowed = useMemo(() => {
     return (
@@ -253,14 +258,18 @@ export default function CategoriesPage() {
           // - Fetch success and no draft: update original and draft.
           // - Fetch success but has draft: keep draft and original!
           if (!isOrderChangedRef.current) {
-            setOriginalCategoriesCache(JSON.parse(JSON.stringify(resBase.data.items)));
+            setOriginalCategoriesCache(
+              JSON.parse(JSON.stringify(resBase.data.items)),
+            );
             setAllCategoriesBase(resBase.data.items);
             cleanExpandedSessionStorage(resBase.data.items);
           }
         } else {
           if (!isBackground) {
             setIsError(true);
-            setErrorMessage(resFiltered.message || resBase.message || "Tải dữ liệu thất bại.");
+            setErrorMessage(
+              resFiltered.message || resBase.message || "Tải dữ liệu thất bại.",
+            );
           }
         }
       } catch (err: any) {
@@ -439,7 +448,7 @@ export default function CategoriesPage() {
     parentId: number | null,
     draggedCategoryId: number,
     targetCategoryId: number,
-    action: "before" | "after" | "up" | "down"
+    action: "before" | "after" | "up" | "down",
   ) => {
     // Backup cache snapshot before first draft change
     if (!isOrderChanged && allCategoriesBase) {
@@ -471,9 +480,12 @@ export default function CategoriesPage() {
     } else if (action === "down") {
       newIndex = Math.min(siblings.length - 1, oldIndex + 1);
     } else {
-      const targetIndexInSpliced = tempSiblings.findIndex((c) => c.id === targetCategoryId);
+      const targetIndexInSpliced = tempSiblings.findIndex(
+        (c) => c.id === targetCategoryId,
+      );
       if (targetIndexInSpliced !== -1) {
-        newIndex = action === "before" ? targetIndexInSpliced : targetIndexInSpliced + 1;
+        newIndex =
+          action === "before" ? targetIndexInSpliced : targetIndexInSpliced + 1;
       }
     }
 
@@ -493,26 +505,41 @@ export default function CategoriesPage() {
     setIsOrderChanged(true);
   };
 
-  const handleMovePosition = useCallback((id: number, direction: "up" | "down") => {
-    const item = allCategoriesBase.find((c) => c.id === id);
-    if (!item) return;
-    reorderWithinSiblings(item.parent_id, id, id, direction);
-  }, [allCategoriesBase, isOrderChanged]);
+  const handleMovePosition = useCallback(
+    (id: number, direction: "up" | "down") => {
+      const item = allCategoriesBase.find((c) => c.id === id);
+      if (!item) return;
+      reorderWithinSiblings(item.parent_id, id, id, direction);
+    },
+    [allCategoriesBase, isOrderChanged],
+  );
 
-  const handleDragDrop = useCallback((
-    draggedCategoryId: number,
-    targetCategoryId: number,
-    dropPosition: "before" | "after"
-  ) => {
-    if (draggedCategoryId === targetCategoryId) return;
+  const handleDragDrop = useCallback(
+    (
+      draggedCategoryId: number,
+      targetCategoryId: number,
+      dropPosition: "before" | "after",
+    ) => {
+      if (draggedCategoryId === targetCategoryId) return;
 
-    const draggedItem = allCategoriesBase.find((c) => c.id === draggedCategoryId);
-    const targetItem = allCategoriesBase.find((c) => c.id === targetCategoryId);
-    if (!draggedItem || !targetItem) return;
-    if (draggedItem.parent_id !== targetItem.parent_id) return; // Block dragging across parent boundaries
+      const draggedItem = allCategoriesBase.find(
+        (c) => c.id === draggedCategoryId,
+      );
+      const targetItem = allCategoriesBase.find(
+        (c) => c.id === targetCategoryId,
+      );
+      if (!draggedItem || !targetItem) return;
+      if (draggedItem.parent_id !== targetItem.parent_id) return; // Block dragging across parent boundaries
 
-    reorderWithinSiblings(draggedItem.parent_id, draggedCategoryId, targetCategoryId, dropPosition);
-  }, [allCategoriesBase, isOrderChanged]);
+      reorderWithinSiblings(
+        draggedItem.parent_id,
+        draggedCategoryId,
+        targetCategoryId,
+        dropPosition,
+      );
+    },
+    [allCategoriesBase, isOrderChanged],
+  );
 
   const handleCancelReorder = () => {
     if (originalCategoriesCache) {
@@ -554,7 +581,9 @@ export default function CategoriesPage() {
       const res = await CategoriesService.reorderCategories(changedItems);
       if (res.success) {
         toast.success(res.message);
-        setOriginalCategoriesCache(JSON.parse(JSON.stringify(allCategoriesBase)));
+        setOriginalCategoriesCache(
+          JSON.parse(JSON.stringify(allCategoriesBase)),
+        );
         setIsOrderChanged(false);
         await fetchData(true);
       } else {
@@ -603,7 +632,9 @@ export default function CategoriesPage() {
   const treeMetrics = useMemo(() => {
     if (viewMode !== "tree") return null;
     const matchedIds = new Set(allCategoriesCache.map((c) => c.id));
-    const backendSortedIds = isOrderChanged ? undefined : allCategoriesCache.map((c) => c.id);
+    const backendSortedIds = isOrderChanged
+      ? undefined
+      : allCategoriesCache.map((c) => c.id);
     const data = processTreeViewData(
       allCategoriesBase,
       {
@@ -1039,7 +1070,7 @@ export default function CategoriesPage() {
               value={filters.status}
               onChange={(val) =>
                 safeFilterAction(() =>
-                  updateUrlParams({ status: val as any, page: 1 })
+                  updateUrlParams({ status: val as any, page: 1 }),
                 )
               }
               disabled={isLoading}
@@ -1064,7 +1095,7 @@ export default function CategoriesPage() {
               value={filters.type}
               onChange={(val) =>
                 safeFilterAction(() =>
-                  updateUrlParams({ type: val as any, page: 1 })
+                  updateUrlParams({ type: val as any, page: 1 }),
                 )
               }
               disabled={isLoading}
@@ -1088,7 +1119,7 @@ export default function CategoriesPage() {
               value={filters.parent_id}
               onChange={(val) =>
                 safeFilterAction(() =>
-                  updateUrlParams({ parent_id: val, page: 1 })
+                  updateUrlParams({ parent_id: val, page: 1 }),
                 )
               }
               disabled={isLoading}
@@ -1099,7 +1130,7 @@ export default function CategoriesPage() {
                   .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
                   .map((c) => {
                     const childCount = allCategoriesBase.filter(
-                      (ch) => ch.parent_id === c.id && ch.deleted_at === null
+                      (ch) => ch.parent_id === c.id && ch.deleted_at === null,
                     ).length;
                     return {
                       value: String(c.id),
@@ -1121,9 +1152,7 @@ export default function CategoriesPage() {
               id="filter-sort"
               value={filters.sort_by}
               onChange={(val) =>
-                safeFilterAction(() =>
-                  updateUrlParams({ sort_by: val as any })
-                )
+                safeFilterAction(() => updateUrlParams({ sort_by: val as any }))
               }
               disabled={isLoading}
               options={[
@@ -1226,7 +1255,11 @@ export default function CategoriesPage() {
             </span>
             {treeMetrics && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-canvas border border-hairline text-ink">
-                {filters.status || filters.search || filters.type || filters.parent_id || filters.empty === "true"
+                {filters.status ||
+                filters.search ||
+                filters.type ||
+                filters.parent_id ||
+                filters.empty === "true"
                   ? `Khớp bộ lọc: ${treeMetrics.matchedCategoryCount} danh mục`
                   : `Tổng cộng: ${treeMetrics.matchedCategoryCount} danh mục`}
               </span>
@@ -1296,7 +1329,9 @@ export default function CategoriesPage() {
                       .filter((c) => c.visible)
                       .map((cat) => {
                         const sameLevel = allCategoriesBase.filter(
-                          (c) => c.parent_id === cat.parent_id && c.deleted_at === null,
+                          (c) =>
+                            c.parent_id === cat.parent_id &&
+                            c.deleted_at === null,
                         );
                         sameLevel.sort((a, b) => {
                           const sa = a.sort_order || 0;
@@ -1380,11 +1415,15 @@ export default function CategoriesPage() {
                   !filters.type &&
                   filters.empty !== "true";
                 const selectedParent = isParentIdOnly
-                  ? allCategoriesBase.find((c) => String(c.id) === filters.parent_id)
+                  ? allCategoriesBase.find(
+                      (c) => String(c.id) === filters.parent_id,
+                    )
                   : null;
                 const selectedParentChildCount = selectedParent
                   ? allCategoriesBase.filter(
-                      (c) => c.parent_id === selectedParent.id && c.deleted_at === null
+                      (c) =>
+                        c.parent_id === selectedParent.id &&
+                        c.deleted_at === null,
                     ).length
                   : -1;
                 if (selectedParent && selectedParentChildCount === 0) {
@@ -1496,7 +1535,10 @@ export default function CategoriesPage() {
       />
 
       {/* Unsaved Changes Confirmation Modal */}
-      <Dialog open={showUnsavedPrompt} onOpenChange={(open) => !open && setShowUnsavedPrompt(false)}>
+      <Dialog
+        open={showUnsavedPrompt}
+        onOpenChange={(open) => !open && setShowUnsavedPrompt(false)}
+      >
         <DialogContent className="sm:max-w-sm">
           <div className="space-y-4 py-2">
             <DialogHeader>
@@ -1506,7 +1548,9 @@ export default function CategoriesPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="text-xs text-mid-gray leading-normal">
-              Bạn có thay đổi chưa lưu về thứ tự hiển thị danh mục. Nếu bạn chuyển trang hoặc thay đổi bộ lọc, các thay đổi chưa lưu này sẽ bị hủy bỏ.
+              Bạn có thay đổi chưa lưu về thứ tự hiển thị danh mục. Nếu bạn
+              chuyển trang hoặc thay đổi bộ lọc, các thay đổi chưa lưu này sẽ bị
+              hủy bỏ.
               <br />
               <br />
               Bạn có chắc muốn tiếp tục không?
