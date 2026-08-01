@@ -19,26 +19,23 @@ import Reports from '@/features/admin/components/pages/Reports';
 import Banners from '@/features/admin/components/pages/Banners';
 
 export default function AdminDashboard() {
-  const { adminId } = useParams<{ adminId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Extract active tab from URL path (e.g., /admin/1/categories -> categories)
+  // Extract active tab from URL path (e.g., /admin/categories -> categories)
   const pathParts = location.pathname.split('/');
-  const tabFromPath = pathParts[3] || 'dashboard';
+  const tabFromPath = pathParts[2] || 'dashboard';
   const activeTab = tabFromPath === '' ? 'dashboard' : tabFromPath;
 
-  // Redirect /admin/:id or /admin/:id/ to /admin/:id/dashboard
+  // Redirect /admin or /admin/ to /admin/dashboard
   useEffect(() => {
-    if (adminId && (location.pathname === `/admin/${adminId}` || location.pathname === `/admin/${adminId}/`)) {
-      navigate(`/admin/${adminId}/dashboard`, { replace: true });
+    if (location.pathname === `/admin` || location.pathname === `/admin/`) {
+      navigate(`/admin/dashboard`, { replace: true });
     }
-  }, [location.pathname, adminId, navigate]);
+  }, [location.pathname, navigate]);
 
   const handleTabChange = (tabId: string) => {
-    if (adminId) {
-      navigate(`/admin/${adminId}/${tabId}`);
-    }
+    navigate(`/admin/${tabId}`);
   };
 
   const renderContent = () => {

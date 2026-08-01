@@ -1,207 +1,103 @@
 /**
  * API Layer cho Module ADM-05: Kiểm duyệt khóa học
- * Hoàn toàn đồng bộ với Unified Mock Database qua mock-repository.js.
- * Tuân thủ 100% API Contract của MindHub Backend.
+ * Kết nối trực tiếp với Laravel Backend API.
  */
 
-import {
-  getCourses as getRepoCourses,
-  updateCourse,
-  getCourseById,
-  populateCourse,
-  getPopulatedCourseReview,
-} from "@/assets/js/mocks/mock-repository.js";
+import { apiFetchEnvelope } from "@/shared/lib/api-client";
 
-export const USE_MOCK = true;
-export const USE_MOCK_DATA = true;
+export const USE_MOCK = false;
+export const USE_MOCK_DATA = false;
 
-// Helper to get submitted date for reviews
-function getReviewSubmittedDate(item) {
+// Adapter ánh xạ an toàn dữ liệu từ backend sang format dùng trong component
+function adaptCourse(item) {
   if (!item) return null;
-  const value = item.submitted_at ?? item.created_at ?? item.updated_at ?? null;
-  if (!value) return null;
-  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
-  const strVal = String(value).trim().replace(" ", "T");
-  const date = new Date(strVal);
-  return isNaN(date.getTime()) ? null : date;
+  return {
+    ...item,
+    price: parseFloat(item.price) || 0,
+    sale_price: item.sale_price ? parseFloat(item.sale_price) : null,
+    thumbnail_url: getThumbnailUrl(item.thumbnail_url, item.title),
+    instructor: item.instructor ? {
+      id: item.instructor.id,
+      full_name: item.instructor.full_name || item.instructor.name || "Chưa rõ",
+      email: item.instructor.email || "",
+      status: item.instructor.status || "active",
+      avatar_url: item.instructor.avatar_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+    } : null
+  };
+}
+
+function getThumbnailUrl(url, title = "") {
+  const rawUrl = url || "";
+  if (rawUrl.includes("demo/courses") || rawUrl.trim() === "") {
+    const lowerTitle = title.toLowerCase();
+    if (lowerTitle.includes("laravel") || lowerTitle.includes("php")) {
+      return "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&auto=format&fit=crop&q=80";
+    }
+    if (lowerTitle.includes("react") || lowerTitle.includes("frontend")) {
+      return "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&auto=format&fit=crop&q=80";
+    }
+    if (lowerTitle.includes("node")) {
+      return "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=400&auto=format&fit=crop&q=80";
+    }
+    if (lowerTitle.includes("ui/ux") || lowerTitle.includes("design") || lowerTitle.includes("thiết kế")) {
+      return "https://images.unsplash.com/photo-1561070791-26c113006238?w=400&auto=format&fit=crop&q=80";
+    }
+    if (lowerTitle.includes("git") || lowerTitle.includes("github")) {
+      return "https://images.unsplash.com/photo-1618401471353-b98aedd07871?w=400&auto=format&fit=crop&q=80";
+    }
+    if (lowerTitle.includes("ai") || lowerTitle.includes("intelligence") || lowerTitle.includes("trí tuệ nhân tạo")) {
+      return "https://images.unsplash.com/photo-1677442136019-21780efad99a?w=400&auto=format&fit=crop&q=80";
+    }
+    return "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&auto=format&fit=crop&q=80";
+  }
+  return rawUrl;
 }
 
 /**
  * Lấy danh sách khóa học cần kiểm duyệt
- * @param {Object} params - { page, per_page, search, sort }
+ * @param {Object} params - { page, per_page, search, sort, category_id, date_from, date_to }
  */
 export async function getCourseReviews(params = {}) {
-  // Giả lập delay mạng 250ms
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  const query = {};
+  if (params.page) query.page = params.page;
+  if (params.per_page) query.per_page = params.per_page;
+  if (params.search) query.search = params.search;
+  if (params.category_id) query.category_id = params.category_id;
+  if (params.date_from) query.date_from = params.date_from;
+  if (params.date_to) query.date_to = params.date_to;
 
-  const page = parseInt(params.page) || 1;
-  const per_page = parseInt(params.per_page) || 20;
-  const search = (params.search || "").toLowerCase().trim();
-  const sort = params.sort || "submitted_desc";
-  const date_preset = params.date_preset || params.review_date_preset || "";
-  const date_from = params.date_from || params.review_date_from || "";
-  const date_to = params.date_to || params.review_date_to || "";
-
-  // 1. Chỉ lấy các khóa học có status === "pending_review" và populate dữ liệu
-  const allCourses = getRepoCourses().map(populateCourse);
-  let items = allCourses.filter((c) => c.status === "pending_review");
-
-  // 2. Lọc theo search
-  if (search) {
-    items = items.filter((item) => {
-      const titleMatch = (item.title || "").toLowerCase().includes(search);
-      const slugMatch = (item.slug || "").toLowerCase().includes(search);
-      const instructorMatch = (item.instructor?.full_name || "")
-        .toLowerCase()
-        .includes(search);
-      return titleMatch || slugMatch || instructorMatch;
-    });
+  // Ánh xạ kiểu sắp xếp phù hợp backend
+  if (params.sort) {
+    if (params.sort === "submitted_desc") query.sort = "newest";
+    else if (params.sort === "submitted_asc") query.sort = "oldest";
+    else if (params.sort === "title_asc") query.sort = "title_asc";
+    else if (params.sort === "title_desc") query.sort = "title_desc";
   }
 
-  // 3. Lọc theo Khoảng thời gian gửi
-  if (date_from || date_to || (date_preset && date_preset !== "all")) {
-    let fromTimestamp = null;
-    let toTimestamp = null;
-
-    if (date_preset && date_preset !== "custom" && date_preset !== "all") {
-      const now = new Date();
-      // Đảm bảo mốc tham chiếu cho dữ liệu mock năm 2026 nếu trình duyệt client ở năm khác
-      let anchorDate = now;
-      if (now.getFullYear() < 2026) {
-        anchorDate = new Date(2026, 6, 14, 23, 59, 59, 999);
-      }
-      const todayEnd = new Date(
-        anchorDate.getFullYear(),
-        anchorDate.getMonth(),
-        anchorDate.getDate(),
-        23,
-        59,
-        59,
-        999,
-      );
-      toTimestamp = todayEnd.getTime();
-
-      let daysToSubtract = 0;
-      if (date_preset === "last_7_days") daysToSubtract = 6;
-      else if (date_preset === "last_30_days") daysToSubtract = 29;
-      else if (date_preset === "last_1_year") daysToSubtract = 365;
-
-      const fromDate = new Date(
-        anchorDate.getFullYear(),
-        anchorDate.getMonth(),
-        anchorDate.getDate() - daysToSubtract,
-        0,
-        0,
-        0,
-        0,
-      );
-      fromTimestamp = fromDate.getTime();
-    } else {
-      if (date_from) {
-        const parts = date_from.split("-");
-        if (parts.length === 3) {
-          fromTimestamp = new Date(
-            parseInt(parts[0]),
-            parseInt(parts[1]) - 1,
-            parseInt(parts[2]),
-            0,
-            0,
-            0,
-            0,
-          ).getTime();
-        }
-      }
-      if (date_to) {
-        const parts = date_to.split("-");
-        if (parts.length === 3) {
-          toTimestamp = new Date(
-            parseInt(parts[0]),
-            parseInt(parts[1]) - 1,
-            parseInt(parts[2]),
-            23,
-            59,
-            59,
-            999,
-          ).getTime();
-        }
-      }
-    }
-
-    items = items.filter((item) => {
-      const itemDate = getReviewSubmittedDate(item);
-      if (!itemDate) return false;
-      const itemTime = itemDate.getTime();
-      if (fromTimestamp && itemTime < fromTimestamp) return false;
-      if (toTimestamp && itemTime > toTimestamp) return false;
-      return true;
-    });
-  }
-
-  // 4. Sắp xếp
-  items.sort((a, b) => {
-    const dateA = getReviewSubmittedDate(a);
-    const dateB = getReviewSubmittedDate(b);
-    switch (sort) {
-      case "submitted_asc":
-      case "created_at_asc":
-        return (dateA ? dateA.getTime() : 0) - (dateB ? dateB.getTime() : 0);
-      case "title_asc":
-        return a.title.localeCompare(b.title);
-      case "title_desc":
-        return b.title.localeCompare(a.title);
-      case "price_desc":
-        return (b.sale_price || b.price) - (a.sale_price || a.price);
-      case "price_asc":
-        return (a.sale_price || a.price) - (b.sale_price || b.price);
-      case "duration_desc":
-        return (
-          (b.total_duration_seconds || 0) - (a.total_duration_seconds || 0)
-        );
-      case "submitted_desc":
-      case "created_at_desc":
-      default:
-        return (dateB ? dateB.getTime() : 0) - (dateA ? dateA.getTime() : 0);
-    }
+  const res = await apiFetchEnvelope("/admin/course-reviews", {
+    method: "GET",
+    query
   });
 
-  // Tính toán summary động
-  const todayStr = "2026-07-14"; // Lấy mốc thời gian hệ thống giả lập
-  const approvedToday = allCourses.filter(
-    (c) =>
-      c.status === "published" &&
-      c.updated_at &&
-      c.updated_at.startsWith(todayStr),
-  ).length;
-  const rejectedToday = allCourses.filter(
-    (c) =>
-      c.status === "rejected" &&
-      c.updated_at &&
-      c.updated_at.startsWith(todayStr),
-  ).length;
+  if (res && res.data) {
+    const adaptedItems = (res.data.items || []).map((item) => {
+      const adapted = adaptCourse(item);
+      adapted.category_name = item.category_name;
+      return adapted;
+    });
 
-  const total = items.length;
-  const last_page = Math.ceil(total / per_page) || 1;
-  const start = (page - 1) * per_page;
-  const paginatedItems = items.slice(start, start + per_page);
-
-  return {
-    success: true,
-    message: "Lấy danh sách khóa học kiểm duyệt thành công (Mock).",
-    data: {
-      summary: {
-        pending_count: items.length,
-        approved_today: approvedToday,
-        rejected_today: rejectedToday,
+    return {
+      success: true,
+      message: "Lấy danh sách khóa học kiểm duyệt thành công.",
+      data: {
+        summary: res.data.summary || { pending_count: 0, approved_today: 0, rejected_today: 0 },
+        items: adaptedItems,
       },
-      items: paginatedItems,
-    },
-    meta: {
-      current_page: page,
-      last_page: last_page,
-      per_page: per_page,
-      total: total,
-    },
-  };
+      meta: res.meta
+    };
+  }
+
+  return { success: false, message: "Lỗi kết nối", data: null };
 }
 
 /**
@@ -209,26 +105,26 @@ export async function getCourseReviews(params = {}) {
  * @param {number|string} id 
  */
 export async function getCourseReview(id) {
-  // Giả lập delay mạng 200ms
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  const res = await apiFetchEnvelope(`/admin/courses/${id}`, {
+    method: "GET"
+  });
 
-  const populated = getPopulatedCourseReview(id);
-  if (!populated) {
-    throw {
-      status: 404,
+  if (res && res.data) {
+    const courseData = res.data;
+    const adapted = adaptCourse(courseData);
+    return {
+      success: true,
+      message: "Lấy chi tiết khóa học thành công.",
       data: {
-        success: false,
-        message: "Không tìm thấy khóa học kiểm duyệt có ID " + id,
-        errors: { id: ["Khóa học không tồn tại trong danh sách chờ."] },
-      },
+        course: adapted,
+        sections: courseData.sections || [],
+        lessons: courseData.lessons || [],
+        checklist: courseData.checklist || { passed: true, summary: "Đạt checklist" }
+      }
     };
   }
 
-  return {
-    success: true,
-    message: "Lấy chi tiết khóa học thành công (Mock).",
-    data: populated,
-  };
+  return { success: false, message: "Lỗi kết nối", data: null };
 }
 
 /**
@@ -237,42 +133,19 @@ export async function getCourseReview(id) {
  * @param {number|string} id 
  */
 export async function approveCourse(id) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  const course = getCourseById(id);
-  if (!course) {
-    throw {
-      status: 404,
-      data: {
-        success: false,
-        message: "Khóa học không tồn tại.",
-      },
-    };
-  }
-
-  if (course.status !== "pending_review") {
-    throw {
-      status: 409,
-      data: {
-        success: false,
-        message: "Khóa học này đã được xử lý trước đó.",
-      },
-    };
-  }
-
-  // Cập nhật trạng thái khóa học
-  const now = new Date().toISOString();
-  updateCourse(id, {
-    status: "published",
-    published_at: now,
-    updated_at: now,
+  const res = await apiFetchEnvelope(`/admin/courses/${id}/approve`, {
+    method: "PATCH"
   });
 
-  return {
-    success: true,
-    message: `Khóa học "${course.title}" đã được chấp thuận thành công.`,
-    data: populateCourse(getCourseById(id)),
-  };
+  if (res && res.data) {
+    return {
+      success: true,
+      message: "Khóa học đã được duyệt chấp thuận thành công.",
+      data: adaptCourse(res.data)
+    };
+  }
+
+  return { success: false, message: "Lỗi kết nối", data: null };
 }
 
 /**
@@ -282,68 +155,20 @@ export async function approveCourse(id) {
  * @param {Object} payload - { admin_reject_reason }
  */
 export async function rejectCourse(id, payload = {}) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  const course = getCourseById(id);
-  if (!course) {
-    throw {
-      status: 404,
-      data: {
-        success: false,
-        message: "Khóa học không tồn tại.",
-      },
-    };
-  }
-
-  if (course.status !== "pending_review") {
-    throw {
-      status: 409,
-      data: {
-        success: false,
-        message: "Khóa học này đã được xử lý trước đó.",
-      },
-    };
-  }
-
-  const reason = (payload.admin_reject_reason || "").trim();
-  if (!reason) {
-    throw {
-      status: 422,
-      data: {
-        success: false,
-        message: "Vui lòng nhập lý do từ chối.",
-        errors: {
-          admin_reject_reason: ["Lý do từ chối không được để trống."],
-        },
-      },
-    };
-  }
-
-  if (reason.length > 1000) {
-    throw {
-      status: 422,
-      data: {
-        success: false,
-        message: "Lý do từ chối không được vượt quá 1000 ký tự.",
-        errors: {
-          admin_reject_reason: [
-            "Lý do từ chối không được vượt quá 1000 ký tự.",
-          ],
-        },
-      },
-    };
-  }
-
-  const now = new Date().toISOString();
-  updateCourse(id, {
-    status: "rejected",
-    admin_reject_reason: reason,
-    updated_at: now,
+  const res = await apiFetchEnvelope(`/admin/courses/${id}/reject`, {
+    method: "PATCH",
+    body: {
+      reason: payload.admin_reject_reason
+    }
   });
 
-  return {
-    success: true,
-    message: `Đã từ chối duyệt khóa học "${course.title}".`,
-    data: populateCourse(getCourseById(id)),
-  };
+  if (res && res.data) {
+    return {
+      success: true,
+      message: "Khóa học đã bị từ chối duyệt.",
+      data: adaptCourse(res.data)
+    };
+  }
+
+  return { success: false, message: "Lỗi kết nối", data: null };
 }

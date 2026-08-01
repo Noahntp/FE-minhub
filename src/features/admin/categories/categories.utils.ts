@@ -43,14 +43,14 @@ export function buildTree(
           return indexA - indexB;
         }
       }
-      const sa = a.sort_order || 0;
-      const sb = b.sort_order || 0;
-      if (sa > 0 && sb > 0) {
-        if (sa !== sb) return sa - sb;
+      const sa = a.sort_order !== undefined && a.sort_order !== null ? String(a.sort_order) : "";
+      const sb = b.sort_order !== undefined && b.sort_order !== null ? String(b.sort_order) : "";
+      if (sa && sb) {
+        if (sa !== sb) return sa.localeCompare(sb, "en");
         return (a.name || "").localeCompare(b.name || "", "vi");
       }
-      if (sa > 0 && sb === 0) return -1;
-      if (sa === 0 && sb > 0) return 1;
+      if (sa && !sb) return -1;
+      if (!sa && sb) return 1;
       return (a.name || "").localeCompare(b.name || "", "vi");
     });
     nodes.forEach((node) => {

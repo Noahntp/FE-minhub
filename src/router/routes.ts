@@ -22,7 +22,7 @@ export const AppRoutes = {
   instructorCourseEdit: (courseId: string | number) => `/instructor/courses/${courseId}/edit`,
   
   // Admin Workspace
-  adminDashboard: (userId?: string | number) => `/admin${userId ? `/${userId}` : ''}/dashboard`,
+  adminDashboard: () => `/admin/dashboard`,
   
   // Public Instructor Profile
   publicInstructor: (userId: string | number) => `/instructors/${userId}`,

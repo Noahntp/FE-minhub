@@ -5,7 +5,7 @@ import {
   approveCourse,
   rejectCourse,
 } from '@/assets/js/api/course-reviews-api';
-import { getCategories, getCourses, populateCourse } from '@/assets/js/mocks/mock-repository';
+import { getCategories } from '@/assets/js/api/categories-api';
 import { showToast } from '@/assets/js/toast';
 import { cn } from '@/shared/lib/utils';
 import FilterSelect, { SelectOption } from './FilterSelect';
@@ -130,6 +130,10 @@ export default function CourseReviews() {
   // Database changes dependency version
   const [dbVersion, setDbVersion] = useState(0);
 
+  // Real items states
+  const [items, setItems] = useState<any[]>([]);
+  const [allItems, setAllItems] = useState<any[]>([]);
+
   // Data & loading states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -207,8 +211,7 @@ export default function CourseReviews() {
   // Quick Insight Bar Memo
   const insights = useMemo(() => {
     try {
-      const allCourses = getCourses().map(populateCourse);
-      const pendingCourses = allCourses.filter((c: any) => c.status === 'pending_review');
+      const pendingCourses = allItems.filter((c: any) => c.status === 'pending_review');
 
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -259,7 +262,7 @@ export default function CourseReviews() {
         instructorCount: 0,
       };
     }
-  }, [dbVersion]);
+  }, [allItems]);
 
   // Read URL parameters on mount
   useEffect(() => {
@@ -307,8 +310,11 @@ export default function CourseReviews() {
     setPerPage(urlPerPage);
 
     try {
-      const cats = getCategories();
-      setCategories(cats || []);
+      getCategories().then(res => {
+        if (res && res.success) {
+          setCategories(res.data.items || res.data || []);
+        }
+      });
     } catch (err) {
       console.error("Error loading categories:", err);
     }
@@ -319,24 +325,59 @@ export default function CourseReviews() {
     }
   }, []);
 
-  // Fetch summary count statistics from Mock API
-  const fetchSummaryData = async () => {
+  // Main data loading function from Backend API
+  const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const apiParams = {
-        page: 1,
-        per_page: 1,
-        search: '',
-        category_id: '',
-        sort: 'submitted_desc',
-        date_preset: 'all',
-        date_from: '',
-        date_to: ''
+      // Map sort and filters
+      const apiParams: any = {
+        page,
+        per_page: perPage,
+        search: appliedFilters.search,
+        category_id: appliedFilters.category_id,
+        sort: appliedFilters.sort,
       };
+
+      // Mapped date filters
+      if (appliedFilters.date_preset && appliedFilters.date_preset !== 'all') {
+        if (appliedFilters.date_preset === 'custom') {
+          apiParams.date_from = appliedFilters.date_from;
+          apiParams.date_to = appliedFilters.date_to;
+        } else {
+          const now = new Date();
+          let anchorDate = now;
+          if (now.getFullYear() < 2026) {
+            anchorDate = new Date(2026, 6, 14);
+          }
+          let daysToSubtract = 0;
+          if (appliedFilters.date_preset === '1_day') daysToSubtract = 0;
+          else if (appliedFilters.date_preset === '3_days') daysToSubtract = 2;
+          else if (appliedFilters.date_preset === '7_days') daysToSubtract = 6;
+
+          const fromDate = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate() - daysToSubtract);
+          const yyyy = fromDate.getFullYear();
+          const mm = String(fromDate.getMonth() + 1).padStart(2, '0');
+          const dd = String(fromDate.getDate()).padStart(2, '0');
+          
+          apiParams.date_from = `${yyyy}-${mm}-${dd}`;
+          
+          const yyyyTo = anchorDate.getFullYear();
+          const mmTo = String(anchorDate.getMonth() + 1).padStart(2, '0');
+          const ddTo = String(anchorDate.getDate()).padStart(2, '0');
+          apiParams.date_to = `${yyyyTo}-${mmTo}-${ddTo}`;
+        }
+      }
+
       const res = await getCourseReviews(apiParams);
-      if (res && res.success && res.data) {
+      const allRes = await getCourseReviews({ per_page: 9999 });
+
+      if (res && res.success && res.data && allRes && allRes.success) {
+        setItems(res.data.items || []);
         setSummary(res.data.summary || { pending_count: 0, approved_today: 0, rejected_today: 0 });
+        setMeta(res.meta || { current_page: page, last_page: 1, per_page: perPage, total: 0 });
+        setAllItems(allRes.data.items || []);
+        
         const now = new Date();
         const formatted = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
         setLastUpdated(formatted);
@@ -344,17 +385,16 @@ export default function CourseReviews() {
         throw new Error("Dữ liệu trả về không đúng contract.");
       }
     } catch (err: any) {
-      console.error("Error loading summary stats:", err);
-      const errMsg = err?.data?.message || err?.message || "Không thể nạp dữ liệu kiểm duyệt khóa học.";
-      setError(errMsg);
+      console.error("Error loading course reviews:", err);
+      setError(err?.data?.message || err?.message || "Không thể nạp dữ liệu kiểm duyệt.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Sync state changes with URL query parameters and trigger reload summary
+  // Sync state changes with URL query parameters and trigger reload data
   useEffect(() => {
-    fetchSummaryData();
+    loadData();
 
     const url = new URL(window.location.href);
 
@@ -376,11 +416,9 @@ export default function CourseReviews() {
     if (perPage && perPage !== 20) url.searchParams.set("per_page", String(perPage));
     else url.searchParams.delete("per_page");
 
-    // Sync status filter
     if (statusFilter) url.searchParams.set("status", statusFilter);
     else url.searchParams.delete("status");
 
-    // Sync reviewed date filter
     if (reviewedDateFilter) url.searchParams.set("reviewed_date", reviewedDateFilter);
     else url.searchParams.delete("reviewed_date");
 
@@ -452,168 +490,8 @@ export default function CourseReviews() {
     return direction === 'asc' ? orderA - orderB : orderB - orderA;
   };
 
-  // Pipeline execution: filter -> sort -> paginate
-  const { paginatedReviews, totalCount } = useMemo(() => {
-    try {
-      const allCourses = getCourses().map(populateCourse);
-      
-      // 1. Lọc theo trạng thái và ngày xử lý trên thẻ KPI trước
-      let list = allCourses.filter((c: any) => {
-        const isReviewStatus = c.status === 'pending_review' || c.status === 'published' || c.status === 'rejected' || c.status === 'approved';
-        if (!isReviewStatus) return false;
-
-        if (statusFilter === 'pending') {
-          return c.status === 'pending_review';
-        }
-        if (statusFilter === 'approved') {
-          const isApproved = c.status === 'published' || c.status === 'approved';
-          if (!isApproved) return false;
-          if (reviewedDateFilter === 'today') {
-            return c.updated_at && c.updated_at.startsWith('2026-07-14');
-          }
-          return true;
-        }
-        if (statusFilter === 'rejected') {
-          if (c.status !== 'rejected') return false;
-          if (reviewedDateFilter === 'today') {
-            return c.updated_at && c.updated_at.startsWith('2026-07-14');
-          }
-          return true;
-        }
-
-        // Mặc định (Tổng hồ sơ): hiển thị toàn bộ hồ sơ trong quy trình duyệt
-        return true;
-      });
-
-      // 2. Tìm kiếm
-      if (appliedFilters.search) {
-        const search = appliedFilters.search.toLowerCase().trim();
-        list = list.filter((item) => {
-          const titleMatch = (item.title || "").toLowerCase().includes(search);
-          const slugMatch = (item.slug || "").toLowerCase().includes(search);
-          const instructorMatch = (item.instructor?.full_name || "").toLowerCase().includes(search);
-          return titleMatch || slugMatch || instructorMatch;
-        });
-      }
-
-      // 3. Danh mục
-      if (appliedFilters.category_id) {
-        list = list.filter((item: any) => {
-          const catId = String(item.category_id || item.category?.id || '');
-          return catId === appliedFilters.category_id;
-        });
-      }
-
-      // 4. Khoảng thời gian gửi
-      if (appliedFilters.date_preset && appliedFilters.date_preset !== 'all') {
-        let fromTimestamp: number | null = null;
-        let toTimestamp: number | null = null;
-
-        if (appliedFilters.date_preset === 'custom') {
-          if (appliedFilters.date_from) {
-            fromTimestamp = new Date(appliedFilters.date_from + 'T00:00:00').getTime();
-          }
-          if (appliedFilters.date_to) {
-            toTimestamp = new Date(appliedFilters.date_to + 'T23:59:59').getTime();
-          }
-        } else {
-          const now = new Date();
-          let anchorDate = now;
-          if (now.getFullYear() < 2026) {
-            anchorDate = new Date(2026, 6, 14, 23, 59, 59, 999);
-          }
-          const todayEnd = new Date(
-            anchorDate.getFullYear(),
-            anchorDate.getMonth(),
-            anchorDate.getDate(),
-            23,
-            59,
-            59,
-            999
-          );
-          toTimestamp = todayEnd.getTime();
-
-          let daysToSubtract = 0;
-          if (appliedFilters.date_preset === '1_day') daysToSubtract = 0;
-          else if (appliedFilters.date_preset === '3_days') daysToSubtract = 2;
-          else if (appliedFilters.date_preset === '7_days') daysToSubtract = 6;
-
-          const fromDate = new Date(
-            anchorDate.getFullYear(),
-            anchorDate.getMonth(),
-            anchorDate.getDate() - daysToSubtract,
-            0,
-            0,
-            0,
-            0
-          );
-          fromTimestamp = fromDate.getTime();
-        }
-
-        list = list.filter((item: any) => {
-          const itemDate = getCourseReviewSubmittedDate(item);
-          if (!itemDate) return false;
-          const itemTime = itemDate.getTime();
-          if (fromTimestamp && itemTime < fromTimestamp) return false;
-          if (toTimestamp && itemTime > toTimestamp) return false;
-          return true;
-        });
-      }
-
-      // 5. Sắp xếp
-      list.sort((a, b) => {
-        if (sortBy === 'title') {
-          return compareString(a.title || '', b.title || '', sortDirection);
-        }
-        if (sortBy === 'category') {
-          const catA = (a as any).category_name || (a as any).category?.name || '';
-          const catB = (b as any).category_name || (b as any).category?.name || '';
-          return compareString(catA, catB, sortDirection);
-        }
-        if (sortBy === 'price') {
-          const priceA = a.sale_price !== null && a.sale_price !== undefined ? a.sale_price : a.price;
-          const priceB = b.sale_price !== null && b.sale_price !== undefined ? b.sale_price : b.price;
-          return compareNumber(priceA || 0, priceB || 0, sortDirection);
-        }
-        if (sortBy === 'submitted_at') {
-          const dateA = getCourseReviewSubmittedDate(a);
-          const dateB = getCourseReviewSubmittedDate(b);
-          const timeA = dateA ? dateA.getTime() : 0;
-          const timeB = dateB ? dateB.getTime() : 0;
-          return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
-        }
-        if (sortBy === 'status') {
-          return compareStatus(a.status || '', b.status || '', sortDirection);
-        }
-        const dateA = getCourseReviewSubmittedDate(a);
-        const dateB = getCourseReviewSubmittedDate(b);
-        const timeA = dateA ? dateA.getTime() : 0;
-        const timeB = dateB ? dateB.getTime() : 0;
-        return timeB - timeA;
-      });
-
-      // 6. Phân trang
-      const start = (page - 1) * perPage;
-      return {
-        paginatedReviews: list.slice(start, start + perPage),
-        totalCount: list.length,
-      };
-    } catch (e) {
-      console.error("Error in reviews pipeline:", e);
-      return { paginatedReviews: [], totalCount: 0 };
-    }
-  }, [appliedFilters, sortBy, sortDirection, page, perPage, statusFilter, reviewedDateFilter, dbVersion]);
-
-  // Sync meta parameters when totalCount changes
-  useEffect(() => {
-    const lastPage = Math.ceil(totalCount / perPage) || 1;
-    setMeta({
-      current_page: page,
-      last_page: lastPage,
-      per_page: perPage,
-      total: totalCount,
-    });
-  }, [totalCount, page, perPage]);
+  const paginatedReviews = items;
+  const totalCount = meta.total;
 
   // Form submission handler
   const handleSubmitFilters = (e: React.FormEvent) => {
@@ -1062,7 +940,7 @@ export default function CourseReviews() {
 
   function currentItemsDataFind(id: number | null) {
     if (!id) return null;
-    return getCourses().map(populateCourse).find((r) => r.id === id) || null;
+    return allItems.find((r) => r.id === id) || items.find((r) => r.id === id) || null;
   }
 
   return (
@@ -1489,7 +1367,7 @@ export default function CourseReviews() {
               </div>
               <button
                 type="button"
-                onClick={fetchSummaryData}
+                onClick={loadData}
                 className="px-4 py-2 text-xs font-semibold rounded-full bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer"
               >
                 Thử lại
@@ -2074,7 +1952,7 @@ export default function CourseReviews() {
                           ) : (
                             drawerData.sections.map((sec: any) => {
                               const isExpanded = expandedSectionIds.has(sec.id);
-                              const secLessons = sec.lessons || [];
+                              const secLessons = drawerData.lessons?.filter((l: any) => String(l.section_id) === String(sec.id)) || [];
 
                               return (
                                 <div key={sec.id} className="border border-hairline rounded-[6px] overflow-hidden bg-canvas">

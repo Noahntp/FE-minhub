@@ -1,289 +1,64 @@
-import { USE_MOCK_DATA } from "@/assets/js/core/config.js";
-import {
-    getInstructorUpgrades,
-    saveInstructorUpgrades,
-    getUserById,
-    updateUser as updateRepoUser
-} from "@/assets/js/mocks/mock-repository.js";
+import { apiFetchEnvelope } from "@/shared/lib/api-client";
 
-const API_BASE_URL = "/api/admin/instructor-upgrade-requests";
-
-/**
- * Lấy toàn bộ danh sách từ localStorage (chỉ dùng nội bộ cho Mock)
- */
-function getRawMockRequests() {
-    const raw = getInstructorUpgrades();
-    return raw.map(app => {
-        const user = getUserById(app.user_id);
-        return {
-            application_status: app.application_status,
-            submitted_at: app.submitted_at,
-            reviewed_at: app.reviewed_at,
-            review_note: app.review_note,
-            user: user ? {
-                id: user.id,
-                full_name: user.full_name,
-                email: user.email,
-                phone: user.phone,
-                role: user.role,
-                status: user.status,
-                email_verified_at: user.email_verified_at
-            } : null,
-            instructor_profile: {
-                bio: app.bio,
-                expertise: app.expertise,
-                experience_years: app.experience_years,
-                level: app.level
-            },
-            payout_account: app.payout_account ? {
-                id: 6000 + app.user_id,
-                provider: app.payout_account.provider,
-                account_name: app.payout_account.account_name,
-                account_number: app.payout_account.account_number,
-                account_number_masked: app.payout_account.account_number.slice(0, 3) + "******" + app.payout_account.account_number.slice(-2),
-                status: app.payout_account.status,
-                connected_at: app.submitted_at
-            } : null
-        };
-    });
-}
-
-/**
- * Lưu danh sách vào localStorage (chỉ dùng nội bộ cho Mock)
- */
-function saveRawMockRequests(requests) {
-    const raw = requests.map(app => {
-        return {
-            user_id: app.user.id,
-            application_status: app.application_status,
-            submitted_at: app.submitted_at,
-            reviewed_at: app.reviewed_at,
-            review_note: app.review_note,
-            bio: app.instructor_profile.bio,
-            expertise: app.instructor_profile.expertise,
-            experience_years: app.instructor_profile.experience_years,
-            level: app.instructor_profile.level,
-            payout_account: app.payout_account ? {
-                provider: app.payout_account.provider,
-                account_name: app.payout_account.account_name,
-                account_number: app.payout_account.account_number,
-                status: app.payout_account.status
-            } : null
-        };
-    });
-    saveInstructorUpgrades(raw);
-}
+// Cấu hình nguồn dữ liệu: true để dùng mock (localStorage), false để gọi API thật
+const USE_MOCK_DATA = false;
+const API_BASE_URL = "/admin/instructor-upgrade-requests";
 
 /**
  * Lấy danh sách yêu cầu nâng cấp (hỗ trợ phân trang, lọc, sắp xếp)
  */
 export async function getUpgradeRequests(params = {}) {
     if (!USE_MOCK_DATA) {
-        // Gọi API thật khi sẵn sàng
-        const query = new URLSearchParams(params).toString();
-        const response = await fetch(`${API_BASE_URL}?${query}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return await response.json();
-    }
-
-    // --- Xử lý MOCK DATA ---
-    // Giả lập độ trễ mạng 350ms
-    await new Promise(resolve => setTimeout(resolve, 350));
-
-    try {
-        const rawRequests = getRawMockRequests();
-
-        // 1. Tính toán các chỉ số thống kê (Summary) trên toàn bộ danh sách
-        const summary = {
-            total: rawRequests.length,
-            pending: rawRequests.filter(r => r.application_status === "pending").length,
-            approved: rawRequests.filter(r => r.application_status === "approved").length,
-            rejected: rawRequests.filter(r => r.application_status === "rejected").length
-        };
-
-        // 2. Lọc dữ liệu
-        let filtered = [...rawRequests];
-
-        // Lọc theo search (Tên, email, số điện thoại)
-        if (params.search) {
-            const searchKeyword = params.search.toLowerCase().trim();
-            filtered = filtered.filter(r => 
-                (r.user.full_name && r.user.full_name.toLowerCase().includes(searchKeyword)) ||
-                (r.user.email && r.user.email.toLowerCase().includes(searchKeyword)) ||
-                (r.user.phone && r.user.phone.includes(searchKeyword))
-            );
-        }
-
-        // Lọc theo trạng thái (status)
-        if (params.status && params.status !== "") {
-            filtered = filtered.filter(r => r.application_status === params.status);
-        }
-
-        // Lọc theo chuyên môn (expertise)
-        if (params.expertise && params.expertise !== "") {
-            filtered = filtered.filter(r => r.instructor_profile?.expertise === params.expertise);
-        }
-
-        // Lọc theo kinh nghiệm (experience_range)
-        if (params.experience_range && params.experience_range !== "") {
-            filtered = filtered.filter(r => {
-                const exp = r.instructor_profile?.experience_years || 0;
-                if (params.experience_range === "under_1") return exp < 1;
-                if (params.experience_range === "1_2") return exp >= 1 && exp <= 2;
-                if (params.experience_range === "3_5") return exp >= 3 && exp <= 5;
-                if (params.experience_range === "over_5") return exp > 5;
-                return true;
-            });
-        }
-
-        // Lọc theo tài khoản nhận tiền (payout_filter)
-        if (params.payout_filter && params.payout_filter !== "") {
-            filtered = filtered.filter(r => {
-                const hasPayout = !!r.payout_account;
-                const status = r.payout_account?.status;
-                if (params.payout_filter === "linked") return hasPayout;
-                if (params.payout_filter === "unlinked") return !hasPayout;
-                if (params.payout_filter === "active") return hasPayout && status === "active";
-                if (params.payout_filter === "pending_verification") return hasPayout && status === "pending_verification";
-                return true;
-            });
-        }
-
-        // Lọc theo khoảng ngày gửi (date_from, date_to hoặc date_preset)
-        if (params.date_preset && params.date_preset !== "") {
-            const now = new Date();
-            now.setHours(23, 59, 59, 999);
-            const fromDate = new Date();
-            fromDate.setHours(0, 0, 0, 0);
-
-            if (params.date_preset === "today") {
-                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate && new Date(r.submitted_at) <= now);
-            } else if (params.date_preset === "7_days") {
-                fromDate.setDate(fromDate.getDate() - 7);
-                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate && new Date(r.submitted_at) <= now);
-            } else if (params.date_preset === "30_days") {
-                fromDate.setDate(fromDate.getDate() - 30);
-                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate && new Date(r.submitted_at) <= now);
+        const queryParams = new URLSearchParams();
+        Object.keys(params).forEach(key => {
+            if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+                queryParams.append(key, String(params[key]));
             }
-        } else {
-            if (params.date_from) {
-                const fromDate = new Date(params.date_from);
-                fromDate.setHours(0, 0, 0, 0);
-                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate);
-            }
-            if (params.date_to) {
-                const toDate = new Date(params.date_to);
-                toDate.setHours(23, 59, 59, 999);
-                filtered = filtered.filter(r => new Date(r.submitted_at) <= toDate);
-            }
-        }
-
-        // 3. Sắp xếp (Sort)
-        const sortBy = params.sort_by || "newest";
-        const getPrimarySpecialty = (item) => {
-            const exp = item.instructor_profile?.expertise || "";
-            return exp.split(/[,,(,)/]/)[0].trim().toLowerCase();
-        };
-
-        filtered.sort((a, b) => {
-            if (sortBy === "newest") {
-                return new Date(b.submitted_at) - new Date(a.submitted_at);
-            } else if (sortBy === "oldest") {
-                return new Date(a.submitted_at) - new Date(b.submitted_at);
-            } else if (sortBy === "reviewed_newest") {
-                const dateA = a.reviewed_at ? new Date(a.reviewed_at) : new Date(0);
-                const dateB = b.reviewed_at ? new Date(b.reviewed_at) : new Date(0);
-                return dateB - dateA;
-            } else if (sortBy === "name_asc") {
-                return a.user.full_name.localeCompare(b.user.full_name, "vi");
-            } else if (sortBy === "name_desc") {
-                return b.user.full_name.localeCompare(a.user.full_name, "vi");
-            } else if (sortBy === "experience_asc") {
-                return (a.instructor_profile?.experience_years || 0) - (b.instructor_profile?.experience_years || 0);
-            } else if (sortBy === "experience_desc") {
-                return (b.instructor_profile?.experience_years || 0) - (a.instructor_profile?.experience_years || 0);
-            } else if (sortBy === "specialty_asc") {
-                return getPrimarySpecialty(a).localeCompare(getPrimarySpecialty(b), "vi");
-            } else if (sortBy === "specialty_desc") {
-                return getPrimarySpecialty(b).localeCompare(getPrimarySpecialty(a), "vi");
-            }
-            return 0;
         });
-
-        // 4. Phân trang
-        const total = filtered.length;
-        const perPage = parseInt(params.per_page) || 20;
-        const currentPage = parseInt(params.page) || 1;
-        const lastPage = Math.max(1, Math.ceil(total / perPage));
+        const queryStr = queryParams.toString();
+        const url = queryStr ? `${API_BASE_URL}?${queryStr}` : API_BASE_URL;
         
-        const startIndex = (currentPage - 1) * perPage;
-        const paginatedItems = filtered.slice(startIndex, startIndex + perPage);
-
-        // Bảo mật: Ẩn số tài khoản đầy đủ khỏi danh sách chung
-        const itemsForList = paginatedItems.map(item => {
-            const copy = JSON.parse(JSON.stringify(item));
-            if (copy.payout_account) {
-                delete copy.payout_account.account_number; // Chỉ trả account_number_masked ở list
-            }
-            return copy;
-        });
-
-        return {
-            success: true,
-            message: "Lấy dữ liệu thành công.",
-            data: {
-                summary: summary,
-                items: itemsForList
-            },
-            meta: {
-                current_page: currentPage,
-                last_page: lastPage,
-                per_page: perPage,
-                total: total
-            }
-        };
-    } catch (error) {
-        console.error("Lỗi Mock API getUpgradeRequests:", error);
-        return {
-            success: false,
-            message: "Lỗi hệ thống khi tải danh sách yêu cầu.",
-            error_code: 500
-        };
+        try {
+            const envelope = await apiFetchEnvelope(url);
+            return {
+                success: true,
+                message: "Lấy dữ liệu thành công.",
+                data: envelope.data, // Chứa { summary, items }
+                meta: envelope.meta
+            };
+        } catch (error) {
+            console.error("Lỗi khi tải danh sách yêu cầu nâng cấp:", error);
+            return {
+                success: false,
+                message: error.message || "Lỗi hệ thống khi tải danh sách yêu cầu.",
+                error_code: error.status || 500
+            };
+        }
     }
 }
 
 /**
- * Lấy chi tiết yêu cầu nâng cấp (Chứa số tài khoản đầy đủ)
+ * Lấy chi tiết yêu cầu nâng cấp
  */
 export async function getUpgradeRequest(userId) {
     const uId = parseInt(userId);
     if (!USE_MOCK_DATA) {
-        const response = await fetch(`${API_BASE_URL}/${uId}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        try {
+            const envelope = await apiFetchEnvelope(`${API_BASE_URL}/${uId}`);
+            return {
+                success: true,
+                message: "Lấy chi tiết thành công.",
+                data: envelope.data
+            };
+        } catch (error) {
+            console.error("Lỗi khi tải chi tiết yêu cầu nâng cấp:", error);
+            return {
+                success: false,
+                message: error.message || "Lỗi khi tải chi tiết yêu cầu nâng cấp.",
+                error_code: error.status || 500
+            };
         }
-        return await response.json();
     }
-
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const rawRequests = getRawMockRequests();
-    const request = rawRequests.find(r => r.user.id === uId);
-
-    if (!request) {
-        return {
-            success: false,
-            message: "Không tìm thấy hồ sơ yêu cầu nâng cấp.",
-            error_code: 404
-        };
-    }
-
-    return {
-        success: true,
-        message: "Lấy chi tiết thành công.",
-        data: request
-    };
 }
 
 /**
@@ -292,56 +67,27 @@ export async function getUpgradeRequest(userId) {
 export async function approveUpgradeRequest(userId) {
     const uId = parseInt(userId);
     if (!USE_MOCK_DATA) {
-        const response = await fetch(`${API_BASE_URL}/${uId}/approve`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" }
-        });
-        if (!response.ok) {
-            if (response.status === 409) {
+        try {
+            const envelope = await apiFetchEnvelope(`${API_BASE_URL}/${uId}/approve`, {
+                method: "PATCH"
+            });
+            return {
+                success: true,
+                message: "Phê duyệt yêu cầu nâng cấp thành công.",
+                data: envelope.data
+            };
+        } catch (error) {
+            console.error("Lỗi khi phê duyệt yêu cầu nâng cấp:", error);
+            if (error.status === 409) {
                 return { success: false, message: "Hồ sơ đã được xử lý trước đó.", error_code: 409 };
             }
-            throw new Error(`HTTP error! status: ${response.status}`);
+            return {
+                success: false,
+                message: error.message || "Lỗi khi phê duyệt yêu cầu nâng cấp.",
+                error_code: error.status || 500
+            };
         }
-        return await response.json();
     }
-
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const rawRequests = getRawMockRequests();
-    const index = rawRequests.findIndex(r => r.user.id === uId);
-
-    if (index === -1) {
-        return {
-            success: false,
-            message: "Không tìm thấy hồ sơ yêu cầu nâng cấp.",
-            error_code: 404
-        };
-    }
-
-    const request = rawRequests[index];
-    if (request.application_status !== "pending") {
-        return {
-            success: false,
-            message: "Hồ sơ đã được xử lý trước đó hoặc trạng thái không còn hợp lệ.",
-            error_code: 409
-        };
-    }
-
-    // Cập nhật trạng thái
-    request.application_status = "approved";
-    request.reviewed_at = new Date().toISOString();
-    request.review_note = "Đã phê duyệt nâng cấp thành giảng viên.";
-    request.user.role = "instructor";
-
-    // Đồng bộ lại database mock
-    saveRawMockRequests(rawRequests);
-
-    // Đồng bộ ngược lại bảng users qua repository (để role đồng bộ)
-    updateRepoUser(uId, { role: "instructor" });
-
-    return {
-        success: true,
-        message: "Phê duyệt yêu cầu nâng cấp thành công."
-    };
 }
 
 /**
@@ -350,50 +96,25 @@ export async function approveUpgradeRequest(userId) {
 export async function rejectUpgradeRequest(userId) {
     const uId = parseInt(userId);
     if (!USE_MOCK_DATA) {
-        const response = await fetch(`${API_BASE_URL}/${uId}/reject`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" }
-        });
-        if (!response.ok) {
-            if (response.status === 409) {
+        try {
+            const envelope = await apiFetchEnvelope(`${API_BASE_URL}/${uId}/reject`, {
+                method: "PATCH"
+            });
+            return {
+                success: true,
+                message: "Đã từ chối yêu cầu nâng cấp.",
+                data: envelope.data
+            };
+        } catch (error) {
+            console.error("Lỗi khi từ chối yêu cầu nâng cấp:", error);
+            if (error.status === 409) {
                 return { success: false, message: "Hồ sơ đã được xử lý trước đó.", error_code: 409 };
             }
-            throw new Error(`HTTP error! status: ${response.status}`);
+            return {
+                success: false,
+                message: error.message || "Lỗi khi từ chối yêu cầu nâng cấp.",
+                error_code: error.status || 500
+            };
         }
-        return await response.json();
     }
-
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const rawRequests = getRawMockRequests();
-    const index = rawRequests.findIndex(r => r.user.id === uId);
-
-    if (index === -1) {
-        return {
-            success: false,
-            message: "Không tìm thấy hồ sơ yêu cầu nâng cấp.",
-            error_code: 404
-        };
-    }
-
-    const request = rawRequests[index];
-    if (request.application_status !== "pending") {
-        return {
-            success: false,
-            message: "Hồ sơ đã được xử lý trước đó hoặc trạng thái không còn hợp lệ.",
-            error_code: 409
-        };
-    }
-
-    // Cập nhật trạng thái từ chối
-    request.application_status = "rejected";
-    request.reviewed_at = new Date().toISOString();
-    request.review_note = "Yêu cầu nâng cấp bị từ chối.";
-    // role giữ nguyên là learner
-
-    saveRawMockRequests(rawRequests);
-
-    return {
-        success: true,
-        message: "Đã từ chối yêu cầu nâng cấp."
-    };
 }

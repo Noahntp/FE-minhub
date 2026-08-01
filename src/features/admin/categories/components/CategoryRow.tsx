@@ -12,7 +12,6 @@ import {
   Plus,
   Minus,
   X,
-  GripVertical,
 } from "lucide-react";
 import { Category } from "../categories.types";
 import {
@@ -90,7 +89,6 @@ export default function CategoryRow({
   );
   // Ref to block detail click directly after drag finishes
   const isJustDragged = useRef(false);
-  const [isGripActive, setIsGripActive] = useState(false);
 
   // Status Badges Render
   const isDeleted = deleted_at !== null;
@@ -178,21 +176,40 @@ export default function CategoryRow({
 
   // Drag Handlers (Both root and child categories can be dragged under isReorderAllowed)
   const isDragEnabled = isReorderAllowed && !isDeleted && !isContextual;
-  const isDraggable = isDragEnabled && isGripActive;
+  const isDraggable = isDragEnabled;
 
   const handleDragStart = (e: React.DragEvent) => {
     const target = e.target as HTMLElement;
-    const isGrip = target.closest(".drag-handle");
+    if (
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("a") ||
+      target.closest("[role='menu']")
+    ) {
+      e.preventDefault();
+      return;
+    }
 
-    if (!isDragEnabled || !isGrip) {
+    if (!isDragEnabled) {
       e.preventDefault();
       return;
     }
 
     isJustDragged.current = true;
-    setDraggedId?.(id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", String(id));
+
+    // Use name container as the drag image to avoid table row rendering bugs
+    const tr = target.closest("tr");
+    const nameDiv = tr?.querySelector(".category-name-container");
+    if (nameDiv && e.dataTransfer.setDragImage) {
+      e.dataTransfer.setDragImage(nameDiv, 20, 10);
+    }
+
+    // Delay setting the state so the browser captures the solid drag image first
+    setTimeout(() => {
+      setDraggedId?.(id);
+    }, 0);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -223,7 +240,6 @@ export default function CategoryRow({
     setDropPosition(null);
     setDraggedId?.(null);
     setDragOverId?.(null);
-    setIsGripActive(false);
 
     setTimeout(() => {
       isJustDragged.current = false;
@@ -234,7 +250,6 @@ export default function CategoryRow({
     setDropPosition(null);
     setDraggedId?.(null);
     setDragOverId?.(null);
-    setIsGripActive(false);
 
     setTimeout(() => {
       isJustDragged.current = false;
@@ -256,60 +271,28 @@ export default function CategoryRow({
       onDrop={handleDrop}
       onDragEnd={handleDragEnd}
       className={cn(
-        "hover:bg-canvas/50 transition-all border-b border-hairline/60 select-none cursor-pointer",
+        "hover:bg-canvas/50 transition-all border-b border-hairline/60 select-none",
+        isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         isDeleted && "opacity-75 bg-canvas/30",
         isContextual && "opacity-60 bg-surface-alt/20",
-        draggedId === id && "opacity-40 bg-ink/5 pointer-events-none",
+        draggedId === id && "opacity-20 bg-canvas/40 border-y-2 border-dashed border-mid-gray/40 pointer-events-none scale-[0.99] transition-all",
         dropPosition === "before" &&
           "border-t-2 border-ink bg-ink/5 scale-[0.99] transition-transform",
         dropPosition === "after" &&
           "border-b-2 border-ink bg-ink/5 scale-[0.99] transition-transform",
       )}
+      style={{
+        WebkitUserDrag: isDraggable ? "element" : undefined,
+      } as any}
     >
       {/* Category Name Column */}
       <td
-        className="py-2.5 font-bold text-ink"
+        className={cn("py-2.5 font-bold text-ink", isDraggable && "select-none")}
         style={{
           paddingLeft: viewMode === "tree" ? `${depth * 1.5 + 1}rem` : "1rem",
         }}
       >
         <div className="flex items-center gap-1.5">
-          {/* Grip handle for root and child categories */}
-          {!isDeleted && (
-            <div
-              className={cn(
-                "drag-handle p-1 hover:bg-canvas rounded shrink-0 mr-0.5 flex items-center justify-center text-mid-gray/40",
-                isDragEnabled
-                  ? "cursor-grab active:cursor-grabbing hover:text-ink"
-                  : "cursor-not-allowed opacity-40"
-              )}
-              title={
-                isDragEnabled
-                  ? "Kéo để đổi thứ tự"
-                  : "Đặt lại bộ lọc và chọn Thứ tự tăng dần để sắp xếp"
-              }
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                if (isDragEnabled) setIsGripActive(true);
-              }}
-              onMouseUp={(e) => {
-                e.stopPropagation();
-                setIsGripActive(false);
-              }}
-              onMouseEnter={() => {
-                if (isDragEnabled) setIsGripActive(true);
-              }}
-              onMouseLeave={() => {
-                setIsGripActive(false);
-              }}
-              role="button"
-              aria-label="Kéo để đổi thứ tự"
-            >
-              <GripVertical className="w-3.5 h-3.5" />
-            </div>
-          )}
-          {isDeleted && depth > 0 && <div className="w-6 shrink-0" />}
 
           {viewMode === "tree" && hasChildren ? (
             <button
@@ -331,7 +314,7 @@ export default function CategoryRow({
             <span className="w-5 shrink-0" />
           ) : null}
 
-          <div className="flex flex-col truncate max-w-[260px]" title={name}>
+          <div className="category-name-container flex flex-col truncate max-w-[260px]" title={name}>
             <span
               className={cn(
                 "truncate",
@@ -347,7 +330,10 @@ export default function CategoryRow({
 
       {/* Parent Category Column */}
       <td
-        className="px-3 py-2.5 whitespace-nowrap text-mid-gray select-text"
+        className={cn(
+          "px-3 py-2.5 whitespace-nowrap text-mid-gray",
+          isDraggable ? "select-none" : "select-text"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {category.parent ? (
@@ -361,7 +347,10 @@ export default function CategoryRow({
 
       {/* Slug Column */}
       <td
-        className="px-3 py-2.5 whitespace-nowrap font-mono text-[11px] text-ink select-text"
+        className={cn(
+          "px-3 py-2.5 whitespace-nowrap font-mono text-[11px] text-ink",
+          isDraggable ? "select-none" : "select-text"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-1.5">
@@ -384,7 +373,10 @@ export default function CategoryRow({
 
       {/* Courses Count Column */}
       <td
-        className="px-3 py-2.5 text-center select-text"
+        className={cn(
+          "px-3 py-2.5 text-center",
+          isDraggable ? "select-none" : "select-text"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {course_count > 0 ? (
@@ -463,7 +455,7 @@ export default function CategoryRow({
 
       {/* Status Column */}
       <td
-        className="px-3 py-2.5 text-center"
+        className={cn("px-3 py-2.5 text-center", isDraggable && "select-none")}
         onClick={(e) => e.stopPropagation()}
       >
         {renderStatus()}
@@ -471,7 +463,10 @@ export default function CategoryRow({
 
       {/* Date Column */}
       <td
-        className="px-3 py-2.5 whitespace-nowrap text-mid-gray text-xs"
+        className={cn(
+          "px-3 py-2.5 whitespace-nowrap text-mid-gray text-xs",
+          isDraggable && "select-none"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {dateStr}

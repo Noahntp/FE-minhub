@@ -37,7 +37,7 @@ export default function CategoryFormModal({
   const [slug, setSlug] = useState("");
   const [parentId, setParentId] = useState("");
   const [description, setDescription] = useState("");
-  const [sortOrder, setSortOrder] = useState<number>(0);
+  const [sortOrder, setSortOrder] = useState<string | number>("");
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +64,7 @@ export default function CategoryFormModal({
                 setSlug(cat.slug);
                 setParentId(cat.parent_id ? String(cat.parent_id) : "");
                 setDescription(cat.description || "");
-                setSortOrder(cat.sort_order || 0);
+                setSortOrder(cat.sort_order !== undefined && cat.sort_order !== null ? String(cat.sort_order) : "");
                 setStatus(cat.status || "active");
               } else {
                 toast.error(res.message || "Không thể tải thông tin danh mục.");
@@ -87,7 +87,7 @@ export default function CategoryFormModal({
         setSlug("");
         setParentId("");
         setDescription("");
-        setSortOrder(0);
+        setSortOrder("");
         setStatus("active");
         setIsLoading(false);
       }
@@ -123,14 +123,17 @@ export default function CategoryFormModal({
     setIsSubmitting(true);
     setValidationErrors({});
 
-    const payload = {
+    const payload: any = {
       name: name.trim(),
       slug: slug.trim(),
       parent_id: parentId ? Number(parentId) : null,
       description: description.trim(),
-      sort_order: Number(sortOrder),
       status: status
     };
+
+    if (sortOrder !== "") {
+      payload.sort_order = String(sortOrder);
+    }
 
     try {
       let res;
@@ -306,14 +309,13 @@ export default function CategoryFormModal({
             {/* Thứ tự hiển thị */}
             <div className="space-y-1.5">
               <label htmlFor="form-sort-order" className="text-xs font-bold text-ink">
-                Thứ tự hiển thị (Số nguyên không âm)
+                Mã thứ tự sắp xếp (Chuỗi ký tự hoặc Số)
               </label>
               <input
                 id="form-sort-order"
-                type="number"
-                min="0"
+                type="text"
                 value={sortOrder}
-                onChange={(e) => setSortOrder(Number(e.target.value))}
+                onChange={(e) => setSortOrder(e.target.value)}
                 disabled={isSubmitting}
                 className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-colors"
               />

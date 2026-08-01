@@ -120,7 +120,7 @@ function AppRoutes() {
     
     // Redirect based on role
     if (user.role === 'admin') {
-      navigate(`/admin/${user.id}/dashboard`, { replace: true });
+      navigate(`/admin/dashboard`, { replace: true });
     } else {
       navigate(getDashboardRouteByRole(user.role), { replace: true });
     }
@@ -210,7 +210,7 @@ function AppRoutes() {
           } />
 
           {/* Admin Workspace */}
-          <Route path="/admin/:adminId/*" element={
+          <Route path="/admin/*" element={
             // @ts-ignore
             isLoggedIn && currentUser.role === 'admin' ? (
               <AdminDashboard />

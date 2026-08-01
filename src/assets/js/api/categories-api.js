@@ -1,7 +1,4 @@
-/**
- * API Layer cho Module ADM-06: Quản lý danh mục khóa học
- * Hoàn toàn đồng bộ với Unified Mock Database qua mock-repository.js.
- */
+import { apiFetchEnvelope } from "@/shared/lib/api-client";
 
 import {
   getCategories as getRepoCategories,
@@ -15,7 +12,7 @@ import {
 } from "@/assets/js/mocks/mock-repository.js";
 
 // Cấu hình nguồn dữ liệu: true để dùng mock (localStorage), false để gọi API thật
-const USE_MOCK = true;
+const USE_MOCK = false;
 const API_BASE_URL = "/api/admin/categories";
 
 /**
@@ -52,12 +49,10 @@ function isDescendant(catId, targetParentId, allCats) {
  */
 export async function getCategories(params = {}) {
   if (!USE_MOCK) {
-    const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${API_BASE_URL}?${query}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
+    return await apiFetchEnvelope("/admin/categories", {
+      method: "GET",
+      query: params
+    });
   }
 
   // --- Xử lý MOCK DATA ---

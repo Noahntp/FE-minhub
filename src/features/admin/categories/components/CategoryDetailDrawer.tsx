@@ -19,7 +19,6 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
   const [isError, setIsError] = useState(false);
   
   const navigate = useNavigate();
-  const { adminId } = useParams();
 
   useEffect(() => {
     let active = true;
@@ -72,8 +71,7 @@ export default function CategoryDetailDrawer({ isOpen, categoryId, onClose }: Ca
   const handleCourseClick = (courseId: number) => {
     onClose();
     // Navigate to courses page with open_course_id parameter
-    const currentAdminId = adminId || "1";
-    navigate(`/admin/${currentAdminId}/courses?open_course_id=${courseId}`);
+    navigate(`/admin/courses?open_course_id=${courseId}`);
   };
 
   const getCourseStatusBadge = (status: string) => {

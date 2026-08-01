@@ -4,7 +4,7 @@ export interface Category {
   name: string;
   slug: string;
   description: string;
-  sort_order: number;
+  sort_order: number | string;
   status: 'active' | 'inactive';
   created_at: string;
   updated_at: string;
@@ -89,7 +89,7 @@ export interface CategoryDetailResponse {
       name: string;
       slug: string;
       status: 'active' | 'inactive';
-      sort_order: number;
+      sort_order: number | string;
     }>;
     statistics?: CategoryStatistics;
     courses?: CategoryCourseDetail[];
@@ -102,7 +102,7 @@ export interface CreateCategoryPayload {
   slug: string;
   parent_id: number | null;
   description?: string;
-  sort_order: number;
+  sort_order: number | string;
   status: 'active' | 'inactive';
 }
 
@@ -111,7 +111,7 @@ export interface UpdateCategoryPayload {
   slug?: string;
   parent_id?: number | null;
   description?: string;
-  sort_order?: number;
+  sort_order?: number | string;
   status?: 'active' | 'inactive';
 }
 

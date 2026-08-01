@@ -150,5 +150,53 @@ async toggleUserLockAdmin(userId: string, action: 'lock' | 'unlock'): Promise<{ 
       method: 'PUT',
       body: JSON.stringify({ items }),
     });
+  },
+
+  async getDashboardOverview(params: Record<string, any> = {}): Promise<any> {
+    devLog('AdminDashboard', 'Fetch dashboard overview', params);
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== "") {
+        query.append(key, String(val));
+      }
+    });
+    const queryStr = query.toString();
+    return apiFetch<any>(`/admin/dashboard${queryStr ? '?' + queryStr : ''}`);
+  },
+
+  async getRevenueReport(params: Record<string, any> = {}): Promise<any> {
+    devLog('AdminDashboard', 'Fetch revenue report', params);
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== "") {
+        query.append(key, String(val));
+      }
+    });
+    const queryStr = query.toString();
+    return apiFetch<any>(`/admin/reports/revenue${queryStr ? '?' + queryStr : ''}`);
+  },
+
+  async getTopCoursesReport(params: Record<string, any> = {}): Promise<any> {
+    devLog('AdminDashboard', 'Fetch top courses report', params);
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== "") {
+        query.append(key, String(val));
+      }
+    });
+    const queryStr = query.toString();
+    return apiFetch<any>(`/admin/reports/top-courses${queryStr ? '?' + queryStr : ''}`);
+  },
+
+  async getTopInstructorsReport(params: Record<string, any> = {}): Promise<any> {
+    devLog('AdminDashboard', 'Fetch top instructors report', params);
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== "") {
+        query.append(key, String(val));
+      }
+    });
+    const queryStr = query.toString();
+    return apiFetch<any>(`/admin/reports/instructors${queryStr ? '?' + queryStr : ''}`);
   }
 };

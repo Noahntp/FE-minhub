@@ -58,7 +58,7 @@ export default function CategoriesPage() {
       status: (searchParams.get("status") as any) || "",
       type: (searchParams.get("type") as any) || "",
       parent_id: searchParams.get("parent_id") || "",
-      sort_by: (searchParams.get("sort_by") as any) || "newest",
+      sort_by: (searchParams.get("sort_by") as any) || "sort_order_asc",
       page: parseInt(searchParams.get("page") || "1", 10),
       per_page: parseInt(searchParams.get("per_page") || "20", 10),
       empty: searchParams.get("empty") || "",
@@ -142,7 +142,7 @@ export default function CategoriesPage() {
               next.delete(key);
               return;
             }
-            if (key === "sort_by" && val === "newest") {
+            if (key === "sort_by" && val === "sort_order_asc") {
               next.delete(key);
               return;
             }
@@ -443,6 +443,72 @@ export default function CategoriesPage() {
     }
   };
 
+  const generateSortOrderBetween = (prev: string | null, next: string | null): string => {
+    const CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
+    const p = prev || "";
+    const n = next || "";
+    
+    if (p === "" && n === "") return "m";
+    
+    if (p === "") {
+      const firstChar = n.charAt(0);
+      if (firstChar === "0") {
+        return "0" + generateSortOrderBetween("", n.slice(1));
+      }
+      const index = CHARS.indexOf(firstChar);
+      if (index > 1) {
+        const midIndex = Math.floor(index / 2);
+        return CHARS.charAt(midIndex);
+      }
+      return "0m";
+    }
+    
+    if (n === "") {
+      const lastChar = p.charAt(p.length - 1);
+      const index = CHARS.indexOf(lastChar);
+      if (index < CHARS.length - 1) {
+        const midIndex = Math.floor((index + CHARS.length) / 2);
+        return p.slice(0, -1) + CHARS.charAt(midIndex);
+      }
+      return p + "m";
+    }
+    
+    let i = 0;
+    while (i < p.length && i < n.length && p.charAt(i) === n.charAt(i)) {
+      i++;
+    }
+    
+    const charP = i < p.length ? p.charAt(i) : "0";
+    const charN = i < n.length ? n.charAt(i) : "z";
+    
+    const idxP = CHARS.indexOf(charP);
+    const idxN = CHARS.indexOf(charN);
+    
+    if (idxN - idxP > 1) {
+      const midIdx = Math.floor((idxP + idxN) / 2);
+      return p.slice(0, i) + CHARS.charAt(midIdx);
+    }
+    
+    if (i === p.length) {
+      const nextCharN = n.charAt(i);
+      const idxNextN = CHARS.indexOf(nextCharN);
+      if (idxNextN > 0) {
+        const midIdx = Math.floor(idxNextN / 2);
+        return p + CHARS.charAt(midIdx);
+      }
+      return p + "0m";
+    }
+    
+    if (i < p.length - 1) {
+      const nextCharP = p.charAt(i + 1);
+      const idxNextP = CHARS.indexOf(nextCharP);
+      const midIdx = Math.floor((idxNextP + CHARS.length) / 2);
+      return p.slice(0, i + 1) + CHARS.charAt(midIdx);
+    }
+    
+    return p + "m";
+  };
+
   // 7. Xử lý Reordering trong nhóm sibling (draft mode)
   const reorderWithinSiblings = (
     parentId: number | null,
@@ -457,14 +523,14 @@ export default function CategoriesPage() {
 
     const siblings = allCategoriesBase.filter((c) => c.parent_id === parentId);
     siblings.sort((a, b) => {
-      const sa = a.sort_order || 0;
-      const sb = b.sort_order || 0;
-      if (sa > 0 && sb > 0) {
-        if (sa !== sb) return sa - sb;
+      const sa = a.sort_order !== undefined && a.sort_order !== null ? String(a.sort_order) : "";
+      const sb = b.sort_order !== undefined && b.sort_order !== null ? String(b.sort_order) : "";
+      if (sa && sb) {
+        if (sa !== sb) return sa.localeCompare(sb, "en");
         return (a.name || "").localeCompare(b.name || "", "vi");
       }
-      if (sa > 0 && sb === 0) return -1;
-      if (sa === 0 && sb > 0) return 1;
+      if (sa && !sb) return -1;
+      if (!sa && sb) return 1;
       return (a.name || "").localeCompare(b.name || "", "vi");
     });
 
@@ -491,14 +557,30 @@ export default function CategoriesPage() {
 
     tempSiblings.splice(newIndex, 0, moved);
 
-    const normalizedSiblings = tempSiblings.map((c, idx) => ({
-      ...c,
-      sort_order: idx + 1,
-    }));
+    // Calculate new string sort key
+    const prevItem = newIndex > 0 ? tempSiblings[newIndex - 1] : null;
+    const nextItem = newIndex < tempSiblings.length - 1 ? tempSiblings[newIndex + 1] : null;
+
+    const prevSort = prevItem ? String(prevItem.sort_order) : null;
+    const nextSort = nextItem ? String(nextItem.sort_order) : null;
+
+    const newSortOrder = generateSortOrderBetween(prevSort, nextSort);
+    (window as any).lastReorderDebug = {
+      draggedCategoryId,
+      action,
+      siblings: siblings.map(s => ({ id: s.id, name: s.name, sort_order: s.sort_order })),
+      tempSiblings: tempSiblings.map(s => ({ id: s.id, name: s.name, sort_order: s.sort_order })),
+      prevSort,
+      nextSort,
+      newSortOrder
+    };
+    console.log("REORDER DEBUG:", (window as any).lastReorderDebug);
 
     const nextBase = allCategoriesBase.map((c) => {
-      const found = normalizedSiblings.find((n) => n.id === c.id);
-      return found ? { ...c, sort_order: found.sort_order } : c;
+      if (c.id === draggedCategoryId) {
+        return { ...c, sort_order: newSortOrder };
+      }
+      return c;
     });
 
     setAllCategoriesBase(nextBase);
@@ -554,7 +636,7 @@ export default function CategoriesPage() {
 
     const changedItems: Array<{
       id: number;
-      sort_order: number;
+      sort_order: string | number;
       parent_id: number | null;
     }> = [];
     allCategoriesBase.forEach((c) => {
@@ -1334,21 +1416,15 @@ export default function CategoriesPage() {
                             c.deleted_at === null,
                         );
                         sameLevel.sort((a, b) => {
-                          const sa = a.sort_order || 0;
-                          const sb = b.sort_order || 0;
-                          if (sa > 0 && sb > 0) {
-                            if (sa !== sb) return sa - sb;
-                            return (a.name || "").localeCompare(
-                              b.name || "",
-                              "vi",
-                            );
+                          const sa = a.sort_order !== undefined && a.sort_order !== null ? String(a.sort_order) : "";
+                          const sb = b.sort_order !== undefined && b.sort_order !== null ? String(b.sort_order) : "";
+                          if (sa && sb) {
+                            if (sa !== sb) return sa.localeCompare(sb, "en");
+                            return (a.name || "").localeCompare(b.name || "", "vi");
                           }
-                          if (sa > 0 && sb === 0) return -1;
-                          if (sa === 0 && sb > 0) return 1;
-                          return (a.name || "").localeCompare(
-                            b.name || "",
-                            "vi",
-                          );
+                          if (sa && !sb) return -1;
+                          if (!sa && sb) return 1;
+                          return (a.name || "").localeCompare(b.name || "", "vi");
                         });
                         const idx = sameLevel.findIndex((c) => c.id === cat.id);
                         const isFirstChild = idx === 0;

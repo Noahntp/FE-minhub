@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getDashboardMockData } from '@/data/dashboard';
+import { adminApi } from '@/features/admin/api';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
 import { Chart } from 'chart.js/auto';
@@ -77,7 +78,7 @@ function groupDashboardChartData(reportData: any[], start: Date, end: Date, inte
 
   if (reportData && reportData.length > 0) {
     reportData.forEach(r => {
-      const dateStr = r.recorded_at || r.date;
+      const dateStr = r.recorded_at || r.date || r.period;
       if (!dateStr) return;
       const t = new Date(dateStr).getTime();
       if (isNaN(t)) return;
@@ -103,7 +104,6 @@ function groupDashboardChartData(reportData: any[], start: Date, end: Date, inte
 }
 
 export default function DashboardOverview() {
-  const { adminId } = useParams<{ adminId: string }>();
   const navigate = useNavigate();
 
   const [activeFilter, setActiveFilter] = useState('7days');
@@ -151,38 +151,64 @@ export default function DashboardOverview() {
     }
   };
 
-  // Load data mock
+  // Load data from Backend APIs
   const loadDashboardData = React.useCallback((filterType: string, from?: string, to?: string) => {
     setUiState('loading');
+
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     
-    setTimeout(() => {
-      let params: any = {};
-      if (filterType === '7days') {
-        params = { date_from: '2026-07-06', date_to: '2026-07-12' };
-      } else if (filterType === '30days') {
-        params = { date_from: '2026-06-13', date_to: '2026-07-12' };
-      } else if (filterType === 'thisMonth') {
-        params = { month: 7, year: 2026 };
-      } else if (filterType === 'thisYear') {
-        params = { year: 2026 };
-      } else if (filterType === 'custom') {
-        params = { date_from: from || '2026-07-06', date_to: to || '2026-07-12' };
-      }
-      
-      try {
-        const data = getDashboardMockData(params);
-        if (!data || !data.dashboard || !data.dashboard.data) {
+    const referenceDate = new Date('2026-06-30');
+    let params: any = {};
+    if (filterType === '7days') {
+      const today = new Date(referenceDate);
+      const past = new Date(referenceDate);
+      past.setDate(today.getDate() - 7);
+      params = { date_from: formatDate(past), date_to: formatDate(today) };
+    } else if (filterType === '30days') {
+      const today = new Date(referenceDate);
+      const past = new Date(referenceDate);
+      past.setDate(today.getDate() - 30);
+      params = { date_from: formatDate(past), date_to: formatDate(today) };
+    } else if (filterType === 'thisMonth') {
+      params = { month: referenceDate.getMonth() + 1, year: referenceDate.getFullYear() };
+    } else if (filterType === 'thisYear') {
+      params = { year: referenceDate.getFullYear() };
+    } else if (filterType === 'custom') {
+      params = { date_from: from, date_to: to };
+    }
+
+    Promise.all([
+      adminApi.getDashboardOverview(params),
+      adminApi.getRevenueReport({ ...params, group_by: 'day' }),
+      adminApi.getTopCoursesReport({ ...params, per_page: 5 }),
+      adminApi.getTopInstructorsReport({ ...params, per_page: 5 })
+    ])
+      .then(([dashboardRes, revenueRes, topCoursesRes, topInstructorsRes]) => {
+        if (!dashboardRes) {
           setUiState('empty');
-        } else {
-          setDashboardData(data);
-          setUiState('loaded');
+          return;
         }
-      } catch (e) {
-        console.error("Lỗi lấy dữ liệu dashboard mock:", e);
+
+        const mergedData = {
+          dashboard: { data: dashboardRes },
+          revenue_report: { data: revenueRes || { summary: {}, items: [] } },
+          top_courses: { data: topCoursesRes || { summary: {}, items: [] } },
+          top_instructors: { data: topInstructorsRes || { items: [] } }
+        };
+
+        setDashboardData(mergedData);
+        setUiState('loaded');
+      })
+      .catch((err) => {
+        console.error("Lỗi lấy dữ liệu dashboard thực tế:", err);
         setUiState('error');
-        toast.error("Không thể kết nối đến kho dữ liệu giả lập.");
-      }
-    }, 300);
+        toast.error("Không thể kết nối đến máy chủ Backend.");
+      });
   }, []);
 
   useEffect(() => {
@@ -217,24 +243,35 @@ export default function DashboardOverview() {
 
     let start: Date;
     let end: Date;
+    const referenceDate = new Date('2026-06-30');
 
     if (activeFilter === '7days') {
-      start = new Date("2026-07-06T00:00:00Z");
-      end = new Date("2026-07-12T23:59:59Z");
+      const today = new Date(referenceDate);
+      const past = new Date(referenceDate);
+      past.setDate(today.getDate() - 7);
+      start = past;
+      start.setHours(0, 0, 0, 0);
+      end = today;
+      end.setHours(23, 59, 59, 999);
     } else if (activeFilter === '30days') {
-      start = new Date("2026-06-13T00:00:00Z");
-      end = new Date("2026-07-12T23:59:59Z");
+      const today = new Date(referenceDate);
+      const past = new Date(referenceDate);
+      past.setDate(today.getDate() - 30);
+      start = past;
+      start.setHours(0, 0, 0, 0);
+      end = today;
+      end.setHours(23, 59, 59, 999);
     } else if (activeFilter === 'thisMonth') {
-      start = new Date(2026, 6, 1, 0, 0, 0); // tháng 7 là index 6
-      end = new Date(2026, 7, 1, 0, 0, 0);
+      start = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1, 0, 0, 0);
+      end = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 1, 0, 0, 0);
       end.setMilliseconds(-1);
     } else if (activeFilter === 'thisYear') {
-      start = new Date(2026, 0, 1, 0, 0, 0);
-      end = new Date(2026, 11, 31, 23, 59, 59, 999);
+      start = new Date(referenceDate.getFullYear(), 0, 1, 0, 0, 0);
+      end = new Date(referenceDate.getFullYear(), 11, 31, 23, 59, 59, 999);
     } else {
-      start = customFrom ? new Date(customFrom) : new Date("2026-07-06");
+      start = customFrom ? new Date(customFrom) : new Date(referenceDate);
       start.setHours(0, 0, 0, 0);
-      end = customTo ? new Date(customTo) : new Date("2026-07-12");
+      end = customTo ? new Date(customTo) : new Date(referenceDate);
       end.setHours(23, 59, 59, 999);
     }
 
@@ -714,7 +751,7 @@ export default function DashboardOverview() {
         title: "Khóa học chờ duyệt",
         desc: `${actions.pending_course_reviews || 0} khóa học mới cần kiểm duyệt`,
         btnText: "Duyệt ngay",
-        link: `/admin/${adminId}/course-reviews`,
+        link: `/admin/course-reviews`,
         borderClass: "border-l-3 border-warning",
         badgeClass: "bg-warning-soft text-warning border border-warning/10",
         btnClass: "bg-success text-white hover:opacity-90"
@@ -724,7 +761,7 @@ export default function DashboardOverview() {
         title: "Yêu cầu nâng giảng viên",
         desc: `${actions.pending_instructor_upgrades || 0} hồ sơ đăng ký cần xác minh`,
         btnText: "Xử lý",
-        link: `/admin/${adminId}/instructor-upgrades`,
+        link: `/admin/instructor-upgrades`,
         borderClass: "border-l-3 border-warning",
         badgeClass: "bg-warning-soft text-warning border border-warning/10",
         btnClass: "bg-warning text-white hover:opacity-90"
@@ -734,7 +771,7 @@ export default function DashboardOverview() {
         title: "Yêu cầu rút tiền",
         desc: `${actions.pending_withdrawals || 0} lệnh rút tiền đang chờ xử lý`,
         btnText: "Chi tiền",
-        link: `/admin/${adminId}/withdrawals`,
+        link: `/admin/withdrawals`,
         borderClass: "border-l-3 border-danger-brick",
         badgeClass: "bg-danger-brick-soft text-danger-brick border border-danger-brick/10",
         btnClass: "bg-danger-brick text-white hover:opacity-90"
@@ -744,13 +781,13 @@ export default function DashboardOverview() {
         title: "Tài khoản nhận tiền",
         desc: `${actions.pending_payout_accounts || 0} tài khoản ngân hàng chờ xác minh`,
         btnText: "Xác minh",
-        link: `/admin/${adminId}/payout-accounts`,
+        link: `/admin/payout-accounts`,
         borderClass: "border-l-3 border-success",
         badgeClass: "bg-success-soft text-success border border-success/10",
         btnClass: "bg-success text-white hover:opacity-90"
       }
     ].filter(item => item.count > 0);
-  }, [dashboardData, adminId]);
+  }, [dashboardData]);
 
   // Bộ lọc hiển thị nhãn của query
   const getFilterLabel = () => {
@@ -937,7 +974,7 @@ export default function DashboardOverview() {
             
             {/* KPI: Tổng người dùng */}
             <button
-              onClick={() => navigate(`/admin/${adminId}/users`)}
+              onClick={() => navigate(`/admin/users`)}
               className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle hover:border-mid-gray/40 transition-all group cursor-pointer"
             >
               <div className="flex items-center justify-between">
@@ -980,10 +1017,10 @@ export default function DashboardOverview() {
                 {formatNumber(dashboardData.dashboard.data.summary.total_learners)} học viên • {formatNumber(dashboardData.dashboard.data.summary.total_instructors)} giảng viên
               </p>
             </button>
-
+ 
             {/* KPI: Tổng khóa học */}
             <button
-              onClick={() => navigate(`/admin/${adminId}/courses`)}
+              onClick={() => navigate(`/admin/courses`)}
               className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle hover:border-mid-gray/40 transition-all group cursor-pointer"
             >
               <div className="flex items-center justify-between">
@@ -1021,7 +1058,7 @@ export default function DashboardOverview() {
                 {formatNumber(dashboardData.dashboard.data.summary.total_published_courses)} đã xuất bản
               </p>
             </button>
-
+ 
             {/* KPI: Tổng lượt ghi danh */}
             <div className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
               <div className="flex items-center justify-between">
@@ -1048,10 +1085,10 @@ export default function DashboardOverview() {
                 {formatNumber(dashboardData.dashboard.data.summary.completed_enrollments)} hoàn thành • Tỉ lệ {dashboardData.dashboard.data.summary.completion_rate}%
               </p>
             </div>
-
+ 
             {/* KPI: Tổng đơn hàng */}
             <button
-              onClick={() => navigate(`/admin/${adminId}/orders`)}
+              onClick={() => navigate(`/admin/orders`)}
               className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle hover:border-mid-gray/40 transition-all group cursor-pointer"
             >
               <div className="flex items-center justify-between">
@@ -1137,7 +1174,7 @@ export default function DashboardOverview() {
 
             {/* Rút tiền chờ duyệt */}
             <button
-              onClick={() => navigate(`/admin/${adminId}/withdrawals?status=pending`)}
+              onClick={() => navigate(`/admin/withdrawals?status=pending`)}
               className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-3.5 shadow-subtle hover:border-mid-gray/40 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer"
             >
               <div className="flex items-center justify-between">
@@ -1162,10 +1199,10 @@ export default function DashboardOverview() {
                 </span>
               </div>
             </button>
-
+ 
             {/* Đã duyệt chờ chi */}
             <button
-              onClick={() => navigate(`/admin/${adminId}/withdrawals?status=approved`)}
+              onClick={() => navigate(`/admin/withdrawals?status=approved`)}
               className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-3.5 shadow-subtle hover:border-mid-gray/40 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer"
             >
               <div className="flex items-center justify-between">
@@ -1190,10 +1227,10 @@ export default function DashboardOverview() {
                 </span>
               </div>
             </button>
-
+ 
             {/* Đã thanh toán cho GV */}
             <button
-              onClick={() => navigate(`/admin/${adminId}/withdrawals?status=paid`)}
+              onClick={() => navigate(`/admin/withdrawals?status=paid`)}
               className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-3.5 shadow-subtle hover:border-mid-gray/40 transition-all group flex flex-col justify-between min-h-[96px] cursor-pointer"
             >
               <div className="flex items-center justify-between">
@@ -1246,7 +1283,7 @@ export default function DashboardOverview() {
                   return (
                     <button 
                       key={status.key} 
-                      onClick={() => navigate(`/admin/${adminId}/courses?status=${status.code}`)}
+                      onClick={() => navigate(`/admin/courses?status=${status.code}`)}
                       className="text-left w-full flex flex-col justify-between p-2.5 bg-paper hover:bg-canvas/30 border border-hairline rounded-[6px] transition-all hover:border-mid-gray/30 group cursor-pointer"
                     >
                       <div className="flex items-start justify-between gap-1 w-full">
@@ -1306,7 +1343,7 @@ export default function DashboardOverview() {
                   return (
                     <button 
                       key={status.key} 
-                      onClick={() => navigate(`/admin/${adminId}/users?status=${status.code}`)}
+                      onClick={() => navigate(`/admin/users?status=${status.code}`)}
                       className="text-left w-full flex flex-col justify-between p-2.5 bg-paper hover:bg-canvas/30 border border-hairline rounded-[6px] transition-all hover:border-mid-gray/30 group cursor-pointer"
                     >
                       <div className="flex items-center justify-between gap-2 w-full">
@@ -1442,7 +1479,7 @@ export default function DashboardOverview() {
                       (dashboardData?.top_courses?.data?.items || []).map((course: any, idx: number) => (
                         <tr 
                           key={idx} 
-                          onClick={() => navigate(`/admin/${adminId}/courses?open_course_id=${course.course_id}`)}
+                          onClick={() => navigate(`/admin/courses?open_course_id=${course.course_id}`)}
                           className={cn("hover:bg-canvas/50 transition-colors cursor-pointer", idx === 0 ? "bg-success-soft/30 border-l-2 border-success" : "")}
                         >
                           <td className="py-2.5 pl-2 font-semibold text-mid-gray">#{idx + 1}</td>
@@ -1496,7 +1533,7 @@ export default function DashboardOverview() {
                         return (
                           <tr 
                             key={idx} 
-                            onClick={() => navigate(`/admin/${adminId}/users?role=instructor&open_user_id=${inst.instructor_id}`)}
+                            onClick={() => navigate(`/admin/users?role=instructor&open_user_id=${inst.instructor_id}`)}
                             className={cn("hover:bg-canvas/50 transition-colors cursor-pointer", idx === 0 ? "bg-canvas/30 border-l-2 border-ink" : "")}
                           >
                             <td className="py-2.5 font-medium text-ink flex items-center gap-2 pl-2">
@@ -1595,7 +1632,7 @@ export default function DashboardOverview() {
                       return (
                         <div 
                           key={idx} 
-                          onClick={() => navigate(`/admin/${adminId}/orders?open_order_id=${order.id}`)}
+                          onClick={() => navigate(`/admin/orders?open_order_id=${order.id}`)}
                           className={cn("relative pl-3.5 pr-2 py-2 border border-hairline/40 rounded-[6px] hover:bg-canvas/40 transition-colors cursor-pointer", borderClass)}
                         >
                           <div className="flex items-center justify-between">
@@ -1655,7 +1692,7 @@ export default function DashboardOverview() {
                       return (
                         <div 
                           key={idx} 
-                          onClick={() => navigate(`/admin/${adminId}/courses?open_course_id=${course.id}`)}
+                          onClick={() => navigate(`/admin/courses?open_course_id=${course.id}`)}
                           className={cn("relative pl-3.5 pr-2 py-2 border border-hairline/40 rounded-[6px] hover:bg-canvas/40 transition-colors cursor-pointer", borderClass)}
                         >
                           <div className="flex items-center justify-between">

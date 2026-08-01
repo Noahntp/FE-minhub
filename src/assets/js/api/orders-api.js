@@ -1,7 +1,8 @@
 import { getOrders as getRepoOrders, getOrderById as getRepoOrderById, populateOrder, isValidOrderPaymentPair } from "@/assets/js/mocks/mock-repository.js";
+import { apiFetchEnvelope } from "@/shared/lib/api-client";
 
-const USE_MOCK = true;
-const API_BASE_URL = "/api/admin/orders";
+const USE_MOCK = false;
+const API_BASE_URL = "/admin/orders"; // prefix api is handled by apiFetchEnvelope!
 
 /**
  * Helper chuẩn hóa chuỗi tìm kiếm không phân biệt hoa/thường
@@ -87,16 +88,25 @@ export function calculateOrdersSummary(orders) {
 
 /**
  * Lấy danh sách đơn hàng (hỗ trợ phân trang, lọc, summary)
- * API Contract Query List: page, per_page, status, payment_status, user_id, course_id, order_code, date_from, date_to
  */
 export async function getOrders(params = {}) {
   if (!USE_MOCK) {
-    const query = new URLSearchParams(params).toString();
-    const response = await fetch(`${API_BASE_URL}?${query}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const query = new URLSearchParams();
+    if (params.page) query.set("page", params.page);
+    if (params.per_page) query.set("per_page", params.per_page);
+    if (params.status && params.status !== "all") query.set("status", params.status);
+    if (params.search) query.set("order_code", params.search); // Search field maps to order_code in validation query!
+
+    const res = await apiFetchEnvelope(`${API_BASE_URL}?${query.toString()}`);
+    if (res && res.data) {
+      return {
+        success: true,
+        message: "Lấy dữ liệu thành công.",
+        data: res.data,
+        meta: res.meta
+      };
     }
-    return await response.json();
+    return { success: false, message: "Lỗi kết nối", data: { summary: {}, items: [] } };
   }
 
   // Giả lập độ trễ mạng 350ms
@@ -281,12 +291,15 @@ export async function getOrders(params = {}) {
  */
 export async function getOrder(id) {
   if (!USE_MOCK) {
-    const response = await fetch(`${API_BASE_URL}/${id}`);
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.message || `HTTP error! status: ${response.status}`);
+    const res = await apiFetchEnvelope(`${API_BASE_URL}/${id}`);
+    if (res && res.data) {
+      return {
+        success: true,
+        message: "Lấy chi tiết đơn hàng thành công.",
+        data: res.data
+      };
     }
-    return await response.json();
+    return { success: false, message: "Lỗi kết nối", data: null };
   }
 
   await new Promise((resolve) => setTimeout(resolve, 200));

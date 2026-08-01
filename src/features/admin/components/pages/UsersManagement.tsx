@@ -76,7 +76,6 @@ function UserStatusMarker({ locked, status, effectiveStatus }: { locked: boolean
 }
 
 export default function UsersManagement() {
-  const { adminId } = useParams<{ adminId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -209,9 +208,9 @@ export default function UsersManagement() {
 
   // Date conversion helpers
   const getDatesFromPreset = (preset: string) => {
-    const now = new Date();
+    const now = new Date('2026-06-30');
     let computedFrom = '';
-    let computedTo = '';
+    let computedTo = now.toISOString().split('T')[0];
 
     if (preset === 'today') {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());

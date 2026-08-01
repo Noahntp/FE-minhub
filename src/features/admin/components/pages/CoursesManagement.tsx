@@ -135,12 +135,8 @@ function CourseStatusMarker({ status }: { status: string }) {
 export default function CoursesManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { adminId } = useParams<{ adminId: string }>();
-
   const goToCourseReview = (courseId: number, event: React.MouseEvent) => {
-    if (adminId) {
-      navigate(`/admin/${adminId}/course-reviews?open_course_id=${courseId}`);
-    }
+    navigate(`/admin/course-reviews?open_course_id=${courseId}`);
   };
 
   // URL Parameters mapping
@@ -184,7 +180,7 @@ export default function CoursesManagement() {
 
   // Data States
   const [items, setItems] = useState<any[]>([]);
-  const [allItems, setAllItems] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({
     total_courses: 0,
     published_courses: 0,
@@ -238,20 +234,22 @@ export default function CoursesManagement() {
     course: null,
   });
 
-  // Extract unique categories from allItems mock data
-  const uniqueCategories = useMemo(() => {
-    const map = new Map<number, string>();
-    allItems.forEach(c => {
-      if (c.categories && Array.isArray(c.categories)) {
-        c.categories.forEach((cat: any) => {
-          if (cat.id && cat.name) {
-            map.set(cat.id, cat.name);
-          }
-        });
+  // Load categories directly from Category API for filter dropdown
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await import('@/assets/js/api/categories-api.js').then(m => m.getCategories({ per_page: 200 }));
+        if (res && Array.isArray(res.data)) {
+          setCategories(res.data.map((c: any) => ({ id: c.id, name: c.name })));
+        } else if (res && res.data && Array.isArray(res.data.items)) {
+          setCategories(res.data.items.map((c: any) => ({ id: c.id, name: c.name })));
+        }
+      } catch (err) {
+        console.error("Failed to load categories:", err);
       }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [allItems]);
+    };
+    loadCategories();
+  }, []);
 
   // Click outside and Esc handlers
   useEffect(() => {
@@ -372,13 +370,11 @@ export default function CoursesManagement() {
       };
 
       const tableRes = await coursesApi.getCourses(queryParams);
-      const allRes = await coursesApi.getCourses({ per_page: 9999 });
 
-      if (tableRes.success && allRes.success) {
+      if (tableRes.success) {
         setItems(tableRes.data.items);
         setMeta(tableRes.meta);
         setSummary(tableRes.data.summary);
-        setAllItems(allRes.data.items);
         setLastUpdated(formatLastUpdate());
 
         if (showSuccessToast) {
@@ -569,7 +565,7 @@ export default function CoursesManagement() {
       list.push({ key: 'status', label: `Trạng thái: ${labels[statusParam] || statusParam}` });
     }
     if (categoryIdParam) {
-      const found = uniqueCategories.find(c => String(c.id) === categoryIdParam);
+      const found = categories.find(c => String(c.id) === categoryIdParam);
       list.push({ key: 'category_id', label: `Danh mục: ${found ? found.name : categoryIdParam}` });
     }
     if (levelParam) {
@@ -597,7 +593,7 @@ export default function CoursesManagement() {
       }
     }
     return list;
-  }, [searchParam, statusParam, categoryIdParam, levelParam, isFeaturedParam, timePresetParam, dateFromParam, dateToParam, uniqueCategories]);
+  }, [searchParam, statusParam, categoryIdParam, levelParam, isFeaturedParam, timePresetParam, dateFromParam, dateToParam, categories]);
 
   const removeSingleChip = (key: string) => {
     if (key === 'date_range') {
@@ -863,7 +859,7 @@ export default function CoursesManagement() {
               value={formCategory}
               options={[
                 { value: '', label: 'Tất cả danh mục', colorClass: 'text-neutral-700', hoverBgClass: 'hover:bg-neutral-50' },
-                ...uniqueCategories.map(cat => ({
+                ...categories.map(cat => ({
                   value: String(cat.id),
                   label: cat.name,
                   colorClass: 'text-neutral-700',
