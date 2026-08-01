@@ -12,8 +12,19 @@ import { QuickNavWidget } from './components/QuickNavWidget';
 import { RecentlyViewedWidget } from './components/RecentlyViewedWidget';
 import { RecommendedCategoriesWidget } from './components/RecommendedCategoriesWidget';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
+import { useHomepageData } from './hooks/useHomepageData';
 
 export default function HomePage() {
+  const { data, isLoading } = useHomepageData();
+
+  if (isLoading || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-muted/20 pt-8 pb-20">
@@ -29,16 +40,16 @@ export default function HomePage() {
               <RoadmapTimeline />
               
               {/* Trending Courses */}
-              <TrendingCourses />
+              <TrendingCourses courses={data.trendingCourses} />
 
               {/* What should I learn next? */}
-              <SmartDiscovery />
+              <SmartDiscovery courses={data.recommendedCourses} />
 
               {/* New Courses */}
-              <NewCourses />
+              <NewCourses courses={data.newCourses} />
 
               {/* Top Instructors */}
-              <TopInstructors />
+              <TopInstructors instructors={data.topInstructors} />
             </div>
             
             {/* Cột phụ (Sidebar - Assistant Widgets) */}
@@ -54,7 +65,7 @@ export default function HomePage() {
                 <RecentlyViewedWidget />
                 
                 {/* Recommended Categories */}
-                <RecommendedCategoriesWidget />
+                <RecommendedCategoriesWidget categories={data.featuredCategories} />
 
                 {/* Quick Navigation */}
                 <QuickNavWidget />

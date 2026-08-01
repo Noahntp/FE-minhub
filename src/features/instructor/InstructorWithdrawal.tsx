@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ApiService } from '@/services/api';
+import { instructorApi } from '@/features/instructor/api';
+import { authApi } from '@/features/auth/api';
 import { 
   Wallet, Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, 
   Sparkles, X, Loader2, ShieldCheck, Eye, EyeOff, Lock,
@@ -134,7 +135,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
     setPasswordError(null);
 
     try {
-      const res = await ApiService.revealInstructorPayoutAccount(activePayoutAccount.id, {
+      const res = await instructorApi.revealInstructorPayoutAccount(activePayoutAccount.id, {
         password: confirmPassword,
       });
 
@@ -254,8 +255,8 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
   const fetchSummaryAndAccounts = useCallback(async () => {
     try {
       const [summaryRes, accountsRes] = await Promise.allSettled([
-        ApiService.getInstructorWithdrawalSummary(),
-        ApiService.getInstructorPayoutAccounts()
+        instructorApi.getInstructorWithdrawalSummary(),
+        instructorApi.getInstructorPayoutAccounts()
       ]);
 
       if (summaryRes.status === 'fulfilled') {
@@ -304,7 +305,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
   const fetchHistoryList = useCallback(async (page = 1, tab = historyTab, status = statusFilter) => {
     setLoadingList(true);
     try {
-      const res = await ApiService.getInstructorWithdrawals({ 
+      const res = await instructorApi.getInstructorWithdrawals({ 
         page, 
         per_page: meta.perPage,
         status: status !== 'all' ? status : undefined
@@ -401,7 +402,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
     setEarlyFormError(null);
 
     try {
-      const res = await ApiService.requestInstructorEarlyWithdrawalOtp({
+      const res = await authApi.requestInstructorEarlyWithdrawalOtp({
         amount: amountNum,
         payout_account_id: activePayoutAccount?.id,
       });
@@ -437,7 +438,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
     setEarlyOtpError(null);
 
     try {
-      await ApiService.createInstructorEarlyWithdrawal({
+      await instructorApi.createInstructorEarlyWithdrawal({
         amount: Number(earlyAmount),
         payout_account_id: activePayoutAccount?.id,
         otp: earlyOtpCode.trim(),
@@ -464,7 +465,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
 
     setCancellingId(id);
     try {
-      await ApiService.cancelInstructorWithdrawal(id);
+      await instructorApi.cancelInstructorWithdrawal(id);
       showToast('Đã hủy yêu cầu thanh toán sớm.');
       await Promise.all([
         fetchSummaryAndAccounts(),
@@ -482,7 +483,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
     setIsDetailModalOpen(true);
     setLoadingDetail(true);
     try {
-      const res = await ApiService.getInstructorWithdrawal(id);
+      const res = await instructorApi.getInstructorWithdrawal(id);
       setSelectedItem(res?.data || res);
     } catch (err: any) {
       showToast('Không thể tải chi tiết đợt thanh toán.', 'error');
@@ -514,7 +515,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
         bank_name: accountForm.bankName,
       };
 
-      const otpRes = await ApiService.sendInstructorPayoutAccountOtp(activePayoutAccount?.id || 0, payload);
+      const otpRes = await authApi.sendInstructorPayoutAccountOtp(activePayoutAccount?.id || 0, payload);
       const resData = otpRes?.data || otpRes;
 
       setMaskedEmail(resData?.masked_email || 'in****@mindhub.test');
@@ -545,7 +546,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
     setAccountOtpError(null);
 
     try {
-      const res = await ApiService.verifyInstructorPayoutAccountChange(activePayoutAccount?.id || 0, accountOtpCode.trim());
+      const res = await instructorApi.verifyInstructorPayoutAccountChange(activePayoutAccount?.id || 0, accountOtpCode.trim());
       showToast('Cập nhật tài khoản nhận tiền thành công!');
       setIsAccountOtpModalOpen(false);
       await fetchSummaryAndAccounts();

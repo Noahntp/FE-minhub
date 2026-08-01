@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ApiService } from '@/services/api';
+import { instructorApi } from '@/features/instructor/api';
 import { 
   Search, Activity, DollarSign, ChevronLeft, ChevronRight, X, 
   TrendingUp, Calendar, BookOpen, Clock, AlertCircle, Sparkles, Loader2, ArrowRight,
@@ -161,12 +161,12 @@ export const InstructorRevenue: React.FC<InstructorRevenueProps> = ({ instructor
     const queryApiParams = buildRevenueQueryParams(filters);
 
     const [summaryResult, chartResult, enrollmentResult, topResult, breakdownResult, detailsResult] = await Promise.allSettled([
-      ApiService.getInstructorRevenueSummary(queryApiParams),
-      ApiService.getInstructorRevenueChart(queryApiParams),
-      ApiService.getInstructorEnrollmentChart(queryApiParams),
-      ApiService.getInstructorTopCourses({ ...queryApiParams, limit: 5 }),
-      ApiService.getInstructorRevenueCourseBreakdown(queryApiParams),
-      ApiService.getInstructorRevenueDetails(queryApiParams),
+      instructorApi.getInstructorRevenueSummary(queryApiParams),
+      instructorApi.getInstructorRevenueChart(queryApiParams),
+      instructorApi.getInstructorEnrollmentChart(queryApiParams),
+      instructorApi.getInstructorTopCourses({ ...queryApiParams, limit: 5 }),
+      instructorApi.getInstructorRevenueCourseBreakdown(queryApiParams),
+      instructorApi.getInstructorRevenueDetails(queryApiParams),
     ]);
 
     // 1. Process Summary Result
@@ -318,7 +318,7 @@ export const InstructorRevenue: React.FC<InstructorRevenueProps> = ({ instructor
     setExporting(true);
     try {
       const queryApiParams = buildRevenueQueryParams(filters);
-      const res: any = await ApiService.exportInstructorRevenues(queryApiParams);
+      const res: any = await instructorApi.exportInstructorRevenues(queryApiParams);
 
       if (res instanceof Blob || typeof res === 'string') {
         const blob = res instanceof Blob ? res : new Blob([res], { type: 'text/csv;charset=utf-8;' });

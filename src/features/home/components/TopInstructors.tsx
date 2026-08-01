@@ -2,46 +2,8 @@ import React from "react";
 import { Users, Star, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const INSTRUCTORS = [
-  {
-    id: "1",
-    name: "Nguyễn Văn A",
-    title: "Senior Backend Engineer @ TechCorp",
-    avatar: "https://i.pravatar.cc/150?u=a",
-    students: "12,300+",
-    courses: 5,
-    rating: 4.9
-  },
-  {
-    id: "2",
-    name: "Trần Thị B",
-    title: "UX Researcher & Designer",
-    avatar: "https://i.pravatar.cc/150?u=b",
-    students: "8,400+",
-    courses: 3,
-    rating: 4.8
-  },
-  {
-    id: "3",
-    name: "Lê Văn C",
-    title: "Fullstack Developer",
-    avatar: "https://i.pravatar.cc/150?u=c",
-    students: "15,200+",
-    courses: 8,
-    rating: 5.0
-  },
-  {
-    id: "4",
-    name: "Phạm D",
-    title: "Cloud Architect",
-    avatar: "https://i.pravatar.cc/150?u=d",
-    students: "5,100+",
-    courses: 2,
-    rating: 4.7
-  }
-];
-
-export function TopInstructors() {
+export function TopInstructors({ instructors }: { instructors: any[] }) {
+  if (!instructors || instructors.length === 0) return null;
   return (
     <div className="mb-10">
       <div className="flex justify-between items-center mb-6">
@@ -57,7 +19,7 @@ export function TopInstructors() {
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {INSTRUCTORS.map(instructor => (
+        {instructors.slice(0, 4).map(instructor => (
           <Link 
             key={instructor.id} 
             to={`/instructors/${instructor.id}`}
@@ -68,17 +30,17 @@ export function TopInstructors() {
               alt={instructor.name}
               className="w-20 h-20 rounded-full object-cover mb-4 ring-4 ring-muted group-hover:ring-primary/20 transition-all"
             />
-            <h3 className="font-bold text-base group-hover:text-primary transition-colors">{instructor.name}</h3>
-            <p className="text-xs text-muted-foreground mt-1 mb-3 line-clamp-1">{instructor.title}</p>
+            <h3 className="font-bold text-base group-hover:text-primary transition-colors">{instructor.full_name}</h3>
+            <p className="text-xs text-muted-foreground mt-1 mb-3 line-clamp-1">{instructor.bio || instructor.expertise}</p>
             
             <div className="flex items-center gap-4 text-xs font-medium text-stone-600">
               <div className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
-                {instructor.students}
+                {instructor.total_enrollments_count || 0}
               </div>
               <div className="flex items-center gap-1 text-amber-500">
                 <Star className="w-3.5 h-3.5 fill-current" />
-                {instructor.rating}
+                {instructor.average_rating || 5.0}
               </div>
             </div>
           </Link>

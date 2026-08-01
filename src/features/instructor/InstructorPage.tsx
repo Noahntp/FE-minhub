@@ -1,30 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InstructorDashboard from './InstructorDashboard';
-import { User, Course } from '@/shared/types';
-import { ApiService } from '@/services/api';
+import { Course } from '@/shared/types';
+import { useApp } from '@/app/AppContext';
+import { instructorApi } from '@/features/instructor/api';
 
 export default function InstructorPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
+  const { currentUser } = useApp();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
+      if (!currentUser) return;
       try {
-        const currentUserRes = await ApiService.getCurrentUser();
-        const currentUserData = (currentUserRes as any)?.data || currentUserRes;
-        if (!currentUserData && isMounted) {
-          navigate('/login');
-          return;
-        }
-        if (isMounted) {
-          setUser(currentUserData);
-        }
-        
-        const coursesRes = await ApiService.getInstructorCourses({ per_page: 100 });
+        setLoading(true);
+        const coursesRes = await instructorApi.getInstructorCourses({ per_page: 100 });
         const coursesList = Array.isArray(coursesRes) ? coursesRes : (coursesRes?.data || []);
         if (isMounted) {
           setCourses(coursesList);
@@ -41,17 +34,17 @@ export default function InstructorPage() {
     return () => {
       isMounted = false;
     };
-  }, [navigate]);
+  }, [currentUser]);
 
-  if (loading || !user) {
+  if (loading || !currentUser) {
     return <div className="p-20 text-center text-stone-500 font-medium">Đang tải dữ liệu giảng viên...</div>;
   }
 
   return (
     <div className="w-full h-full min-h-screen relative">
       <InstructorDashboard 
-        currentUser={user as any}
-        courses={courses as any}
+        currentUser={currentUser}
+        courses={courses || []}
         onCreateCourseDraft={(newC) => {
           console.log("Create draft:", newC);
         }}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Check, ChevronRight, Loader2, Sparkles, AlertCircle } from 'lucide-react';
-import { ApiService } from '../../services/api';
+import { instructorApi } from '@/features/instructor/api';
 
 interface InstructorNotificationDropdownProps {
   unreadCount: number;
@@ -52,7 +52,7 @@ export const InstructorNotificationDropdown: React.FC<InstructorNotificationDrop
     const fetchNotifications = async () => {
       setLoading(true);
       try {
-        const res = await ApiService.getInstructorNotifications();
+        const res = await instructorApi.getInstructorNotifications();
         const items = res?.data?.data || res?.data || (Array.isArray(res) ? res : []);
         if (isMounted && Array.isArray(items)) {
           const mapped = items.slice(0, 6).map((item: any, idx: number) => ({
@@ -86,7 +86,7 @@ export const InstructorNotificationDropdown: React.FC<InstructorNotificationDrop
     if (markingAll) return;
     setMarkingAll(true);
     try {
-      await ApiService.markAllInstructorNotificationsAsRead();
+      await instructorApi.markAllInstructorNotificationsAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       onUnreadCountChange(0);
     } catch {
@@ -98,7 +98,7 @@ export const InstructorNotificationDropdown: React.FC<InstructorNotificationDrop
 
   const handleItemClick = async (id: number | string) => {
     try {
-      await ApiService.markInstructorNotificationAsRead(id);
+      await instructorApi.markInstructorNotificationAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
       onUnreadCountChange(Math.max(0, unreadCount - 1));
     } catch {

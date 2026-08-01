@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, Film, FileText, CheckCircle, AlertCircle } from 'lucide-react';
-import { ApiService } from '@/services/api';
+import { instructorApi } from '@/features/instructor/api';
 import { getVideoDurationSecondsFromFile, resolveMediaUrl } from '@/shared/utils/format';
 
 interface UploaderProps {
@@ -37,7 +37,7 @@ export const InstructorImageUploader: React.FC<UploaderProps> = ({ value, onChan
 
     try {
       setUploading(true);
-      const res = await ApiService.uploadInstructorFile(file, 'course_thumbnail');
+      const res = await instructorApi.uploadInstructorFile(file, 'course_thumbnail');
       if (res && res.url) {
         onChange(res.url);
         if (localBlobUrl) {
@@ -186,7 +186,7 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
         setProgress((prev) => (prev >= 90 ? 90 : prev + 15));
       }, 200);
 
-      const res = await ApiService.uploadInstructorFile(file, type);
+      const res = await instructorApi.uploadInstructorFile(file, type);
       clearInterval(progressTimer);
       setProgress(100);
 
@@ -328,7 +328,7 @@ export const InstructorAssetUploader: React.FC<AssetUploaderProps> = ({ onAssetU
 
     try {
       setUploading(true);
-      const res = await ApiService.uploadInstructorFile(file, 'lesson_asset');
+      const res = await instructorApi.uploadInstructorFile(file, 'lesson_asset');
       onAssetUploaded({
         file,
         file_url: res.url,

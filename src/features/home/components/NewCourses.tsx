@@ -3,37 +3,9 @@ import { CourseCard, CourseData } from "../../courses/components/CourseCard";
 import { Rocket, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const NEW_COURSES: CourseData[] = [
-  {
-    id: "11",
-    title: "AI Prompt Engineering Masterclass",
-    instructor: "Lê Văn C",
-    thumbnail: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80",
-    duration: "5 giờ",
-    difficulty: "Beginner",
-    status: "not_enrolled"
-  },
-  {
-    id: "12",
-    title: "Rust for Web Developers",
-    instructor: "Phạm D",
-    thumbnail: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80",
-    duration: "15 giờ",
-    difficulty: "Intermediate",
-    status: "not_enrolled"
-  },
-  {
-    id: "13",
-    title: "Thiết kế System Architecture",
-    instructor: "Nguyễn Văn A",
-    thumbnail: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80",
-    duration: "30 giờ",
-    difficulty: "Advanced",
-    status: "not_enrolled"
-  }
-];
-
-export function NewCourses() {
+export function NewCourses({ courses }: { courses: CourseData[] }) {
+  if (!courses || courses.length === 0) return null;
+  
   return (
     <div className="mb-10">
       <div className="flex justify-between items-center mb-6">
@@ -48,8 +20,8 @@ export function NewCourses() {
         </Link>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {NEW_COURSES.map(course => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {courses.map(course => (
           <CourseCard key={course.id} course={course} />
         ))}
       </div>

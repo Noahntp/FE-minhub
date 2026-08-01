@@ -1,9 +1,10 @@
+import { ApiError } from "@/shared/lib/api-client";
 import React, { useState } from 'react';
 import { Database, User, Shield, Lock, Mail, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X } from 'lucide-react';
 import { User as UserType, normalizeUser } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
-import { ApiService, ApiError } from '@/services/api';
+import { authApi } from '@/features/auth/api';
 import { getDashboardRouteByRole } from '@/router/routes';
 
 const DB_SEED_ACCOUNTS = [
@@ -148,17 +149,18 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     
     setSuccessMsg('Đang đăng nhập...');
     setErrorMsg('');
-    ApiService.login({ email: emailTrimmed, password })
+    authApi.login({ email: emailTrimmed, password })
       .then(res => {
         const apiUser = normalizeUser({
-          ...res,
+          ...res.user,
           isEmailVerified: true
         });
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);
-        onClose();
         if (navigateTo) {
           navigateTo(getDashboardRouteByRole(apiUser.role));
+        } else {
+          onClose();
         }
       })
       .catch(err => {
@@ -182,7 +184,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     setErrorMsg('');
     setSuccessMsg(`Đã điền tài khoản mẫu: ${seed.email}. Đang kết nối xác thực...`);
     
-    ApiService.login({ email: seed.email, password: seed.password })
+    authApi.login({ email: seed.email, password: seed.password })
       .then(res => {
         const apiUser = normalizeUser({
           ...res.user,
@@ -191,9 +193,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         });
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);
-        onClose();
         if (navigateTo) {
           navigateTo(getDashboardRouteByRole(apiUser.role));
+        } else {
+          onClose();
         }
       })
       .catch(err => {
@@ -228,7 +231,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const emailTrimmed = email.trim().toLowerCase();
 
     setSuccessMsg('Đang tạo tài khoản mới...');
-    ApiService.register({ 
+    authApi.register({ 
       full_name: name.trim(), 
       email: emailTrimmed, 
       password,
@@ -247,10 +250,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);
         alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
-        onClose();
         if (navigateTo) {
           navigateTo(getDashboardRouteByRole(apiUser.role));
-
+        } else {
+          onClose();
         }
       })
       .catch(err => {
@@ -280,7 +283,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     
     setErrorMsg('');
     setSuccessMsg('Đang gửi yêu cầu khôi phục mật khẩu...');
-    ApiService.requestPasswordReset(emailTrimmed)
+    authApi.requestPasswordReset(emailTrimmed)
       .then(() => {
         setSuccessMsg('Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.');
       })
@@ -313,7 +316,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     setGoogleLoading(true);
     setErrorMsg('');
     setSuccessMsg('Đang kết nối Google OAuth 2.0...');
-    ApiService.getGoogleRedirectUrl()
+    authApi.getGoogleRedirectUrl()
       .then(url => {
         if (url) {
           window.location.assign(url);
@@ -340,7 +343,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     <div className="min-h-[85vh] bg-stone-50 flex items-center justify-center p-4">
       <div 
         id="auth-container" 
-        className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-brand-light-active overflow-hidden flex flex-col text-main-darker animate-fade-in"
+        className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-brand-light-active overflow-hidden flex flex-col text-main-darker animate-fade-in"
       >
         {/* Banner with Brand Theme */}
         <div className="bg-deep-indigo p-5 text-brand-light flex items-center justify-between border-b-4 border-emerald-500 shrink-0">
@@ -382,10 +385,8 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
               {/* LOGIN MODE */}
               {mode === 'login' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* Left Column: Form inputs */}
-              <form onSubmit={handleLogin} className="space-y-4 lg:col-span-7 text-left">
+            <div>
+              <form onSubmit={handleLogin} className="space-y-4 text-left">
                 <div>
                   <h3 className="text-base font-bold text-stone-850 flex items-center gap-1.5 border-b pb-2 mb-3">
                     Đăng Nhập Thành Viên
@@ -481,138 +482,6 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                   </p>
                 </div>
               </form>
-
-              {/* Right Column: Previously Logged-in Accounts on this device & Seed Database Accounts */}
-              <div className="lg:col-span-5 bg-stone-50 border border-stone-200 rounded-2xl p-4 text-left flex flex-col justify-between self-stretch">
-                <div>
-                  <div className="flex border-b border-stone-200 mb-3 pb-1.5 justify-between items-center select-none">
-                    <button 
-                      type="button"
-                      onClick={() => setRightPanelTab('seed')}
-                      className={`text-[9px] font-bold uppercase pb-1 tracking-wider border-b-2 transition-all cursor-pointer ${rightPanelTab === 'seed' ? 'border-[#8b5e3c] text-[#8b5e3c]' : 'border-transparent text-stone-400 hover:text-stone-600'}`}
-                    >
-                      💾 CSDL phpMyAdmin
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setRightPanelTab('recent')}
-                      className={`text-[9px] font-bold uppercase pb-1 tracking-wider border-b-2 transition-all cursor-pointer ${rightPanelTab === 'recent' ? 'border-[#8b5e3c] text-[#8b5e3c]' : 'border-transparent text-stone-400 hover:text-stone-600'}`}
-                    >
-                      🕰️ Đăng nhập gần đây
-                    </button>
-                  </div>
-
-                  {rightPanelTab === 'seed' ? (
-                    <div className="space-y-2">
-                      <div className="border-b pb-1 border-stone-200/50 mb-1.5 font-sans">
-                        <span className="text-[8px] font-bold uppercase text-stone-500 block font-mono">DỮ LIỆU THẬT TRONG DATABASE BE</span>
-                        <p className="text-[10px] text-stone-500 leading-normal">Bấm bất kỳ tài khoản nào để tự động điền mật khẩu mẫu <b className="font-mono">12345678</b>:</p>
-                      </div>
-
-                      <div className="space-y-1.5 max-h-[250px] overflow-y-auto tactile-scrollbar pr-0.5">
-                        {DB_SEED_ACCOUNTS.map((seed) => {
-                          let roleBadge = "bg-[#f5ece3] text-[#8b5e3c]";
-                          if (seed.role === 'instructor') {
-                            roleBadge = "bg-blue-50 text-blue-700 border border-blue-100";
-                          } else if (seed.role === 'admin') {
-                            roleBadge = "bg-red-50 text-red-700 border border-red-100";
-                          }
-
-                          return (
-                            <button
-                              type="button"
-                              key={seed.id}
-                              onClick={() => handleSeedClick(seed)}
-                              className="w-full p-2 bg-white hover:bg-[#faf6f2] border border-stone-200 hover:border-[#8b5e3c] rounded-xl text-left transition-all flex items-center gap-2 group relative shadow-3xs cursor-pointer"
-                              title="Click để tự động cấu hình và đăng nhập"
-                            >
-                              <img src={seed.avatar} alt="Seed avatar" className="w-7 h-7 rounded-full object-cover shrink-0 border border-stone-100 shadow-3xs animate-fade-in" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center gap-1">
-                                  <span className="text-[10px] font-bold text-stone-800 group-hover:text-[#8b5e3c] truncate leading-none">{seed.name}</span>
-                                  <span className={`text-[6px] px-1 py-0.2 rounded uppercase font-bold font-mono tracking-wider whitespace-nowrap shrink-0 ${roleBadge}`}>
-                                    {seed.role.toUpperCase()}
-                                  </span>
-                                </div>
-                                <span className="block text-[8px] text-stone-400 truncate font-mono mt-0.5">{seed.email}</span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2 font-sans">
-                      <div className="border-b pb-1 border-stone-200/50 mb-1.5">
-                        <span className="text-[8px] font-bold uppercase text-stone-500 block font-mono">LỊCH SỬ THIẾT BỊ</span>
-                        <p className="text-[10px] text-stone-500 leading-normal">Tài khoản từng đăng nhập gần đây, bấm để truy cập nhanh:</p>
-                      </div>
-
-                      <div className="space-y-1.5 max-h-[250px] overflow-y-auto tactile-scrollbar pr-0.5">
-                        {loginHistory.map((u, i) => {
-                          let badgeColor = "bg-[#f5ece3] text-[#8b5e3c]";
-                          if (u.role === 'instructor') {
-                            badgeColor = "bg-blue-50 text-blue-700 border border-blue-100";
-                          } else if (u.role === 'admin') {
-                            badgeColor = "bg-red-50 text-red-700 border border-red-100";
-                          }
-
-                          return (
-                            <button
-                              type="button"
-                              key={u.id || i}
-                              onClick={() => handleHistoryClick(u)}
-                              className="w-full p-2 bg-white hover:bg-stone-100 border border-stone-200 hover:border-brand-normal rounded-xl text-left transition-all flex items-center gap-2 group relative shadow-3xs cursor-pointer"
-                              title="Bấm để đăng nhập nhanh tức thì"
-                            >
-                              <img src={u.avatar} alt="Avatar profile" className="w-7 h-7 rounded-full object-cover shrink-0 border border-stone-100 shadow-3xs" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center gap-1">
-                                  <span className="text-[10px] font-bold text-stone-800 group-hover:text-brand-dark truncate leading-none">{u.name}</span>
-                                  <span className={`text-[6px] px-1 py-0.2 rounded uppercase font-bold font-mono tracking-wider whitespace-nowrap shrink-0 ${badgeColor}`}>
-                                    {u.role ? u.role.substring(0, 5).toUpperCase() : 'USER'}
-                                  </span>
-                                </div>
-                                <span className="block text-[8px] text-stone-400 truncate font-mono mt-0.5">{u.email}</span>
-                              </div>
-                            </button>
-                          );
-                        })}
-
-                        {loginHistory.length === 0 && (
-                          <div className="text-center py-6 text-stone-400 text-[10px] font-serif">
-                            Chưa có lịch sử tài khoản nào trên thiết bị này.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2 border-t border-stone-200/50 flex items-center justify-between mt-3 text-stone-500 text-justify">
-                  <p className="text-[9px] leading-tight font-serif flex-1 mt-1 pr-1.5">
-                    {rightPanelTab === 'seed' 
-                      ? "* Hãy click vào tài khoản DB ở trên để tự cấu hình email/mật khẩu rồi click Truy cập."
-                      : "* Bấm tài khoản lưu vết để bỏ qua gõ phím và đăng nhập lập tức."}
-                  </p>
-                  {rightPanelTab === 'recent' && loginHistory.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử thiết bị không?')) {
-                          localStorage.removeItem('mindhub_logged_in_history');
-                          setLoginHistory([]);
-                          alert('Đã xóa sạch bộ nhớ tạm!');
-                        }
-                      }}
-                      className="text-[8px] text-red-650 hover:underline hover:text-red-700 ml-2 font-mono whitespace-nowrap font-bold cursor-pointer"
-                    >
-                      Xoá lịch sử
-                    </button>
-                  )}
-                </div>
-              </div>
-
             </div>
           )}
 
@@ -659,7 +528,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 </div>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-stone-605 mb-1">Họ và Tên</label>
                   <div className="relative">
@@ -724,7 +593,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               {/* Instructor specialty & Bio form fields */}
               {registerRole === 'instructor' && (
                 <div className="space-y-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200 grid grid-cols-1 gap-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-stone-605 mb-1">Lĩnh vực Giảng dạy chuyên môn</label>
                       <select

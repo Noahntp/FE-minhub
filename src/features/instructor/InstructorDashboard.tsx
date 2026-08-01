@@ -57,7 +57,10 @@ const CourseTableSkeleton = () => (
 );
 import { User, Course, Chapter, Lesson, Quiz, QuizQuestion, PayoutRequest } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
-import { ApiService } from '@/services/api';
+import { sharedApi } from '@/features/shared/api';
+import { authApi } from '@/features/auth/api';
+import { categoryApi } from '@/features/category/api';
+import { instructorApi } from '@/features/instructor/api';
 import { InstructorRevenue } from './InstructorRevenue';
 import { InstructorWithdrawal } from './InstructorWithdrawal';
 import { InstructorQAModule } from '@/features/qa/index';
@@ -136,7 +139,7 @@ function InstructorSecurityPanel({ currentUser }: { currentUser: User }) {
   const handleVerifyEmail = async () => {
     setEmailStatus('pending');
     try {
-      await ApiService.resendVerificationEmail(currentUser.email, 'verify_email');
+      await authApi.resendVerificationEmail(currentUser.email, 'verify_email');
       alert('Đã gửi email xác minh đến: ' + currentUser.email);
       setEmailStatus('unverified');
     } catch (err: any) {
@@ -147,7 +150,7 @@ function InstructorSecurityPanel({ currentUser }: { currentUser: User }) {
 
   const handleEnableOtp = async () => {
     try {
-      await ApiService.sendPhoneOtp(currentUser.phone || '', 'setup_2fa');
+      await authApi.sendPhoneOtp(currentUser.phone || '', 'setup_2fa');
       setOtpStep('setup');
     } catch (err: any) {
       alert(err.message || 'Lỗi gửi mã OTP');
@@ -157,7 +160,7 @@ function InstructorSecurityPanel({ currentUser }: { currentUser: User }) {
   const handleConfirmOtp = async () => {
     if (otpCode.length === 6) {
       try {
-        await ApiService.verifyPhoneOtp(currentUser.phone || '', otpCode, 'verify_phone');
+        await authApi.verifyPhoneOtp(currentUser.phone || '', otpCode, 'verify_phone');
         setOtpEnabled(true);
         setOtpStep('idle');
         alert('Đã bật xác thực 2 lớp thành công!');
@@ -404,7 +407,7 @@ export default function InstructorDashboard({
       setCoursesList(propCourses);
     } else if (!hasFetchedCoursesRef.current) {
       hasFetchedCoursesRef.current = true;
-      ApiService.getInstructorCourses({ per_page: 100 })
+      instructorApi.getInstructorCourses({ per_page: 100 })
         .then(res => {
           const list = Array.isArray(res) ? res : (res?.data || []);
           if (Array.isArray(list)) {
@@ -487,6 +490,10 @@ export default function InstructorDashboard({
       targetUrl = '/instructor/discount-codes';
     } else if (tab === 'security') {
       targetUrl = '/instructor/profile';
+    } else if (tab === 'students') {
+      targetUrl = '/instructor/students';
+    } else if (tab === 'revenue') {
+      targetUrl = '/instructor/revenue';
     }
 
     if (window.location.pathname + window.location.search !== targetUrl) {
@@ -510,7 +517,7 @@ export default function InstructorDashboard({
     let isMounted = true;
     const fetchUnreadCount = async () => {
       try {
-        const res = await ApiService.getInstructorUnreadNotificationCount();
+        const res = await instructorApi.getInstructorUnreadNotificationCount();
         if (isMounted) {
           setUnreadNotificationCount(res?.unread_count ?? 0);
         }
@@ -719,7 +726,7 @@ export default function InstructorDashboard({
   const loadOverviewData = async () => {
     setIsOverviewLoading(true);
     try {
-      const res = await ApiService.getInstructorDashboard();
+      const res = await instructorApi.getInstructorDashboard();
       setDashboardOverview(res);
     } catch (err: any) {
       console.error("Error loading dashboard overview stats:", err);
@@ -733,7 +740,7 @@ export default function InstructorDashboard({
     setRevenueChartError(null);
     try {
       const dates = resolveDateFilter(filterType);
-      const res = await ApiService.getInstructorRevenueChart({
+      const res = await instructorApi.getInstructorRevenueChart({
         ...dates,
         preset: filterType,
         period: filterType,
@@ -754,7 +761,7 @@ export default function InstructorDashboard({
     setEnrollmentChartError(null);
     try {
       const dates = resolveDateFilter(filterType);
-      const res = await ApiService.getInstructorEnrollmentChart({
+      const res = await instructorApi.getInstructorEnrollmentChart({
         ...dates,
         preset: filterType,
         period: filterType,
@@ -773,20 +780,20 @@ export default function InstructorDashboard({
   const loadSupportingSections = async () => {
     setIsSupportingLoading(true);
     await Promise.allSettled([
-      ApiService.getInstructorTopCourses({ limit: 5 }).then(res => {
+      instructorApi.getInstructorTopCourses({ limit: 5 }).then(res => {
         setTopCoursesData(res || []);
       }).catch(err => console.error("Error loading top courses:", err)),
 
-      ApiService.getInstructorUnansweredQuestions({ per_page: 3 }).then(res => {
+      instructorApi.getInstructorUnansweredQuestions({ per_page: 3 }).then(res => {
         const questionsList = res?.data?.list?.data || res?.data?.items || res?.data || [];
         setUnansweredQuestions(questionsList);
       }).catch(err => console.error("Error loading unanswered questions:", err)),
 
-      ApiService.getInstructorIncompleteCourses().then(res => {
+      instructorApi.getInstructorIncompleteCourses().then(res => {
         setIncompleteCoursesData(res || []);
       }).catch(err => console.error("Error loading incomplete courses:", err)),
 
-      ApiService.getInstructorDashboardAlerts({ limit: 3 }).then(res => {
+      instructorApi.getInstructorDashboardAlerts({ limit: 3 }).then(res => {
         setDashboardAlerts(res || []);
       }).catch(err => console.error("Error loading dashboard alerts:", err))
     ]);
@@ -865,7 +872,7 @@ export default function InstructorDashboard({
       loadSupportingSections();
     } else {
       try {
-        const res = await ApiService.getInstructorDashboardAlerts({ limit: 20 });
+        const res = await instructorApi.getInstructorDashboardAlerts({ limit: 20 });
         setDashboardAlerts(res || []);
         setIsAllAlertsExpanded(true);
       } catch (err) {
@@ -875,38 +882,38 @@ export default function InstructorDashboard({
   };
 
   useEffect(() => {
-    if (activeTab === 'overview' && ApiService.getConfig().mode === 'api') {
+    if (activeTab === 'overview' && sharedApi.getConfig().mode === 'api') {
       loadOverviewData();
       loadSupportingSections();
     }
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'overview' && ApiService.getConfig().mode === 'api') {
+    if (activeTab === 'overview' && sharedApi.getConfig().mode === 'api') {
       loadRevenueChart(revenueTimeFilter);
     }
   }, [activeTab, revenueTimeFilter]);
 
   useEffect(() => {
-    if (activeTab === 'overview' && ApiService.getConfig().mode === 'api') {
+    if (activeTab === 'overview' && sharedApi.getConfig().mode === 'api') {
       loadEnrollmentChart(enrollmentTimeFilter);
     }
   }, [activeTab, enrollmentTimeFilter]);
 
   // Fetch stats when user changes (Mock mode fallback only)
   useEffect(() => {
-    if (currentUser?.id && currentUser.role === 'instructor' && ApiService.getConfig().mode === 'mock') {
-      ApiService.getInstructorEnrollmentStats(currentUser.id).then(res => {
+    if (currentUser?.id && currentUser.role === 'instructor' && sharedApi.getConfig().mode === 'mock') {
+      instructorApi.getInstructorEnrollmentStats(currentUser.id).then(res => {
         setTotalEnrollments(res.totalEnrollments);
       }).catch(err => console.error("Error fetching enrollment stats", err));
 
       const now = new Date();
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      ApiService.getInstructorRevenueStats(currentUser.id, { startDate: firstDay }).then(res => {
+      instructorApi.getInstructorRevenueStats(currentUser.id, { startDate: firstDay }).then(res => {
         setRevenueStats(res);
       }).catch(err => console.error("Error fetching revenue stats", err));
 
-      ApiService.getInstructorQAStats(currentUser.id).then(res => {
+      instructorApi.getInstructorQAStats(currentUser.id).then(res => {
         setOverviewUnansweredQA(res.unansweredCount);
       }).catch(err => console.error("Error fetching qa stats", err));
     }
@@ -931,7 +938,7 @@ export default function InstructorDashboard({
         startDate = new Date(now.getFullYear(), 0, 1).toISOString();
       }
       
-      ApiService.getInstructorEnrollments(currentUser.id, {
+      instructorApi.getInstructorEnrollments(currentUser.id, {
         courseId: selectedStudentCourseId || 'all',
         status: studentFilterStatus,
         search: studentSearchQuery,
@@ -960,7 +967,7 @@ export default function InstructorDashboard({
     rejected: allInstructorCourses.filter(c => !(c as any).deleted_at && c.status === 'rejected').length,
   };
 
-  const isApiMode = ApiService.getConfig().mode === 'api';
+  const isApiMode = sharedApi.getConfig().mode === 'api';
 
   const overviewStats = isApiMode && dashboardOverview
     ? {
@@ -1115,7 +1122,7 @@ export default function InstructorDashboard({
     setHideModalCourse(null);
     setDeleteErrorSuggestHideCourse(null);
 
-    ApiService.hideInstructorCourse(courseId)
+    instructorApi.hideInstructorCourse(courseId)
       .then(() => {
         showDashboardToast('Đã ẩn khóa học.');
         loadInstructorCoursesList();
@@ -1133,7 +1140,7 @@ export default function InstructorDashboard({
     setCourseActionLoadingId(String(courseId));
     setCourseActionType('unhiding');
 
-    ApiService.unhideInstructorCourse(courseId)
+    instructorApi.unhideInstructorCourse(courseId)
       .then(() => {
         showDashboardToast('Đã hiện lại khóa học.');
         loadInstructorCoursesList();
@@ -1152,7 +1159,7 @@ export default function InstructorDashboard({
     setCourseActionType('deleting');
     setDeleteModalCourse(null);
 
-    ApiService.deleteInstructorCourse(courseId)
+    instructorApi.deleteInstructorCourse(courseId)
       .then(() => {
         showDashboardToast('Đã xóa khóa học.');
         loadInstructorCoursesList();
@@ -1184,8 +1191,8 @@ export default function InstructorDashboard({
 
   // Load categories
   useEffect(() => {
-    if (activeTab === 'courses' && ApiService.getConfig().mode === 'api') {
-      ApiService.getCategories()
+    if (activeTab === 'courses' && sharedApi.getConfig().mode === 'api') {
+      categoryApi.getCategories()
         .then(res => {
           const list = Array.isArray(res) ? res : (res as any)?.data || [];
           setCategoriesList(list);
@@ -1196,11 +1203,11 @@ export default function InstructorDashboard({
 
   // Load instructor courses list
   const loadInstructorCoursesList = async () => {
-    if (ApiService.getConfig().mode !== 'api') return;
+    if (sharedApi.getConfig().mode !== 'api') return;
     setIsCoursesLoading(true);
     setCoursesError(null);
     try {
-      const res: any = await ApiService.getInstructorCourses({
+      const res: any = await instructorApi.getInstructorCourses({
         page: coursePage,
         per_page: 10,
         status: courseStatusFilter,
@@ -1223,7 +1230,7 @@ export default function InstructorDashboard({
 
         let image = item.thumbnail_url || item.image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
         if (image && !image.startsWith('http://') && !image.startsWith('https://') && !image.startsWith('data:')) {
-          const apiBase = ApiService.getConfig().baseUrl.replace(/\/api\/?$/, '');
+          const apiBase = sharedApi.getConfig().baseUrl.replace(/\/api\/?$/, '');
           image = `${apiBase}${image.startsWith('/') ? '' : '/'}${image}`;
         }
 
@@ -1282,7 +1289,7 @@ export default function InstructorDashboard({
   };
 
   useEffect(() => {
-    if (activeTab === 'courses' && ApiService.getConfig().mode === 'api') {
+    if (activeTab === 'courses' && sharedApi.getConfig().mode === 'api') {
       loadInstructorCoursesList();
       loadOverviewData();
     }
@@ -1290,8 +1297,8 @@ export default function InstructorDashboard({
 
   // Load categories from API
   useEffect(() => {
-    if (ApiService.getConfig().mode === 'api') {
-      ApiService.getCategories().then((cats: any) => {
+    if (sharedApi.getConfig().mode === 'api') {
+      categoryApi.getCategories().then((cats: any) => {
         const list = Array.isArray(cats) ? cats : (cats?.data || []);
         if (list.length > 0) {
           setDbCategories(list);
@@ -1337,7 +1344,7 @@ export default function InstructorDashboard({
       isInitialMount.current = false;
       return;
     }
-    if (activeTab !== 'builder' || ApiService.getConfig().mode !== 'api' || !title.trim()) {
+    if (activeTab !== 'builder' || sharedApi.getConfig().mode !== 'api' || !title.trim()) {
       return;
     }
 
@@ -1368,10 +1375,10 @@ export default function InstructorDashboard({
         };
 
         if (editingCourseId) {
-          await ApiService.updateCourseDraft(editingCourseId, payload);
+          await instructorApi.updateCourseDraft(editingCourseId, payload);
           updateRouteUrl('builder', editingCourseId, builderStep, true);
         } else {
-          const res = await ApiService.createCourseDraft(payload);
+          const res = await instructorApi.createCourseDraft(payload);
           const newId = String(res.data?.id || res.id);
           if (newId) {
             setEditingCourseId(newId);
@@ -1594,8 +1601,8 @@ export default function InstructorDashboard({
     setVideoUploadStatus('Khởi tạo kết nối lưu trữ media...');
 
     // If Mode is Mock, we want to simulate some progression with descriptive status.
-    // If Mode is API, ApiService.uploadLessonVideo will directly execute an actual XMLHttpRequest with progress events!
-    const isMock = ApiService.getConfig().mode === 'mock';
+    // If Mode is API, instructorApi.uploadLessonVideo will directly execute an actual XMLHttpRequest with progress events!
+    const isMock = sharedApi.getConfig().mode === 'mock';
     
     if (isMock) {
       let currentProg = 0;
@@ -1628,7 +1635,7 @@ export default function InstructorDashboard({
       }, 200);
     } else {
       // Real API Upload
-      ApiService.uploadLessonVideoWithProgress(file, (progress, status) => {
+      instructorApi.uploadLessonVideoWithProgress(file, (progress, status) => {
         setVideoUploadProgress(progress);
         setVideoUploadStatus(status);
       })
@@ -1773,9 +1780,9 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     setActiveTab('builder');
     updateRouteUrl('builder', courseId, 1);
 
-    if (ApiService.getConfig().mode === 'api') {
+    if (sharedApi.getConfig().mode === 'api') {
       try {
-        const res = await ApiService.getCourseDetail(courseId);
+        const res = await instructorApi.getCourseDetail(courseId);
         const detail = res.data || res;
         setTitle(detail.title || courseObj?.title || '');
         setSubtitle(detail.short_description || courseObj?.subtitle || '');
@@ -1810,7 +1817,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
         // Load full course curriculum (sections & lessons) from Backend content API
         try {
-          const contentRes = await ApiService.getCourseContent(courseId);
+          const contentRes = await instructorApi.getCourseContent(courseId);
           const contentData = contentRes?.data || contentRes;
           const rawSections = contentData?.sections || [];
           if (Array.isArray(rawSections) && rawSections.length > 0) {
@@ -1876,7 +1883,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
       return;
     }
 
-    if (ApiService.getConfig().mode === 'api') {
+    if (sharedApi.getConfig().mode === 'api') {
       try {
         setIsSavingDraft(true);
         let courseId = editingCourseId;
@@ -1908,11 +1915,11 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         };
 
         if (!courseId) {
-          const res = await ApiService.createCourseDraft(payload);
+          const res = await instructorApi.createCourseDraft(payload);
           courseId = String(res.data?.id || res.id);
           setEditingCourseId(courseId);
         } else {
-          await ApiService.updateCourseDraft(courseId, payload);
+          await instructorApi.updateCourseDraft(courseId, payload);
         }
 
         // Synchronize chapters (sections & lessons) to Backend if present in state
@@ -1921,14 +1928,14 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             const ch = chapters[sIdx];
             let secId = ch.id;
             if (!secId || String(secId).startsWith('sec-') || isNaN(Number(secId))) {
-              const createdSec = await ApiService.createSection({
+              const createdSec = await instructorApi.createSection({
                 course_id: Number(courseId),
                 title: ch.title,
                 sort_order: sIdx + 1,
               });
               secId = createdSec.data?.id || createdSec.id;
             } else {
-              await ApiService.updateSection(secId, {
+              await instructorApi.updateSection(secId, {
                 title: ch.title,
                 sort_order: sIdx + 1,
               });
@@ -1949,16 +1956,16 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                   content: les.content || les.docContent || undefined,
                 };
                 if (!les.id || String(les.id).startsWith('les-') || isNaN(Number(les.id))) {
-                  await ApiService.createLesson(lessonPayload);
+                  await instructorApi.createLesson(lessonPayload);
                 } else {
-                  await ApiService.updateLesson(les.id, lessonPayload);
+                  await instructorApi.updateLesson(les.id, lessonPayload);
                 }
               }
             }
           }
         }
 
-        await ApiService.submitCourseToAdminVerification(courseId);
+        await instructorApi.submitCourseToAdminVerification(courseId);
         alert('Đã gửi yêu cầu duyệt khóa học thành công! Khóa học đã được chuyển sang trạng thái Chờ duyệt (pending_review).');
         loadInstructorCoursesList();
         setActiveTab('courses');
@@ -3189,7 +3196,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                                       <button 
                                         onClick={() => {
                                           if (window.confirm('Bạn có muốn gửi khóa học này cho Admin duyệt không?')) {
-                                            ApiService.submitCourseToAdminVerification(course.id)
+                                            instructorApi.submitCourseToAdminVerification(course.id)
                                               .then(() => {
                                                 alert('Đã gửi yêu cầu duyệt khóa học thành công!');
                                                 loadInstructorCoursesList();
@@ -3337,7 +3344,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                                   onClick={async () => {
                                     if (window.confirm('Bạn có muốn gửi khóa học này cho Admin duyệt không?')) {
                                       try {
-                                        await ApiService.submitCourseToAdminVerification(course.id);
+                                        await instructorApi.submitCourseToAdminVerification(course.id);
                                         showDashboardToast('Đã gửi yêu cầu duyệt khóa học thành công!');
                                         loadInstructorCoursesList();
                                       } catch (err: any) {
@@ -3753,11 +3760,11 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 outcomes: Array.isArray(willLearn) ? willLearn.filter(Boolean).join('\n') : (willLearn || ''),
               };
 
-              if (ApiService.getConfig().mode === 'api') {
+              if (sharedApi.getConfig().mode === 'api') {
                 if (editingCourseId) {
-                  await ApiService.updateCourseDraft(editingCourseId, payload);
+                  await instructorApi.updateCourseDraft(editingCourseId, payload);
                 } else {
-                  const res = await ApiService.createCourseDraft(payload);
+                  const res = await instructorApi.createCourseDraft(payload);
                   const newId = String(res.data?.id || res.id);
                   if (newId) {
                     setEditingCourseId(newId);

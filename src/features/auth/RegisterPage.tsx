@@ -2,12 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthScreens from './components/AuthScreens';
 import { User } from '@/shared/types';
+import { useApp } from '@/app/AppContext';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { setCurrentUser, setIsLoggedIn } = useApp();
 
   const handleLoginSuccess = (user: User) => {
-    navigate('/');
+    // Update global context state
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    // Also save to localStorage just in case context initialization misses it
+    localStorage.setItem('mindhub_current_user', JSON.stringify(user));
+    localStorage.setItem('mindhub_is_logged_in', 'true');
   };
 
   return (
@@ -17,8 +24,7 @@ export default function RegisterPage() {
         onClose={() => navigate('/')}
         initialMode="register"
         navigateTo={(path) => {
-          if (path === 'login') navigate('/login');
-          // Add other mappings if needed
+          navigate(path);
         }}
       />
     </div>

@@ -4,7 +4,7 @@ import {
   CheckCircle, Clock, XCircle, DollarSign, BookOpen, Eye
 } from 'lucide-react';
 import TransactionDetailDrawer from '@/features/instructor/components/TransactionDetailDrawer';
-import { ApiService } from '@/services/api';
+import { instructorApi } from '@/features/instructor/api';
 
 interface TransactionManagementProps {
   instructorId: string | number;
@@ -42,7 +42,7 @@ export default function TransactionManagement({ instructorId }: TransactionManag
 
   useEffect(() => {
     // Load courses for filter
-    ApiService.getInstructorCourses({ per_page: 50 }).then(res => {
+    instructorApi.getInstructorCourses({ per_page: 50 }).then(res => {
       const payload = res.data || [];
       setInstructorCourses(payload);
     }).catch(console.error);

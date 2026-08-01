@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Trash2, Loader2, User, Sparkles } from 'lucide-react';
-import { ApiService } from '../../services/api';
+import { profileApi } from '@/features/profile/api';
 
 interface StudentAvatarCardProps {
   currentAvatarUrl?: string | null;
@@ -50,7 +50,7 @@ export const StudentAvatarCard: React.FC<StudentAvatarCardProps> = ({
 
     setUploading(true);
     try {
-      const res = await ApiService.uploadAccountAvatar(file);
+      const res = await profileApi.uploadAccountAvatar(file);
       const newUrl = res?.data?.avatar_url || res?.data?.avatar || res?.avatar_url || res?.avatar;
       if (newUrl) {
         onAvatarUpdated(newUrl);
@@ -69,7 +69,7 @@ export const StudentAvatarCard: React.FC<StudentAvatarCardProps> = ({
   const handleSelectPreset = async (presetId: string) => {
     setSelectingPreset(presetId);
     try {
-      const res = await ApiService.selectAccountAvatarPreset(presetId);
+      const res = await profileApi.selectAccountAvatarPreset(presetId);
       const newUrl = res?.data?.avatar_url || res?.data?.avatar;
       if (newUrl) {
         onAvatarUpdated(newUrl);
@@ -85,7 +85,7 @@ export const StudentAvatarCard: React.FC<StudentAvatarCardProps> = ({
   const handleDeleteAvatar = async () => {
     setDeleting(true);
     try {
-      await ApiService.deleteAccountAvatar();
+      await profileApi.deleteAccountAvatar();
       onAvatarUpdated(null);
       showToast('Đã xóa ảnh đại diện!');
     } catch (err: any) {

@@ -4,7 +4,7 @@ import {
   FileText, Download, Sparkles, Loader2, Copy, Check, Phone, 
   Mail, Calendar, Play, FileCode, CheckCircle, AlertCircle, RefreshCw
 } from 'lucide-react';
-import { ApiService } from '@/shared/../services/api';
+import { instructorApi } from '@/features/instructor/api';
 
 interface StudentDetailDrawerProps {
   enrollmentId: number;
@@ -26,7 +26,7 @@ export default function StudentDetailDrawer({ enrollmentId, onClose }: StudentDe
       setData(null); // Anti-stale: Clear old student data immediately
 
       try {
-        const res = await ApiService.getInstructorLearnerDetails(enrollmentId);
+        const res = await instructorApi.getInstructorLearnerDetails(enrollmentId);
         const apiData = res?.data || res;
         
         if (isMounted) {
@@ -107,7 +107,7 @@ export default function StudentDetailDrawer({ enrollmentId, onClose }: StudentDe
             onClick={() => {
               setLoading(true);
               setError(null);
-              ApiService.getInstructorLearnerDetails(enrollmentId).then(res => {
+              instructorApi.getInstructorLearnerDetails(enrollmentId).then(res => {
                 setData(res?.data || res);
                 setLoading(false);
               }).catch(err => {

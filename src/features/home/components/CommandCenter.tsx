@@ -2,15 +2,19 @@ import React from "react";
 import { Flame, Target, Zap, Play } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Link } from "react-router-dom";
+import { useApp } from "@/app/AppContext";
 
 export function CommandCenter() {
+  const { currentUser, isLoggedIn } = useApp();
+  const displayName = currentUser?.name?.split(' ')[0] || "bạn";
+
   return (
     <div className="flex flex-col gap-4 mb-8">
       {/* Top Section: Greeting & Gamification Stats */}
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
         <div className="flex flex-col md:flex-row">
           <div className="p-6 md:p-8 flex-1">
-            <h1 className="text-2xl font-bold tracking-tight mb-2">Chào buổi sáng, Hưng! 👋</h1>
+            <h1 className="text-2xl font-bold tracking-tight mb-2">Chào buổi sáng, {displayName}! 👋</h1>
             <p className="text-muted-foreground">Bạn có 1 bài học chưa hoàn thành. Hãy giữ vững phong độ nhé!</p>
           </div>
           

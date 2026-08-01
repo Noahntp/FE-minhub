@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Briefcase, Globe, Facebook, Linkedin, Youtube, Check, Loader2, Award } from 'lucide-react';
-import { ApiService } from '../../services/api';
+import { instructorApi } from '@/features/instructor/api';
 
 interface ProfessionalProfileTabProps {
   currentUser: any;
@@ -32,7 +32,7 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
     const loadProfile = async () => {
       setLoading(true);
       try {
-        const res = await ApiService.getInstructorProfile(currentUser?.id);
+        const res = await instructorApi.getInstructorProfile(currentUser?.id);
         const data = res?.data || res;
         if (data) {
           const profile = data.profile || data;
@@ -83,7 +83,7 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
     e.preventDefault();
     setSaving(true);
     try {
-      await ApiService.updateInstructorProfile({
+      await instructorApi.updateInstructorProfile({
         expertise: form.expertise,
         bio: form.bio,
         social_links: {

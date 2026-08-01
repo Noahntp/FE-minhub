@@ -5,7 +5,7 @@ import {
   Eye, Calendar, AlertCircle, X, Check
 } from 'lucide-react';
 import StudentDetailDrawer from './StudentDetailDrawer';
-import { ApiService } from '@/shared/../services/api';
+import { instructorApi } from '@/features/instructor/api';
 
 interface StudentManagementProps {
   instructorCourses?: any[];
@@ -250,7 +250,7 @@ export default function StudentManagement({ instructorCourses = [] }: StudentMan
 
   // Fetch Course Options
   useEffect(() => {
-    ApiService.getInstructorQuestionCourseOptions().then((res: any) => {
+    instructorApi.getInstructorQuestionCourseOptions().then((res: any) => {
       const list = res?.data || res || [];
       if (Array.isArray(list) && list.length > 0) {
         setCourseOptions(list);
@@ -263,7 +263,7 @@ export default function StudentManagement({ instructorCourses = [] }: StudentMan
   // Fetch Summary & Chart Data
   const loadSummaryAndChart = useCallback(async () => {
     try {
-      const summaryRes = await ApiService.getInstructorLearnersSummary({ 
+      const summaryRes = await instructorApi.getInstructorLearnersSummary({ 
         course_id: courseFilter,
         status: statusFilter,
         preset: presetFilter,
@@ -275,7 +275,7 @@ export default function StudentManagement({ instructorCourses = [] }: StudentMan
         setSummary(summaryData);
       }
 
-      const chartRes = await ApiService.getInstructorLearnersChart({ 
+      const chartRes = await instructorApi.getInstructorLearnersChart({ 
         course_id: courseFilter, 
         status: statusFilter,
         preset: presetFilter,
@@ -298,7 +298,7 @@ export default function StudentManagement({ instructorCourses = [] }: StudentMan
     setApiError(null);
     updateUrlParams(courseFilter, statusFilter, debouncedSearch, presetFilter, dateFrom, dateTo, page, selectedEnrollmentId);
     try {
-      const res = await ApiService.getInstructorLearners({
+      const res = await instructorApi.getInstructorLearners({
         course_id: courseFilter,
         status: statusFilter,
         search: debouncedSearch,

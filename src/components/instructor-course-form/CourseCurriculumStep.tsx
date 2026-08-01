@@ -10,7 +10,8 @@ import LessonModal from './LessonModal';
 import AssetModal from './AssetModal';
 import LessonPreviewModal from './LessonPreviewModal';
 import { InstructorVideoUploader } from './InstructorUploaders';
-import { ApiService } from '../../services/api';
+import { sharedApi } from '@/features/shared/api';
+import { instructorApi } from '@/features/instructor/api';
 import { 
   formatDuration, 
   parseDurationToSeconds, 
@@ -38,7 +39,7 @@ export function resolveLessonVideoUrl(rawUrl: string | null | undefined): string
   }
 
   // Relative storage paths
-  const configUrl = ApiService.getConfig().baseUrl || 'http://127.0.0.1:8000';
+  const configUrl = sharedApi.getConfig().baseUrl || 'http://127.0.0.1:8000';
   const backendOrigin = configUrl.replace(/\/api\/?$/, '');
 
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
@@ -274,9 +275,9 @@ export default function CourseCurriculumStep({
       const isPreviewBool = Boolean(lessonDraft.is_preview || lessonDraft.previewType === 'free' || lessonDraft.previewType === '2');
 
       const numericLessonId = Number(activeLessonId);
-      if (!isNaN(numericLessonId) && numericLessonId > 0 && ApiService.getConfig().mode === 'api') {
+      if (!isNaN(numericLessonId) && numericLessonId > 0 && sharedApi.getConfig().mode === 'api') {
         try {
-          const res = await ApiService.updateLesson(numericLessonId, {
+          const res = await instructorApi.updateLesson(numericLessonId, {
             title: lessonDraft.title,
             slug: finalSlug,
             content: lessonDraft.content,
@@ -384,8 +385,8 @@ export default function CourseCurriculumStep({
       };
 
       const numericLessonId = Number(activeLessonId);
-      if (!isNaN(numericLessonId) && numericLessonId > 0 && ApiService.getConfig().mode === 'api') {
-        const res = await ApiService.createLessonAsset(numericLessonId, payload);
+      if (!isNaN(numericLessonId) && numericLessonId > 0 && sharedApi.getConfig().mode === 'api') {
+        const res = await instructorApi.createLessonAsset(numericLessonId, payload);
         if (res && (res.id || res.data?.id)) {
           const item = res.data || res;
           createdAsset = {

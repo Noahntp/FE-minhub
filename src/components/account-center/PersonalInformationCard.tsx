@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, Phone, User, Check, RefreshCw, Loader2 } from 'lucide-react';
-import { ApiService } from '../../services/api';
+import { profileApi } from '@/features/profile/api';
 
 interface PersonalInformationCardProps {
   currentUser: any;
@@ -63,7 +63,7 @@ export const PersonalInformationCard: React.FC<PersonalInformationCardProps> = (
 
     setSaving(true);
     try {
-      const res = await ApiService.updateAccountProfile({
+      const res = await profileApi.updateAccountProfile({
         full_name: form.fullName.trim(),
         phone: form.phone.trim() || null,
         bio: form.bio.trim() || null

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, Smartphone, Laptop, Loader2, X, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
-import { ApiService } from '../../services/api';
+import { authApi } from '@/features/auth/api';
+import { instructorApi } from '@/features/instructor/api';
 
 interface SecurityTabProps {
   currentUser: any;
@@ -55,7 +56,7 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
     const loadSessions = async () => {
       setLoadingSessions(true);
       try {
-        const res = await ApiService.getInstructorSessions();
+        const res = await instructorApi.getInstructorSessions();
         const data = res?.data || res;
         if (Array.isArray(data)) {
           setSessionsList(data);
@@ -69,7 +70,7 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
 
     const loadPrivacy = async () => {
       try {
-        const res = await ApiService.getInstructorPrivacySettings();
+        const res = await instructorApi.getInstructorPrivacySettings();
         const data = res?.data || res;
         if (data) {
           setPrivacySettings(prev => ({ ...prev, ...data }));
@@ -118,7 +119,7 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
 
     setIsSendingOtp(true);
     try {
-      const res = await ApiService.sendChangePasswordOtp({
+      const res = await authApi.sendChangePasswordOtp({
         currentPassword,
         password: newPassword,
         passwordConfirmation: confirmPassword
@@ -151,7 +152,7 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
 
     setIsVerifyingOtp(true);
     try {
-      await ApiService.changeInstructorPassword({
+      await authApi.changeInstructorPassword({
         currentPassword,
         password: newPassword,
         passwordConfirmation: confirmPassword,
@@ -174,9 +175,9 @@ export const SecurityTab: React.FC<SecurityTabProps> = ({
   const handleRevokeOtherSessions = async () => {
     setRevokingSessions(true);
     try {
-      await ApiService.revokeOtherInstructorSessions();
+      await instructorApi.revokeOtherInstructorSessions();
       showToast('Đã đăng xuất khỏi tất cả thiết bị khác.');
-      const res = await ApiService.getInstructorSessions();
+      const res = await instructorApi.getInstructorSessions();
       if (res?.data) setSessionsList(res.data);
     } catch (err: any) {
       showToast(err.message || 'Lỗi đăng xuất thiết bị khác.', 'error');
