@@ -1,5 +1,5 @@
 import { getCourses as getRepoCourses, saveCourses as saveRepoCourses, populateCourse } from "@/assets/js/mocks/mock-repository.js";
-import { ApiService } from "@/services/api";
+import { config } from "@/shared/lib/api-client";
 
 // Hàm adapter ánh xạ an toàn dữ liệu từ backend sang format mock dùng trong component
 function adaptCourse(item) {
@@ -198,7 +198,7 @@ function saveRawMockCourses(courses) {
  * Lấy danh sách khóa học (hỗ trợ phân trang, lọc, sắp xếp)
  */
 export async function getCourses(params = {}) {
-    const apiConfig = ApiService.getConfig();
+    const apiConfig = config;
 
     if (apiConfig.mode === "api") {
         try {

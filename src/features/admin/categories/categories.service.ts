@@ -16,13 +16,16 @@ import {
   UpdateCategoryPayload,
   CategorySummary,
 } from "./categories.types";
-import { ApiService } from "@/services/api";
+import { adminApi } from "@/features/admin/api";
+import { getCategoryComparator } from "./categories.utils";
+
+import { config } from "@/shared/lib/api-client";
 
 const isApiMode = (): boolean => {
   const useMockEnv =
     import.meta.env.VITE_USE_MOCK === true ||
     import.meta.env.VITE_USE_MOCK === "true";
-  const apiMode = ApiService.getConfig().mode;
+  const apiMode = config.mode;
   return !useMockEnv && apiMode === "api";
 };
 
@@ -73,7 +76,7 @@ export const CategoriesService = {
   ): Promise<CategoriesResponse> {
     if (isApiMode()) {
       try {
-        const response = await ApiService.getAdminCategories(params);
+        const response = await adminApi.getAdminCategories(params);
         const items = response?.items || [];
         const summary = response?.summary || {
           total_categories: items.length,
@@ -366,7 +369,7 @@ export const CategoriesService = {
   ): Promise<{ success: boolean; message: string }> {
     if (isApiMode()) {
       try {
-        await ApiService.reorderAdminCategories(items);
+        await adminApi.reorderAdminCategories(items);
         return {
           success: true,
           message: "Cập nhật thứ tự hiển thị danh mục thành công.",
@@ -410,7 +413,7 @@ export const CategoriesService = {
     const catId = Number(id);
     if (isApiMode()) {
       try {
-        const response = await ApiService.getAdminCategory(catId);
+        const response = await adminApi.getAdminCategory(catId);
         return {
           success: true,
           message: "Lấy chi tiết danh mục thành công.",
@@ -561,7 +564,7 @@ export const CategoriesService = {
   async createCategory(payload: CreateCategoryPayload): Promise<any> {
     if (isApiMode()) {
       try {
-        const response = await ApiService.createAdminCategory(payload);
+        const response = await adminApi.createAdminCategory(payload);
         return {
           success: true,
           message: "Tạo danh mục thành công.",
@@ -634,7 +637,7 @@ export const CategoriesService = {
     const catId = Number(id);
     if (isApiMode()) {
       try {
-        const response = await ApiService.updateAdminCategory(catId, payload);
+        const response = await adminApi.updateAdminCategory(catId, payload);
         return {
           success: true,
           message: "Cập nhật danh mục thành công.",
@@ -744,7 +747,7 @@ export const CategoriesService = {
     const catId = Number(id);
     if (isApiMode()) {
       try {
-        const response = await ApiService.deleteAdminCategory(catId);
+        const response = await adminApi.deleteAdminCategory(catId);
         return {
           success: true,
           message: "Xóa danh mục thành công.",
@@ -817,7 +820,7 @@ export const CategoriesService = {
     const catId = Number(id);
     if (isApiMode()) {
       try {
-        const response = await ApiService.restoreAdminCategory(catId);
+        const response = await adminApi.restoreAdminCategory(catId);
         return {
           success: true,
           message: "Khôi phục danh mục thành công.",

@@ -5,7 +5,6 @@ import { getComments, getUsers } from '@/assets/js/mocks/mock-repository.js';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
 import FilterSelect, { SelectOption } from './FilterSelect';
-import { ApiService } from '@/services/api';
 
 // Format Helpers
 const formatDateTime = (isoString: string) => {

@@ -95,5 +95,60 @@ async toggleUserLockAdmin(userId: string, action: 'lock' | 'unlock'): Promise<{ 
               method: 'POST',
               body: JSON.stringify({ action })
             });
+  },
+
+  async getAdminCategories(params: Record<string, any> = {}): Promise<any> {
+    devLog('AdminCategories', 'Fetch list of categories', params);
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== "") {
+        query.append(key, String(val));
+      }
+    });
+    const queryStr = query.toString();
+    return apiFetch<any>(`/admin/categories${queryStr ? '?' + queryStr : ''}`);
+  },
+
+  async getAdminCategory(id: number | string): Promise<any> {
+    devLog('AdminCategories', `Fetch detail of category ID: ${id}`);
+    return apiFetch<any>(`/admin/categories/${id}`);
+  },
+
+  async createAdminCategory(payload: any): Promise<any> {
+    devLog('AdminCategories', 'Create category', payload);
+    return apiFetch<any>('/admin/categories', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateAdminCategory(id: number | string, payload: any): Promise<any> {
+    devLog('AdminCategories', `Update category ID: ${id}`, payload);
+    return apiFetch<any>(`/admin/categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteAdminCategory(id: number | string): Promise<any> {
+    devLog('AdminCategories', `Delete category ID: ${id}`);
+    return apiFetch<any>(`/admin/categories/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async restoreAdminCategory(id: number | string): Promise<any> {
+    devLog('AdminCategories', `Restore category ID: ${id}`);
+    return apiFetch<any>(`/admin/categories/${id}/restore`, {
+      method: 'POST',
+    });
+  },
+
+  async reorderAdminCategories(items: Array<{ id: number; sort_order: number; parent_id: number | null }>): Promise<any> {
+    devLog('AdminCategories', 'Reorder categories list', items);
+    return apiFetch<any>('/admin/categories/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    });
   }
 };
