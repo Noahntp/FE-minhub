@@ -5,6 +5,7 @@ import { getComments, getUsers } from '@/assets/js/mocks/mock-repository.js';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils';
 import FilterSelect, { SelectOption } from './FilterSelect';
+import { config } from '@/shared/lib/api-client';
 
 // Format Helpers
 const formatDateTime = (isoString: string) => {
@@ -214,7 +215,7 @@ export default function CoursesManagement() {
   const [apiMode, setApiMode] = useState<'api' | 'mock'>('mock');
 
   useEffect(() => {
-    setApiMode(ApiService.getConfig().mode);
+    setApiMode(config.mode);
     const handleModeChange = (e: any) => {
       setApiMode(e.detail);
     };
