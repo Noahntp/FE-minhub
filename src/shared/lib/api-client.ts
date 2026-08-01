@@ -195,4 +195,14 @@ interface Section {
   order: number;
 }
 
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    config.authToken = token;
+    localStorage.setItem('mindhub_api_token', token);
+  } else {
+    config.authToken = undefined;
+    localStorage.removeItem('mindhub_api_token');
+  }
+};
+
 export { apiFetch, apiFetchEnvelope, devLog, config };

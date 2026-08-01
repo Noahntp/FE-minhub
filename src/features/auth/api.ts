@@ -1,4 +1,4 @@
-import { apiFetch, devLog, config, ApiError } from '@/shared/lib/api-client';
+import { apiFetch, devLog, config, ApiError, setAuthToken } from '@/shared/lib/api-client';
 import { Course, Chapter, Lesson, Resource, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '@/shared/types';
 
 export const authApi = {
@@ -26,7 +26,7 @@ async login(payload: any): Promise<{ user: User; token: string }> {
     });
     const token = res.access_token || '';
     if (token) {
-      this.setAuthToken(token);
+      setAuthToken(token);
     }
     return {
       user: res.user,
@@ -65,7 +65,7 @@ async logout(): Promise<{ success: boolean }> {
     } catch (e) {
       console.error('Backend logout failed, clearing locally', e);
     }
-    this.setAuthToken(null);
+    setAuthToken(null);
     return { success: true };
   },
 
@@ -79,7 +79,7 @@ async logoutAll(): Promise<{ success: boolean }> {
       // BACKEND_MISSING
     devLog('Auth', 'Terminate all active device sessions');
     const res = await apiFetch<{ success: boolean }>('/auth/logout-all', { method: 'POST' });
-      this.setAuthToken(null);
+      setAuthToken(null);
       return res;
   },
 
@@ -87,7 +87,7 @@ async refreshToken(): Promise<{ token: string }> {
       // BACKEND_MISSING
     devLog('Auth', 'Request Token Refresh rotation');
     const res = await apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' });
-      this.setAuthToken(res.token);
+      setAuthToken(res.token);
       return res;
   },
 
@@ -146,7 +146,7 @@ async authWithGoogle(token: string): Promise<{ user: User; token: string }> {
           method: 'POST',
           body: JSON.stringify({ token }),
         });
-    this.setAuthToken(res.token);
+    setAuthToken(res.token);
     return res;
   },
 
