@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Eye, EyeOff, ShieldCheck, KeyRound, Check, Loader2, RefreshCw } from 'lucide-react';
-import { ApiService } from '../../services/api';
+import { authApi } from '@/features/auth/api';
 
 interface StudentSecurityCardProps {
   currentUser: any;
@@ -41,14 +41,14 @@ export const StudentSecurityCard: React.FC<StudentSecurityCardProps> = ({
 
     setSubmitting(true);
     try {
-      if (typeof ApiService.changeMyPassword === 'function') {
-        await ApiService.changeMyPassword({
+      if (typeof authApi.changeMyPassword === 'function') {
+        await authApi.changeMyPassword({
           current_password: currentPassword,
           password: newPassword,
           password_confirmation: confirmPassword
         });
-      } else if (typeof ApiService.changeInstructorPassword === 'function') {
-        await ApiService.changeInstructorPassword({
+      } else if (typeof authApi.changeInstructorPassword === 'function') {
+        await authApi.changeInstructorPassword({
           current_password: currentPassword,
           password: newPassword,
           password_confirmation: confirmPassword,

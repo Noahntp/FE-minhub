@@ -2,14 +2,19 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthScreens from './components/AuthScreens';
 import { User } from '@/shared/types';
+import { useApp } from '@/app/AppContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setCurrentUser, setIsLoggedIn } = useApp();
 
   const handleLoginSuccess = (user: User) => {
-    // Session token is already saved inside auth.service login method.
-    // If we need to sync state or redirect:
-    navigate('/');
+    // Update global context state
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    // Also save to localStorage just in case context initialization misses it
+    localStorage.setItem('mindhub_current_user', JSON.stringify(user));
+    localStorage.setItem('mindhub_is_logged_in', 'true');
   };
 
   return (
@@ -19,8 +24,7 @@ export default function LoginPage() {
         onClose={() => navigate('/')}
         initialMode="login"
         navigateTo={(path) => {
-          if (path === 'register') navigate('/register');
-          // Add other mappings if needed
+          navigate(path);
         }}
       />
     </div>

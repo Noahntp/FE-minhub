@@ -4,7 +4,7 @@ import { CouponOverview } from './components/CouponOverview';
 import { CouponFilter } from './components/CouponFilter';
 import { CouponTable } from './components/CouponTable';
 import { CouponForm } from './components/CouponForm';
-import { ApiService } from '../../services/api';
+import { instructorApi } from '@/features/instructor/api';
 import { Sparkles, AlertCircle } from 'lucide-react';
 
 export const CouponManagement: React.FC = () => {
@@ -48,7 +48,7 @@ export const CouponManagement: React.FC = () => {
   const fetchSummary = useCallback(async () => {
     setIsSummaryLoading(true);
     try {
-      const res = await ApiService.getInstructorCouponSummary({ course_id: courseFilter });
+      const res = await instructorApi.getInstructorCouponSummary({ course_id: courseFilter });
       const data = res?.data || res;
       setSummary({
         active_coupons: Number(data.active_coupons || 0),
@@ -68,7 +68,7 @@ export const CouponManagement: React.FC = () => {
   // Fetch Course Options
   const fetchCourseOptions = useCallback(async () => {
     try {
-      const res: any = await ApiService.getInstructorCouponCourseOptions();
+      const res: any = await instructorApi.getInstructorCouponCourseOptions();
       const items = res?.data || (Array.isArray(res) ? res : []);
       setCourseOptions(items);
     } catch (err) {
@@ -82,7 +82,7 @@ export const CouponManagement: React.FC = () => {
     setIsLoading(true);
     setApiError(null);
     try {
-      const res = await ApiService.getInstructorCoupons({
+      const res = await instructorApi.getInstructorCoupons({
         page: pagination.current_page,
         per_page: pagination.per_page,
         status: statusFilter,
@@ -141,10 +141,10 @@ export const CouponManagement: React.FC = () => {
     try {
       const isCurrentlyActive = coupon.status === 'active';
       if (isCurrentlyActive) {
-        await ApiService.disableInstructorCoupon(coupon.id);
+        await instructorApi.disableInstructorCoupon(coupon.id);
         showToast(`Đã tạm tắt mã ${coupon.code}`);
       } else {
-        await ApiService.enableInstructorCoupon(coupon.id);
+        await instructorApi.enableInstructorCoupon(coupon.id);
         showToast(`Đã kích hoạt mã ${coupon.code}`);
       }
       fetchCoupons();
@@ -156,7 +156,7 @@ export const CouponManagement: React.FC = () => {
 
   const handleDelete = async (id: string | number) => {
     try {
-      await ApiService.deleteInstructorCoupon(id);
+      await instructorApi.deleteInstructorCoupon(id);
       showToast('Đã xóa mã giảm giá thành công.');
       fetchCoupons();
       fetchSummary();
@@ -186,10 +186,10 @@ export const CouponManagement: React.FC = () => {
   const handleSubmitForm = async (data: Partial<Coupon>) => {
     try {
       if (selectedCoupon && selectedCoupon.id) {
-        await ApiService.updateInstructorCoupon(selectedCoupon.id, data);
+        await instructorApi.updateInstructorCoupon(selectedCoupon.id, data);
         showToast('Cập nhật mã giảm giá thành công.');
       } else {
-        await ApiService.createInstructorCoupon(data);
+        await instructorApi.createInstructorCoupon(data);
         showToast('Tạo mã giảm giá thành công.');
       }
       setIsFormOpen(false);

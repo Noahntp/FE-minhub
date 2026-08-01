@@ -38,10 +38,11 @@ const FAQPage = React.lazy(() => import('@/pages/FAQPage').then(m => ({ default:
 const PricingPage = React.lazy(() => import('@/pages/PricingPage').then(m => ({ default: m.default })));
 const ClassroomPage = React.lazy(() => import('@/features/classroom/ClassroomPage').then(m => ({ default: m.default })));
 const ProfilePage = React.lazy(() => import('@/features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
-const AuthScreens = React.lazy(() => import('@/features/auth/components/AuthScreens').then(m => ({ default: m.default })));
+const LoginPage = React.lazy(() => import('@/features/auth/LoginPage').then(m => ({ default: m.default })));
+const RegisterPage = React.lazy(() => import('@/features/auth/RegisterPage').then(m => ({ default: m.default })));
 const CartAndCheckout = React.lazy(() => import('@/features/cart/CartAndCheckout').then(m => ({ default: m.default })));
 const VNPayReturnPage = React.lazy(() => import('@/features/cart/VNPayReturnPage').then(m => ({ default: m.default })));
-const InstructorDashboard = React.lazy(() => import('@/features/instructor/InstructorDashboard').then(m => ({ default: m.default })));
+const InstructorDashboard = React.lazy(() => import('@/features/instructor/InstructorPage'));
 const AdminDashboard = React.lazy(() => import('@/features/admin/AdminDashboard').then(m => ({ default: m.default })));
 const InstructorProfilePage = React.lazy(() => import('@/features/instructor/InstructorProfilePage').then(m => ({ default: m.default })));
 const InstructorCoursesPage = React.lazy(() => import('@/features/instructor/components/InstructorCoursesPage').then(m => ({ default: m.default })));
@@ -130,26 +131,8 @@ function AppRoutes() {
       <Suspense fallback={<PageLoader />}>
         <Routes location={location} key={location.pathname}>
           {/* Auth Routes */}
-          <Route path="/login" element={
-            <AuthScreens 
-              onLoginSuccess={handleLoginSuccess} 
-              onClose={() => navigate('/', { replace: true })} 
-              navigateTo={(path) => {
-                if (path === 'register') navigate('/register', { replace: true });
-                else if (path === 'login') navigate('/login', { replace: true });
-              }}
-            />
-          } />
-          <Route path="/register" element={
-            <AuthScreens 
-              onLoginSuccess={handleLoginSuccess} 
-              onClose={() => navigate('/', { replace: true })} 
-              navigateTo={(path) => {
-                if (path === 'register') navigate('/register', { replace: true });
-                else if (path === 'login') navigate('/login', { replace: true });
-              }}
-            />
-          } />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           
           {/* Main Layout Routes (Navbar + Footer) */}
           <Route element={<MainLayout />}>
@@ -223,7 +206,7 @@ function AppRoutes() {
           {/* Instructor Workspace (No Main Navbar/Footer) */}
           <Route path="/instructor/:instructorId/*" element={
             // @ts-ignore
-            isLoggedIn ? <InstructorDashboard currentUser={currentUser} /> : <Navigate to="/login" replace />
+            isLoggedIn ? <InstructorDashboard /> : <Navigate to="/login" replace />
           } />
 
           {/* Admin Workspace */}
