@@ -323,3 +323,55 @@ export function paginateTreeView(
     };
   });
 }
+
+/**
+ * Tạo comparator để sắp xếp các danh mục đồng nhất ở client và service
+ */
+export function getCategoryComparator(
+  sortBy?: string,
+  courseCounts?: Record<number, number>
+) {
+  const mode = sortBy || "newest";
+  return (a: Category, b: Category): number => {
+    if (mode === "newest") {
+      return (
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+      );
+    } else if (mode === "oldest") {
+      return (
+        new Date(a.created_at || 0).getTime() -
+        new Date(b.created_at || 0).getTime()
+      );
+    } else if (mode === "name_asc") {
+      return (a.name || "").localeCompare(b.name || "", "vi");
+    } else if (mode === "name_desc") {
+      return (b.name || "").localeCompare(a.name || "", "vi");
+    } else if (mode === "sort_order_asc") {
+      const sa = a.sort_order || 0;
+      const sb = b.sort_order || 0;
+      if (sa > 0 && sb > 0) {
+        if (sa !== sb) return sa - sb;
+        return (a.name || "").localeCompare(b.name || "", "vi");
+      }
+      if (sa > 0 && sb === 0) return -1;
+      if (sa === 0 && sb > 0) return 1;
+      return (a.name || "").localeCompare(b.name || "", "vi");
+    } else if (mode === "sort_order_desc") {
+      const sa = a.sort_order || 0;
+      const sb = b.sort_order || 0;
+      if (sa > 0 && sb > 0) {
+        if (sa !== sb) return sb - sa;
+        return (a.name || "").localeCompare(b.name || "", "vi");
+      }
+      if (sa > 0 && sb === 0) return -1;
+      if (sa === 0 && sb > 0) return 1;
+      return (a.name || "").localeCompare(b.name || "", "vi");
+    } else if (mode === "courses_desc") {
+      const countA = courseCounts ? (courseCounts[a.id] || 0) : (a.course_count || 0);
+      const countB = courseCounts ? (courseCounts[b.id] || 0) : (b.course_count || 0);
+      return countB - countA;
+    }
+    return 0;
+  };
+}
