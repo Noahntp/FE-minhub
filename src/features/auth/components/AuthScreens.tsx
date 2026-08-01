@@ -189,7 +189,6 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         const apiUser = normalizeUser({
           ...res.user,
           isEmailVerified: true
-
         });
         saveToHistory(apiUser);
         onLoginSuccess(apiUser);

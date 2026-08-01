@@ -121,20 +121,72 @@ export async function getUpgradeRequests(params = {}) {
             filtered = filtered.filter(r => r.application_status === params.status);
         }
 
-        // Lọc theo ngày gửi (date_from, date_to)
-        if (params.date_from) {
-            const fromDate = new Date(params.date_from);
-            fromDate.setHours(0, 0, 0, 0);
-            filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate);
+        // Lọc theo chuyên môn (expertise)
+        if (params.expertise && params.expertise !== "") {
+            filtered = filtered.filter(r => r.instructor_profile?.expertise === params.expertise);
         }
-        if (params.date_to) {
-            const toDate = new Date(params.date_to);
-            toDate.setHours(23, 59, 59, 999);
-            filtered = filtered.filter(r => new Date(r.submitted_at) <= toDate);
+
+        // Lọc theo kinh nghiệm (experience_range)
+        if (params.experience_range && params.experience_range !== "") {
+            filtered = filtered.filter(r => {
+                const exp = r.instructor_profile?.experience_years || 0;
+                if (params.experience_range === "under_1") return exp < 1;
+                if (params.experience_range === "1_2") return exp >= 1 && exp <= 2;
+                if (params.experience_range === "3_5") return exp >= 3 && exp <= 5;
+                if (params.experience_range === "over_5") return exp > 5;
+                return true;
+            });
+        }
+
+        // Lọc theo tài khoản nhận tiền (payout_filter)
+        if (params.payout_filter && params.payout_filter !== "") {
+            filtered = filtered.filter(r => {
+                const hasPayout = !!r.payout_account;
+                const status = r.payout_account?.status;
+                if (params.payout_filter === "linked") return hasPayout;
+                if (params.payout_filter === "unlinked") return !hasPayout;
+                if (params.payout_filter === "active") return hasPayout && status === "active";
+                if (params.payout_filter === "pending_verification") return hasPayout && status === "pending_verification";
+                return true;
+            });
+        }
+
+        // Lọc theo khoảng ngày gửi (date_from, date_to hoặc date_preset)
+        if (params.date_preset && params.date_preset !== "") {
+            const now = new Date();
+            now.setHours(23, 59, 59, 999);
+            const fromDate = new Date();
+            fromDate.setHours(0, 0, 0, 0);
+
+            if (params.date_preset === "today") {
+                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate && new Date(r.submitted_at) <= now);
+            } else if (params.date_preset === "7_days") {
+                fromDate.setDate(fromDate.getDate() - 7);
+                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate && new Date(r.submitted_at) <= now);
+            } else if (params.date_preset === "30_days") {
+                fromDate.setDate(fromDate.getDate() - 30);
+                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate && new Date(r.submitted_at) <= now);
+            }
+        } else {
+            if (params.date_from) {
+                const fromDate = new Date(params.date_from);
+                fromDate.setHours(0, 0, 0, 0);
+                filtered = filtered.filter(r => new Date(r.submitted_at) >= fromDate);
+            }
+            if (params.date_to) {
+                const toDate = new Date(params.date_to);
+                toDate.setHours(23, 59, 59, 999);
+                filtered = filtered.filter(r => new Date(r.submitted_at) <= toDate);
+            }
         }
 
         // 3. Sắp xếp (Sort)
         const sortBy = params.sort_by || "newest";
+        const getPrimarySpecialty = (item) => {
+            const exp = item.instructor_profile?.expertise || "";
+            return exp.split(/[,,(,)/]/)[0].trim().toLowerCase();
+        };
+
         filtered.sort((a, b) => {
             if (sortBy === "newest") {
                 return new Date(b.submitted_at) - new Date(a.submitted_at);
@@ -148,6 +200,14 @@ export async function getUpgradeRequests(params = {}) {
                 return a.user.full_name.localeCompare(b.user.full_name, "vi");
             } else if (sortBy === "name_desc") {
                 return b.user.full_name.localeCompare(a.user.full_name, "vi");
+            } else if (sortBy === "experience_asc") {
+                return (a.instructor_profile?.experience_years || 0) - (b.instructor_profile?.experience_years || 0);
+            } else if (sortBy === "experience_desc") {
+                return (b.instructor_profile?.experience_years || 0) - (a.instructor_profile?.experience_years || 0);
+            } else if (sortBy === "specialty_asc") {
+                return getPrimarySpecialty(a).localeCompare(getPrimarySpecialty(b), "vi");
+            } else if (sortBy === "specialty_desc") {
+                return getPrimarySpecialty(b).localeCompare(getPrimarySpecialty(a), "vi");
             }
             return 0;
         });

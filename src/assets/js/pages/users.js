@@ -29,7 +29,7 @@ let generalActionCallback = null;
 // Biến theo dõi góc xoay của nút làm mới
 let refreshRotation = 0;
 
-export function initPage() {
+export async function initPage() {
     console.log("Đã tải trang: Quản lý người dùng (Cải tiến)");
 
     // Đọc trạng thái từ URL query string
@@ -47,7 +47,15 @@ export function initPage() {
     initBulkActionEvents();
 
     // Tải dữ liệu ban đầu
-    fetchAndRender();
+    await fetchAndRender();
+
+    // Đọc open_user_id từ URL và tự động mở drawer
+    const params = new URLSearchParams(window.location.search);
+    const rawOpenUserId = params.get("open_user_id");
+    const openUserId = Number(rawOpenUserId);
+    if (Number.isInteger(openUserId) && openUserId > 0) {
+        openDetailDrawer(openUserId);
+    }
 }
 
 /**

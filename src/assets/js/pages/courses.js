@@ -26,7 +26,7 @@ let activeTargetCourse = null;
 // Biến timeout cho debounce tìm kiếm
 let searchDebounceTimeout = null;
 
-export function initPage() {
+export async function initPage() {
   console.log("Đã tải trang: Quản lý khóa học");
 
   // Đọc trạng thái ban đầu từ URL query string
@@ -41,7 +41,15 @@ export function initPage() {
   initDropdownCloseEvents();
 
   // Tải dữ liệu ban đầu
-  fetchAndRender(false); // Vừa mở trang: không cuộn
+  await fetchAndRender(false); // Vừa mở trang: không cuộn
+
+  // Đọc open_course_id từ URL và tự động mở drawer
+  const params = new URLSearchParams(window.location.search);
+  const rawOpenCourseId = params.get("open_course_id");
+  const openCourseId = Number(rawOpenCourseId);
+  if (Number.isInteger(openCourseId) && openCourseId > 0) {
+    showDetailDrawer(openCourseId);
+  }
 }
 
 /**

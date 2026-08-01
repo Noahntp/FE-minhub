@@ -10,8 +10,18 @@ interface AdminLayoutProps {
 }
 
 export default function AdminLayout({ children, activeTab, onTabChange, breadcrumbLabel }: AdminLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('mindhub-sidebar-collapsed') === 'true';
+  });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const handleToggleCollapse = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('mindhub-sidebar-collapsed', String(next));
+      return next;
+    });
+  };
 
   return (
     <div className="flex h-screen w-screen bg-canvas overflow-hidden font-sans text-ink selection:bg-ink selection:text-white">
@@ -33,13 +43,13 @@ export default function AdminLayout({ children, activeTab, onTabChange, breadcru
         isCollapsed={sidebarCollapsed}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onToggleCollapse={handleToggleCollapse}
       />
 
       {/* Main Content Wrapper */}
       <div className="flex flex-1 flex-col min-w-0 transition-all duration-300">
         <Topbar 
-          onToggleSidebarDesktop={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggleSidebarDesktop={handleToggleCollapse}
           onToggleSidebarMobile={() => setMobileSidebarOpen(true)}
           breadcrumbLabel={breadcrumbLabel}
         />

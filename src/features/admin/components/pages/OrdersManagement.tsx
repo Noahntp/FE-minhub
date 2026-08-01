@@ -115,6 +115,131 @@ export default function OrdersManagement() {
               <p className="text-sm text-mid-gray">Không tìm thấy đơn hàng nào phù hợp.</p>
             </div>
           </div>
+
+          {/* Drawer chi tiết đơn hàng */}
+          <div
+            id="order-detail-drawer"
+            className="fixed inset-0 z-50 overflow-hidden hidden"
+            aria-labelledby="drawer-title"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="absolute inset-0 bg-ink/40 backdrop-blur-xs transition-opacity duration-300 opacity-0"
+              id="drawer-backdrop"
+              data-drawer-close
+            ></div>
+
+            <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+              <div
+                className="w-screen max-w-[760px] bg-paper shadow-2xl flex flex-col h-full transform transition-transform duration-300 translate-x-full"
+                id="drawer-panel"
+              >
+                {/* Sticky Header */}
+                <div
+                  className="px-5 py-4 border-b border-hairline flex items-center justify-between shrink-0 bg-paper sticky top-0 z-10"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 id="drawer-title" className="text-base font-bold text-ink">
+                        Chi tiết đơn hàng
+                      </h2>
+                      <span
+                        id="drawer-order-code"
+                        className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-canvas border border-hairline text-ink"
+                      >
+                        ---
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-mid-gray mt-0.5" id="drawer-subtitle">
+                      ---
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    data-drawer-close
+                    className="rounded-full border border-hairline p-1.5 hover:bg-canvas transition-colors text-ink cursor-pointer flex items-center justify-center"
+                    aria-label="Đóng chi tiết"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Drawer Navigation Tabs */}
+                <div className="border-b border-hairline bg-surface-alt px-5 shrink-0">
+                  <nav
+                    id="drawer-tabs"
+                    className="flex gap-6 text-xs font-medium text-mid-gray"
+                  >
+                    <button
+                      type="button"
+                      data-drawer-tab="overview"
+                      className="py-2.5 border-b-2 border-ink text-ink font-semibold transition-all cursor-pointer bg-transparent border-none"
+                    >
+                      1. Tổng quan
+                    </button>
+                    <button
+                      type="button"
+                      data-drawer-tab="payment"
+                      className="py-2.5 border-b-2 border-transparent hover:text-ink transition-all cursor-pointer bg-transparent border-none"
+                    >
+                      2. Thanh toán
+                    </button>
+                    <button
+                      type="button"
+                      data-drawer-tab="consistency"
+                      className="py-2.5 border-b-2 border-transparent hover:text-ink transition-all cursor-pointer bg-transparent border-none"
+                    >
+                      3. Đối chiếu dữ liệu
+                    </button>
+                    <button
+                      type="button"
+                      data-drawer-tab="timeline"
+                      className="py-2.5 border-b-2 border-transparent hover:text-ink transition-all cursor-pointer bg-transparent border-none"
+                    >
+                      4. Timeline
+                    </button>
+                  </nav>
+                </div>
+
+                {/* Drawer Scrollable Content Body */}
+                <div
+                  className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar"
+                  id="drawer-content-body"
+                >
+                  {/* Content dynamic JS */}
+                </div>
+
+                {/* Drawer Footer */}
+                <div
+                  className="px-5 py-3 border-t border-hairline bg-surface-alt flex items-center justify-between shrink-0 text-xs"
+                >
+                  <span className="text-[11px] text-mid-gray"
+                    >Trạng thái quan sát - Không thực hiện sửa đổi dữ liệu.</span
+                  >
+                  <button
+                    type="button"
+                    data-drawer-close
+                    className="h-8 px-4 font-medium rounded-[6px] border border-hairline bg-paper text-ink hover:bg-canvas transition-colors cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
     </>
   );
 }

@@ -1,35 +1,6 @@
-
-import { initPage } from '@/assets/js/pages/categories';
-import React, { useState, useEffect } from 'react';
+import React from "react";
+import CategoriesPage from "@/features/admin/categories/CategoriesPage";
 
 export default function Categories() {
-  useEffect(() => {
-    try {
-      initPage();
-    } catch (err) {
-      console.error('Error initializing vanilla JS:', err);
-    }
-  }, []);
-  return (
-    <>
-      <header className="mb-8">
-                    <p className="text-sm text-mid-gray">
-                        MindHub Admin
-                    </p>
-                    <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-                        Quản lý danh mục
-                    </h1>
-                </header>
-                <section
-                    className="rounded-3xl border border-hairline bg-paper p-6 shadow-sm"
-                >
-                    <h2 className="text-lg font-semibold">
-                        Khung trang đã sẵn sàng
-                    </h2>
-                    <p className="mt-2 text-sm text-mid-gray">
-                        Card thống kê, bộ lọc, bảng dữ liệu và modal sẽ được bổ sung sau.
-                    </p>
-                </section>
-    </>
-  );
+  return <CategoriesPage />;
 }

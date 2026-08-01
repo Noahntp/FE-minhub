@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 
 interface SidebarProps {
   activeTab: string;
@@ -17,6 +17,19 @@ export default function Sidebar({
   onCloseMobile,
   onToggleCollapse
 }: SidebarProps) {
+  const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (sidebarScrollRef.current) {
+      const activeEl = sidebarScrollRef.current.querySelector('[data-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }
+  }, [activeTab]);
 
 
   return (
@@ -47,7 +60,7 @@ export default function Sidebar({
       </div>
 
       {/* Sidebar Navigation */}
-      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-3 custom-scrollbar">
+      <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto py-4 px-3 space-y-3 custom-scrollbar">
         {/* Nhóm: Tổng quan */}
         <div>
           <div className="sidebar-group-title px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-mid-gray transition-opacity duration-300">Tổng quan</div>
@@ -269,24 +282,6 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Nhóm: Hệ thống */}
-        <div>
-          <div className="sidebar-group-title px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-mid-gray transition-opacity duration-300">Hệ thống</div>
-          <div className="space-y-0.5">
-            <button 
-              onClick={() => onTabChange('notifications')} 
-              data-active={activeTab === 'notifications' ? 'true' : 'false'}
-              className="w-full sidebar-item relative flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-full text-mid-gray hover:bg-paper hover:text-ink border border-transparent transition-all duration-200 cursor-pointer"
-            >
-              <svg className="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
-                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
-              </svg>
-              <span className="sidebar-text truncate">Thông báo</span>
-              <span className="sidebar-tooltip">Thông báo</span>
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Sidebar Footer */}
