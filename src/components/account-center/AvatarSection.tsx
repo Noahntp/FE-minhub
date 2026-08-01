@@ -51,7 +51,8 @@ export const AvatarSection: React.FC<AvatarSectionProps> = ({
       const res = await profileApi.uploadAccountAvatar(file);
       const newUrl = res?.data?.avatar_url || res?.data?.avatar || res?.avatar_url || res?.avatar;
       if (newUrl) {
-        onAvatarUpdated(newUrl);
+        const cacheBustedUrl = newUrl.includes('?') ? `${newUrl}&v=${Date.now()}` : `${newUrl}?v=${Date.now()}`;
+        onAvatarUpdated(cacheBustedUrl);
         showToast('Cập nhật ảnh đại diện thành công!');
       } else {
         showToast('Tải ảnh đại diện hoàn tất.');

@@ -23,14 +23,19 @@ const mapBackendQuestion = (q: any): Question => {
     device: q.learnerDevice || q.device || 'Windows',
     browser: q.learnerBrowser || q.browser || 'Chrome 124.0',
     is_bookmarked: !!q.is_bookmarked,
-    replies: Array.isArray(q.replies) ? q.replies.map((r: any) => ({
-      id: String(r.id),
-      user_name: r.user_full_name || r.author?.full_name || (r.user_role === 'instructor' || r.author?.role === 'instructor' ? 'Giảng viên (Bạn)' : 'Học viên'),
-      user_avatar: r.user_avatar || r.author?.avatar_url,
-      role: (r.user_role === 'instructor' || r.author?.role === 'instructor') ? 'instructor' : 'student',
-      content: r.content || '',
-      created_at: r.created_at || new Date().toISOString()
-    })) : []
+    replies: Array.isArray(q.replies) ? q.replies.map((r: any) => {
+      const isInstructor = !!r.is_instructor_reply || r.user?.role === 'instructor' || r.user_role === 'instructor' || r.author?.role === 'instructor';
+      const userName = r.user?.full_name || r.user_full_name || r.author?.full_name || (isInstructor ? 'Giảng viên (Bạn)' : 'Học viên');
+      const userAvatar = r.user?.avatar_url || r.user_avatar || r.author?.avatar_url;
+      return {
+        id: String(r.id),
+        user_name: userName,
+        user_avatar: userAvatar,
+        role: isInstructor ? 'instructor' : 'student',
+        content: r.content || '',
+        created_at: r.created_at || new Date().toISOString()
+      };
+    }) : []
   };
 };
 
@@ -219,7 +224,7 @@ export const InstructorQAModule: React.FC = () => {
     });
 
     updateUrl(selectedQuestionId, filter, page);
-  }, [selectedQuestionId, filter, page, updateUrl, questions]);
+  }, [selectedQuestionId, filter, page, updateUrl]);
 
   // Listen to popstate (browser back/forward)
   useEffect(() => {
@@ -245,36 +250,43 @@ export const InstructorQAModule: React.FC = () => {
     if (!selectedQuestionId) return;
 
     try {
-      const res = await instructorApi.replyInstructorQuestion(selectedQuestionId, {
+      const res: any = await instructorApi.replyInstructorQuestion(selectedQuestionId, {
         content: replyText,
         is_official: isOfficial,
         notify_learner: notifyStudent,
       });
       showToast('Đã gửi câu trả lời thành công!');
 
-      // Reload detail and list
-      loadSummary();
-      loadQuestions();
+      // Reload summary and list
+      await Promise.all([loadSummary(), loadQuestions()]);
 
-      // Optimistically append reply
-      const newReply: Reply = {
-        id: String(res.data?.reply?.id || 'reply-' + Date.now()),
-        user_name: 'Giảng viên (Bạn)',
-        role: 'instructor',
-        content: replyText,
-        created_at: new Date().toISOString(),
-      };
+      // Refetch detail directly from API to ensure we have the exact saved DB record
+      const detailRes: any = await instructorApi.getInstructorQuestion(selectedQuestionId);
+      const detailData = detailRes.data || detailRes;
+      if (detailData) {
+        setSelectedQuestionDetail(mapBackendQuestion(detailData));
+      } else {
+        const replyObj = res.reply || res.data?.reply;
+        const newReply: Reply = {
+          id: String(replyObj?.id || 'reply-' + Date.now()),
+          user_name: 'Giảng viên (Bạn)',
+          role: 'instructor',
+          content: replyText,
+          created_at: new Date().toISOString(),
+        };
 
-      setSelectedQuestionDetail(prev => prev ? {
-        ...prev,
-        is_answered: true,
-        status: 'answered',
-        reply_count: (prev.reply_count || 0) + 1,
-        replies: [...(prev.replies || []), newReply],
-      } : null);
+        setSelectedQuestionDetail(prev => prev ? {
+          ...prev,
+          is_answered: true,
+          status: 'answered',
+          reply_count: (prev.reply_count || 0) + 1,
+          replies: [...(prev.replies || []), newReply],
+        } : null);
+      }
     } catch (err: any) {
       console.error("Failed to reply question:", err);
       showToast(err.message || "Gửi trả lời thất bại.", 'error');
+      throw err; // Re-throw error so QADetailView keeps content in editor
     }
   };
 

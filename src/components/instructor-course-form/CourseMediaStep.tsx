@@ -19,7 +19,7 @@ export default function CourseMediaStep({ image, setImage, introVideoUrl, setInt
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* Card 1: Thumbnail */}
-        <div className="bg-slate-50/20 border border-slate-100 rounded-2xl p-5 space-y-4">
+        <div id="focus-thumbnail" data-focus-id="thumbnail" className="bg-slate-50/20 border border-slate-100 rounded-2xl p-5 space-y-4 transition-all duration-300">
           <div className="border-b pb-2">
             <h4 className="text-[11.5px] font-black text-stone-850">1. Ảnh bìa đại diện khóa học (Thumbnail) *</h4>
             <p className="text-[9.5px] text-stone-400 mt-0.5">Xuất hiện tại trang danh sách & chi tiết khóa học.</p>
@@ -42,7 +42,7 @@ export default function CourseMediaStep({ image, setImage, introVideoUrl, setInt
         </div>
 
         {/* Card 2: Intro Video */}
-        <div className="bg-slate-50/20 border border-slate-100 rounded-2xl p-5 space-y-4">
+        <div id="focus-intro_video" data-focus-id="intro_video" className="bg-slate-50/20 border border-slate-100 rounded-2xl p-5 space-y-4 transition-all duration-300">
           <div className="border-b pb-2">
             <h4 className="text-[11.5px] font-black text-stone-850">2. Video giới thiệu khóa học (Intro Video) *</h4>
             <p className="text-[9.5px] text-stone-400 mt-0.5">Video ngắn giới thiệu nội dung chương trình học.</p>

@@ -473,12 +473,14 @@ export default function CourseCurriculumStep({
         {/* ==================================================
             CỘT BÊN TRÁI: DANH SÁCH CHƯƠNG & BÀI HỌC (col-span-4)
             ================================================== */}
-        <div className="lg:col-span-4 bg-white border border-slate-100 rounded-2xl p-4 shadow-3xs space-y-3 instructor-curriculum-sidebar">
+        <div id="focus-published_section" data-focus-id="published_section" className="lg:col-span-4 bg-white border border-slate-100 rounded-2xl p-4 shadow-3xs space-y-3 instructor-curriculum-sidebar">
           <div className="flex justify-between items-center pb-2 border-b">
             <h3 className="font-black text-xs text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-emerald-600" /> Cấu trúc khóa học
             </h3>
             <button
+              id="focus-add-section"
+              data-focus-id="add-section"
               type="button"
               onClick={handleOpenAddSection}
               className="text-[9.5px] font-extrabold text-white bg-[#10b981] hover:bg-emerald-600 rounded-lg px-2.5 py-1 flex items-center gap-1 cursor-pointer transition-colors shadow-3xs"
@@ -516,6 +518,8 @@ export default function CourseCurriculumStep({
                       
                       <div className="flex items-center gap-1.5 ml-2 shrink-0">
                         <button
+                          id="focus-add-lesson"
+                          data-focus-id="add-lesson"
                           type="button"
                           onClick={() => handleOpenAddLesson(chapter.id)}
                           className="text-[9.5px] font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-2 py-0.5 flex items-center gap-1 cursor-pointer transition-colors"

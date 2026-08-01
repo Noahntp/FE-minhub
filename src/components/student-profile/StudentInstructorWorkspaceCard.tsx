@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, ArrowRight, Sparkles, BookOpen } from 'lucide-react';
 
 interface StudentInstructorWorkspaceCardProps {
@@ -10,6 +11,7 @@ export const StudentInstructorWorkspaceCard: React.FC<StudentInstructorWorkspace
   currentUser,
   onNavigateTo
 }) => {
+  const navigate = useNavigate();
   // Enforce strict authorization check: roles array includes 'instructor' or role string equals 'instructor'
   const hasInstructorRole =
     currentUser?.role === 'instructor' ||
@@ -22,8 +24,8 @@ export const StudentInstructorWorkspaceCard: React.FC<StudentInstructorWorkspace
   const handleGoToInstructorDashboard = () => {
     if (onNavigateTo) {
       onNavigateTo('/instructor/dashboard');
-    } else if (typeof window !== 'undefined') {
-      window.location.href = '/instructor/dashboard';
+    } else {
+      navigate('/instructor/dashboard');
     }
   };
 

@@ -106,7 +106,8 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
 
   const handleReplySubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isContentEmpty(replyContent)) {
+    const currentContent = editorRef.current ? editorRef.current.innerHTML : replyContent;
+    if (isContentEmpty(currentContent)) {
       setValidationError('Vui lòng nhập nội dung trả lời.');
       return;
     }
@@ -114,13 +115,19 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
     setValidationError('');
     setIsSubmitting(true);
     try {
-      await onReply(replyContent, isOfficial, notifyStudent);
+      await onReply(currentContent, isOfficial, notifyStudent);
       if (editorRef.current) {
         editorRef.current.innerHTML = '';
       }
       setReplyContent('');
-    } catch (err) {
-      // Toast error handled upstream
+    } catch (err: any) {
+      if (err?.errors?.content) {
+        setValidationError(Array.isArray(err.errors.content) ? err.errors.content.join(' ') : String(err.errors.content));
+      } else if (err?.message) {
+        setValidationError(err.message);
+      } else {
+        setValidationError('Gửi trả lời thất bại. Vui lòng thử lại.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -642,7 +649,7 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
               ) : (
                 <>
                   <Send className="w-4 h-4" aria-hidden="true" />
-                  <span>Gửi trả lời</span>
+                  <span>Gửi câu trả lời</span>
                 </>
               )}
             </button>

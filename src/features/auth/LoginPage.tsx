@@ -3,18 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import AuthScreens from './components/AuthScreens';
 import { User } from '@/shared/types';
 import { useApp } from '@/app/AppContext';
+import { getDashboardRouteByRole } from '@/router/routes';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setCurrentUser, setIsLoggedIn } = useApp();
 
   const handleLoginSuccess = (user: User) => {
-    // Update global context state
     setCurrentUser(user);
     setIsLoggedIn(true);
-    // Also save to localStorage just in case context initialization misses it
     localStorage.setItem('mindhub_current_user', JSON.stringify(user));
     localStorage.setItem('mindhub_is_logged_in', 'true');
+    const targetPath = getDashboardRouteByRole(user.role);
+    navigate(targetPath, { replace: true });
   };
 
   return (
@@ -24,7 +25,8 @@ export default function LoginPage() {
         onClose={() => navigate('/')}
         initialMode="login"
         navigateTo={(path) => {
-          navigate(path);
+          const target = path.startsWith('/') ? path : `/${path}`;
+          navigate(target, { replace: true });
         }}
       />
     </div>

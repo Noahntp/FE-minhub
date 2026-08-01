@@ -38,6 +38,8 @@ export function CourseBuilderWizard({
   const [category, setCategory] = useState('Development'); // strictly 'Development' | 'Artificial Intelligence'
   const [subcategory, setSubcategory] = useState('');
   const [price, setPrice] = useState<number>(500000);
+  const [hasDiscount, setHasDiscount] = useState<boolean>(false);
+  const [discountPercent, setDiscountPercent] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number>(350000);
   const [image, setImage] = useState('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800');
   const [requirements, setRequirements] = useState<string[]>(['Có máy tính cá nhân kết nối Internet']);
@@ -656,25 +658,69 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                       </div>
                     </div>
 
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-stone-700 block">Áp dụng giá khuyến mãi</span>
+                        <span className="text-[10.5px] text-stone-400 font-medium mt-0.5 block">
+                          {hasDiscount ? 'Nhập tỷ lệ giảm từ 1% đến 99%.' : 'Khóa học đang bán theo giá gốc.'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextState = !hasDiscount;
+                          setHasDiscount(nextState);
+                          if (!nextState) {
+                            setDiscountPercent('');
+                          } else if (!discountPercent || Number(discountPercent) < 1) {
+                            setDiscountPercent(40);
+                          }
+                        }}
+                        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${
+                          hasDiscount ? 'bg-emerald-600' : 'bg-stone-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            hasDiscount ? 'translate-x-5' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10.5px] font-bold text-stone-600 mb-1">Giá bán gốc đề xuất (VND) *:</label>
                         <input 
                           type="number" 
-                          value={price}
-                          onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
+                          value={price || ''}
+                          onChange={(e) => setPrice(Math.max(0, parseInt(e.target.value) || 0))}
                           className="w-full text-xs p-2.5 border rounded-xl"
                           required
                         />
                       </div>
                       <div>
-                        <label className="block text-[10.5px] font-bold text-stone-600 mb-1">Giá khuyến mãi hiện tại (VND) *:</label>
+                        <label className="block text-[10.5px] font-bold text-stone-600 mb-1">Phần trăm giảm giá (%):</label>
                         <input 
                           type="number" 
-                          value={salePrice}
-                          onChange={(e) => setSalePrice(parseInt(e.target.value) || 0)}
-                          className="w-full text-xs p-2.5 border rounded-xl"
-                          required
+                          min={1}
+                          max={99}
+                          disabled={!hasDiscount}
+                          value={hasDiscount ? discountPercent : ''}
+                          onChange={(e) => {
+                            if (!hasDiscount) return;
+                            const valStr = e.target.value;
+                            if (valStr === '') {
+                              setDiscountPercent('');
+                              return;
+                            }
+                            const val = parseInt(valStr);
+                            setDiscountPercent(isNaN(val) ? '' : val);
+                          }}
+                          placeholder="Ví dụ: 40"
+                          className={`w-full text-xs p-2.5 border rounded-xl transition-colors ${
+                            !hasDiscount ? 'bg-slate-100 text-stone-400 border-slate-200 cursor-not-allowed' : 'bg-white text-stone-700'
+                          }`}
                         />
                       </div>
                     </div>

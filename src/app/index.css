@@ -8,6 +8,13 @@
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
+  --color-brand-normal: #111a4a;
+  --color-brand-hover: #0c1338;
+  --color-brand-light: #f0f3ff;
+  --color-brand-dark: #090e28;
+  --color-brand-light-active: #c7d2fe;
+  --color-brand-50: #f5f7ff;
+
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));

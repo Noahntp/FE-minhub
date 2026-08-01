@@ -9,7 +9,8 @@ import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { ProfessionalProfileTab } from './ProfessionalProfileTab';
 import { SecurityTab } from './SecurityTab';
 import { RolesPermissionsTab } from './RolesPermissionsTab';
-
+import { ApiService } from '../../services/api';
+import { useApp } from '../../app/AppContext';
 
 interface AccountCenterPageProps {
   currentUser: any;
@@ -24,6 +25,8 @@ export const AccountCenterPage: React.FC<AccountCenterPageProps> = ({
   navigateTo,
   onLogout
 }) => {
+  const { setCurrentUser } = useApp();
+
   // Parse initial active tab from URL query param if present
   const getTabFromUrl = (): AccountTabKey => {
     if (typeof window === 'undefined') return 'profile';
@@ -42,6 +45,46 @@ export const AccountCenterPage: React.FC<AccountCenterPageProps> = ({
     setUserState(currentUser);
   }, [currentUser]);
 
+  // Fetch latest profile from DB on component mount
+  useEffect(() => {
+    let isMounted = true;
+    const fetchFreshProfile = async () => {
+      try {
+        const res = await ApiService.getInstructorProfile();
+        const data = res?.data || res;
+        if (data && isMounted) {
+          const fresh = {
+            ...userState,
+            id: data.id || userState?.id,
+            name: data.full_name || data.name || userState?.name,
+            full_name: data.full_name || data.name || userState?.full_name,
+            email: data.email || userState?.email,
+            phone: data.phone ?? userState?.phone,
+            bio: data.bio ?? userState?.bio,
+            expertise: data.expertise ?? userState?.expertise,
+            avatar: data.avatar_url || data.avatar || userState?.avatar,
+            avatar_url: data.avatar_url || data.avatar || userState?.avatar_url,
+            role: data.role || userState?.role
+          };
+          setUserState(fresh);
+          setCurrentUser(fresh);
+          localStorage.setItem('mindhub_current_user', JSON.stringify(fresh));
+          if (onUpdateUser) {
+            onUpdateUser(fresh);
+          }
+        }
+      } catch (e) {
+        /* fallback */
+      }
+    };
+
+    fetchFreshProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Sync browser URL search params when tab changes
   const handleTabChange = (newTab: AccountTabKey) => {
     setActiveTab(newTab);
@@ -58,9 +101,19 @@ export const AccountCenterPage: React.FC<AccountCenterPageProps> = ({
   };
 
   const handleProfileUpdated = (updatedUser: any) => {
-    setUserState(updatedUser);
+    const normalized = {
+      ...userState,
+      ...updatedUser,
+      name: updatedUser.full_name || updatedUser.name || userState?.name,
+      full_name: updatedUser.full_name || updatedUser.name || userState?.full_name,
+      avatar: updatedUser.avatar_url || updatedUser.avatar || userState?.avatar,
+      avatar_url: updatedUser.avatar_url || updatedUser.avatar || userState?.avatar_url
+    };
+    setUserState(normalized);
+    setCurrentUser(normalized);
+    localStorage.setItem('mindhub_current_user', JSON.stringify(normalized));
     if (onUpdateUser) {
-      onUpdateUser(updatedUser);
+      onUpdateUser(normalized);
     }
   };
 
@@ -72,6 +125,8 @@ export const AccountCenterPage: React.FC<AccountCenterPageProps> = ({
       avatarUrl: newAvatarUrl
     };
     setUserState(updated);
+    setCurrentUser(updated);
+    localStorage.setItem('mindhub_current_user', JSON.stringify(updated));
     if (onUpdateUser) {
       onUpdateUser(updated);
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar } from 'lucide-react';
+import { X, Calendar, ChevronDown } from 'lucide-react';
 import { Coupon, CourseOption } from '../types';
 
 interface Props {
@@ -8,6 +8,27 @@ interface Props {
   onClose: () => void;
   onSubmit: (data: Partial<Coupon>) => Promise<void>;
 }
+
+const toDateTimeLocalValue = (dateStr?: string | null): string => {
+  if (!dateStr) return '';
+  const clean = dateStr.replace(' ', 'T').trim();
+  if (clean.length >= 16) {
+    return clean.substring(0, 16);
+  }
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const toApiDateTime = (localStr?: string | null): string | null => {
+  if (!localStr) return null;
+  const clean = localStr.replace('T', ' ').trim();
+  if (clean.length === 16) {
+    return `${clean}:00`;
+  }
+  return clean;
+};
 
 export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, onSubmit }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,23 +46,33 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
   });
 
   const [validationError, setValidationError] = useState<string>('');
+  const isUsed = Boolean(coupon && coupon.used_count && coupon.used_count > 0);
 
   useEffect(() => {
+    const defaultCourseId = courseOptions.length > 0 ? String(courseOptions[0].id) : '';
     if (coupon) {
-      // Format dates for input datetime-local
-      const start = coupon.start_at ? coupon.start_at.substring(0, 16) : '';
-      const end = coupon.end_at ? coupon.end_at.substring(0, 16) : '';
+      const courseId = coupon.course_id ? String(coupon.course_id) : (coupon.course?.id ? String(coupon.course.id) : defaultCourseId);
+      const discountType = (coupon.discount_type === 'percentage' ? 'percent' : coupon.discount_type) || 'percent';
+      const discountValue = Number(coupon.discount_value);
+
       setFormData({
-        ...coupon,
-        discount_type: (coupon.discount_type === 'percentage' ? 'percent' : coupon.discount_type) as any,
-        start_at: start,
-        end_at: end
+        id: coupon.id,
+        code: coupon.code || '',
+        name: coupon.name || '',
+        course_id: courseId,
+        discount_type: discountType as any,
+        discount_value: isNaN(discountValue) ? 0 : discountValue,
+        usage_limit: coupon.usage_limit != null ? Number(coupon.usage_limit) : undefined,
+        start_at: toDateTimeLocalValue(coupon.start_at),
+        end_at: toDateTimeLocalValue(coupon.end_at),
+        status: coupon.status || 'active',
+        description: coupon.description || '',
       });
     } else {
       setFormData({
         code: '',
         name: '',
-        course_id: courseOptions.length > 0 ? String(courseOptions[0].id) : '',
+        course_id: defaultCourseId,
         discount_type: 'percent',
         discount_value: 0,
         usage_limit: undefined,
@@ -52,7 +83,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
       });
     }
     setValidationError('');
-  }, [coupon, courseOptions]);
+  }, [coupon?.id, coupon, courseOptions]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -60,7 +91,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
     if (name === 'code') {
       setFormData(prev => ({ ...prev, [name]: value.replace(/\s+/g, '').toUpperCase() }));
     } else if (name === 'discount_value' || name === 'usage_limit') {
-      setFormData(prev => ({ ...prev, [name]: value ? Number(value) : undefined }));
+      setFormData(prev => ({ ...prev, [name]: value !== '' ? Number(value) : undefined }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -71,7 +102,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
       setValidationError('Mã giảm giá không được để trống.');
       return false;
     }
-    if (!formData.discount_value || formData.discount_value <= 0) {
+    if (formData.discount_value === undefined || formData.discount_value <= 0) {
       setValidationError('Giá trị giảm giá phải lớn hơn 0.');
       return false;
     }
@@ -107,16 +138,22 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
 
     setIsSubmitting(true);
     try {
-      // Format payload for backend
-      const payload = {
-        ...formData,
-        code: formData.code?.toUpperCase().trim(),
+      const payload: any = {
         name: formData.name || `Khuyến mãi ${formData.code}`,
         course_id: Number(formData.course_id),
         discount_type: formData.discount_type === 'percentage' ? 'percent' : formData.discount_type,
-        start_at: new Date(formData.start_at!).toISOString(),
-        end_at: new Date(formData.end_at!).toISOString(),
+        discount_value: Number(formData.discount_value),
+        usage_limit: formData.usage_limit ? Number(formData.usage_limit) : null,
+        start_at: toApiDateTime(formData.start_at),
+        end_at: toApiDateTime(formData.end_at),
+        status: formData.status || 'active',
+        description: formData.description || '',
       };
+
+      if (!isUsed) {
+        payload.code = formData.code?.toUpperCase().trim();
+      }
+
       await onSubmit(payload);
       onClose();
     } catch (err: any) {
@@ -172,10 +209,19 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
               name="code" 
               value={formData.code || ''} 
               onChange={handleChange} 
+              disabled={isUsed}
               placeholder="Nhập mã (VD: WELCOME20)" 
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal uppercase font-mono font-bold" 
+              className={`w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal uppercase font-mono font-bold ${
+                isUsed ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white'
+              }`}
             />
-            <p className="text-[9px] text-slate-400 font-semibold">Mã sẽ được viết hoa tự động, không dấu cách.</p>
+            {isUsed ? (
+              <p className="text-[9px] text-amber-600 font-semibold mt-1">
+                Mã đã được sử dụng ({coupon.used_count} lượt), không thể thay đổi mã code.
+              </p>
+            ) : (
+              <p className="text-[9px] text-slate-400 font-semibold mt-1">Mã sẽ được viết hoa tự động, không dấu cách.</p>
+            )}
           </div>
 
           {/* Tên mã giảm giá */}
@@ -195,17 +241,18 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
           {/* Loại giảm giá */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Loại giảm giá *</label>
-            <div className="flex gap-2">
+            <div className="relative">
               <select 
                 required 
                 name="discount_type" 
                 value={formData.discount_type || 'percent'} 
                 onChange={handleChange} 
-                className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer"
+                className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer appearance-none"
               >
                 <option value="percent">Phần trăm (%)</option>
                 <option value="fixed">Số tiền cố định (đ)</option>
               </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
             </div>
           </div>
 
@@ -216,7 +263,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
               required 
               type="number" 
               name="discount_value" 
-              value={formData.discount_value || ''} 
+              value={formData.discount_value ?? ''} 
               onChange={handleChange} 
               placeholder="Nhập giá trị" 
               className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-bold" 
@@ -274,35 +321,41 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
           {/* Khóa học áp dụng */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Khóa học áp dụng *</label>
-            <select 
-              required 
-              name="course_id" 
-              value={formData.course_id || ''} 
-              onChange={handleChange} 
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer"
-            >
-              <option value="">Chọn khóa học</option>
-              {courseOptions.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select 
+                required 
+                name="course_id" 
+                value={formData.course_id || ''} 
+                onChange={handleChange} 
+                className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer appearance-none"
+              >
+                <option value="">Chọn khóa học</option>
+                {courseOptions.map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+            </div>
           </div>
 
           {/* Trạng thái */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Trạng thái *</label>
-            <select 
-              required 
-              name="status" 
-              value={formData.status || 'active'} 
-              onChange={handleChange} 
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer"
-            >
-              <option value="active">Đang hoạt động</option>
-              <option value="inactive">Tạm tắt</option>
-            </select>
+            <div className="relative">
+              <select 
+                required 
+                name="status" 
+                value={formData.status || 'active'} 
+                onChange={handleChange} 
+                className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer appearance-none"
+              >
+                <option value="active">Đang hoạt động</option>
+                <option value="inactive">Tạm tắt</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+            </div>
           </div>
 
           {/* Mô tả */}
@@ -345,3 +398,4 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
     </div>
   );
 };
+

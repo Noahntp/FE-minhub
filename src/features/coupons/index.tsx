@@ -186,8 +186,12 @@ export const CouponManagement: React.FC = () => {
   const handleSubmitForm = async (data: Partial<Coupon>) => {
     try {
       if (selectedCoupon && selectedCoupon.id) {
-        await instructorApi.updateInstructorCoupon(selectedCoupon.id, data);
+        const res = await instructorApi.updateInstructorCoupon(selectedCoupon.id, data);
+        const updated = res?.data || res;
         showToast('Cập nhật mã giảm giá thành công.');
+        if (updated && updated.id) {
+          setCoupons(prev => prev.map(item => String(item.id) === String(updated.id) ? { ...item, ...updated } : item));
+        }
       } else {
         await instructorApi.createInstructorCoupon(data);
         showToast('Tạo mã giảm giá thành công.');
