@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
   Search, 
@@ -100,10 +101,18 @@ export default function WithdrawalsManagement() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Table Filters state
-  const [page, setPage] = useState(1);
+  // Sync filter state với URL query params
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Table Filters state — khởi tạo từ URL nếu có
+  const [page, setPageState] = useState(() => {
+    const p = Number(searchParams.get('page'));
+    return p > 0 ? p : 1;
+  });
   const [perPage, setPerPage] = useState(20);
-  const [status, setStatus] = useState("all");
+  const [status, setStatusState] = useState(() => {
+    return searchParams.get('status') || "all";
+  });
   const [timePreset, setTimePreset] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -111,6 +120,38 @@ export default function WithdrawalsManagement() {
   const [amountMax, setAmountMax] = useState("");
   const [sortBy, setSortBy] = useState("requested_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("desc");
+
+  // Wrapper để sync status lên URL
+  const setStatus = (newStatus: string) => {
+    setStatusState(newStatus);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (newStatus === 'all') {
+        next.delete('status');
+      } else {
+        next.set('status', newStatus);
+      }
+      next.delete('page'); // reset về trang 1
+      return next;
+    }, { replace: true });
+  };
+
+  // Wrapper để sync page lên URL
+  const setPage = (newPage: number | ((prev: number) => number)) => {
+    setPageState(prev => {
+      const resolved = typeof newPage === 'function' ? newPage(prev) : newPage;
+      setSearchParams(sp => {
+        const next = new URLSearchParams(sp);
+        if (resolved <= 1) {
+          next.delete('page');
+        } else {
+          next.set('page', String(resolved));
+        }
+        return next;
+      }, { replace: true });
+      return resolved;
+    });
+  };
 
   // Search state with debouncing
   const [tempSearch, setTempSearch] = useState("");
@@ -406,7 +447,8 @@ export default function WithdrawalsManagement() {
         <div
           onClick={() => {
             setStatus("all");
-            setPage(1);
+            setPageState(1);
+            setTimeout(() => tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
           }}
           className={`rounded-[6px] border bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-mid-gray/60 hover:shadow-md transition-all cursor-pointer min-h-[115px] ${
             status === "all" ? 'ring-2 ring-ink border-ink' : 'border-hairline'
@@ -430,7 +472,8 @@ export default function WithdrawalsManagement() {
         <div
           onClick={() => {
             setStatus("pending");
-            setPage(1);
+            setPageState(1);
+            setTimeout(() => tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
           }}
           className={`rounded-[6px] border bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-mid-gray/60 hover:shadow-md transition-all cursor-pointer min-h-[115px] ${
             status === "pending" ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-50/10' : 'border-hairline'
@@ -462,7 +505,8 @@ export default function WithdrawalsManagement() {
         <div
           onClick={() => {
             setStatus("approved");
-            setPage(1);
+            setPageState(1);
+            setTimeout(() => tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
           }}
           className={`rounded-[6px] border bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-mid-gray/60 hover:shadow-md transition-all cursor-pointer min-h-[115px] ${
             status === "approved" ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/10' : 'border-hairline'
@@ -494,7 +538,8 @@ export default function WithdrawalsManagement() {
         <div
           onClick={() => {
             setStatus("paid");
-            setPage(1);
+            setPageState(1);
+            setTimeout(() => tableSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
           }}
           className={`rounded-[6px] border bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-mid-gray/60 hover:shadow-md transition-all cursor-pointer min-h-[115px] ${
             status === "paid" ? 'ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50/10' : 'border-hairline'
