@@ -162,40 +162,50 @@ export default function DashboardOverview() {
       return `${year}-${month}-${day}`;
     };
     
-    const referenceDate = new Date('2026-06-30');
+    // Dùng ngày thực tế thay vì hardcode
+    const today = new Date();
     let params: any = {};
     if (filterType === '7days') {
-      const today = new Date(referenceDate);
-      const past = new Date(referenceDate);
+      const past = new Date(today);
       past.setDate(today.getDate() - 7);
       params = { date_from: formatDate(past), date_to: formatDate(today) };
     } else if (filterType === '30days') {
-      const today = new Date(referenceDate);
-      const past = new Date(referenceDate);
+      const past = new Date(today);
       past.setDate(today.getDate() - 30);
       params = { date_from: formatDate(past), date_to: formatDate(today) };
     } else if (filterType === 'thisMonth') {
-      params = { month: referenceDate.getMonth() + 1, year: referenceDate.getFullYear() };
+      params = { month: today.getMonth() + 1, year: today.getFullYear() };
     } else if (filterType === 'thisYear') {
-      params = { year: referenceDate.getFullYear() };
+      params = { year: today.getFullYear() };
     } else if (filterType === 'custom') {
       params = { date_from: from, date_to: to };
     }
 
     Promise.all([
       adminApi.getDashboardOverview(params),
+      // Fetch dashboard không filter thời gian để lấy withdrawal_summary toàn hệ thống
+      adminApi.getDashboardOverview({}),
       adminApi.getRevenueReport({ ...params, group_by: 'day' }),
       adminApi.getTopCoursesReport({ ...params, per_page: 5 }),
       adminApi.getTopInstructorsReport({ ...params, per_page: 5 })
     ])
-      .then(([dashboardRes, revenueRes, topCoursesRes, topInstructorsRes]) => {
+      .then(([dashboardRes, globalDashboardRes, revenueRes, topCoursesRes, topInstructorsRes]) => {
         if (!dashboardRes) {
           setUiState('empty');
           return;
         }
 
+        // Merge withdrawal_summary từ global (không filter thời gian) để luôn hiển thị đúng trạng thái hiện tại
+        const mergedDashboardRes = {
+          ...dashboardRes,
+          withdrawal_summary: globalDashboardRes?.withdrawal_summary || dashboardRes.withdrawal_summary,
+          action_required: globalDashboardRes?.action_required || dashboardRes.action_required,
+          course_status: globalDashboardRes?.course_status || dashboardRes.course_status,
+          user_status: globalDashboardRes?.user_status || dashboardRes.user_status,
+        };
+
         const mergedData = {
-          dashboard: { data: dashboardRes },
+          dashboard: { data: mergedDashboardRes },
           revenue_report: { data: revenueRes || { summary: {}, items: [] } },
           top_courses: { data: topCoursesRes || { summary: {}, items: [] } },
           top_instructors: { data: topInstructorsRes || { items: [] } }
@@ -243,35 +253,34 @@ export default function DashboardOverview() {
 
     let start: Date;
     let end: Date;
-    const referenceDate = new Date('2026-06-30');
+    // Dùng ngày thực tế thay vì hardcode
+    const todayChart = new Date();
 
     if (activeFilter === '7days') {
-      const today = new Date(referenceDate);
-      const past = new Date(referenceDate);
-      past.setDate(today.getDate() - 7);
+      const past = new Date(todayChart);
+      past.setDate(todayChart.getDate() - 7);
       start = past;
       start.setHours(0, 0, 0, 0);
-      end = today;
+      end = new Date(todayChart);
       end.setHours(23, 59, 59, 999);
     } else if (activeFilter === '30days') {
-      const today = new Date(referenceDate);
-      const past = new Date(referenceDate);
-      past.setDate(today.getDate() - 30);
+      const past = new Date(todayChart);
+      past.setDate(todayChart.getDate() - 30);
       start = past;
       start.setHours(0, 0, 0, 0);
-      end = today;
+      end = new Date(todayChart);
       end.setHours(23, 59, 59, 999);
     } else if (activeFilter === 'thisMonth') {
-      start = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1, 0, 0, 0);
-      end = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 1, 0, 0, 0);
+      start = new Date(todayChart.getFullYear(), todayChart.getMonth(), 1, 0, 0, 0);
+      end = new Date(todayChart.getFullYear(), todayChart.getMonth() + 1, 1, 0, 0, 0);
       end.setMilliseconds(-1);
     } else if (activeFilter === 'thisYear') {
-      start = new Date(referenceDate.getFullYear(), 0, 1, 0, 0, 0);
-      end = new Date(referenceDate.getFullYear(), 11, 31, 23, 59, 59, 999);
+      start = new Date(todayChart.getFullYear(), 0, 1, 0, 0, 0);
+      end = new Date(todayChart.getFullYear(), 11, 31, 23, 59, 59, 999);
     } else {
-      start = customFrom ? new Date(customFrom) : new Date(referenceDate);
+      start = customFrom ? new Date(customFrom) : new Date(todayChart);
       start.setHours(0, 0, 0, 0);
-      end = customTo ? new Date(customTo) : new Date(referenceDate);
+      end = customTo ? new Date(customTo) : new Date(todayChart);
       end.setHours(23, 59, 59, 999);
     }
 
@@ -710,7 +719,7 @@ export default function DashboardOverview() {
       },
       {
         key: "inactive",
-        label: "Chưa kích hoạt",
+        label: "Ngưng hoạt động",
         code: "inactive",
         count: status.inactive || 0,
         colorClass: "bg-mid-gray",
@@ -1060,10 +1069,13 @@ export default function DashboardOverview() {
             </button>
  
             {/* KPI: Tổng lượt ghi danh */}
-            <div className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
+            <button 
+              onClick={() => navigate(`/admin/courses?sort_by=enrollment_count`)}
+              className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle hover:border-mid-gray/40 transition-all group cursor-pointer"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-mid-gray uppercase tracking-wider">Tổng lượt ghi danh</span>
-                <div className="text-ink shrink-0">
+                <div className="text-ink shrink-0 group-hover:text-blue-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="10" />
                     <path d="m9 12 2 2 4-4" />
@@ -1084,7 +1096,7 @@ export default function DashboardOverview() {
               <p className="mt-2 text-xs text-mid-gray">
                 {formatNumber(dashboardData.dashboard.data.summary.completed_enrollments)} hoàn thành • Tỉ lệ {dashboardData.dashboard.data.summary.completion_rate}%
               </p>
-            </div>
+            </button>
  
             {/* KPI: Tổng đơn hàng */}
             <button

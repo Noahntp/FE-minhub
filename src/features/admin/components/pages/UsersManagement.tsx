@@ -228,6 +228,8 @@ export default function UsersManagement() {
     return { computedFrom, computedTo };
   };
 
+  const tableRef = React.useRef<HTMLDivElement>(null);
+
   // Fetch Users Function
   const fetchUsers = async () => {
     setLoading(true);
@@ -263,6 +265,13 @@ export default function UsersManagement() {
         // Validate current page range
         if (res.meta && page > res.meta.last_page) {
           updateFilters({ page: 1 });
+        }
+        
+        // Auto scroll to table if filtering from dashboard
+        if (status) {
+          setTimeout(() => {
+            tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
         }
       } else {
         setError(res ? res.message : 'Đã có lỗi xảy ra.');
@@ -903,7 +912,7 @@ export default function UsersManagement() {
       </section>
 
       {/* Main Results Table Section */}
-      <section id="users-results-section" style={{ scrollMarginTop: '80px' }} className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden flex flex-col min-h-[400px]">
+      <section ref={tableRef} id="users-results-section" style={{ scrollMarginTop: '80px' }} className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden flex flex-col min-h-[400px]">
         {/* Quick Tabs */}
         <div className="flex items-center justify-between border-b border-hairline/60 bg-paper shrink-0 overflow-x-auto scrollbar-none">
           <div className="flex" id="quick-tabs-container">

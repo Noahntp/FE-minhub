@@ -349,6 +349,8 @@ export default function CoursesManagement() {
     });
   };
 
+  const tableRef = React.useRef<HTMLDivElement>(null);
+
   // Load Data
   const loadData = async (showSuccessToast = false) => {
     setLoading(true);
@@ -384,6 +386,13 @@ export default function CoursesManagement() {
         // Auto Page Adjustment
         if (tableRes.meta && pageParam > tableRes.meta.last_page) {
           updateFilters({ page: 1 });
+        }
+        
+        // Auto scroll to table if filtering from dashboard
+        if (statusParam || searchParams.get('sort_by') === 'enrollment_count') {
+          setTimeout(() => {
+            tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
         }
       } else {
         setError(tableRes.message || 'Lỗi tải danh sách khóa học.');
@@ -1011,7 +1020,7 @@ export default function CoursesManagement() {
       </section>
 
       {/* VI. TAB TRẠNG THÁI & BẢNG DỮ LIỆU */}
-      <section id="courses-results-section" className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden flex flex-col min-h-[400px]">
+      <section ref={tableRef} id="courses-results-section" className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden flex flex-col min-h-[400px]">
         {/* Quick Tabs */}
         <div className="flex items-center justify-between border-b border-hairline/60 bg-paper shrink-0 overflow-x-auto scrollbar-none">
           <div className="flex" id="quick-tabs-container">

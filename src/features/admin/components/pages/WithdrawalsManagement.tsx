@@ -223,7 +223,7 @@ export default function WithdrawalsManagement() {
   };
 
   useEffect(() => {
-    loadData();
+    loadData(searchParams.has('status'));
   }, [page, perPage, search, status, timePreset, dateFrom, dateTo, amountMin, amountMax, sortBy, sortOrder]);
 
   // --- Detail Drawer Loading ---
