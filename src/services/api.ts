@@ -1,5 +1,6 @@
 import { Course, Chapter, Lesson, Resource, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
+import { MockDB } from './mockDb';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
 
 /**
