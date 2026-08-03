@@ -5,6 +5,7 @@ import { getComments, getUsers } from "@/assets/js/mocks/mock-repository.js";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
 import FilterSelect, { SelectOption } from "./FilterSelect";
+import AdminPagination from "../shared/AdminPagination";
 import { config } from "@/shared/lib/api-client";
 
 // Format Helpers
@@ -1929,116 +1930,14 @@ export default function CoursesManagement() {
 
         {/* 7. Pagination Footer (Vừa khít trong wrapper card) */}
         {meta && (
-          <div
-            id="pagination-wrapper"
-            className="px-4 py-3 bg-surface-alt/30 border-t border-hairline flex flex-col sm:flex-row items-center justify-between gap-3 select-none"
-          >
-            <div className="text-xs text-mid-gray">
-              Đang hiển thị{" "}
-              <span className="font-semibold text-ink" id="pag-showing-range">
-                {`${(pageParam - 1) * perPageParam + 1}-${Math.min(pageParam * perPageParam, meta.total)}`}
-              </span>
-              {" trong tổng số "}
-              <span className="font-semibold text-ink" id="pag-total-records">
-                {meta.total}
-              </span>
-              {" khóa học"}
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-mid-gray">Hiển thị</span>
-                <select
-                  id="courses-pagination-per-page"
-                  value={perPageParam}
-                  onChange={(e) =>
-                    updateFilters({ per_page: e.target.value, page: 1 })
-                  }
-                  className="h-7 px-2 bg-canvas border border-hairline rounded focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink cursor-pointer font-medium"
-                >
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-                <span className="text-mid-gray">dòng</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={pageParam === 1}
-                  onClick={() => updateFilters({ page: pageParam - 1 })}
-                  className="p-1.5 rounded-full border border-hairline transition-colors flex items-center justify-center shrink-0 hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                >
-                  <svg
-                    className="w-3.5 h-3.5 text-ink"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15.75 19.5 8.25 12l7.5-7.5"
-                    />
-                  </svg>
-                </button>
-                {(() => {
-                  const pages = [];
-                  const maxButtons = 5;
-                  let startPage = Math.max(
-                    1,
-                    pageParam - Math.floor(maxButtons / 2),
-                  );
-                  let endPage = startPage + maxButtons - 1;
-
-                  if (endPage > meta.last_page) {
-                    endPage = meta.last_page;
-                    startPage = Math.max(1, endPage - maxButtons + 1);
-                  }
-
-                  for (let i = startPage; i <= endPage; i++) {
-                    pages.push(
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => updateFilters({ page: i })}
-                        className={cn(
-                          "h-7.5 w-7.5 rounded-full text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border-none",
-                          i === pageParam
-                            ? "bg-ink text-white shadow-sm"
-                            : "bg-transparent border border-transparent hover:bg-canvas hover:text-ink text-mid-gray",
-                        )}
-                      >
-                        {i}
-                      </button>,
-                    );
-                  }
-                  return pages;
-                })()}
-                <button
-                  type="button"
-                  disabled={pageParam === meta.last_page}
-                  onClick={() => updateFilters({ page: pageParam + 1 })}
-                  className="p-1.5 rounded-full border border-hairline transition-colors flex items-center justify-center shrink-0 hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                >
-                  <svg
-                    className="w-3.5 h-3.5 text-ink"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="m8.25 4.5 7.5 7.5-7.5 7.5"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
+          <AdminPagination
+            currentPage={pageParam}
+            perPage={perPageParam}
+            total={meta.total}
+            onPageChange={(page) => updateFilters({ page })}
+            onPerPageChange={(per_page) => updateFilters({ per_page, page: 1 })}
+            itemLabel="khóa học"
+          />
         )}
       </section>
 

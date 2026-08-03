@@ -4,6 +4,7 @@ import * as usersApi from "@/assets/js/api/users-api.js";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
 import FilterSelect, { SelectOption } from "./FilterSelect";
+import AdminPagination from "../shared/AdminPagination";
 
 const CURRENT_ADMIN_ID = 1;
 
@@ -2496,142 +2497,14 @@ export default function UsersManagement() {
           data?.meta &&
           data.data &&
           data.data.length > 0 && (
-            <div className="p-3.5 bg-surface-alt border-t border-hairline select-none shrink-0">
-              <div
-                id="pagination-wrapper"
-                className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2"
-              >
-                <div className="text-xs text-mid-gray flex items-center gap-4 flex-wrap">
-                  <div>
-                    Đang hiển thị{" "}
-                    <span className="font-semibold text-ink">
-                      {data.meta.total === 0
-                        ? 0
-                        : (data.meta.current_page - 1) * data.meta.per_page + 1}
-                    </span>
-                    -
-                    <span className="font-semibold text-ink">
-                      {Math.min(
-                        data.meta.current_page * data.meta.per_page,
-                        data.meta.total,
-                      )}
-                    </span>{" "}
-                    trong tổng số{" "}
-                    <span className="font-semibold text-ink">
-                      {data.meta.total}
-                    </span>{" "}
-                    người dùng
-                  </div>
-                  {/* Dropdown mỗi trang */}
-                  <div className="flex items-center gap-1.5">
-                    <span>Mỗi trang:</span>
-                    <select
-                      id="users-pagination-per-page"
-                      value={per_page}
-                      onChange={(e) =>
-                        updateFilters({ per_page: e.target.value, page: 1 })
-                      }
-                      className="bg-paper border border-hairline rounded-[6px] px-2 py-0.5 text-xs text-ink outline-none cursor-pointer font-sans"
-                    >
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                      <option value="50">50</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 font-sans">
-                  <button
-                    type="button"
-                    disabled={page <= 1}
-                    onClick={() =>
-                      updateFilters({ page: Math.max(1, page - 1) })
-                    }
-                    className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-                  >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15.75 19.5L8.25 12l7.5-7.5"
-                      />
-                    </svg>
-                    <span>Trước</span>
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: data.meta.last_page }).map(
-                      (_, idx) => {
-                        const i = idx + 1;
-                        if (
-                          i === 1 ||
-                          i === data.meta.last_page ||
-                          (i >= page - 1 && i <= page + 1)
-                        ) {
-                          return (
-                            <button
-                              key={i}
-                              onClick={() => updateFilters({ page: i })}
-                              className={cn(
-                                "h-7.5 w-7.5 rounded-full text-xs font-semibold flex items-center justify-center transition-all cursor-pointer border-none",
-                                i === page
-                                  ? "bg-ink text-white shadow-sm"
-                                  : "bg-transparent border border-transparent hover:bg-canvas hover:text-ink text-mid-gray",
-                              )}
-                            >
-                              {i}
-                            </button>
-                          );
-                        }
-                        if (i === page - 2 || i === page + 2) {
-                          return (
-                            <span
-                              key={i}
-                              className="text-xs text-mid-gray px-1"
-                            >
-                              ...
-                            </span>
-                          );
-                        }
-                        return null;
-                      },
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={page >= data.meta.last_page}
-                    onClick={() =>
-                      updateFilters({
-                        page: Math.min(data.meta.last_page, page + 1),
-                      })
-                    }
-                    className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-                  >
-                    <span>Sau</span>
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <AdminPagination
+              currentPage={page}
+              perPage={Number(per_page)}
+              total={data.meta.total}
+              onPageChange={(p) => updateFilters({ page: p })}
+              onPerPageChange={(pp) => updateFilters({ per_page: String(pp), page: 1 })}
+              itemLabel="người dùng"
+            />
           )}
       </section>
 

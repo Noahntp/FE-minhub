@@ -17,6 +17,7 @@ import {
   ExternalLink,
   ChevronDown,
 } from "lucide-react";
+import AdminPagination from "../shared/AdminPagination";
 import {
   fetchWithdrawals,
   fetchWithdrawalById,
@@ -1182,85 +1183,17 @@ export default function WithdrawalsManagement() {
 
         {/* Pagination Control */}
         {!loading && meta.total > 0 && (
-          <div className="p-3 bg-surface-alt border-t border-hairline select-none rounded-b-[6px]">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-1">
-              <div className="text-xs text-mid-gray flex items-center gap-4 flex-wrap">
-                <div>
-                  Hiển thị{" "}
-                  <span className="font-semibold text-ink">
-                    {(page - 1) * perPage + 1}
-                  </span>{" "}
-                  -{" "}
-                  <span className="font-semibold text-ink">
-                    {Math.min(page * perPage, meta.total)}
-                  </span>{" "}
-                  trong tổng số{" "}
-                  <span className="font-semibold text-ink">{meta.total}</span>{" "}
-                  bản ghi
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span>Mỗi trang:</span>
-                  <select
-                    value={perPage}
-                    onChange={(e) => {
-                      setPerPage(Number(e.target.value));
-                      setPage(1);
-                    }}
-                    className="bg-paper border border-hairline rounded-[6px] px-2 py-0.5 text-xs text-ink outline-none cursor-pointer"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Prev/Next buttons */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((prev) => prev - 1)}
-                  className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span>Trước</span>
-                </button>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: meta.last_page }).map((_, idx) => {
-                    const pageNum = idx + 1;
-                    const isCurrent = pageNum === page;
-                    return (
-                      <button
-                        key={pageNum}
-                        type="button"
-                        onClick={() => setPage(pageNum)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs border transition-colors cursor-pointer ${
-                          isCurrent
-                            ? "bg-ink text-white border-ink"
-                            : "bg-paper text-ink border-hairline hover:bg-canvas"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={page >= meta.last_page}
-                  onClick={() => setPage((prev) => prev + 1)}
-                  className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-                >
-                  <span>Sau</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <AdminPagination
+            currentPage={page}
+            perPage={perPage}
+            total={meta.total}
+            onPageChange={(p) => setPage(p)}
+            onPerPageChange={(pp) => {
+              setPerPage(pp);
+              setPage(1);
+            }}
+            itemLabel="yêu cầu"
+          />
         )}
       </section>
 

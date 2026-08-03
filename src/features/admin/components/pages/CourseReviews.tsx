@@ -9,6 +9,7 @@ import { getCategories } from '@/assets/js/api/categories-api';
 import { showToast } from '@/assets/js/toast';
 import { cn } from '@/shared/lib/utils';
 import FilterSelect, { SelectOption } from './FilterSelect';
+import AdminPagination from "../shared/AdminPagination";
 
 interface Instructor {
   id: number;
@@ -1643,96 +1644,18 @@ export default function CourseReviews() {
 
         {/* Footer: Pagination */}
         {!loading && !error && paginatedReviews.length > 0 && (
-          <div className="p-3.5 bg-surface-alt border-t border-hairline select-none shrink-0">
-            <div id="course-reviews-pagination-container" className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-              <div className="text-xs text-mid-gray flex items-center gap-4 flex-wrap">
-                <div>
-                  Đang hiển thị{' '}
-                  <span className="font-semibold text-ink">
-                    {meta.total === 0 ? 0 : (meta.current_page - 1) * meta.per_page + 1}
-                  </span>
-                  -
-                  <span className="font-semibold text-ink">
-                    {Math.min(meta.current_page * meta.per_page, meta.total)}
-                  </span>{' '}
-                  trong tổng số{' '}
-                  <span className="font-semibold text-ink">{meta.total}</span>{' '}
-                  khóa học
-                </div>
-                {/* Dropdown mỗi trang */}
-                <div className="flex items-center gap-1.5">
-                  <span>Mỗi trang:</span>
-                  <select
-                    id="course-reviews-pagination-per-page"
-                    value={perPage}
-                    onChange={(e) => {
-                      setPerPage(parseInt(e.target.value) || 20);
-                      setPage(1);
-                    }}
-                    className="bg-paper border border-hairline rounded-[6px] px-2 py-0.5 text-xs text-ink outline-none cursor-pointer font-sans"
-                  >
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 font-sans">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                  </svg>
-                  <span>Trước</span>
-                </button>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: meta.last_page }).map((_, idx) => {
-                    const i = idx + 1;
-                    if (i === 1 || i === meta.last_page || (i >= page - 1 && i <= page + 1)) {
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setPage(i)}
-                          className={`px-3 py-1 rounded-[6px] text-xs font-semibold transition-colors cursor-pointer ${
-                            i === page
-                              ? 'bg-ink text-white'
-                              : 'border border-hairline bg-canvas text-ink hover:bg-hairline'
-                          }`}
-                        >
-                          {i}
-                        </button>
-                      );
-                    } else if (i === page - 2 || i === page + 2) {
-                      return (
-                        <span key={i} className="px-1 text-mid-gray">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={page >= meta.last_page}
-                  onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
-                  className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-                >
-                  <span>Sau</span>
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+          <div className="mb-6">
+            <AdminPagination
+              currentPage={page}
+              perPage={perPage}
+              total={meta.total}
+              onPageChange={setPage}
+              onPerPageChange={(pp) => {
+                setPerPage(pp);
+                setPage(1);
+              }}
+              itemLabel="khóa học"
+            />
           </div>
         )}
       </section>

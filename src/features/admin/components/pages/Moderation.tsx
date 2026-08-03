@@ -5,6 +5,7 @@ import {
   moderateItem,
 } from "@/assets/js/api/moderation-api";
 import { showToast } from "@/assets/js/toast";
+import AdminPagination from "../shared/AdminPagination";
 
 interface UserInfo {
   id: number;
@@ -833,22 +834,6 @@ export default function Moderation() {
               {meta.total}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-mid-gray">
-            <span>Hiển thị</span>
-            <select
-              value={perPage}
-              onChange={(e) => {
-                setPerPage(Number(e.target.value));
-                setPage(1);
-              }}
-              className="h-8 px-2 text-xs bg-paper border border-hairline rounded-lg text-ink focus:outline-none"
-            >
-              <option value="10">10 dòng</option>
-              <option value="20">20 dòng</option>
-              <option value="50">50 dòng</option>
-              <option value="100">100 dòng</option>
-            </select>
-          </div>
         </div>
 
         {/* Data Table */}
@@ -1040,102 +1025,17 @@ export default function Moderation() {
 
         {/* Pagination bar */}
         {!loading && items.length > 0 && (
-          <div className="p-3.5 bg-surface-alt border-t border-hairline select-none flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs text-mid-gray">
-              Hiển thị{" "}
-              <span className="font-semibold text-ink">
-                {Math.min(meta.total, (page - 1) * perPage + 1)}
-              </span>{" "}
-              -{" "}
-              <span className="font-semibold text-ink">
-                {Math.min(meta.total, page * perPage)}
-              </span>{" "}
-              trong tổng số{" "}
-              <span className="font-semibold text-ink">{meta.total}</span> bản
-              ghi
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={page === 1}
-                className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-              >
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 19.5L8.25 12l7.5-7.5"
-                  />
-                </svg>
-                <span>Trước</span>
-              </button>
-
-              <div className="flex items-center gap-1">
-                {Array.from({ length: meta.last_page }).map((_, idx) => {
-                  const pNum = idx + 1;
-                  // Render limited pages around current page if necessary
-                  if (
-                    meta.last_page > 6 &&
-                    Math.abs(pNum - page) > 2 &&
-                    pNum !== 1 &&
-                    pNum !== meta.last_page
-                  ) {
-                    if (pNum === 2 || pNum === meta.last_page - 1) {
-                      return (
-                        <span key={pNum} className="text-xs text-mid-gray px-1">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  }
-
-                  return (
-                    <button
-                      key={pNum}
-                      type="button"
-                      onClick={() => setPage(pNum)}
-                      className={`h-8 w-8 rounded-full text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${page === pNum ? "bg-ink text-white shadow-xs" : "border border-hairline bg-paper text-ink hover:bg-canvas"}`}
-                    >
-                      {pNum}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setPage((prev) => Math.min(meta.last_page, prev + 1))
-                }
-                disabled={page === meta.last_page}
-                className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-              >
-                <span>Sau</span>
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
+          <AdminPagination
+            currentPage={page}
+            perPage={perPage}
+            total={meta.total}
+            onPageChange={(p) => setPage(p)}
+            onPerPageChange={(pp) => {
+              setPerPage(pp);
+              setPage(1);
+            }}
+            itemLabel="bản ghi"
+          />
         )}
       </section>
 
