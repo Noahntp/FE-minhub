@@ -44,6 +44,7 @@ import CategoryFormModal from "./components/CategoryFormModal";
 import CategoryConfirmModal from "./components/CategoryConfirmModal";
 import { EmptyState } from "@/shared/components/ui/EmptyState";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import AdminPagination from "../components/shared/AdminPagination";
 
 const STORAGE_KEY = "mindhub_admin_categories_expanded";
 
@@ -827,78 +828,7 @@ export default function CategoriesPage() {
     });
   };
 
-  // Phân trang numbers builder
-  const renderPageNumbers = () => {
-    const meta =
-      viewMode === "tree" && treeMetrics
-        ? { last_page: paginationMeta.lastPage }
-        : { last_page: paginationMeta.lastPage }; // lấy từ API thực tế hoặc tính toán
 
-    const lastPage = meta.last_page;
-    const currentPage = filters.page;
-    const pages = [];
-
-    const startPage = Math.max(1, currentPage - 2);
-    const endPage = Math.min(lastPage, currentPage + 2);
-
-    if (startPage > 1) {
-      pages.push(
-        <button
-          key={1}
-          onClick={() => handlePageChange(1)}
-          className="h-8 w-8 text-xs font-semibold rounded-[6px] border border-hairline hover:bg-canvas transition-colors cursor-pointer"
-        >
-          1
-        </button>,
-      );
-      if (startPage > 2) {
-        pages.push(
-          <span key="dots-start" className="text-xs text-mid-gray px-1">
-            ...
-          </span>,
-        );
-      }
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      const isActive = i === currentPage;
-      pages.push(
-        <button
-          key={i}
-          onClick={() => handlePageChange(i)}
-          className={cn(
-            "h-8 w-8 text-xs font-semibold rounded-[6px] border transition-colors cursor-pointer",
-            isActive
-              ? "bg-ink text-white font-bold border-ink"
-              : "bg-paper text-ink hover:bg-canvas border-hairline",
-          )}
-        >
-          {i}
-        </button>,
-      );
-    }
-
-    if (endPage < lastPage) {
-      if (endPage < lastPage - 1) {
-        pages.push(
-          <span key="dots-end" className="text-xs text-mid-gray px-1">
-            ...
-          </span>,
-        );
-      }
-      pages.push(
-        <button
-          key={lastPage}
-          onClick={() => handlePageChange(lastPage)}
-          className="h-8 w-8 text-xs font-semibold rounded-[6px] border border-hairline hover:bg-canvas transition-colors cursor-pointer"
-        >
-          {lastPage}
-        </button>,
-      );
-    }
-
-    return pages;
-  };
 
   // Build active chips
   const activeChips = useMemo(() => {
@@ -1541,53 +1471,18 @@ export default function CategoriesPage() {
 
       {/* Pagination Controls */}
       {!isError && (
-        <div
-          id="pagination-wrapper"
-          className="flex flex-col sm:flex-row items-center justify-between gap-4 py-2"
-        >
-          {/* Per Page Select */}
-          <div className="flex items-center gap-2 text-xs text-mid-gray">
-            <span>Hiển thị</span>
-            <select
-              value={filters.per_page}
-              onChange={handlePerPageChange}
-              disabled={isLoading}
-              className="h-8 px-2 bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink transition-all"
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-            <span>danh mục trên trang</span>
-          </div>
-
-          {/* Page numbers navigation */}
-          {paginationMeta.lastPage > 1 && (
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => handlePageChange(filters.page - 1)}
-                disabled={filters.page === 1 || isLoading}
-                className="h-8 w-8 rounded-[6px] border border-hairline bg-paper text-ink hover:bg-canvas disabled:opacity-40 disabled:hover:bg-paper transition-all flex items-center justify-center cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-1">
-                {renderPageNumbers()}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handlePageChange(filters.page + 1)}
-                disabled={filters.page === paginationMeta.lastPage || isLoading}
-                className="h-8 w-8 rounded-[6px] border border-hairline bg-paper text-ink hover:bg-canvas disabled:opacity-40 disabled:hover:bg-paper transition-all flex items-center justify-center cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
+        <AdminPagination
+          currentPage={filters.page}
+          perPage={filters.per_page}
+          total={viewMode === "tree" && treeMetrics ? treeMetrics.totalRootBranches : summary.total_categories}
+          onPageChange={handlePageChange}
+          onPerPageChange={(pp) => {
+            safeFilterAction(() => {
+              updateUrlParams({ per_page: pp, page: 1 });
+            });
+          }}
+          itemLabel="danh mục"
+        />
       )}
 
       {/* Form Dialog Modal */}
