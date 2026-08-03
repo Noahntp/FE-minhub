@@ -7,5 +7,5 @@ coverage/
 .env*
 !.env.example
 markdown_task/
-
 test-results/
+archive/
