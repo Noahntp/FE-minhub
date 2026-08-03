@@ -446,15 +446,16 @@ export default function InstructorUpgrades() {
 
       if (tableRes.success && allRes.success) {
         setPaginatedItems(tableRes.data.items);
-        setMeta(tableRes.meta);
+        const resolvedMeta = tableRes.meta ?? tableRes.data?.meta ?? null;
+        setMeta(resolvedMeta);
         setSummary(allRes.data.summary);
 
         const allItemsData = allRes.data.items;
         calculateAttentionKPIs(allItemsData);
 
         // Auto Page Adjustment
-        if (tableRes.meta && pageParam > tableRes.meta.last_page) {
-          updateFilters({ page: 1 });
+        if (resolvedMeta && pageParam > resolvedMeta.last_page) {
+          updateFilters({ page: Math.max(1, resolvedMeta.last_page) });
         }
       } else {
         setError(tableRes.message || "Lỗi khi tải dữ liệu.");
@@ -1034,7 +1035,7 @@ export default function InstructorUpgrades() {
       <div
         id="upgrade-list-section"
         style={{ scrollMarginTop: "16px" }}
-        className="rounded-[6px] border border-hairline bg-paper shadow-subtle flex flex-col overflow-hidden"
+        className="rounded-[6px] border border-hairline bg-paper shadow-subtle flex flex-col"
       >
         {/* Quick Tabs */}
         <div
@@ -2471,11 +2472,11 @@ export default function InstructorUpgrades() {
         </div>
 
         {/* 3.5 Pagination Footer */}
-        {meta && (
+        {!loading && meta && (
           <AdminPagination
             currentPage={pageParam}
             perPage={perPageParam}
-            total={meta.total}
+            total={meta.total ?? 0}
             onPageChange={(p) => updateFilters({ page: p })}
             onPerPageChange={(pp) => updateFilters({ per_page: pp, page: 1 })}
             itemLabel="yêu cầu"

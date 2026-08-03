@@ -224,6 +224,7 @@ export default function UsersManagement() {
 
   // Data State
   const [data, setData] = useState<any>(null);
+  const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>("---");
@@ -395,13 +396,15 @@ export default function UsersManagement() {
       const res = await usersApi.getUsers(params);
       if (res && res.success) {
         setData(res.data);
+        const resolvedMeta = res.meta ?? res.data?.meta ?? null;
+        setMeta(resolvedMeta);
 
         // Auto reset checkbox selection on refetch
         setSelectedUserIds(new Set());
 
         // Validate current page range
-        if (res.meta && page > res.meta.last_page) {
-          updateFilters({ page: 1 });
+        if (resolvedMeta && page > resolvedMeta.last_page) {
+          updateFilters({ page: Math.max(1, resolvedMeta.last_page) });
         }
 
         // Auto scroll to table if filtering from dashboard
@@ -2494,13 +2497,11 @@ export default function UsersManagement() {
         {/* Footer Pagination */}
         {!loading &&
           !error &&
-          data?.meta &&
-          data.data &&
-          data.data.length > 0 && (
+          meta && (
             <AdminPagination
               currentPage={page}
               perPage={Number(per_page)}
-              total={data.meta.total}
+              total={meta.total ?? 0}
               onPageChange={(p) => updateFilters({ page: p })}
               onPerPageChange={(pp) => updateFilters({ per_page: String(pp), page: 1 })}
               itemLabel="người dùng"
