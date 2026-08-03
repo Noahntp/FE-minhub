@@ -23,10 +23,11 @@ import { Chart } from 'chart.js/auto';
 import { getCourses } from '@/assets/js/api/courses-api';
 import { getUsers } from '@/assets/js/api/users-api';
 import {
-  getRevenueReport,
-  getTopCoursesReport,
-  getTopInstructorsReport
-} from '@/assets/js/api/reports-api';
+  fetchDashboardRevenue,
+  fetchTopCourses,
+  fetchTopInstructors
+} from '@/assets/js/api/dashboard-api';
+import AdminPagination from '../shared/AdminPagination';
 
 interface CourseOption {
   id: number;
@@ -903,31 +904,17 @@ export default function Reports() {
                 </div>
 
                 {/* Pagination */}
-                <div className="p-4 border-t border-hairline flex items-center justify-between flex-wrap gap-4 text-xs select-none">
-                  <span className="text-mid-gray">
-                    Hiển thị <strong className="text-ink">{revenueItems.length > 0 ? (revenuePage - 1) * revenuePerPage + 1 : 0}</strong> -{' '}
-                    <strong className="text-ink">{Math.min(revenuePage * revenuePerPage, revenueMeta.total)}</strong> trong{' '}
-                    <strong className="text-ink">{revenueMeta.total}</strong> bản ghi
-                  </span>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      disabled={revenuePage === 1}
-                      onClick={() => setRevenuePage(revenuePage - 1)}
-                      className="p-1 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="px-3">Trang {revenuePage} / {revenueMeta.last_page || 1}</span>
-                    <button
-                      disabled={revenuePage === revenueMeta.last_page || revenueMeta.last_page === 0}
-                      onClick={() => setRevenuePage(revenuePage + 1)}
-                      className="p-1 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                <AdminPagination
+                  currentPage={revenuePage}
+                  perPage={revenuePerPage}
+                  total={revenueMeta.total}
+                  onPageChange={setRevenuePage}
+                  onPerPageChange={(pp) => {
+                    setRevenuePerPage(pp);
+                    setRevenuePage(1);
+                  }}
+                  itemLabel="bản ghi"
+                />
               </div>
             </div>
           )}
@@ -1122,31 +1109,17 @@ export default function Reports() {
                 </div>
 
                 {/* Pagination */}
-                <div className="p-4 border-t border-hairline flex items-center justify-between flex-wrap gap-4 text-xs select-none">
-                  <span className="text-mid-gray">
-                    Hiển thị <strong className="text-ink">{coursesItems.length > 0 ? (coursesPage - 1) * coursesPerPage + 1 : 0}</strong> -{' '}
-                    <strong className="text-ink">{Math.min(coursesPage * coursesPerPage, coursesMeta.total)}</strong> trong{' '}
-                    <strong className="text-ink">{coursesMeta.total}</strong> bản ghi
-                  </span>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      disabled={coursesPage === 1}
-                      onClick={() => setCoursesPage(coursesPage - 1)}
-                      className="p-1 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="px-3">Trang {coursesPage} / {coursesMeta.last_page || 1}</span>
-                    <button
-                      disabled={coursesPage === coursesMeta.last_page || coursesMeta.last_page === 0}
-                      onClick={() => setCoursesPage(coursesPage + 1)}
-                      className="p-1 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                <AdminPagination
+                  currentPage={coursesPage}
+                  perPage={coursesPerPage}
+                  total={coursesMeta.total}
+                  onPageChange={setCoursesPage}
+                  onPerPageChange={(pp) => {
+                    setCoursesPerPage(pp);
+                    setCoursesPage(1);
+                  }}
+                  itemLabel="khóa học"
+                />
               </div>
             </div>
           )}
@@ -1334,31 +1307,17 @@ export default function Reports() {
                 </div>
 
                 {/* Pagination */}
-                <div className="p-4 border-t border-hairline flex items-center justify-between flex-wrap gap-4 text-xs select-none">
-                  <span className="text-mid-gray">
-                    Hiển thị <strong className="text-ink">{instructorsItems.length > 0 ? (instructorsPage - 1) * instructorsPerPage + 1 : 0}</strong> -{' '}
-                    <strong className="text-ink">{Math.min(instructorsPage * instructorsPerPage, instructorsMeta.total)}</strong> trong{' '}
-                    <strong className="text-ink">{instructorsMeta.total}</strong> bản ghi
-                  </span>
-
-                  <div className="flex items-center gap-1">
-                    <button
-                      disabled={instructorsPage === 1}
-                      onClick={() => setInstructorsPage(instructorsPage - 1)}
-                      className="p-1 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="px-3">Trang {instructorsPage} / {instructorsMeta.last_page || 1}</span>
-                    <button
-                      disabled={instructorsPage === instructorsMeta.last_page || instructorsMeta.last_page === 0}
-                      onClick={() => setInstructorsPage(instructorsPage + 1)}
-                      className="p-1 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                <AdminPagination
+                  currentPage={instructorsPage}
+                  perPage={instructorsPerPage}
+                  total={instructorsMeta.total}
+                  onPageChange={setInstructorsPage}
+                  onPerPageChange={(pp) => {
+                    setInstructorsPerPage(pp);
+                    setInstructorsPage(1);
+                  }}
+                  itemLabel="giảng viên"
+                />
               </div>
             </div>
           )}

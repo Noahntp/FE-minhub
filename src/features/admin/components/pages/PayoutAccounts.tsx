@@ -22,7 +22,9 @@ import {
   approvePayoutAccountApi,
   rejectPayoutAccountApi,
   disablePayoutAccountApi,
+  updatePayoutAccountStatus
 } from '@/assets/js/api/payout-accounts-api';
+import AdminPagination from "../shared/AdminPagination";
 
 interface PayoutAccountItem {
   id: number;
@@ -740,63 +742,17 @@ export default function PayoutAccounts() {
         </div>
 
         {/* Pagination Bar */}
-        <div className="p-4 border-t border-hairline/80 flex items-center justify-between flex-wrap gap-4 text-xs select-none">
-          <div className="text-mid-gray flex items-center gap-1.5">
-            <span>Hiển thị</span>
-            <span className="font-bold text-ink">
-              {meta.total > 0 ? (page - 1) * perPage + 1 : 0}
-            </span>
-            <span>-</span>
-            <span className="font-bold text-ink">
-              {Math.min(page * perPage, meta.total)}
-            </span>
-            <span>trong tổng số</span>
-            <span className="font-bold text-ink">{meta.total}</span>
-            <span>bản ghi</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-mid-gray">Mỗi trang:</span>
-              <select
-                id="payout-accounts-pagination-per-page"
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="px-2.5 py-1.5 rounded-lg border border-hairline bg-paper text-xs focus:outline-none"
-              >
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <button
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-                className="p-1.5 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              
-              <span className="px-3 text-xs font-semibold text-ink">
-                Trang {page} / {meta.last_page || 1}
-              </span>
-
-              <button
-                disabled={page === meta.last_page || meta.last_page === 0}
-                onClick={() => setPage(page + 1)}
-                className="p-1.5 rounded-lg border border-hairline hover:bg-canvas-alt disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminPagination
+          currentPage={page}
+          perPage={perPage}
+          total={meta.total}
+          onPageChange={setPage}
+          onPerPageChange={(pp) => {
+            setPerPage(pp);
+            setPage(1);
+          }}
+          itemLabel="bản ghi"
+        />
       </section>
 
       {/* RIGHT DETAIL DRAWER */}

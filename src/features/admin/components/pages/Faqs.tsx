@@ -9,6 +9,7 @@ import {
   syncFaqCourses 
 } from '@/assets/js/api/faqs-api';
 import { getCourses } from '@/assets/js/api/courses-api';
+import AdminPagination from "../shared/AdminPagination";
 
 // Mapping Loại FAQ (raw value -> Tiếng Việt & CSS Class cho Chip)
 const typeMap: Record<string, { label: string; class: string }> = {
@@ -841,86 +842,18 @@ export default function Faqs() {
 
       {/* Pagination Bar */}
       {!loading && items.length > 0 && (
-        <div className="p-3.5 bg-surface-alt border border-hairline border-t-0 rounded-b-2xl select-none mb-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-            <div className="text-xs text-mid-gray flex items-center gap-4 flex-wrap">
-              <div>
-                Hiển thị
-                <span className="font-semibold text-ink mx-1">
-                  {((page - 1) * perPage + 1).toLocaleString("vi-VN")}
-                </span>
-                -
-                <span className="font-semibold text-ink mx-1">
-                  {Math.min(page * perPage, meta.total).toLocaleString("vi-VN")}
-                </span>
-                trong tổng số
-                <span className="font-semibold text-ink mx-1">
-                  {meta.total.toLocaleString("vi-VN")}
-                </span>
-                bản ghi
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span>Mỗi trang:</span>
-                <select
-                  value={perPage}
-                  onChange={(e) => {
-                    setPerPage(Number(e.target.value));
-                    setPage(1);
-                  }}
-                  className="bg-paper border border-hairline rounded-[6px] px-2 py-0.5 text-xs text-ink outline-none cursor-pointer"
-                >
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"></path>
-                </svg>
-                <span>Trước</span>
-              </button>
-
-              <div className="flex items-center gap-1">
-                {Array.from({ length: meta.last_page || 1 }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPage(p)}
-                    className={`h-8 w-8 rounded-full text-xs font-semibold flex items-center justify-center transition-all ${
-                      page === p
-                        ? "bg-ink text-white shadow-subtle"
-                        : "border border-hairline bg-paper text-ink hover:bg-canvas"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                disabled={page >= meta.last_page}
-                onClick={() => setPage(prev => Math.min(prev + 1, meta.last_page))}
-                className="inline-flex h-8 items-center gap-1 rounded-full border border-hairline bg-paper px-3 text-xs font-medium text-ink hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
-              >
-                <span>Sau</span>
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+        <div className="mb-6">
+          <AdminPagination
+            currentPage={page}
+            perPage={perPage}
+            total={meta.total}
+            onPageChange={setPage}
+            onPerPageChange={(pp) => {
+              setPerPage(pp);
+              setPage(1);
+            }}
+            itemLabel="bản ghi"
+          />
         </div>
       )}
 

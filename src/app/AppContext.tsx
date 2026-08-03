@@ -56,7 +56,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Fetch fresh profile from Backend database on app mount/reload if token exists
   useEffect(() => {
     const token = localStorage.getItem('mindhub_api_token');
-    if (token) {
+    if (token && currentUser?.role === 'instructor') {
       ApiService.getInstructorProfile()
         .then(res => {
           const profileData = res?.data || res;
