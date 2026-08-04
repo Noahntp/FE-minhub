@@ -1,11 +1,12 @@
 import React, { Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 
 // Layouts
 import MainLayout from '@/layouts/MainLayout';
 import { useApp } from '@/app/AppContext';
 import { getDashboardRouteByRole } from '@/router/routes';
+import { INITIAL_COURSES } from '@/shared/data';
 
 // Loading Fallback
 const PageLoader = () => (
@@ -32,6 +33,7 @@ const PurchaseHistoryPage = React.lazy(() => import('@/features/purchase-history
 const SettingsPage = React.lazy(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.default })));
 const SearchPage = React.lazy(() => import('@/features/search/SearchPage').then(m => ({ default: m.default })));
 const AboutPage = React.lazy(() => import('@/pages/AboutPage').then(m => ({ default: m.default })));
+const ServicesPage = React.lazy(() => import('@/pages/ServicesPage').then(m => ({ default: m.default })));
 const ContactPage = React.lazy(() => import('@/pages/ContactPage').then(m => ({ default: m.default })));
 const LegalPage = React.lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.default })));
 const FAQPage = React.lazy(() => import('@/pages/FAQPage').then(m => ({ default: m.default })));
@@ -71,6 +73,59 @@ const InstructorCoursesPageWrapper = () => {
         />
       ) : <PageLoader />}
     </Suspense>
+  );
+};
+
+// Wrapper for Cart and Checkout to resolve target course from URL search params or cart state
+const CartCheckoutPageWrapper = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { 
+    favorites, 
+    setFavorites, 
+    courses, 
+    enrolledCourseIds, 
+    setEnrolledCourseIds, 
+    setOrders, 
+    cart, 
+    setCart 
+  } = useApp();
+
+  const allCoursesList = courses && courses.length > 0 ? courses : INITIAL_COURSES;
+  const courseIdParam = searchParams.get('courseId');
+  const initialCourseId = courseIdParam || (cart.length > 0 ? cart[cart.length - 1] : null);
+
+  const handleEnrollSuccess = (courseIds: string[], order: any) => {
+    if (courseIds && courseIds.length > 0) {
+      setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...courseIds])));
+      setCart((prev) => prev.filter((id) => !courseIds.includes(id)));
+    }
+    if (order) {
+      setOrders((prev) => [order, ...prev]);
+    }
+  };
+
+  const handleToggleFavorite = (cId: string) => {
+    setFavorites((prev) => 
+      prev.includes(cId) ? prev.filter((id) => id !== cId) : [...prev, cId]
+    );
+  };
+
+  const handleEnterLesson = (course: any) => {
+    navigate(`/learn/${course.id}`);
+  };
+
+  return (
+    <CartAndCheckout
+      wishlistCourseIds={favorites}
+      allCourses={allCoursesList}
+      enrolledCourseIds={enrolledCourseIds}
+      onEnrollSuccess={handleEnrollSuccess}
+      onClose={() => navigate('/')}
+      onToggleFavorite={handleToggleFavorite}
+      onEnterLesson={handleEnterLesson}
+      initialCourseId={initialCourseId}
+    />
   );
 };
 
@@ -161,25 +216,15 @@ function AppRoutes() {
 
             {/* Legal & Static Pages */}
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/services" element={<ServicesPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/privacy" element={<Navigate to="/legal" replace />} />
             
-            <Route path="/cart" element={
-              <CartAndCheckout 
-                wishlistCourseIds={favorites}
-                allCourses={courses}
-                enrolledCourseIds={enrolledCourseIds}
-                onEnrollSuccess={() => {}}
-                onClose={() => navigate('/')}
-                onToggleFavorite={() => {}}
-                onEnterLesson={() => {}}
-                initialCourseId={null}
-              />
-            } />
-            <Route path="/checkout" element={<Navigate to="/cart" replace />} />
+            <Route path="/cart" element={<CartCheckoutPageWrapper />} />
+            <Route path="/checkout" element={<CartCheckoutPageWrapper />} />
             <Route path="/vnpay-return" element={
               // @ts-ignore
               <VNPayReturnPage onNavigate={navigateTo} />

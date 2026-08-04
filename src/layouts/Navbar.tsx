@@ -38,6 +38,7 @@ export default function Navbar() {
         <nav className="hidden lg:flex items-center gap-6 ml-6">
           <Link to="/courses" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Khám phá</Link>
           <Link to="/roadmaps" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Lộ trình</Link>
+          <Link to="/services" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Dịch vụ</Link>
         </nav>
 
         {/* Search */}

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Course, Lesson } from '@/shared/types';
-import { PlayCircle, CheckCircle, FileText, HelpCircle, X } from 'lucide-react';
+import { PlayCircle, CheckCircle, Clock, ChevronDown, ChevronUp, X, Play } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 
 interface CurriculumSidebarProps {
@@ -18,98 +18,172 @@ export function CurriculumSidebar({
   completedLessonIds,
   isOpen,
   onClose,
-  onSelectLesson
+  onSelectLesson,
 }: CurriculumSidebarProps) {
   if (!course) return null;
 
-  const getLessonIcon = (type: Lesson['type']) => {
-    switch (type) {
-      case 'video': return <PlayCircle className="w-4 h-4" />;
-      case 'quiz': return <HelpCircle className="w-4 h-4" />;
-      case 'assignment': return <FileText className="w-4 h-4" />;
-      case 'doc': return <FileText className="w-4 h-4" />;
-      default: return <PlayCircle className="w-4 h-4" />;
-    }
+  // Track expanded chapters (all expanded by default)
+  const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    (course.chapters || []).forEach((ch) => {
+      initial[ch.id] = true;
+    });
+    return initial;
+  });
+
+  const toggleChapter = (chapterId: string) => {
+    setExpandedChapters((prev) => ({
+      ...prev,
+      [chapterId]: !prev[chapterId],
+    }));
+  };
+
+  const handleExpandAll = () => {
+    const allExpanded: Record<string, boolean> = {};
+    (course.chapters || []).forEach((ch) => {
+      allExpanded[ch.id] = true;
+    });
+    setExpandedChapters(allExpanded);
   };
 
   return (
-    <div className={`
-      fixed inset-y-0 right-0 z-40 w-full sm:w-80 bg-background/95 backdrop-blur-md border-l border-border/50 transform transition-transform duration-300 ease-in-out shadow-2xl
-      ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-      flex flex-col lg:relative lg:translate-x-0 lg:w-80
-    `}>
-      <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/50">
-        <h2 className="font-semibold text-base tracking-tight">Nội dung khóa học</h2>
-        <Button variant="ghost" size="icon" onClick={onClose} className="lg:hidden hover:bg-muted/80 rounded-full">
-          <X className="w-5 h-5" />
-        </Button>
+    <aside
+      className={`
+        bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-4 w-full lg:w-[380px] shrink-0
+        ${isOpen ? 'block' : 'hidden lg:block'}
+      `}
+    >
+      {/* SIDEBAR HEADER */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+          Nội dung khóa học
+        </h3>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExpandAll}
+            className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>Mở rộng tất cả</span>
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="lg:hidden text-slate-500 hover:text-slate-900"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-        {course.chapters.map((chapter, index) => (
-          <div key={chapter.id} className="border-b border-border/40 last:border-b-0">
-            <div className="p-4 bg-muted/20 sticky top-0 backdrop-blur-md z-10 border-b border-border/30">
-              <h3 className="font-semibold text-sm text-foreground/90">
-                Phần {index + 1}: {chapter.title}
-              </h3>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-xs font-medium text-muted-foreground/80 bg-muted/50 px-2 py-0.5 rounded-full">
-                  {chapter.lessons.filter(l => completedLessonIds.includes(l.id)).length} / {chapter.lessons.length} bài
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex flex-col">
-              {chapter.lessons.map((lesson, lessonIndex) => {
-                const isActive = lesson.id === activeLessonId;
-                const isCompleted = completedLessonIds.includes(lesson.id);
-                
-                return (
-                  <button
-                    key={lesson.id}
-                    onClick={() => onSelectLesson(lesson.id)}
-                    className={`
-                      w-full text-left p-4 flex items-start gap-3 transition-all duration-200 group relative
-                      ${isActive ? 'bg-primary/[0.08]' : 'hover:bg-muted/40'}
-                    `}
-                  >
-                    {isActive && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full shadow-[2px_0_8px_rgba(var(--primary),0.4)]" />
+      {/* CHAPTERS ACCORDION LIST */}
+      <div className="space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto pr-1 tactile-scrollbar">
+        {course.chapters.map((chapter, chapterIndex) => {
+          const isExpanded = expandedChapters[chapter.id] ?? true;
+          const completedInChapter = chapter.lessons.filter((l) =>
+            completedLessonIds.includes(l.id)
+          ).length;
+
+          return (
+            <div
+              key={chapter.id}
+              className="border border-slate-100/90 rounded-xl overflow-hidden bg-slate-50/40"
+            >
+              {/* Chapter Header */}
+              <button
+                onClick={() => toggleChapter(chapter.id)}
+                className="w-full p-3 flex items-start justify-between gap-3 text-left hover:bg-slate-100/60 transition-colors cursor-pointer"
+              >
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 text-slate-400">
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
                     )}
-                    <div className={`mt-0.5 shrink-0 transition-colors duration-200 ${
-                      isActive ? 'text-primary' : isCompleted ? 'text-green-500' : 'text-muted-foreground/50 group-hover:text-muted-foreground'
-                    }`}>
-                      {isCompleted ? (
-                        <CheckCircle className="w-5 h-5 drop-shadow-sm" />
-                      ) : (
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-bold ${
-                          isActive ? 'border-primary text-primary bg-primary/10' : 'border-current'
-                        }`}>
-                          {lessonIndex + 1}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-slate-900 leading-snug">
+                      Phần {chapterIndex + 1}: {chapter.title}
+                    </h4>
+                  </div>
+                </div>
+
+                <span className="text-[11px] font-bold text-slate-500 bg-white border border-slate-200/60 px-2 py-0.5 rounded-full shrink-0">
+                  {completedInChapter}/{chapter.lessons.length} bài đã hoàn thành
+                </span>
+              </button>
+
+              {/* Lesson Items */}
+              {isExpanded && (
+                <div className="border-t border-slate-100 bg-white divide-y divide-slate-100">
+                  {chapter.lessons.map((lesson, lessonIndex) => {
+                    const isActive = lesson.id === activeLessonId;
+                    const isCompleted = completedLessonIds.includes(lesson.id);
+
+                    return (
+                      <div
+                        key={lesson.id}
+                        onClick={() => onSelectLesson(lesson.id)}
+                        className={`
+                          relative p-3 flex items-center justify-between gap-3 transition-all cursor-pointer group
+                          ${
+                            isActive
+                              ? 'bg-blue-50/60 font-bold'
+                              : 'hover:bg-slate-50/80'
+                          }
+                        `}
+                      >
+                        {/* Active Left Indicator */}
+                        {isActive && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r" />
+                        )}
+
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          {/* Icon Circle */}
+                          {isCompleted ? (
+                            <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                              <CheckCircle className="w-4 h-4" />
+                            </div>
+                          ) : isActive ? (
+                            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                              <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                            </div>
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center shrink-0">
+                              {lessonIndex + 1}
+                            </div>
+                          )}
+
+                          {/* Title */}
+                          <p
+                            className={`text-xs leading-snug truncate ${
+                              isActive
+                                ? 'text-slate-900 font-extrabold'
+                                : 'text-slate-700 font-semibold group-hover:text-slate-900'
+                            }`}
+                          >
+                            {lesson.title}
+                          </p>
                         </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0 pr-2">
-                      <p className={`text-sm leading-tight mb-1.5 transition-colors duration-200 line-clamp-2 ${
-                        isActive ? 'font-semibold text-primary' : 'font-medium text-foreground/80 group-hover:text-foreground'
-                      }`}>
-                        {lesson.title}
-                      </p>
-                      <div className={`flex items-center gap-1.5 text-xs transition-colors duration-200 ${
-                        isActive ? 'text-primary/80' : 'text-muted-foreground/70'
-                      }`}>
-                        {getLessonIcon(lesson.type)}
-                        <span>{lesson.duration}</span>
+
+                        {/* Duration */}
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium shrink-0">
+                          <Clock className="w-3 h-3" />
+                          <span>{lesson.duration || '10:15'}</span>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-    </div>
+    </aside>
   );
 }

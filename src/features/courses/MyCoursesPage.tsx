@@ -1,163 +1,412 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
-import { INITIAL_COURSES } from '@/shared/data';
-import { Course } from '@/shared/types';
-import { BookOpen, PlayCircle, Trophy, Target, Clock, Star, Heart } from 'lucide-react';
-import { Button } from '@/shared/components/ui/button';
-import { EmptyState } from '@/shared/components/ui/EmptyState';
+import {
+  BookOpen,
+  Trophy,
+  Target,
+  Clock,
+  PlayCircle,
+  Bookmark,
+  SlidersHorizontal,
+  ChevronDown,
+  ArrowRight,
+  Rocket,
+  X,
+  CheckCircle2,
+  Sparkles,
+} from 'lucide-react';
 
 export default function MyCoursesPage() {
-  const [activeTab, setActiveTab] = useState<'learning' | 'completed' | 'saved'>('learning');
   const navigate = useNavigate();
-  
-  // Mock data
-  const learningCourses = INITIAL_COURSES.slice(0, 2).map(c => ({...c, progress: Math.floor(Math.random() * 80) + 10}));
-  const completedCourses = INITIAL_COURSES.slice(2, 3).map(c => ({...c, progress: 100}));
-  const savedCourses = INITIAL_COURSES.slice(3, 5);
+  const [activeTab, setActiveTab] = useState<'learning' | 'completed' | 'saved'>('learning');
+  const [sortBy, setSortBy] = useState('updated');
+  const [showGoalBanner, setShowGoalBanner] = useState(true);
 
-  const getDisplayCourses = () => {
-    switch(activeTab) {
-      case 'learning': return learningCourses;
-      case 'completed': return completedCourses;
-      case 'saved': return savedCourses;
-      default: return learningCourses;
+  // Mock course data matching mockup
+  const coursesData = [
+    {
+      id: 'react-19-nextjs-15',
+      title: 'Chinh Phục React 19 & Next.js 15: Từ Cơ Bản Đến Cao Cấp',
+      category: 'Lập trình',
+      status: 'learning',
+      badgeText: 'Đang học',
+      badgeType: 'learning',
+      instructorName: 'Dr. Lê Quốc Khánh',
+      instructorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80',
+      thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+      progress: 78,
+      lessonsCount: 68,
+      duration: '18h 30m',
+      buttonText: 'Tiếp tục học',
+      buttonBg: 'bg-[#0f172a] text-white hover:bg-slate-800',
+      hasPlayIcon: true,
+    },
+    {
+      id: 'ui-ux-design-full',
+      title: 'UI/UX Design Toàn Diện Từ Cơ Bản Đến Nâng Cao',
+      category: 'Thiết kế',
+      status: 'learning',
+      badgeText: 'Đang học',
+      badgeType: 'learning',
+      instructorName: 'Trần Minh Anh',
+      instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+      thumbnail: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&q=80',
+      progress: 45,
+      progressColor: 'bg-[#6366f1]',
+      lessonsCount: 52,
+      duration: '12h 10m',
+      buttonText: 'Tiếp tục học',
+      buttonBg: 'bg-[#6366f1] text-white hover:bg-indigo-600',
+      hasPlayIcon: true,
+    },
+    {
+      id: 'python-basic-beginner',
+      title: 'Python Cơ Bản Cho Người Mới Bắt Đầu',
+      category: 'Lập trình',
+      status: 'completed',
+      badgeText: 'Hoàn thành',
+      badgeType: 'completed',
+      instructorName: 'Phạm Hoàng Nam',
+      instructorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
+      thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
+      progress: 100,
+      lessonsCount: 40,
+      duration: '10h 05m',
+      buttonText: 'Xem lại khóa học',
+      buttonBg: 'bg-[#10b981] text-white hover:bg-emerald-600',
+      hasPlayIcon: false,
+    },
+    {
+      id: 'graphic-design-ai-figma',
+      title: 'Thiết Kế Đồ Họa Đột Phá với AI & Figma',
+      category: 'Thiết kế',
+      status: 'saved',
+      badgeText: 'Đã lưu',
+      badgeType: 'saved',
+      instructorName: 'Sarah Nguyễn',
+      instructorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
+      thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
+      progress: null,
+      lessonsCount: 36,
+      duration: '9h 20m',
+      buttonText: 'Xem chi tiết',
+      buttonBg: 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50',
+      hasPlayIcon: false,
+      isArrowButton: true,
+    },
+  ];
+
+  // Filter list based on active tab
+  const getFilteredCourses = () => {
+    if (activeTab === 'learning') {
+      return coursesData.filter((c) => c.status === 'learning');
     }
+    if (activeTab === 'completed') {
+      return coursesData.filter((c) => c.status === 'completed');
+    }
+    if (activeTab === 'saved') {
+      return coursesData.filter((c) => c.status === 'saved');
+    }
+    return coursesData;
   };
 
-  const displayCourses = getDisplayCourses();
+  const filteredCourses = getFilteredCourses();
+
+  // Displays all 4 courses on default overview tab or filtered
+  const displayedCourses = activeTab === 'learning' && filteredCourses.length === 2 ? coursesData : filteredCourses;
 
   return (
     <PageTransition>
-      <div className="max-w-6xl mx-auto py-8 px-4">
-        
-        {/* Dashboard Header Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-card border rounded-2xl p-5 flex flex-col items-center justify-center text-center shadow-sm">
-            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
-              <BookOpen className="w-6 h-6 text-primary" />
+      <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+          
+          {/* 1. Header Banner & 3D Graduation Cap Graphic */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+            <div className="space-y-2 text-left z-10">
+              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                Khóa học của tôi
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                Theo dõi tiến độ, tiếp tục học và chinh phục mục tiêu của bạn.
+              </p>
             </div>
-            <h3 className="font-bold text-2xl text-foreground">3</h3>
-            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-1">Khóa học</p>
-          </div>
-          <div className="bg-card border rounded-2xl p-5 flex flex-col items-center justify-center text-center shadow-sm">
-            <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mb-3">
-              <Trophy className="w-6 h-6 text-green-600" />
-            </div>
-            <h3 className="font-bold text-2xl text-foreground">1</h3>
-            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-1">Hoàn thành</p>
-          </div>
-          <div className="bg-card border rounded-2xl p-5 flex flex-col items-center justify-center text-center shadow-sm">
-            <div className="w-12 h-12 bg-orange-500/10 rounded-full flex items-center justify-center mb-3">
-              <Target className="w-6 h-6 text-orange-600" />
-            </div>
-            <h3 className="font-bold text-2xl text-foreground">15</h3>
-            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-1">XP Nhận được</p>
-          </div>
-          <div className="bg-card border rounded-2xl p-5 flex flex-col items-center justify-center text-center shadow-sm">
-            <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mb-3">
-              <Clock className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="font-bold text-2xl text-foreground">42h</h3>
-            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-1">Thời gian học</p>
-          </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-8 border-b pb-4 overflow-x-auto whitespace-nowrap">
-          <Button 
-            variant={activeTab === 'learning' ? 'default' : 'ghost'} 
-            onClick={() => setActiveTab('learning')}
-            className="rounded-full gap-2"
-          >
-            <PlayCircle className="w-4 h-4" /> Đang học ({learningCourses.length})
-          </Button>
-          <Button 
-            variant={activeTab === 'completed' ? 'default' : 'ghost'} 
-            onClick={() => setActiveTab('completed')}
-            className="rounded-full gap-2"
-          >
-            <Trophy className="w-4 h-4" /> Đã hoàn thành ({completedCourses.length})
-          </Button>
-          <Button 
-            variant={activeTab === 'saved' ? 'default' : 'ghost'} 
-            onClick={() => setActiveTab('saved')}
-            className="rounded-full gap-2"
-          >
-            <Heart className="w-4 h-4" /> Đã lưu ({savedCourses.length})
-          </Button>
-        </div>
+            {/* 3D Graduation Cap Graphic Container */}
+            <div className="relative w-44 h-28 sm:w-56 sm:h-32 bg-blue-50/80 rounded-2xl flex items-center justify-center border border-blue-100 shrink-0">
+              <div className="absolute -top-3 -right-3 w-10 h-10 bg-blue-100 rounded-full blur-xl"></div>
+              <div className="text-center space-y-1 z-10">
+                <div className="text-4xl sm:text-5xl">🎓</div>
+                <div className="text-[11px] font-extrabold text-blue-700 bg-white/90 px-2.5 py-0.5 rounded-full shadow-xs">
+                  MindHub Learning
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {/* Courses List */}
-        {displayCourses.length === 0 ? (
-          <EmptyState
-            icon={BookOpen}
-            title="Không có khóa học nào"
-            description="Bạn chưa có khóa học nào trong danh sách này."
-            actionLabel="Khám phá khóa học"
-            onAction={() => navigate('/courses')}
-          />
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {displayCourses.map((course: any) => (
-              <Link 
-                key={course.id} 
-                to={activeTab === 'saved' ? `/courses/${course.id}` : `/learn/${course.id}`}
-                className="group bg-card border rounded-2xl overflow-hidden hover:shadow-xl transition-all block relative"
+          {/* 2. Key Learning Metrics (4 Stat Cards) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 leading-none">3</div>
+                <div className="text-xs font-bold text-slate-800 mt-1">Khóa học</div>
+                <div className="text-[11px] text-slate-400 font-medium">Đang theo học</div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                <Trophy className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 leading-none">1</div>
+                <div className="text-xs font-bold text-slate-800 mt-1">Hoàn thành</div>
+                <div className="text-[11px] text-slate-400 font-medium">Khóa học đã hoàn thành</div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
+              <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                <Target className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 leading-none">15</div>
+                <div className="text-xs font-bold text-slate-800 mt-1">XP nhận được</div>
+                <div className="text-[11px] text-slate-400 font-medium">Tiếp tục phát triển!</div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 leading-none">42h</div>
+                <div className="text-xs font-bold text-slate-800 mt-1">Thời gian học</div>
+                <div className="text-[11px] text-slate-400 font-medium">Tổng thời gian học tập</div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* 3. Filter Tabs & Sort Control Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
+            
+            {/* Pill Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+              <button
+                onClick={() => setActiveTab('learning')}
+                className={`px-4 py-2 rounded-full text-xs font-extrabold flex items-center gap-2 transition-all ${
+                  activeTab === 'learning'
+                    ? 'bg-[#0f172a] text-white shadow-md'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
               >
-                <div className="relative aspect-video bg-muted overflow-hidden">
-                  <img 
-                    src={course.image} 
-                    alt={course.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex justify-center items-center">
-                    <PlayCircle className="w-12 h-12 text-white" />
-                  </div>
-                </div>
-                
-                <div className="p-5">
-                  <h3 className="font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 min-h-[3rem]">
-                    {course.title}
-                  </h3>
-                  <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Giảng viên: <strong>{course.instructorName}</strong></span>
-                  </div>
-                  
-                  {/* Progress bar (Only for Learning & Completed) */}
-                  {(activeTab === 'learning' || activeTab === 'completed') && (
-                    <div className="mt-5">
-                      <div className="flex justify-between text-[10px] uppercase font-bold text-muted-foreground mb-1.5">
-                        <span>Tiến độ</span>
-                        <span className={course.progress === 100 ? "text-green-600" : "text-primary"}>
-                          {course.progress}%
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-1000 ${course.progress === 100 ? 'bg-green-500' : 'bg-primary'}`} 
-                          style={{ width: `${course.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
+                <PlayCircle className="w-4 h-4" />
+                <span>Đang học (2)</span>
+              </button>
 
-                  {/* Actions for Completed Tab */}
-                  {activeTab === 'completed' && (
-                    <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                      <Button variant="outline" size="sm" className="w-full gap-2 text-xs" onClick={(e) => {
-                        e.preventDefault();
-                        navigate('/certificates');
-                      }}>
-                        <Trophy className="w-3 h-3" /> Xem chứng chỉ
-                      </Button>
+              <button
+                onClick={() => setActiveTab('completed')}
+                className={`px-4 py-2 rounded-full text-xs font-extrabold flex items-center gap-2 transition-all ${
+                  activeTab === 'completed'
+                    ? 'bg-[#0f172a] text-white shadow-md'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Đã hoàn thành (1)</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('saved')}
+                className={`px-4 py-2 rounded-full text-xs font-extrabold flex items-center gap-2 transition-all ${
+                  activeTab === 'saved'
+                    ? 'bg-[#0f172a] text-white shadow-md'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Bookmark className="w-4 h-4" />
+                <span>Đã lưu (2)</span>
+              </button>
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="relative shrink-0 ml-auto sm:ml-0">
+              <button className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-2 hover:bg-slate-50 transition-colors">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                <span>Mới cập nhật</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+            </div>
+
+          </div>
+
+          {/* 4. Course Cards Grid (4 Columns Layout) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+            {displayedCourses.map((course) => (
+              <div
+                key={course.id}
+                className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group text-left"
+              >
+                <div>
+                  {/* Thumbnail & Top Badge */}
+                  <div className="relative aspect-video overflow-hidden bg-slate-100">
+                    <img
+                      src={course.thumbnail}
+                      alt={course.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+
+                    {/* Badge Pill Top-Left */}
+                    <div className="absolute top-2.5 left-2.5">
+                      {course.badgeType === 'learning' && (
+                        <span className="px-2.5 py-1 rounded-full bg-white/95 text-slate-900 text-[11px] font-extrabold flex items-center gap-1.5 shadow-sm">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          {course.badgeText}
+                        </span>
+                      )}
+
+                      {course.badgeType === 'completed' && (
+                        <span className="px-2.5 py-1 rounded-full bg-white/95 text-emerald-700 text-[11px] font-extrabold flex items-center gap-1.5 shadow-sm">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          {course.badgeText}
+                        </span>
+                      )}
+
+                      {course.badgeType === 'saved' && (
+                        <span className="px-2.5 py-1 rounded-full bg-[#312e81] text-white text-[11px] font-extrabold flex items-center gap-1.5 shadow-sm">
+                          <Bookmark className="w-3 h-3 text-white" />
+                          {course.badgeText}
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Card Content Body */}
+                  <div className="p-4 space-y-3">
+                    
+                    {/* Category Tag Pill */}
+                    <div>
+                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        {course.category}
+                      </span>
+                    </div>
+
+                    {/* Course Title */}
+                    <h3 className="font-extrabold text-slate-900 text-sm leading-snug line-clamp-2 min-h-[2.5rem]">
+                      {course.title}
+                    </h3>
+
+                    {/* Instructor Info */}
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                      <img
+                        src={course.instructorAvatar}
+                        alt={course.instructorName}
+                        className="w-5 h-5 rounded-full object-cover border border-slate-200"
+                      />
+                      <span className="truncate">Giảng viên: <strong className="text-slate-700">{course.instructorName}</strong></span>
+                    </div>
+
+                    {/* Progress Bar (Learning & Completed) */}
+                    {course.progress !== null && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between items-center text-[11px] font-extrabold">
+                          <span className="text-slate-400">
+                            {course.progress === 100 ? 'Đã hoàn thành' : 'Tiến độ'}
+                          </span>
+                          <span className={course.progress === 100 ? 'text-emerald-600' : 'text-slate-900'}>
+                            {course.progress}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              course.progressColor || (course.progress === 100 ? 'bg-emerald-500' : 'bg-[#0f172a]')
+                            }`}
+                            style={{ width: `${course.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
                 </div>
-              </Link>
+
+                {/* Card Footer (Meta + Action CTA) */}
+                <div className="p-4 pt-0 space-y-3">
+                  
+                  {/* Meta stats */}
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium pt-2 border-t border-slate-100">
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="w-3.5 h-3.5 text-slate-400" />
+                      {course.lessonsCount} bài học
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {course.duration}
+                    </span>
+                  </div>
+
+                  {/* CTA Button */}
+                  <button
+                    onClick={() => navigate(course.status === 'saved' ? `/courses/${course.id}` : `/learn/${course.id}`)}
+                    className={`w-full py-2.5 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xs ${course.buttonBg}`}
+                  >
+                    <span>{course.buttonText}</span>
+                    {course.hasPlayIcon && <PlayCircle className="w-3.5 h-3.5 fill-current" />}
+                    {course.isArrowButton && <ArrowRight className="w-3.5 h-3.5" />}
+                  </button>
+
+                </div>
+
+              </div>
             ))}
           </div>
-        )}
+
+          {/* 5. Bottom Goal Setting Rocket Banner */}
+          {showGoalBanner && (
+            <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 text-left relative">
+              
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 text-2xl">
+                  🚀
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">
+                    Đặt mục tiêu – Giữ động lực – Học mỗi ngày!
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Thiết lập mục tiêu học tập để theo dõi tiến độ và nhận thêm phần thưởng hấp dẫn.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0 ml-auto sm:ml-0">
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="px-5 py-2.5 rounded-2xl bg-[#0f172a] hover:bg-slate-800 text-white font-extrabold text-xs inline-flex items-center gap-2 shadow-md active:scale-95 transition-all"
+                >
+                  <Target className="w-4 h-4 text-blue-400" />
+                  <span>Thiết lập mục tiêu</span>
+                </button>
+
+                <button
+                  onClick={() => setShowGoalBanner(false)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+            </div>
+          )}
+
+        </div>
       </div>
     </PageTransition>
   );

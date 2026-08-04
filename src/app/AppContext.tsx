@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User as UserType, Course, Notification, Order, Banner } from '@/shared/types';
-import { INITIAL_USER, INITIAL_BANNERS } from '@/shared/data';
+import { INITIAL_USER, INITIAL_BANNERS, INITIAL_COURSES } from '@/shared/data';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { ApiService } from '@/services/api';
 
@@ -86,7 +86,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [cart, setCart] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);

@@ -1,6 +1,17 @@
 import React from 'react';
 import { Course, Lesson } from '@/shared/types';
 import { TabType } from '../hooks/useClassroom';
+import {
+  Clock,
+  BarChart2,
+  Tag,
+  Star,
+  GraduationCap,
+  MessageSquare,
+  FileText,
+  FolderDown,
+  Layout,
+} from 'lucide-react';
 
 interface ClassroomTabsProps {
   course: Course | null;
@@ -12,67 +23,161 @@ interface ClassroomTabsProps {
 export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange }: ClassroomTabsProps) {
   if (!course) return null;
 
-  const tabs: { id: TabType; label: string }[] = [
-    { id: 'overview', label: 'Tổng quan' },
-    { id: 'qa', label: 'Hỏi đáp' },
-    { id: 'notes', label: 'Ghi chú' },
-    { id: 'resources', label: 'Tài nguyên' },
+  const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
+    { id: 'overview', label: 'Tổng quan', icon: <Layout className="w-4 h-4" /> },
+    { id: 'qa', label: 'Hỏi đáp', icon: <MessageSquare className="w-4 h-4" /> },
+    { id: 'notes', label: 'Ghi chú', icon: <FileText className="w-4 h-4" /> },
+    { id: 'resources', label: 'Tài nguyên', icon: <FolderDown className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="w-full">
-      <div className="border-b border-border/40 flex px-4 md:px-8 gap-6 pt-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`
-              py-4 text-sm font-semibold border-b-2 transition-all duration-300 relative
-              ${activeTab === tab.id 
-                ? 'border-primary text-primary' 
-                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              }
-            `}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <div className="w-full bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
+      
+      {/* TAB HEADER BAR */}
+      <div className="flex items-center gap-6 border-b border-slate-100 pb-0">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`flex items-center gap-2 pb-3 text-xs sm:text-sm font-extrabold transition-all border-b-2 cursor-pointer ${
+                isActive
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="p-4 md:p-8">
+      {/* TAB CONTENT AREAS */}
+      <div>
         {activeTab === 'overview' && (
-          <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <h2 className="text-2xl font-bold mb-4 text-foreground/90 tracking-tight">Về bài học này</h2>
-            <div className="prose dark:prose-invert max-w-none text-muted-foreground leading-relaxed">
-              {activeLesson?.content || (
-                <p>Nội dung chi tiết của bài học đang được cập nhật. Theo dõi video để nắm bắt kiến thức một cách tốt nhất.</p>
-              )}
+          <div className="space-y-6">
+            
+            {/* Title & Description */}
+            <div className="space-y-1">
+              <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                Về bài học này
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+                {activeLesson?.content ||
+                  'Nội dung chi tiết của bài học đang được cập nhật. Theo dõi video để nắm bắt kiến thức một cách tốt nhất.'}
+              </p>
             </div>
-            
-            <hr className="my-10 border-border/40" />
-            
-            <h3 className="text-xl font-bold mb-6 text-foreground/90 tracking-tight">Giảng viên</h3>
-            <div className="flex items-start gap-5 bg-card border border-border/40 p-6 rounded-2xl shadow-sm">
-              <img 
-                src={course.instructorAvatar} 
-                alt={course.instructorName} 
-                className="w-16 h-16 rounded-full object-cover border-2 border-background shadow-sm"
-              />
-              <div className="flex-1">
-                <h4 className="font-bold text-lg text-foreground/90">{course.instructorName}</h4>
-                <p className="text-primary font-medium text-sm mt-0.5">{course.instructorTitle}</p>
-                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{course.instructorBio}</p>
+
+            {/* 2-Column Grid (Stats Grid + Blue Goal Box) */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+              
+              {/* Left Column: 4 Stats Cards (md:col-span-6) */}
+              <div className="md:col-span-6 grid grid-cols-2 gap-4">
+                
+                {/* Stat 1: Thời lượng */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="w-9 h-9 rounded-full bg-emerald-100/80 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block">Thời lượng</span>
+                    <span className="text-xs font-black text-slate-900">
+                      {activeLesson?.duration || '10:15'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stat 2: Độ khó */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="w-9 h-9 rounded-full bg-blue-100/80 text-blue-600 flex items-center justify-center shrink-0">
+                    <BarChart2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block">Độ khó</span>
+                    <span className="text-xs font-black text-slate-900">
+                      {course.level || 'Cơ bản'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stat 3: Chủ đề */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="w-9 h-9 rounded-full bg-purple-100/80 text-purple-600 flex items-center justify-center shrink-0">
+                    <Tag className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block">Chủ đề</span>
+                    <span className="text-xs font-black text-slate-900 truncate block max-w-[100px]">
+                      {course.subcategory || 'REST API'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stat 4: Hoàn thành */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+                  <div className="w-9 h-9 rounded-full bg-amber-100/80 text-amber-600 flex items-center justify-center shrink-0">
+                    <Star className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block">Hoàn thành</span>
+                    <span className="text-xs font-black text-slate-900">0%</span>
+                  </div>
+                </div>
+
               </div>
+
+              {/* Right Column: Blue Goal Card (md:col-span-6) */}
+              <div className="md:col-span-6 bg-blue-50/70 border border-blue-100/80 rounded-2xl p-5 flex items-start gap-4">
+                {/* Graduation Cap Illustration Badge */}
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 border border-blue-200/60 shadow-sm">
+                  <GraduationCap className="w-6 h-6" />
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900">
+                    Mục tiêu bài học
+                  </h4>
+                  
+                  <ul className="space-y-1.5 text-xs text-slate-700 font-semibold">
+                    <li className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 text-[10px] font-bold">
+                        ✓
+                      </div>
+                      <span>Hiểu các chuẩn RESTful API</span>
+                    </li>
+
+                    <li className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 text-[10px] font-bold">
+                        ✓
+                      </div>
+                      <span>Nắm vững HTTP Methods & Status Codes</span>
+                    </li>
+
+                    <li className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 text-[10px] font-bold">
+                        ✓
+                      </div>
+                      <span>Áp dụng vào Laravel Framework</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
             </div>
+
           </div>
         )}
 
         {activeTab === 'qa' && (
-          <div className="max-w-3xl">
-            <h2 className="text-xl font-bold mb-4">Hỏi đáp</h2>
-            <div className="bg-muted/30 p-6 rounded-lg text-center">
-              <p className="text-muted-foreground mb-4">Bạn có thắc mắc về bài học này?</p>
-              <button className="px-4 py-2 bg-primary text-primary-foreground rounded font-medium">
+          <div className="space-y-4 max-w-3xl">
+            <h3 className="text-base font-extrabold text-slate-900">Hỏi đáp & Thảo luận</h3>
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 text-center space-y-3">
+              <p className="text-xs text-slate-600 font-semibold">
+                Bạn có thắc mắc hoặc gặp khó khăn ở bài học này? Giảng viên và cộng đồng luôn sẵn sàng hỗ trợ bạn.
+              </p>
+              <button className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md">
                 Đặt câu hỏi mới
               </button>
             </div>
@@ -80,15 +185,15 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange }: 
         )}
 
         {activeTab === 'notes' && (
-          <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <h2 className="text-xl font-bold mb-6 text-foreground/90 tracking-tight">Ghi chú của bạn</h2>
-            <div className="border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
-              <textarea 
-                placeholder="Thêm ghi chú mới tại đây (hỗ trợ Markdown)..."
-                className="w-full min-h-[120px] p-5 bg-transparent resize-y focus:outline-none text-sm"
+          <div className="space-y-4 max-w-3xl">
+            <h3 className="text-base font-extrabold text-slate-900">Ghi chú cá nhân</h3>
+            <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white">
+              <textarea
+                placeholder="Thêm ghi chú bài học tại đây (tự động lưu mốc thời gian video)..."
+                className="w-full min-h-[120px] p-4 bg-slate-50/50 text-xs font-medium text-slate-800 focus:outline-none"
               />
-              <div className="bg-muted/20 p-3 flex justify-end border-t border-border/40">
-                <button className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium text-sm transition-colors shadow-sm">
+              <div className="bg-slate-100/60 p-3 flex justify-end border-t border-slate-200/60">
+                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer">
                   Lưu ghi chú
                 </button>
               </div>
@@ -97,35 +202,15 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange }: 
         )}
 
         {activeTab === 'resources' && (
-          <div className="max-w-3xl">
-            <h2 className="text-xl font-bold mb-4">Tài nguyên đính kèm</h2>
-            {activeLesson?.resources && activeLesson.resources.length > 0 ? (
-              <ul className="space-y-3">
-                {activeLesson.resources.map(res => (
-                  <li key={res.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/20 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 text-primary rounded-md flex items-center justify-center">
-                        📄
-                      </div>
-                      <div>
-                        <p className="font-medium">{res.title}</p>
-                        <p className="text-xs text-muted-foreground">{res.size}</p>
-                      </div>
-                    </div>
-                    <button className="text-sm font-medium text-primary hover:underline">
-                      Tải xuống
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg">
-                Không có tài nguyên đính kèm cho bài học này.
-              </div>
-            )}
+          <div className="space-y-4 max-w-3xl">
+            <h3 className="text-base font-extrabold text-slate-900">Tài nguyên bài học</h3>
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs text-slate-500 text-center font-medium">
+              Không có tài nguyên đính kèm cho bài học này.
+            </div>
           </div>
         )}
       </div>
+
     </div>
   );
 }

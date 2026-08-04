@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Course, Lesson, StudentProgress } from '@/shared/types';
 import { INITIAL_COURSES } from '@/shared/data';
 import { useApp } from '@/app/AppContext';
+import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
+import { FALLBACK_COURSES_MAP } from '@/features/courses/hooks/useCourseDetail';
+import { resolveCourseById } from '@/features/cart/CartAndCheckout';
+import { classroomApi } from '../api';
 
 export type TabType = 'overview' | 'qa' | 'notes' | 'resources';
 
@@ -16,11 +20,12 @@ export interface UseClassroomResult {
   toggleSidebar: () => void;
   selectLesson: (lessonId: string) => void;
   markAsCompleted: (lessonId: string) => void;
+  toggleLessonCompletion: (lessonId: string, forceStatus?: boolean) => void;
   setTab: (tab: TabType) => void;
 }
 
 export function useClassroom(courseId: string | undefined): UseClassroomResult {
-  const { currentUser } = useApp();
+  const { courses } = useApp();
   const [course, setCourse] = useState<Course | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [progress, setProgress] = useState<StudentProgress | null>(null);
@@ -38,24 +43,63 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
       try {
         if (!courseId) throw new Error("Course ID is missing");
         
-        const foundCourse = INITIAL_COURSES.find(c => c.id === courseId);
-        if (!foundCourse) throw new Error("Course not found");
+        const foundCourse = resolveCourseById(courseId, courses);
+
+        // Ensure foundCourse has chapters populated
+        if (!foundCourse.chapters || foundCourse.chapters.length === 0) {
+          const fallback = FALLBACK_COURSES_MAP[courseId];
+          if (fallback && fallback.chapters && fallback.chapters.length > 0) {
+            foundCourse.chapters = fallback.chapters as any;
+          } else {
+            foundCourse.chapters = [
+              {
+                id: 'ch1',
+                title: 'Chương 1: Giới thiệu & Môi trường phát triển',
+                lessons: [
+                  { id: 'l1', title: '1.1 Tổng quan về khóa học', type: 'video', duration: '10:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+                  { id: 'l2', title: '1.2 Cài đặt các phần mềm cần thiết', type: 'video', duration: '14:30', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
+                  { id: 'l3', title: '1.3 Tạo dự án đầu tiên', type: 'video', duration: '12:45', isPreview: false }
+                ]
+              },
+              {
+                id: 'ch2',
+                title: 'Chương 2: Kiến thức thực chiến & Dự án',
+                lessons: [
+                  { id: 'l4', title: '2.1 Cấu trúc ứng dụng & Luồng dữ liệu', type: 'video', duration: '15:20', isPreview: false },
+                  { id: 'l5', title: '2.2 Tích hợp API & Triển khai', type: 'video', duration: '18:10', isPreview: false }
+                ]
+              }
+            ];
+          }
+        }
 
         setCourse(foundCourse);
 
+        // Load stored progress from localStorage
+        const storageKey = `mindhub_lesson_progress_${foundCourse.id}`;
+        let savedCompletedIds: string[] = [];
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed.completedLessonIds)) {
+              savedCompletedIds = parsed.completedLessonIds;
+            }
+          } catch (e) {}
+        }
+
         // Find first lesson if exists
         let firstLesson: Lesson | null = null;
-        if (foundCourse.chapters.length > 0 && foundCourse.chapters[0].lessons.length > 0) {
+        if (foundCourse.chapters && foundCourse.chapters.length > 0 && foundCourse.chapters[0].lessons.length > 0) {
           firstLesson = foundCourse.chapters[0].lessons[0];
         }
 
         setActiveLesson(firstLesson);
 
-        // Mock initial progress
         setProgress({
           courseId: foundCourse.id,
           currentLessonId: firstLesson?.id || '',
-          completedLessonIds: [],
+          completedLessonIds: savedCompletedIds,
           notes: [],
           bookmarks: [],
           lastWatchedProgressSec: 0
@@ -66,13 +110,13 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
       } finally {
         setIsLoading(false);
       }
-    }, 500); // Simulate API loading
+    }, 300);
 
     return () => {
       isMounted = false;
       clearTimeout(timeout);
     };
-  }, [courseId]);
+  }, [courseId, courses]);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const setTab = (tab: TabType) => setActiveTab(tab);
@@ -91,21 +135,50 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     }
   };
 
-  const markAsCompleted = (lessonId: string) => {
+  const toggleLessonCompletion = useCallback((lessonId: string, forceStatus?: boolean) => {
+    if (!course) return;
     setProgress(prev => {
       if (!prev) return prev;
-      if (prev.completedLessonIds.includes(lessonId)) {
-        // Toggle off for testing purposes if desired, but usually we just keep it completed
-        return {
-          ...prev,
-          completedLessonIds: prev.completedLessonIds.filter(id => id !== lessonId)
-        };
+      const isAlreadyCompleted = prev.completedLessonIds.includes(lessonId);
+      let newCompletedIds: string[];
+
+      if (typeof forceStatus === 'boolean') {
+        if (forceStatus) {
+          newCompletedIds = Array.from(new Set([...prev.completedLessonIds, lessonId]));
+        } else {
+          newCompletedIds = prev.completedLessonIds.filter(id => id !== lessonId);
+        }
+      } else {
+        if (isAlreadyCompleted) {
+          newCompletedIds = prev.completedLessonIds.filter(id => id !== lessonId);
+        } else {
+          newCompletedIds = Array.from(new Set([...prev.completedLessonIds, lessonId]));
+        }
       }
-      return {
+
+      const updatedProgress: StudentProgress = {
         ...prev,
-        completedLessonIds: [...prev.completedLessonIds, lessonId]
+        completedLessonIds: newCompletedIds
       };
+
+      // Persist locally for instant reload retention
+      const storageKey = `mindhub_lesson_progress_${course.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(updatedProgress));
+
+      // Async sync with API in background
+      try {
+        classroomApi.markLessonAsComplete(lessonId).catch(() => {});
+        classroomApi.updateStudentProgress(course.id, {
+          completedLessonIds: newCompletedIds,
+        }).catch(() => {});
+      } catch (e) {}
+
+      return updatedProgress;
     });
+  }, [course]);
+
+  const markAsCompleted = (lessonId: string) => {
+    toggleLessonCompletion(lessonId, true);
   };
 
   return {
@@ -119,6 +192,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     toggleSidebar,
     selectLesson,
     markAsCompleted,
+    toggleLessonCompletion,
     setTab
   };
 }

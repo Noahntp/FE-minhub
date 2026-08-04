@@ -1,8 +1,100 @@
-import React, { useState, useEffect } from 'react';
-import { Heart, Trash2, Tag, CreditCard, CheckCircle, Download, Landmark, BookOpen, FileText, Gift, Info } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  ChevronRight,
+  ShieldCheck,
+  Lock,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  CreditCard,
+  Building2,
+  Check,
+  RotateCcw,
+  FileText,
+  Clock,
+  Layers,
+} from 'lucide-react';
 import { Course, Order, Coupon } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
-import { SYSTEM_COUPONS } from '@/shared/data';
+import { SYSTEM_COUPONS, INITIAL_COURSES } from '@/shared/data';
+import { FALLBACK_COURSES_MAP } from '@/features/courses/hooks/useCourseDetail';
+import { toast } from 'sonner';
+
+export function resolveCourseById(id: string, allCourses: Course[] = []): Course {
+  if (!id) {
+    return {
+      id: 'react-zero-hero',
+      title: 'React.js From Zero to Hero',
+      subtitle: 'Học React.js bài bản từ cơ bản đến nâng cao với Redux Toolkit, React Query & TailwindCSS.',
+      price: 1299000,
+      salePrice: 909300,
+      image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+      instructorName: 'Nguyễn Văn A',
+      instructorTitle: 'Giảng viên',
+      instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+      rating: 4.9,
+      reviewCount: 1250,
+      enrolledCount: 31200,
+      category: 'Development',
+      level: 'Intermediate',
+      status: 'active',
+    } as Course;
+  }
+
+  let found = allCourses.find((c) => String(c.id) === String(id) || c.slug === id);
+  if (found) return found;
+
+  found = INITIAL_COURSES.find((c) => String(c.id) === String(id) || c.slug === id);
+  if (found) return found;
+
+  const fallback = FALLBACK_COURSES_MAP[id];
+  if (fallback) {
+    return {
+      id: id,
+      title: fallback.title || 'React.js From Zero to Hero',
+      subtitle: fallback.subtitle || '',
+      description: fallback.description || '',
+      category: fallback.category || 'Development',
+      subcategory: fallback.subcategory || 'Frontend',
+      instructorId: fallback.instructorId || 'inst-1',
+      instructorName: fallback.instructorName || 'Nguyễn Văn A',
+      instructorTitle: fallback.instructorTitle || 'Giảng viên',
+      instructorAvatar: fallback.instructorAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+      price: fallback.price || 1299000,
+      salePrice: fallback.salePrice || 909300,
+      rating: fallback.rating || 4.9,
+      reviewCount: fallback.reviewCount || 1234,
+      enrolledCount: fallback.enrolledCount || 12400,
+      image: fallback.image || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+      status: 'active',
+    } as Course;
+  }
+
+  const readableTitle = id
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  return {
+    id: id,
+    title: `Khóa học ${readableTitle}`,
+    subtitle: `Khóa học ${readableTitle} từ cơ bản đến nâng cao`,
+    description: `<p>Khóa học ${readableTitle} chất lượng cao tại MindHub.</p>`,
+    category: 'Development',
+    subcategory: 'General',
+    instructorId: 'inst-1',
+    instructorName: 'Nguyễn Văn A',
+    instructorTitle: 'Giảng viên',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 1299000,
+    salePrice: 909300,
+    rating: 4.8,
+    reviewCount: 850,
+    enrolledCount: 3200,
+    image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+    status: 'active',
+  } as Course;
+}
 
 interface CartAndCheckoutProps {
   wishlistCourseIds: string[];
@@ -23,564 +115,758 @@ export default function CartAndCheckout({
   onClose,
   onToggleFavorite,
   onEnterLesson,
-  initialCourseId = null
+  initialCourseId = null,
 }: CartAndCheckoutProps) {
-  const [couponCode, setCouponCode] = useState('');
-  const [activeDiscount, setActiveDiscount] = useState<{ code: string; percent: number } | null>(null);
-  const [couponError, setCouponError] = useState('');
-  const [couponSuccess, setCouponSuccess] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'vnpay'>('vnpay');
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  // Checkout flow phase: 'wishlist' | 'paying' | 'receipt'
-  const [phase, setPhase] = useState<'wishlist' | 'paying' | 'receipt'>(() => {
-    if (initialCourseId) {
-      return 'paying';
-    }
-    return 'wishlist';
-  });
-  const [checkoutCourse, setCheckoutCourse] = useState<Course | null>(() => {
-    if (initialCourseId) {
-      return allCourses.find((c) => String(c.id) === String(initialCourseId)) || null;
-    }
-    return null;
+  const navigate = useNavigate();
+
+  const effectiveAllCourses = useMemo(() => {
+    const map = new Map<string, Course>();
+    (allCourses || []).forEach((c) => map.set(String(c.id), c));
+    (INITIAL_COURSES || []).forEach((c) => {
+      if (!map.has(String(c.id))) map.set(String(c.id), c);
+    });
+    return Array.from(map.values());
+  }, [allCourses]);
+
+  const [checkoutCourse, setCheckoutCourse] = useState<Course>(() => {
+    return resolveCourseById(initialCourseId || 'react-zero-hero', effectiveAllCourses);
   });
 
   useEffect(() => {
     if (initialCourseId) {
-      const course = allCourses.find((c) => String(c.id) === String(initialCourseId));
-      if (course) {
-        setCheckoutCourse(course);
-        setPhase('paying');
-      }
+      setCheckoutCourse(resolveCourseById(initialCourseId, effectiveAllCourses));
     }
-  }, [initialCourseId, allCourses]);
-  const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  }, [initialCourseId, effectiveAllCourses]);
 
-  const wishlistCourses = allCourses.filter((c) => wishlistCourseIds.includes(c.id));
-  
-  // Calculations for single course checkout
-  const rawSubtotal = checkoutCourse ? (checkoutCourse.salePrice || checkoutCourse.price) : 0;
-  const discountAmount = activeDiscount ? Math.round((rawSubtotal * activeDiscount.percent) / 100) : 0;
-  const finalTotal = rawSubtotal - discountAmount;
+  // Buyer Form States
+  const [buyerName, setBuyerName] = useState('Nguyễn Văn B');
+  const [buyerEmail, setBuyerEmail] = useState('student@example.com');
+  const [buyerPhone, setBuyerPhone] = useState('0987654321');
+  const [saveInfo, setSaveInfo] = useState(true);
+
+  // Payment Method State: 'momo' | 'bank' | 'card'
+  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'bank' | 'card'>('momo');
+
+  // Coupon States
+  const [couponCode, setCouponCode] = useState('');
+  const [activeDiscount, setActiveDiscount] = useState<{ code: string; percent: number } | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+
+  // Flow phase: 'form' | 'success'
+  const [phase, setPhase] = useState<'form' | 'success'>('form');
+  const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Price calculations
+  const originalPrice = (checkoutCourse as any).originalPrice || Math.round(checkoutCourse.price * 1.4);
+  const salePrice = checkoutCourse.salePrice || checkoutCourse.price;
+  const initialDiscountAmount = originalPrice - salePrice;
+  const initialDiscountPercent = Math.round((initialDiscountAmount / originalPrice) * 100);
+
+  const couponDiscountAmount = activeDiscount
+    ? Math.round((salePrice * activeDiscount.percent) / 100)
+    : 0;
+
+  const finalTotal = salePrice - couponDiscountAmount;
+
+  const formatVND = (num: number) => {
+    return new Intl.NumberFormat('vi-VN').format(num) + 'đ';
+  };
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     setCouponError('');
     setCouponSuccess('');
-    
-    // Fetch coupons dynamically from local storage or fallback to system static presets
+
+    if (!couponCode.trim()) {
+      setCouponError('Vui lòng nhập mã giảm giá.');
+      return;
+    }
+
     const saved = localStorage.getItem('mindhub_coupons');
     let couponsList: Coupon[] = SYSTEM_COUPONS;
     if (saved) {
       try {
         couponsList = JSON.parse(saved);
-      } catch (err) {
-        console.error("Lỗi parse coupons:", err);
-      }
+      } catch (err) {}
     }
 
-    const matched = couponsList.find(c => c.code.toUpperCase() === couponCode.trim().toUpperCase());
+    const matched = couponsList.find(
+      (c) => c.code.toUpperCase() === couponCode.trim().toUpperCase()
+    );
+
     if (matched) {
-      // Check if this coupon is course-restricted and does not match checkoutCourse
-      if (matched.targetCourseId && checkoutCourse && checkoutCourse.id !== matched.targetCourseId) {
-        setCouponError(`Mã giảm giá này chỉ khả dụng cho khóa học mục tiêu được quy định riêng.`);
-        return;
-      }
-      
       setActiveDiscount({ code: matched.code, percent: matched.discount });
       setCouponSuccess(`Đã áp dụng mã ${matched.code}: Giảm ${matched.discount}%`);
+      toast.success(`Đã áp dụng mã ${matched.code}: Giảm ${matched.discount}%`);
     } else {
       setCouponError('Mã giảm giá không chính xác hoặc đã hết hạn.');
+      toast.error('Mã giảm giá không chính xác hoặc đã hết hạn.');
     }
   };
 
-  const handleStartPurchase = (course: Course) => {
-    setCheckoutCourse(course);
-    setPhase('paying');
-  };
-
-  const handleMockPaymentSuccess = (status: 'success' | 'pending' = 'success') => {
-    if (!checkoutCourse) return;
-    
-    // Generate order receipt
-    const orderId = 'MIND-' + Math.floor(100000 + Math.random() * 900000);
-    const order: Order = {
-      id: orderId,
-      date: new Date().toISOString().split('T')[0],
-      courses: [{ id: checkoutCourse.id, title: checkoutCourse.title, price: checkoutCourse.salePrice || checkoutCourse.price }],
-      discountAmount: discountAmount,
-      total: finalTotal,
-      status: status,
-      paymentMethod: paymentMethod === 'momo' ? 'Ví Momo' : 'VNPAY QR'
-    };
-
-    if (status === 'success') {
-      try {
-        const stored = localStorage.getItem("mindhub_mock_enrolled");
-        const existing = stored ? JSON.parse(stored) : [];
-        existing.push(String(checkoutCourse.id));
-        localStorage.setItem("mindhub_mock_enrolled", JSON.stringify(Array.from(new Set(existing))));
-      } catch (e) {}
+  const handleStartPayment = () => {
+    if (!buyerName.trim() || !buyerEmail.trim() || !buyerPhone.trim()) {
+      toast.error('Vui lòng điền đầy đủ thông tin người mua.');
+      return;
     }
 
-    setCreatedOrder(order);
-    setPhase('receipt');
-    onEnrollSuccess(status === 'success' ? [checkoutCourse.id] : [], order);
-  };
-
-  const handleRealVNPayPayment = async () => {
-    if (!checkoutCourse) return;
     setIsProcessing(true);
-    try {
-      const orderRes = (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
-      const createdOrderId = orderRes?.order?.id || orderRes?.id || orderRes?.data?.id;
-      
-      if (createdOrderId) {
-        const vnpayRes = (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
-        const paymentUrl = vnpayRes?.paymentUrl || vnpayRes?.url || vnpayRes?.data?.paymentUrl || vnpayRes?.data?.url;
-        
-        if (paymentUrl) {
-          window.location.href = paymentUrl;
-        } else {
-          throw new Error("Không lấy được link VNPay từ máy chủ");
-        }
-      } else {
-        throw new Error("Không lấy được mã đơn hàng từ máy chủ");
-      }
-    } catch (err) {
-      console.error('Lỗi thanh toán VNPay:', err);
-      alert('Đã xảy ra lỗi khi kết nối cổng thanh toán VNPay.');
-      setIsProcessing(false);
-    }
-  };
 
-  const formatVND = (num: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
+    setTimeout(() => {
+      setIsProcessing(false);
+      const orderId = 'MH-' + Math.floor(100000 + Math.random() * 900000);
+      const order: Order = {
+        id: orderId,
+        date: new Date().toISOString().split('T')[0],
+        courses: [
+          {
+            id: checkoutCourse.id,
+            title: checkoutCourse.title,
+            price: finalTotal,
+          },
+        ],
+        discountAmount: initialDiscountAmount + couponDiscountAmount,
+        total: finalTotal,
+        status: 'success',
+        paymentMethod:
+          paymentMethod === 'momo'
+            ? 'Ví MoMo'
+            : paymentMethod === 'bank'
+            ? 'Thẻ ATM nội địa / Internet Banking'
+            : 'Thẻ quốc tế (Visa/Mastercard)',
+      };
+
+      setCompletedOrder(order);
+      setPhase('success');
+      onEnrollSuccess([checkoutCourse.id], order);
+      toast.success('Thanh toán và đăng ký khóa học thành công!');
+    }, 1000);
   };
 
   return (
-    <div className="min-h-screen bg-[#fcf8f2] flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-xl border border-brand-light-active overflow-hidden flex flex-col text-main-darker animate-fade-in relative min-h-[600px]">
-        
-        {/* Header Ribbon */}
-        <div className="bg-[#432c28] p-4 text-brand-light flex justify-between items-center shrink-0">
+    <div className="w-full min-h-screen bg-slate-50/60 py-8 px-4 sm:px-6 lg:px-8 font-sans text-slate-800">
+      
+      {/* CENTERED CONTAINER */}
+      <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* 1. BREADCRUMB */}
+        <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <Link to="/" className="hover:text-primary transition-colors">
+            Trang chủ
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-slate-900 font-semibold">Thanh toán</span>
+        </nav>
+
+        {/* 2. PAGE HEADER */}
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            Thanh toán
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+            Xác nhận thông tin và hoàn tất thanh toán để sở hữu khóa học này.
+          </p>
+        </div>
+
+        {/* 3. STEP PROGRESS INDICATOR */}
+        <div className="flex items-center justify-center max-w-2xl mx-auto py-2">
+          {/* Step 1 */}
           <div className="flex items-center gap-2">
-            {initialCourseId ? (
-              <CreditCard className="w-4.5 h-4.5 text-amber-300" />
-            ) : (
-              <Heart className="w-4.5 h-4.5 text-deep-indigo fill-deep-indigo" />
-            )}
-            <span className="font-display font-bold text-xs sm:text-sm">
-              {initialCourseId ? "Thanh toán Ghi danh khóa học | MindHub" : "Khóa học Yêu thích & Tuyển sinh | MindHub"}
+            <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+              1
+            </div>
+            <span className="text-xs font-bold text-slate-900">Thông tin đơn hàng</span>
+          </div>
+
+          <div className="w-16 sm:w-28 h-0.5 bg-slate-200 mx-3" />
+
+          {/* Step 2 */}
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${
+                phase === 'success'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-200 text-slate-600'
+              }`}
+            >
+              2
+            </div>
+            <span
+              className={`text-xs font-semibold ${
+                phase === 'success' ? 'text-slate-900 font-bold' : 'text-slate-500'
+              }`}
+            >
+              Thanh toán
             </span>
           </div>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="text-xs bg-white/10 hover:bg-white/20 py-1.5 px-3.5 rounded-lg text-brand-light hover:text-white transition-all font-semibold"
-          >
-            Quay lại
-          </button>
+
+          <div className="w-16 sm:w-28 h-0.5 bg-slate-200 mx-3" />
+
+          {/* Step 3 */}
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${
+                phase === 'success'
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-slate-200 text-slate-600'
+              }`}
+            >
+              3
+            </div>
+            <span
+              className={`text-xs font-semibold ${
+                phase === 'success' ? 'text-emerald-600 font-bold' : 'text-slate-500'
+              }`}
+            >
+              Hoàn tất
+            </span>
+          </div>
         </div>
 
-        {/* Info Banner in wishlist page */}
-        {phase === 'wishlist' && (
-          <div className="bg-[#fffcf5] border-b border-[#f3e6cf] p-3 px-5 text-[10.5px] text-stone-700 flex items-center gap-2 shrink-0">
-            <Gift className="w-4 h-4 text-amber-600 shrink-0" />
-            <span className="text-left font-serif leading-relaxed">Nơi lưu giữ những lộ trình chất lượng cao bạn ưu tiên học tập. Ghi danh tuyển sinh trực tuyến nhận ưu đãi vĩnh viễn qua cổng chuyển khoản.</span>
+        {/* 4. PHASE CONDITION: FORM VS RECEIPT SUCCESS */}
+        {phase === 'success' ? (
+          /* SUCCESS SCREEN RECEIPT */
+          <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-slate-200/80 p-8 shadow-sm text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-slate-900">
+                Thanh toán thành công!
+              </h2>
+              <p className="text-sm text-slate-600 font-medium">
+                Cảm ơn bạn đã đăng ký khóa học. Mã đơn hàng của bạn là{' '}
+                <span className="font-bold text-slate-900">{completedOrder?.id}</span>.
+              </p>
+            </div>
+
+            {/* Course Summary Box */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 text-left flex items-center gap-4">
+              <img
+                src={checkoutCourse.image}
+                alt={checkoutCourse.title}
+                className="w-20 aspect-video rounded-xl object-cover shrink-0 border"
+              />
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  {checkoutCourse.title}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Giảng viên: {checkoutCourse.instructorName}
+                </p>
+                <div className="text-xs font-extrabold text-blue-600 mt-1">
+                  Đã thanh toán: {formatVND(finalTotal)}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => navigate(`/learn/${checkoutCourse.id}`)}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+              >
+                <span>Bắt đầu học ngay</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => navigate('/my-courses')}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold text-sm transition-colors cursor-pointer"
+              >
+                Về khóa học của tôi
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* FORM PHASE: 2-COLUMN MAIN LAYOUT */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* LEFT COLUMN: MAIN FORM SECTIONS */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              {/* SECTION 1: KHÓA HỌC */}
+              <div className="space-y-3">
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+                  1. Khóa học
+                </h2>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    {/* Course Thumbnail */}
+                    <div className="relative w-36 sm:w-44 aspect-video rounded-xl overflow-hidden shrink-0 bg-slate-900 border border-slate-200/60">
+                      <img
+                        src={checkoutCourse.image}
+                        alt={checkoutCourse.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-slate-900/20 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center">
+                          <div className="w-0 h-0 border-y-4 border-y-transparent border-l-8 border-l-white ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Course Info */}
+                    <div className="space-y-1.5">
+                      <h3 className="text-base font-extrabold text-slate-900 leading-snug">
+                        {checkoutCourse.title}
+                      </h3>
+
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={
+                            checkoutCourse.instructorAvatar ||
+                            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80'
+                          }
+                          alt={checkoutCourse.instructorName}
+                          className="w-5 h-5 rounded-full object-cover border"
+                        />
+                        <span className="text-xs text-slate-600 font-semibold">
+                          {checkoutCourse.instructorName}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">Giảng viên</span>
+                      </div>
+
+                      {/* Metadata badges */}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium pt-1">
+                        <span className="flex items-center gap-1">
+                          <Layers className="w-3.5 h-3.5 text-slate-400" />
+                          {checkoutCourse.level || 'Intermediate'}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <FileText className="w-3.5 h-3.5 text-slate-400" />
+                          82 bài học
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          18 giờ 20 phút
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price Tag Right */}
+                  <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                    <div className="flex items-center sm:justify-end gap-1.5">
+                      <span className="text-xs text-slate-400 line-through font-medium">
+                        {formatVND(originalPrice)}
+                      </span>
+                      <span className="bg-rose-100 text-rose-600 text-[11px] font-extrabold px-1.5 py-0.5 rounded">
+                        -{initialDiscountPercent}%
+                      </span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
+                      {formatVND(salePrice)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: THÔNG TIN NGƯỜI MUA */}
+              <div className="space-y-3">
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+                  2. Thông tin người mua
+                </h2>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Field 1: Họ và tên */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Họ và tên</label>
+                      <input
+                        type="text"
+                        value={buyerName}
+                        onChange={(e) => setBuyerName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
+                        placeholder="Nhập họ tên"
+                      />
+                    </div>
+
+                    {/* Field 2: Email */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Email</label>
+                      <input
+                        type="email"
+                        value={buyerEmail}
+                        onChange={(e) => setBuyerEmail(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
+                        placeholder="Nhập địa chỉ email"
+                      />
+                    </div>
+
+                    {/* Field 3: Số điện thoại */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Số điện thoại</label>
+                      <input
+                        type="text"
+                        value={buyerPhone}
+                        onChange={(e) => setBuyerPhone(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
+                        placeholder="Nhập số điện thoại"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Save info checkbox */}
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={saveInfo}
+                      onChange={(e) => setSaveInfo(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                    />
+                    <span className="text-xs text-slate-600 font-semibold">
+                      Lưu thông tin cho lần mua sau
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* SECTION 3: PHƯƠNG THỨC THANH TOÁN */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+                    3. Phương thức thanh toán
+                  </h2>
+                  <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-emerald-600" />
+                    Thanh toán được bảo mật và mã hóa
+                  </span>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
+                  
+                  {/* Option 1: Ví MoMo */}
+                  <div
+                    onClick={() => setPaymentMethod('momo')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                      paymentMethod === 'momo'
+                        ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        paymentMethod === 'momo' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                      }`}>
+                        {paymentMethod === 'momo' && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+
+                      {/* MoMo Logo Badge */}
+                      <div className="w-10 h-10 rounded-xl bg-pink-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
+                        momo
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-900">Ví điện tử (MoMo)</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Thanh toán nhanh với ví MoMo</p>
+                      </div>
+                    </div>
+
+                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Hoàn tiền trong 7 ngày
+                    </span>
+                  </div>
+
+                  {/* Option 2: Thẻ ATM nội địa */}
+                  <div
+                    onClick={() => setPaymentMethod('bank')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                      paymentMethod === 'bank'
+                        ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        paymentMethod === 'bank' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                      }`}>
+                        {paymentMethod === 'bank' && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-900">Thẻ ATM nội địa / Internet Banking</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Hỗ trợ tất cả ngân hàng nội địa</p>
+                      </div>
+                    </div>
+
+                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Hoàn tiền trong 7 ngày
+                    </span>
+                  </div>
+
+                  {/* Option 3: Thẻ quốc tế Visa/Mastercard */}
+                  <div
+                    onClick={() => setPaymentMethod('card')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                      paymentMethod === 'card'
+                        ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        paymentMethod === 'card' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                      }`}>
+                        {paymentMethod === 'card' && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
+                        <CreditCard className="w-5 h-5" />
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-900">Thẻ quốc tế (Visa, Mastercard, JCB)</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Thanh toán bằng thẻ quốc tế</p>
+                      </div>
+                    </div>
+
+                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Hoàn tiền trong 7 ngày
+                    </span>
+                  </div>
+
+                  {/* Footer note */}
+                  <div className="pt-2 text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>Mọi giao dịch đều được bảo mật tuyệt đối theo tiêu chuẩn PCI-DSS.</span>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* TRUST BADGES ROW (3 COLUMNS BELOW FORM) */}
+              <div className="bg-white/80 rounded-2xl border border-slate-200/70 p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-extrabold text-slate-900">Bảo mật tuyệt đối</h5>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Thông tin của bạn được mã hóa và bảo vệ an toàn
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-extrabold text-slate-900">Thanh toán an toàn</h5>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Hỗ trợ bởi các cổng thanh toán uy tín
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600 shrink-0">
+                    <RotateCcw className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-extrabold text-slate-900">Hoàn tiền dễ dàng</h5>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">
+                      Cam kết hoàn tiền trong 7 ngày nếu không hài lòng
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* BOTTOM NAVIGATION ACTIONS */}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={() => navigate('/cart')}
+                  className="px-5 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-extrabold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Quay lại giỏ hàng</span>
+                </button>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-right hidden sm:block">
+                    <span className="text-[11px] text-slate-500 font-medium block">Tổng thanh toán:</span>
+                    <span className="text-lg font-black text-rose-600">{formatVND(finalTotal)}</span>
+                  </div>
+
+                  <button
+                    onClick={handleStartPayment}
+                    disabled={isProcessing}
+                    className="px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>{isProcessing ? 'Đang xử lý...' : 'Tiến hành thanh toán'}</span>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT COLUMN: SIDEBAR ORDER SUMMARY */}
+            <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
+              
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-5">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                    Đơn hàng của bạn
+                  </h3>
+                  <button
+                    onClick={() => navigate('/cart')}
+                    className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                  >
+                    Sửa giỏ hàng
+                  </button>
+                </div>
+
+                {/* Selected Item Preview */}
+                <div className="flex items-center gap-3">
+                  <img
+                    src={checkoutCourse.image}
+                    alt={checkoutCourse.title}
+                    className="w-16 aspect-video rounded-lg object-cover shrink-0 border"
+                  />
+                  <div className="space-y-0.5 overflow-hidden">
+                    <h4 className="text-xs font-extrabold text-slate-900 truncate">
+                      {checkoutCourse.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 font-medium truncate">
+                      {checkoutCourse.instructorName}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="space-y-2 text-xs font-medium text-slate-600 border-t border-slate-100 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span>Giá gốc</span>
+                    <span className="font-bold text-slate-900">{formatVND(originalPrice)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span>Giảm giá (-{initialDiscountPercent}%)</span>
+                    <span className="font-bold text-rose-600">-{formatVND(initialDiscountAmount)}</span>
+                  </div>
+
+                  {activeDiscount && (
+                    <div className="flex items-center justify-between text-emerald-600 font-semibold">
+                      <span>Mã giảm giá ({activeDiscount.code})</span>
+                      <span>-{formatVND(couponDiscountAmount)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Coupon Input Form */}
+                <form onSubmit={handleApplyCoupon} className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      placeholder="Nhập mã giảm giá"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50 uppercase"
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 text-xs font-bold transition-colors cursor-pointer shrink-0"
+                    >
+                      Áp dụng
+                    </button>
+                  </div>
+
+                  {couponError && (
+                    <p className="text-[11px] font-semibold text-rose-600">{couponError}</p>
+                  )}
+                  {couponSuccess && (
+                    <p className="text-[11px] font-semibold text-emerald-600">{couponSuccess}</p>
+                  )}
+                </form>
+
+                {/* Subtotal & Final Total */}
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <div className="flex items-center justify-between text-xs font-medium text-slate-600">
+                    <span>Tạm tính</span>
+                    <span className="font-bold text-slate-900">{formatVND(finalTotal)}</span>
+                  </div>
+
+                  <div className="flex items-start justify-between pt-2 border-t border-slate-100">
+                    <div>
+                      <span className="text-sm font-extrabold text-slate-900 block">
+                        Tổng thanh toán
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium block">
+                        Đã bao gồm VAT (nếu có)
+                      </span>
+                    </div>
+                    <span className="text-xl sm:text-2xl font-black text-rose-600">
+                      {formatVND(finalTotal)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Green 7-Day Money Back Guarantee Card */}
+                <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <h5 className="text-xs font-extrabold text-emerald-900">
+                      Cam kết hoàn tiền 7 ngày
+                    </h5>
+                    <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">
+                      Học không hài lòng? MindHub cam kết hoàn tiền 100% trong vòng 7 ngày.
+                    </p>
+                  </div>
+                </div>
+
+                {/* "Khi bạn mua khóa học, bạn sẽ nhận được:" list */}
+                <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                  <h4 className="text-xs font-extrabold text-slate-900">
+                    Khi bạn mua khóa học, bạn sẽ nhận được:
+                  </h4>
+
+                  <ul className="space-y-2 text-xs text-slate-600 font-medium">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Truy cập trọn đời khóa học</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Học trên mọi thiết bị</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Tài liệu & code thực hành</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Hỗ trợ giảng viên</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Cập nhật nội dung miễn phí</span>
+                    </li>
+                  </ul>
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
         )}
-
-        {/* Scrollable contents wrapper */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 tactile-scrollbar">
-          
-          {phase === 'wishlist' && (
-            <div className="space-y-4">
-              <h3 className="text-xs sm:text-sm font-bold text-stone-800 flex items-center gap-2 border-b border-stone-100 pb-2 text-left">
-                Khóa học yêu thích lưu trữ ({wishlistCourses.length} dự phòng)
-              </h3>
-
-              {wishlistCourses.length === 0 ? (
-                <div className="text-center py-16 space-y-3.5">
-                  <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto text-deep-indigo">
-                    <Heart className="w-8 h-8 opacity-75" />
-                  </div>
-                  <p className="text-xs font-semibold text-stone-500">Chưa có khóa học nào dưới mục Ước nguyện.</p>
-                  <p className="text-[11px] text-stone-400">Hãy nhấn biểu tượng Yêu thích ở các khóa học ngoài trang chủ để lưu trữ học vụ tại đây!</p>
-                  <button onClick={onClose} className="bg-[#432c28] hover:bg-black text-white text-xs py-2 px-5 rounded-xl font-bold transition-all shadow-xs">
-                    Khám phá Khóa học ngay
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1 tactile-scrollbar">
-                  {wishlistCourses.map((c) => {
-                    const isEnrolled = enrolledCourseIds.includes(c.id);
-                    return (
-                      <div key={c.id} className="flex flex-col sm:flex-row sm:items-center gap-3.5 p-3.5 bg-white border border-stone-250 rounded-2xl hover:shadow-xs transition-all relative text-left">
-                        <img src={c.image} alt="Course banner" className="w-24 h-15 object-cover rounded-xl shrink-0 border" />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[9px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded font-mono font-bold uppercase">{c.subcategory}</span>
-                          <h4 className="text-xs font-bold text-stone-900 truncate mt-1 leading-snug">{c.title}</h4>
-                          <p className="text-[10.5px] text-stone-500 mt-0.5">Giảng viên: {c.instructorName}</p>
-                        </div>
-                        
-                        <div className="flex items-center justify-between sm:justify-end gap-3.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-stone-105">
-                          <div className="text-left sm:text-right">
-                            <span className="text-xs font-black text-stone-800 block">{formatVND(c.salePrice || c.price)}</span>
-                            {c.salePrice && (
-                              <span className="text-[10px] text-stone-400 line-through font-mono">{formatVND(c.price)}</span>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-1.5">
-                            {isEnrolled ? (
-                              <button
-                                onClick={() => onEnterLesson(c)}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] py-2 px-4 rounded-xl font-bold transition-all flex items-center gap-1 whitespace-nowrap"
-                              >
-                                <BookOpen className="w-3.5 h-3.5" /> Học Ngay
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleStartPurchase(c)}
-                                className="bg-[#432c28] hover:bg-black text-white text-[10px] py-2 px-4.5 rounded-xl font-bold transition-all flex items-center justify-center whitespace-nowrap"
-                              >
-                                Ghi danh ngay
-                              </button>
-                            )}
-                            
-                            <button 
-                              onClick={() => onToggleFavorite(c.id)}
-                              className="text-stone-400 hover:text-red-500 p-2 hover:bg-stone-50 rounded-lg transition-colors border"
-                              title="Loại khỏi yêu thích"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* PAYING FLow: Restructured into a beautiful 2-column layout on iPad & Desktop */}
-          {phase === 'paying' && checkoutCourse && (
-            <div className="space-y-4">
-              <div className="text-left border-b border-stone-105 pb-3">
-                <span className="text-[9px] font-mono tracking-widest font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/50">CỔNG TIẾP NHẬN GHIDANH AN TOÀN VNPAY CHÍNH THỨC</span>
-                <h3 className="text-base font-bold text-stone-900 mt-1.5">Tuyển sinh trực tuyến: {checkoutCourse.title}</h3>
-                <p className="text-[11px] text-stone-800 font-medium italic mt-0.5">Thời hạn: Nhận toàn quyền truy cập cập nhật bài giảng vĩnh viễn</p>
-              </div>
-
-              {/* 2-Column Responsive Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left">
-                
-                {/* COLUMN 1 (Left 5 cols): Payment selection methods, Coupons inputs and note */}
-                <div className="lg:col-span-5 space-y-4">
-                  <span className="block text-xs font-bold text-stone-900">1. Chọn Cổng / Ví liên kết:</span>
-                  
-                  <div className="grid grid-cols-1 gap-2">
-                    <button 
-                      type="button"
-                      onClick={() => setPaymentMethod('vnpay')}
-                      className={`border p-3 rounded-xl flex items-center gap-3 text-left transition-all ${paymentMethod === 'vnpay' ? 'border-[#8b5e3c] bg-[#faf6f2] ring-1 ring-[#8b5e3c] shadow-xs' : 'border-stone-200 hover:bg-stone-50'}`}
-                    >
-                      <div className="p-1.5 bg-blue-100 rounded-lg"><CreditCard className="w-4 h-4 text-blue-600" /></div>
-                      <div>
-                        <span className="text-xs font-bold text-stone-900 block">Cổng VNPAY QR Code</span>
-                        <span className="text-[9.5px] text-stone-700 font-semibold block mt-0.5">Quét dọn thanh toán bằng ứng dụng ngân hàng</span>
-                      </div>
-                    </button>
-
-                    <button 
-                      type="button"
-                      disabled
-                      className="border p-3 rounded-xl flex items-center gap-3 text-left transition-all border-stone-200 opacity-60 cursor-not-allowed bg-stone-50"
-                    >
-                      <div className="p-1.5 bg-pink-50 text-pink-700 text-xs font-mono font-black rounded-lg w-7 h-7 flex items-center justify-center border">M</div>
-                      <div>
-                        <span className="text-xs font-bold text-stone-500 block">Ví Momo Pay</span>
-                        <span className="text-[9px] text-red-600 font-black bg-red-50 border border-red-100 px-1.5 py-0.5 rounded mt-1 inline-block uppercase tracking-wider">Tính năng đang phát triển</span>
-                      </div>
-                    </button>
-                  </div>
-
-                  {/* Apply coupon voucher */}
-                  <form onSubmit={handleApplyCoupon} className="border-t border-stone-200/60 pt-3 flex flex-col gap-1.5">
-                    <span className="text-xs font-bold text-stone-900 block">Danh mục mã khuyến mãi giảm giá:</span>
-                    <div className="flex gap-2 text-xs">
-                      <div className="relative flex-1">
-                        <Tag className="absolute left-3 top-2.5 w-3.5 h-3.5 text-stone-500" />
-                        <input 
-                          type="text" 
-                          value={couponCode}
-                          onChange={(e) => setCouponCode(e.target.value)}
-                          placeholder="Mã giảm học phí..."
-                          className="w-full text-xs font-bold text-stone-900 pl-8 pr-3 py-1.5 border border-stone-300 bg-white rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#8b5e3c]"
-                        />
-                      </div>
-                      <button type="submit" className="bg-stone-900 hover:bg-black text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-xs">
-                        Áp mã
-                      </button>
-                    </div>
-                    {couponError && <p className="text-[10px] text-red-600 font-semibold">{couponError}</p>}
-                    {couponSuccess && <p className="text-[10px] text-emerald-600 font-semibold">{couponSuccess}</p>}
-                  </form>
-
-                  <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200/60 text-[10px] text-amber-950 leading-normal font-serif text-justify font-medium">
-                    💡 <b>Thông báo:</b> Mã ưu đãi <b>WELCOMEMIND</b> giảm giá trực tiếp 10% học phí ghi nhận ngay. Hãy sử dụng để kiểm soát hóa đơn tốt nhất!
-                  </div>
-                </div>
-
-                {/* COLUMN 2 (Right 7 cols): VNPAY Specs & simulated submit */}
-                <div className="lg:col-span-7 space-y-3 bg-stone-50 border border-stone-250 rounded-2xl p-4 sm:p-5">
-                  <span className="block text-xs font-bold text-stone-900 border-b pb-1">2. Chi tiết Lệnh thanh toán VNPAY QR:</span>
-                  
-                  {/* Beautiful Simulated VNPAY QR Code scanner container */}
-                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-3.5 rounded-xl border border-stone-200">
-                    <div className="w-24 h-24 bg-stone-50 rounded-lg border-2 border-dashed border-[#8b5e3c] flex flex-col items-center justify-center p-2 relative shrink-0">
-                      {/* Stylized QR Code Mockup */}
-                      <div className="absolute top-1 left-1 w-2 h-2 bg-[#432c28] rounded-xs"></div>
-                      <div className="absolute top-1 right-1 w-2 h-2 bg-[#432c28] rounded-xs"></div>
-                      <div className="absolute bottom-1 left-1 w-2 h-2 bg-[#432c28] rounded-xs"></div>
-                      <div className="w-16 h-16 bg-stone-900 flex flex-col justify-between p-1.5 rounded-sm">
-                        <div className="flex justify-between">
-                          <div className="w-4 h-4 bg-white rounded-xs p-0.5 flex items-center justify-center">
-                            <div className="w-full h-full bg-stone-900 rounded-2xs"></div>
-                          </div>
-                          <div className="w-4 h-4 bg-white rounded-xs p-0.5 flex items-center justify-center">
-                            <div className="w-full h-full bg-stone-900 rounded-2xs"></div>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-end">
-                          <div className="w-4 h-4 bg-white rounded-xs p-0.5 flex items-center justify-center">
-                            <div className="w-full h-full bg-stone-900 rounded-2xs"></div>
-                          </div>
-                          <div className="w-5 h-5 bg-[#8b5e3c] rounded-xs p-0.5 flex items-center justify-center text-[6px] text-white font-black">VN</div>
-                        </div>
-                      </div>
-                      <span className="text-[7px] text-[#8b5e3c] font-black uppercase tracking-wider mt-1.5 animate-pulse">QUÉT VNPAY QR</span>
-                    </div>
-                    
-                    <div className="space-y-1 text-left">
-                      <span className="text-[8.5px] bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded font-black uppercase">CỔNG VNPAY CHÍNH THỨC</span>
-                      <p className="text-xs font-black text-stone-900">Mã QR Thanh toán Bảo mật</p>
-                      <p className="text-[10px] text-stone-800 leading-normal font-serif font-medium">Mở ứng dụng Ngân hàng (VCB, BIDV, VietinBank, Agribank, Techcombank...) quét mã QR để ghi danh tức thì.</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 leading-normal text-xs text-stone-900 font-bold">
-                    <div className="flex justify-between pb-1.5 border-b border-stone-200">
-                      <span className="text-stone-800">Cổng kết nối thanh toán:</span>
-                      <span className="text-blue-800 font-black uppercase">VNPAY QR-GATEWAY</span>
-                    </div>
-                    <div className="flex justify-between pb-1.5 border-b border-stone-200">
-                      <span className="text-stone-800">Đơn vị thụ hưởng pháp nhân:</span>
-                      <span className="text-stone-950 font-black">CÔNG TY CPDV GIÁO DỤC MINDHUB VN</span>
-                    </div>
-                    <div className="flex justify-between pb-1.5 border-b border-stone-200">
-                      <span className="text-stone-800">Mã hóa đơn giao dịch:</span>
-                      <span className="font-mono text-stone-950 font-black">MIND{String(checkoutCourse.id).replace('course-', '').toUpperCase()}</span>
-                    </div>
-                    <div className="flex justify-between pb-1.5 border-b border-stone-200">
-                      <span className="text-stone-800">Giá gốc học phần:</span>
-                      <span className="text-stone-600 font-black line-through font-mono">{formatVND(rawSubtotal)}</span>
-                    </div>
-                    
-                    {activeDiscount && (
-                      <div className="flex justify-between pb-1.5 border-b border-stone-200 text-emerald-800 font-black">
-                        <span>Voucher giảm giá áp dụng:</span>
-                        <span>-{formatVND(discountAmount)} ({activeDiscount.percent}%)</span>
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-between py-1 border-b-2 border-dashed border-stone-300">
-                      <span className="text-stone-900 font-black text-xs sm:text-sm">Tổng chuyển chính xác:</span>
-                      <span className="font-black text-[#852b21] text-sm sm:text-base">{formatVND(finalTotal)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-red-700 font-black uppercase text-[10.5px]">Nội dung thanh toán (Memos):</span>
-                      <span className="font-mono font-black text-red-700 uppercase bg-red-100/70 border border-red-300/50 px-2 py-0.5 rounded text-xs select-all">MIND{String(checkoutCourse.id).replace('course-', '').toUpperCase()}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-stone-900 text-amber-100 p-3 rounded-xl border border-stone-800 text-[10px] space-y-1">
-                    <p className="font-black flex items-center gap-1"><Info className="w-3 h-3 text-amber-300" /> HƯỚNG DẪN GIẢ LẬP THANH TOÁN:</p>
-                    <p className="font-serif leading-relaxed text-stone-200 font-medium">Bạn có lựa chọn hai cổng thanh toán giả lập bên dưới: <b>Cổng Tự Động</b> sẽ tự động ghi danh bạn ngay lập tức, trong khi <b>Cổng Chờ Duyệt</b> tạo đơn hàng chờ cần được phê duyệt trạng thái bởi Kiểm duyệt viên/Admin (hoặc phê duyệt thủ công trong hồ sơ của bạn).</p>
-                  </div>
-
-                  {/* Actions row inside col 2 */}
-                  <div className="flex flex-col gap-2 pt-2 border-t border-stone-200/85">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <button 
-                        type="button"
-                        onClick={handleRealVNPayPayment} 
-                        disabled={isProcessing}
-                        className={`flex-1 ${isProcessing ? 'bg-emerald-800/60 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800'} text-white text-[10.5px] font-bold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5`}
-                      >
-                        {isProcessing ? (
-                           <span className="animate-pulse">Đang kết nối cổng thanh toán...</span>
-                        ) : (
-                           <><CheckCircle className="w-4 h-4" /> Thanh toán VNPay (Sandbox)</>
-                        )}
-                      </button>
-                      
-                      <button 
-                        type="button"
-                        onClick={() => handleMockPaymentSuccess('pending')} 
-                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-[10.5px] font-bold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
-                      >
-                        <Landmark className="w-4 h-4" /> Chuyển khoản thường (Chờ phê duyệt)
-                      </button>
-                    </div>
-
-                    <div className="flex justify-start">
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          if (initialCourseId) {
-                            onClose();
-                          } else {
-                            setPhase('wishlist');
-                          }
-                        }} 
-                        className="px-4 py-2 border border-stone-300 text-[10.5px] rounded-xl hover:bg-stone-100 text-stone-750 font-bold text-center cursor-pointer transition-all"
-                      >
-                        {initialCourseId ? "Hủy bỏ & Quay lại" : "Quay lại wishlist"}
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-          )}
-
-          {/* RECEIPT FRAME */}
-          {phase === 'receipt' && createdOrder && checkoutCourse && (
-            <div className="space-y-4 text-center max-w-lg mx-auto">
-              {createdOrder.status === 'success' ? (
-                <>
-                  <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 border border-emerald-200">
-                    <CheckCircle className="w-6 h-6 animate-scale-up" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold text-emerald-800">Ghi danh Học viên thành công!</h3>
-                  <p className="text-xs text-stone-850 leading-relaxed font-serif font-medium">
-                    Giao dịch đã hoàn tất và được kích hoạt tự động. Khóa học <b>{checkoutCourse.title}</b> đã chính thức mở khóa vĩnh viễn cho tài khoản của bạn!
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto text-amber-600 border border-amber-200 animate-pulse">
-                    <Landmark className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold text-amber-800">Đơn hàng đang chờ xử lý thanh toán!</h3>
-                  <p className="text-xs text-stone-850 leading-relaxed font-serif font-medium">
-                    Yêu cầu chuyển khoản học phí cho khóa <b>{checkoutCourse.title}</b> đã được lưu lại với trạng thái <b>Chờ phê duyệt</b>. Sau khi bạn chuyển khoản chuyển tiền, dữ liệu sẽ sớm được cập nhật kích hoạt.
-                  </p>
-                </>
-              )}
-
-              {/* Tax Invoice Sheet widget */}
-              <div className="border border-stone-300 bg-white rounded-2xl p-4 sm:p-5 text-left text-xs space-y-3.5 shadow-sm">
-                <div className="flex justify-between border-b border-stone-250 pb-2">
-                  <span className="font-bold text-stone-900 text-xs sm:text-sm">HÓA ĐƠN ĐIỆN TỬ E-RECEIPT</span>
-                  <span className="font-mono text-stone-500 font-bold text-[10px]">{createdOrder.id}</span>
-                </div>
-                <div className="space-y-2 text-stone-800 font-sans">
-                  <p className="flex justify-between"><span className="font-bold text-stone-700">Mã hóa đơn:</span> <span className="text-stone-950 font-black font-mono">{createdOrder.id}</span></p>
-                  <p className="flex justify-between items-center"><span className="font-bold text-stone-700">Trạng thái thanh toán:</span> {createdOrder.status === 'success' ? (
-                    <span className="bg-emerald-100 text-emerald-850 px-2 py-0.5 rounded font-black font-mono uppercase text-[9.5px] border border-emerald-300">Đã thanh toán</span>
-                  ) : (
-                    <span className="bg-amber-100 text-amber-850 px-2 py-0.5 rounded font-black font-mono uppercase text-[9.5px] border border-amber-300">Đang chờ xử lý (Pending)</span>
-                  )}</p>
-                  <p className="flex justify-between"><span className="font-bold text-stone-700">Học viên thụ hưởng:</span> <span className="text-stone-950 font-black">T. T. Sang (truongthanhsang31415@gmail.com)</span></p>
-                  <p className="flex justify-between"><span className="font-bold text-stone-700">Ngày ghi nhận:</span> <span className="text-stone-950 font-black">{createdOrder.date}</span></p>
-                  <p className="flex justify-between"><span className="font-bold text-stone-700">Hình thức:</span> <span className="text-stone-950 font-black">{createdOrder.paymentMethod}</span></p>
-                </div>
-                
-                <div className="border-t border-b border-stone-100 py-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-stone-705 truncate max-w-xs">{checkoutCourse.title}</span>
-                    <span className="font-bold text-[#432c28] ml-2 shrink-0">{formatVND(checkoutCourse.salePrice || checkoutCourse.price)}</span>
-                  </div>
-                </div>
-
-                {createdOrder.discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-650 font-semibold">
-                    <span>Mã ưu đãi khuyến mãi:</span>
-                    <span>-{formatVND(createdOrder.discountAmount)}</span>
-                  </div>
-                )}
-                
-                <div className="flex justify-between font-black text-sm text-stone-900 pt-1">
-                  <span>TỔNG THANH TOÁN:</span>
-                  <span className="text-[#852b21]">{formatVND(createdOrder.total)}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-2">
-                <button 
-                  type="button"
-                  onClick={() => alert(`Đã tải xuống file biên lai học phí điện tử PDF cho đơn hàng ${createdOrder.id}`)}
-                  className="inline-flex justify-center items-center gap-1.5 text-xs text-stone-600 hover:bg-stone-50 border border-stone-200 px-4 py-2 rounded-xl bg-white font-bold transition-all"
-                >
-                  <Download className="w-3.5 h-3.5" /> Tải biên lai PDF
-                </button>
-                
-                {createdOrder.status === 'success' ? (
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onEnterLesson(checkoutCourse);
-                    }} 
-                    className="flex-1 bg-[#432c28] hover:bg-black text-white py-2 px-5 rounded-xl text-xs font-bold shadow-md transition-all animate-pulse"
-                  >
-                    Tiến vào lớp học ngay »
-                  </button>
-                ) : (
-                  <div className="flex-1 flex flex-col sm:flex-row gap-2">
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        // Dynamically update this order to success
-                        const completedOrder = { ...createdOrder, status: 'success' as const };
-                        setCreatedOrder(completedOrder);
-                        onEnrollSuccess([checkoutCourse.id], completedOrder);
-                        alert("Đơn hàng đã được xác nhận thanh toán thành công thông qua mô phỏng!");
-                      }} 
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-xl text-xs font-bold shadow-md transition-all"
-                    >
-                      Phê duyệt nhanh (Thanh toán xong)
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={onClose} 
-                      className="bg-stone-800 hover:bg-black text-white py-2 px-4 rounded-xl text-xs font-bold shadow-md transition-all"
-                    >
-                      Đóng đơn hàng
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* System safety note */}
-        <div className="bg-stone-50 px-5 py-3 border-t border-[#e8ded3]/80 flex items-center gap-2 text-[10px] text-stone-400 justify-center shrink-0">
-          <FileText className="w-3.5 h-3.5 text-stone-400" />
-          <span className="font-semibold text-center leading-tight">Mọi thanh toán hóa đơn học thuật trên MindHub được bảo hộ bảo chứng bởi cơ quan thuế Việt Nam.</span>
-        </div>
 
       </div>
     </div>

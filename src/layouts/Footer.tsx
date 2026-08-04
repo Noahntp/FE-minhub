@@ -49,10 +49,10 @@ export default function Footer() {
                   Lộ trình học tập
                 </button>
                 <button
-                  onClick={() => navigate('/about')}
+                  onClick={() => navigate('/services')}
                   className="block hover:text-white text-left transition-colors cursor-pointer border-none bg-transparent p-0"
                 >
-                  Về chúng tôi
+                  Dịch vụ & Giới thiệu
                 </button>
               </div>
             </div>
