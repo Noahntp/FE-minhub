@@ -605,26 +605,8 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
         </div>
       </div>
 
-      {/* SECTION A: 5 DASHBOARD SUMMARY CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        
-        {/* Card 1: Doanh thu đang chờ */}
-        <div className="bg-white rounded-2xl border border-[#e7e8ed] p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[11px] font-bold text-[#737373] flex items-center gap-1">
-                Doanh thu đang chờ <Info className="w-3 h-3 text-[#a3a3a3]" />
-              </span>
-              <div className="text-lg font-black text-amber-600 tracking-tight mt-0.5 truncate">
-                {formatVND(summary.pending_revenue)}
-              </div>
-              <span className="text-[10px] font-medium text-[#a3a3a3] block mt-0.5 truncate">Giữ 30 ngày hoàn tiền</span>
-            </div>
-          </div>
-        </div>
+      {/* SECTION A: 4 DASHBOARD SUMMARY CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
         {/* Card 2: Số dư khả dụng */}
         <div className="bg-white rounded-2xl border border-[#e7e8ed] p-4 shadow-sm hover:shadow-md transition-shadow">
@@ -731,7 +713,9 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
             </div>
             <div>
               <span className="text-[10px] font-bold text-[#737373] uppercase tracking-wider block">Số tiền dự kiến gom</span>
-              <span className="font-black text-[#0066FF] text-sm block mt-0.5">{formatVND(summary.available_balance)}</span>
+              <span className="font-black text-[#0066FF] text-sm block mt-0.5">
+                {formatVND(summary.scheduled_payout > 0 ? summary.scheduled_payout : summary.available_balance)}
+              </span>
             </div>
           </div>
         </div>
@@ -1150,6 +1134,21 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
                   className="w-full px-4 py-3 border border-[#dbdde4] rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 font-mono font-bold text-center tracking-[0.5em] text-lg text-[#06091a] bg-slate-50/50"
                   autoFocus
                 />
+                <div className="flex items-center justify-between text-[11px] font-medium text-[#737373] mt-1">
+                  <span>Hạn dùng mã: <strong className="text-stone-900 font-mono">{Math.floor(otpTimer / 60)}:{(otpTimer % 60).toString().padStart(2, '0')}</strong></span>
+                  {resendTimer > 0 ? (
+                    <span>Gửi lại sau <strong>{resendTimer}s</strong></span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleRequestEarlyOtp}
+                      disabled={requestingOtp}
+                      className="text-amber-600 font-bold hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      {requestingOtp ? 'Đang gửi...' : 'Gửi lại mã OTP'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {earlyOtpError && (

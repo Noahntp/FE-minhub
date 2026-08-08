@@ -92,5 +92,33 @@ async updateStudentProgress(courseId: string, progress: Partial<StudentProgress>
           method: 'PATCH',
           body: JSON.stringify(progress),
         });
+  },
+
+async getLessonNotes(lessonId: string): Promise<any[]> {
+  devLog('Learning', `Fetch personal notes for Lesson ID: ${lessonId}`);
+  return apiFetch<any[]>(`/learn/lessons/${lessonId}/notes`);
+  },
+
+async addLessonNote(lessonId: string, content: string, noteTimeSecond: number): Promise<any> {
+  devLog('Learning', `Add note for Lesson ${lessonId} at ${noteTimeSecond}s`, { content, noteTimeSecond });
+  return apiFetch<any>(`/learn/lessons/${lessonId}/notes`, {
+          method: 'POST',
+          body: JSON.stringify({ content, note_time_second: noteTimeSecond }),
+        });
+  },
+
+async deleteLessonNote(noteId: string): Promise<any> {
+  devLog('Learning', `Delete note ${noteId}`);
+  return apiFetch<any>(`/learn/notes/${noteId}`, {
+          method: 'DELETE',
+        });
+  },
+
+async updateLessonNote(noteId: string, content: string, noteTimeSecond?: number): Promise<any> {
+  devLog('Learning', `Update note ${noteId}`);
+  return apiFetch<any>(`/learn/notes/${noteId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ content, note_time_second: noteTimeSecond }),
+        });
   }
 };

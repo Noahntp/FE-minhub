@@ -2240,8 +2240,9 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         const matchingCourse = courses.find(item => String(item.id) === String(c.course_id));
         const levelLabel = c.level === 'intermediate' ? 'Trung cấp' : c.level === 'advanced' ? 'Nâng cao' : (c.level === 'beginner' ? 'Cơ bản' : (matchingCourse?.level || 'Cơ bản'));
         const enrolled = c.enrollment_count ?? c.unique_learner_count ?? c.studentCount ?? 0;
-        const rawRev = typeof c.revenue === 'number' ? c.revenue : parseFloat(String(c.revenue || '0').replace(/[^0-9.-]/g, ''));
-        const safeRev = Number.isFinite(rawRev) ? rawRev : (matchingCourse?.price ? enrolled * matchingCourse.price : 0);
+        const revSource = c.revenue ?? c.instructor_revenue ?? c.gross_revenue;
+        const rawRev = typeof revSource === 'number' ? revSource : parseFloat(String(revSource || '0').replace(/[^0-9.-]/g, ''));
+        const safeRev = Number.isFinite(rawRev) ? rawRev : 0;
         return {
           id: String(c.course_id),
           rank: c.rank || (idx + 1),

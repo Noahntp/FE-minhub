@@ -3,10 +3,14 @@ import { Gift, Copy, Check, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
-export function PromoVoucherSection() {
+interface PromoVoucherSectionProps {
+  vouchers?: any[];
+}
+
+export function PromoVoucherSection({ vouchers: apiVouchers }: PromoVoucherSectionProps) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const vouchers = [
+  const defaultVouchers = [
     {
       code: 'WELCOME100',
       title: 'Giảm 100.000đ',
@@ -18,6 +22,25 @@ export function PromoVoucherSection() {
       desc: 'Áp dụng cho mọi khóa học',
     },
   ];
+
+  const formatVoucherTitle = (v: any) => {
+    if (v.title) return v.title;
+    if (v.discount_type === 'percent') {
+      return `Giảm ${v.discount_value}%`;
+    }
+    if (v.discount_type === 'fixed') {
+      return `Giảm ${new Intl.NumberFormat('vi-VN').format(v.discount_value)}đ`;
+    }
+    return v.name || 'Ưu đãi đặc biệt';
+  };
+
+  const vouchers = Array.isArray(apiVouchers) && apiVouchers.length > 0
+    ? apiVouchers.map((v) => ({
+        code: v.code,
+        title: formatVoucherTitle(v),
+        desc: v.description || v.name || 'Hạn dùng có hạn',
+      }))
+    : defaultVouchers;
 
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);

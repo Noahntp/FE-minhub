@@ -108,20 +108,16 @@ async forgotPassword(email: string): Promise<{ success: boolean; message: string
     return this.requestPasswordReset(email);
   },
 
-async resendVerificationEmail(email: string, purpose: string = 'verify_email'): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Resend email verification notification mail', { email, purpose });
-    try {
-      const res = await fetch('http://localhost:3000/api/auth/email/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, purpose })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi gửi email xác minh');
-      return data;
-    } catch (err: any) {
-      throw new Error(err.message || 'Lỗi gửi email xác minh');
-    }
+  async resendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
+    devLog('Auth', 'Resend email verification notification mail', { email });
+    const res = await apiFetch<any>('/auth/verify-email/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+    return {
+      success: true,
+      message: res.message || 'Đã gửi lại email xác thực thành công. Vui lòng kiểm tra hộp thư.',
+    };
   },
 
 async verifyEmailOtp(email: string, purpose: string, token: string): Promise<{ success: boolean, ticket?: string }> {

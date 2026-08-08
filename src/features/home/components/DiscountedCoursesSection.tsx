@@ -56,6 +56,7 @@ export function DiscountedCoursesSection({ courses }: { courses: HomeCourseItem[
               };
               return getPercent(b) - getPercent(a);
             })
+            .slice(0, 5)
             .map((course) => (
               <HomeCourseCard key={course.id} course={course} tagVariant="discount" />
             ))}

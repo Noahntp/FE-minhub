@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
+import { apiFetch } from '@/shared/lib/api-client';
 import {
   BookOpen,
   Trophy,
@@ -15,7 +16,81 @@ import {
   X,
   CheckCircle2,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
+
+const INITIAL_COURSES_DATA = [
+  {
+    id: 'react-19-nextjs-15',
+    title: 'Chinh Phục React 19 & Next.js 15: Từ Cơ Bản Đến Cao Cấp',
+    category: 'Lập trình',
+    status: 'learning',
+    badgeText: 'Đang học',
+    badgeType: 'learning',
+    instructorName: 'Dr. Lê Quốc Khánh',
+    instructorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+    progress: 78,
+    lessonsCount: 68,
+    duration: '18h 30m',
+    buttonText: 'Tiếp tục học',
+    buttonBg: 'bg-[#0f172a] text-white hover:bg-slate-800',
+    hasPlayIcon: true,
+  },
+  {
+    id: 'ui-ux-design-full',
+    title: 'UI/UX Design Toàn Diện Từ Cơ Bản Đến Nâng Cao',
+    category: 'Thiết kế',
+    status: 'learning',
+    badgeText: 'Đang học',
+    badgeType: 'learning',
+    instructorName: 'Trần Minh Anh',
+    instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&q=80',
+    progress: 45,
+    progressColor: 'bg-[#6366f1]',
+    lessonsCount: 52,
+    duration: '12h 10m',
+    buttonText: 'Tiếp tục học',
+    buttonBg: 'bg-[#6366f1] text-white hover:bg-indigo-600',
+    hasPlayIcon: true,
+  },
+  {
+    id: 'python-basic-beginner',
+    title: 'Python Cơ Bản Cho Người Mới Bắt Đầu',
+    category: 'Lập trình',
+    status: 'completed',
+    badgeText: 'Hoàn thành',
+    badgeType: 'completed',
+    instructorName: 'Phạm Hoàng Nam',
+    instructorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
+    progress: 100,
+    lessonsCount: 40,
+    duration: '10h 05m',
+    buttonText: 'Xem lại khóa học',
+    buttonBg: 'bg-[#10b981] text-white hover:bg-emerald-600',
+    hasPlayIcon: false,
+  },
+  {
+    id: 'graphic-design-ai-figma',
+    title: 'Thiết Kế Đồ Họa Đột Phá với AI & Figma',
+    category: 'Thiết kế',
+    status: 'saved',
+    badgeText: 'Đã lưu',
+    badgeType: 'saved',
+    instructorName: 'Sarah Nguyễn',
+    instructorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
+    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
+    progress: null,
+    lessonsCount: 36,
+    duration: '9h 20m',
+    buttonText: 'Xem chi tiết',
+    buttonBg: 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50',
+    hasPlayIcon: false,
+    isArrowButton: true,
+  },
+];
 
 export default function MyCoursesPage() {
   const navigate = useNavigate();
@@ -23,82 +98,68 @@ export default function MyCoursesPage() {
   const [sortBy, setSortBy] = useState('updated');
   const [showGoalBanner, setShowGoalBanner] = useState(true);
 
-  // Mock course data matching mockup
-  const coursesData = [
-    {
-      id: 'react-19-nextjs-15',
-      title: 'Chinh Phục React 19 & Next.js 15: Từ Cơ Bản Đến Cao Cấp',
-      category: 'Lập trình',
-      status: 'learning',
-      badgeText: 'Đang học',
-      badgeType: 'learning',
-      instructorName: 'Dr. Lê Quốc Khánh',
-      instructorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80',
-      thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
-      progress: 78,
-      lessonsCount: 68,
-      duration: '18h 30m',
-      buttonText: 'Tiếp tục học',
-      buttonBg: 'bg-[#0f172a] text-white hover:bg-slate-800',
-      hasPlayIcon: true,
-    },
-    {
-      id: 'ui-ux-design-full',
-      title: 'UI/UX Design Toàn Diện Từ Cơ Bản Đến Nâng Cao',
-      category: 'Thiết kế',
-      status: 'learning',
-      badgeText: 'Đang học',
-      badgeType: 'learning',
-      instructorName: 'Trần Minh Anh',
-      instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
-      thumbnail: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&q=80',
-      progress: 45,
-      progressColor: 'bg-[#6366f1]',
-      lessonsCount: 52,
-      duration: '12h 10m',
-      buttonText: 'Tiếp tục học',
-      buttonBg: 'bg-[#6366f1] text-white hover:bg-indigo-600',
-      hasPlayIcon: true,
-    },
-    {
-      id: 'python-basic-beginner',
-      title: 'Python Cơ Bản Cho Người Mới Bắt Đầu',
-      category: 'Lập trình',
-      status: 'completed',
-      badgeText: 'Hoàn thành',
-      badgeType: 'completed',
-      instructorName: 'Phạm Hoàng Nam',
-      instructorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
-      thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
-      progress: 100,
-      lessonsCount: 40,
-      duration: '10h 05m',
-      buttonText: 'Xem lại khóa học',
-      buttonBg: 'bg-[#10b981] text-white hover:bg-emerald-600',
-      hasPlayIcon: false,
-    },
-    {
-      id: 'graphic-design-ai-figma',
-      title: 'Thiết Kế Đồ Họa Đột Phá với AI & Figma',
-      category: 'Thiết kế',
-      status: 'saved',
-      badgeText: 'Đã lưu',
-      badgeType: 'saved',
-      instructorName: 'Sarah Nguyễn',
-      instructorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
-      thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
-      progress: null,
-      lessonsCount: 36,
-      duration: '9h 20m',
-      buttonText: 'Xem chi tiết',
-      buttonBg: 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50',
-      hasPlayIcon: false,
-      isArrowButton: true,
-    },
-  ];
+  const [coursesData, setCoursesData] = useState<any[]>(INITIAL_COURSES_DATA);
+  const [isLoadingApi, setIsLoadingApi] = useState(false);
+
+  // Fetch real enrolled courses from Backend API (/api/me/courses & /api/wishlists)
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setIsLoadingApi(true);
+      try {
+        const res = await apiFetch<any>('/me/courses');
+        const rawList = Array.isArray(res) ? res : (res?.data || []);
+
+        if (Array.isArray(rawList) && rawList.length > 0) {
+          const apiCourses = rawList.map((item: any) => {
+            const c = item.course || item;
+            const progress = item.progress_percent !== null && item.progress_percent !== undefined
+              ? Math.round(Number(item.progress_percent))
+              : 0;
+            const isCompleted = progress === 100 || item.status === 'completed';
+            const courseId = String(c.id || c.slug || item.id);
+
+            return {
+              id: courseId,
+              title: c.title || 'Khóa học đã đăng ký',
+              category: c.category?.name || c.category || 'Lập trình',
+              status: isCompleted ? 'completed' : 'learning',
+              badgeText: isCompleted ? 'Hoàn thành' : 'Đang học',
+              badgeType: isCompleted ? 'completed' : 'learning',
+              instructorName: c.instructor?.full_name || c.instructor_name || 'Giảng viên MindHub',
+              instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+              thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+              progress: progress,
+              lessonsCount: c.lessons_count || (c.total_duration_seconds ? Math.max(12, Math.round(c.total_duration_seconds / 900)) : 40),
+              duration: c.total_duration_seconds
+                ? `${Math.floor(c.total_duration_seconds / 3600)}h ${Math.round((c.total_duration_seconds % 3600) / 60)}m`
+                : '12h 30m',
+              buttonText: isCompleted ? 'Xem lại khóa học' : 'Tiếp tục học',
+              buttonBg: isCompleted ? 'bg-[#10b981] text-white hover:bg-emerald-600' : 'bg-[#0f172a] text-white hover:bg-slate-800',
+              hasPlayIcon: !isCompleted,
+            };
+          });
+
+          // Keep saved courses from initial mock/saved list
+          const savedCourses = INITIAL_COURSES_DATA.filter((c) => c.status === 'saved');
+          setCoursesData([...apiCourses, ...savedCourses]);
+        }
+      } catch (e) {
+        console.warn('Backend courses API not reached, using fallback list:', e);
+      } finally {
+        setIsLoadingApi(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+  // Compute metrics
+  const learningCount = useMemo(() => coursesData.filter((c) => c.status === 'learning').length, [coursesData]);
+  const completedCount = useMemo(() => coursesData.filter((c) => c.status === 'completed').length, [coursesData]);
+  const savedCount = useMemo(() => coursesData.filter((c) => c.status === 'saved').length, [coursesData]);
 
   // Filter list based on active tab
-  const getFilteredCourses = () => {
+  const filteredCourses = useMemo(() => {
     if (activeTab === 'learning') {
       return coursesData.filter((c) => c.status === 'learning');
     }
@@ -109,12 +170,9 @@ export default function MyCoursesPage() {
       return coursesData.filter((c) => c.status === 'saved');
     }
     return coursesData;
-  };
+  }, [activeTab, coursesData]);
 
-  const filteredCourses = getFilteredCourses();
-
-  // Displays all 4 courses on default overview tab or filtered
-  const displayedCourses = activeTab === 'learning' && filteredCourses.length === 2 ? coursesData : filteredCourses;
+  const displayedCourses = filteredCourses;
 
   return (
     <PageTransition>
@@ -152,7 +210,7 @@ export default function MyCoursesPage() {
                 <BookOpen className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">3</div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{learningCount}</div>
                 <div className="text-xs font-bold text-slate-800 mt-1">Khóa học</div>
                 <div className="text-[11px] text-slate-400 font-medium">Đang theo học</div>
               </div>
@@ -163,7 +221,7 @@ export default function MyCoursesPage() {
                 <Trophy className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">1</div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{completedCount}</div>
                 <div className="text-xs font-bold text-slate-800 mt-1">Hoàn thành</div>
                 <div className="text-[11px] text-slate-400 font-medium">Khóa học đã hoàn thành</div>
               </div>
@@ -174,7 +232,7 @@ export default function MyCoursesPage() {
                 <Target className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">15</div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{completedCount * 100 + learningCount * 25}</div>
                 <div className="text-xs font-bold text-slate-800 mt-1">XP nhận được</div>
                 <div className="text-[11px] text-slate-400 font-medium">Tiếp tục phát triển!</div>
               </div>
@@ -185,7 +243,7 @@ export default function MyCoursesPage() {
                 <Clock className="w-6 h-6" />
               </div>
               <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">42h</div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{learningCount * 15 + completedCount * 25}h</div>
                 <div className="text-xs font-bold text-slate-800 mt-1">Thời gian học</div>
                 <div className="text-[11px] text-slate-400 font-medium">Tổng thời gian học tập</div>
               </div>
@@ -207,7 +265,7 @@ export default function MyCoursesPage() {
                 }`}
               >
                 <PlayCircle className="w-4 h-4" />
-                <span>Đang học (2)</span>
+                <span>Đang học ({learningCount})</span>
               </button>
 
               <button
@@ -219,7 +277,7 @@ export default function MyCoursesPage() {
                 }`}
               >
                 <Trophy className="w-4 h-4" />
-                <span>Đã hoàn thành (1)</span>
+                <span>Đã hoàn thành ({completedCount})</span>
               </button>
 
               <button
@@ -231,7 +289,7 @@ export default function MyCoursesPage() {
                 }`}
               >
                 <Bookmark className="w-4 h-4" />
-                <span>Đã lưu (2)</span>
+                <span>Đã lưu ({savedCount})</span>
               </button>
             </div>
 

@@ -32,10 +32,10 @@ export default function HomePage() {
         <HeroSection />
 
         {/* Stats Bar */}
-        <StatsBarSection />
+        <StatsBarSection stats={data.stats} />
 
         {/* Featured Categories */}
-        <FeaturedCategoriesSection />
+        <FeaturedCategoriesSection categories={data.featuredCategories} />
 
         {/* Section: Khóa học nổi bật */}
         <FeaturedCoursesSection courses={data.featuredCourses} />
@@ -47,16 +47,16 @@ export default function HomePage() {
         <DiscountedCoursesSection courses={data.discountedCourses} />
 
         {/* Voucher Promo Banner */}
-        <PromoVoucherSection />
+        <PromoVoucherSection vouchers={data.vouchers} />
 
         {/* Why Choose Us */}
         <WhyChooseUsSection />
 
         {/* Testimonials */}
-        <StudentTestimonialsSection />
+        <StudentTestimonialsSection testimonials={data.testimonials} />
 
         {/* FAQ Accordion */}
-        <HomeFaqSection />
+        <HomeFaqSection faqs={data.faqs} />
 
         {/* CTA Banner */}
         <HomeCtaBannerSection />

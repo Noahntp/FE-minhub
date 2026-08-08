@@ -6,9 +6,10 @@ interface VideoPlayerProps {
   activeLesson: Lesson | null;
   onEnded?: () => void;
   onProgress90?: () => void;
+  onTimeUpdate?: (currentTimeSeconds: number) => void;
 }
 
-export function VideoPlayer({ activeLesson, onEnded, onProgress90 }: VideoPlayerProps) {
+export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate }: VideoPlayerProps) {
   const fallbackVideoUrl = 'https://www.w3schools.com/html/mov_bbb.mp4';
   const hasTriggered90Ref = useRef(false);
 
@@ -29,6 +30,9 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90 }: VideoPlayer
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
+    if (onTimeUpdate) {
+      onTimeUpdate(video.currentTime);
+    }
     if (video.duration > 0 && !hasTriggered90Ref.current) {
       const ratio = video.currentTime / video.duration;
       if (ratio >= 0.9) {

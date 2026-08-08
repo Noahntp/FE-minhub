@@ -17,10 +17,12 @@ interface AuthScreensProps {
   onLoginSuccess: (user: UserType) => void;
   onClose: () => void; // mapped to navigateTo('home')
   initialMode?: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password';
+  initialEmail?: string;
+  initialToken?: string;
   navigateTo?: (path: string) => void;
 }
 
-export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'login', navigateTo }: AuthScreensProps) {
+export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'login', initialEmail = '', initialToken = '', navigateTo }: AuthScreensProps) {
   const [mode, setMode] = useState<'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password'>(initialMode);
   
   React.useEffect(() => {
@@ -39,10 +41,12 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   const [showDevTools, setShowDevTools] = useState(false);
   
   // Form fields
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
+  const [resetToken, setResetToken] = useState(initialToken);
+  const [resendingEmail, setResendingEmail] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -124,7 +128,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       if (err.status === 401) {
         return 'Email hoặc mật khẩu không chính xác.';
       } else if (err.status === 403) {
-        return 'Tài khoản đang bị khóa, vô hiệu hóa hoặc chưa được kích hoạt.';
+        return err.message || 'Tài khoản chưa được xác thực email. Vui lòng kiểm tra email để kích hoạt.';
       } else if (err.status === 422) {
         const firstErr = err.errors ? Object.values(err.errors)[0] : null;
         return Array.isArray(firstErr) ? firstErr[0] : (err.message || 'Dữ liệu đăng nhập không hợp lệ.');
@@ -246,20 +250,12 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       bio: registerRole === 'instructor' ? instructorBio : undefined,
       experience_years: registerRole === 'instructor' ? instructorExperience : undefined
     })
-      .then(res => {
-        const apiUser = normalizeUser({
-          ...res.user,
-          role: registerRole,
-          isEmailVerified: true
-        });
-        saveToHistory(apiUser);
-        onLoginSuccess(apiUser);
-        alert('Đăng ký tài khoản thành công! Bạn đã được tự động đăng nhập.');
-        if (navigateTo) {
-          navigateTo(getDashboardRouteByRole(apiUser.role));
-        } else {
-          onClose();
-        }
+      .then(() => {
+        setPassword('');
+        setConfirmPassword('');
+        setErrorMsg('');
+        setSuccessMsg('Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục.');
+        handleModeChange('login');
       })
       .catch(err => {
         setSuccessMsg('');
@@ -298,21 +294,67 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       });
   };
 
+  const handleResendVerifyEmail = async () => {
+    if (!email) {
+      setErrorMsg('Vui lòng nhập email của bạn trước khi gửi lại.');
+      return;
+    }
+    setResendingEmail(true);
+    setErrorMsg('');
+    setSuccessMsg('Đang gửi lại email xác thực...');
+    try {
+      await authApi.resendVerificationEmail(email.trim().toLowerCase());
+      setSuccessMsg('Đã gửi lại email xác thực thành công! Vui lòng kiểm tra hộp thư của bạn (bao gồm cả thư rác / Spam).');
+    } catch (err: any) {
+      setSuccessMsg('');
+      setErrorMsg(err.message || 'Không thể gửi lại email xác thực.');
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
   const handleReset = (e: React.FormEvent) => {
     e.preventDefault();
     const emailTrimmed = email.trim().toLowerCase();
+    const tokenToUse = resetToken || verificationCode;
     
-    if (!emailTrimmed || !verificationCode || !password) {
-      setErrorMsg('Vui lòng điền đầy đủ các thông tin yêu cầu.');
+    if (!emailTrimmed || !tokenToUse || !password) {
+      setErrorMsg('Vui lòng điền đầy đủ email, mã Token / OTP và mật khẩu mới.');
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMsg('Mật khẩu mới phải từ 6 ký tự trở lên.');
+    if (password !== confirmPassword) {
+      setErrorMsg('Mật khẩu nhập lại không trùng khớp.');
       return;
     }
 
-    handleModeChange('login');
+    if (password.length < 8) {
+      setErrorMsg('Mật khẩu mới phải từ 8 ký tự trở lên.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('Đang cập nhật mật khẩu mới...');
+
+    authApi.resetPassword({
+      email: emailTrimmed,
+      token: tokenToUse,
+      password,
+      password_confirmation: confirmPassword
+    })
+      .then(() => {
+        setIsSubmitting(false);
+        setPassword('');
+        setConfirmPassword('');
+        setSuccessMsg('Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.');
+        handleModeChange('login');
+      })
+      .catch(err => {
+        setIsSubmitting(false);
+        setSuccessMsg('');
+        setErrorMsg(mapAuthError(err));
+      });
   };
 
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -374,9 +416,21 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 tactile-scrollbar space-y-4">
           
           {errorMsg && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-lg flex items-start gap-2 text-xs border border-red-100 animate-slide-up">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span className="text-left">{errorMsg}</span>
+            <div className="p-3 bg-red-50 text-red-700 rounded-lg flex flex-col gap-2 text-xs border border-red-100 animate-slide-up">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="text-left">{errorMsg}</span>
+              </div>
+              {errorMsg.toLowerCase().includes('xác thực') && (
+                <button
+                  type="button"
+                  onClick={handleResendVerifyEmail}
+                  disabled={resendingEmail}
+                  className="self-start ml-6 text-xs font-bold text-red-800 underline hover:text-red-950 cursor-pointer disabled:opacity-50"
+                >
+                  {resendingEmail ? 'Đang gửi lại...' : 'Gửi lại email xác thực'}
+                </button>
+              )}
             </div>
           )}
 

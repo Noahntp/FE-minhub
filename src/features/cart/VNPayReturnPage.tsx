@@ -1,34 +1,28 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
+import { apiFetch } from '@/shared/lib/api-client';
 
 export default function VNPayReturnPage({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
   const [message, setMessage] = useState('Đang xử lý kết quả thanh toán...');
 
   useEffect(() => {
-    const params = window.location.search.replace('?', '');
-    if (!params) {
-      setStatus('failed');
-      setMessage('Không tìm thấy thông tin thanh toán.');
-      return;
-    }
+    const responseCode = searchParams.get('vnp_ResponseCode');
+    const transactionStatus = searchParams.get('vnp_TransactionStatus');
 
-    Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
-      .then((res) => {
-        if (res && res.success) {
-          setStatus('success');
-          setMessage(res.message || 'Thanh toán thành công! Khóa học đã được thêm vào tài khoản của bạn.');
-        } else {
-          setStatus('failed');
-          setMessage(res?.message || 'Thanh toán thất bại hoặc giao dịch bị hủy.');
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        setStatus('failed');
-        setMessage('Có lỗi xảy ra khi xác thực giao dịch với máy chủ.');
-      });
-  }, []);
+    if (responseCode === '00' || transactionStatus === '00') {
+      setStatus('success');
+      setMessage('Thanh toán thành công! Khóa học đã được thêm vào tài khoản của bạn.');
+    } else if (responseCode || transactionStatus) {
+      setStatus('failed');
+      setMessage('Thanh toán thất bại hoặc giao dịch bị hủy.');
+    } else {
+      setStatus('failed');
+      setMessage('Không tìm thấy thông tin xác thực giao dịch.');
+    }
+  }, [searchParams]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-4">

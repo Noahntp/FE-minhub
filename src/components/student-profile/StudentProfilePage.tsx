@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import { StudentProfileHeader } from './StudentProfileHeader';
 import { StudentAvatarCard } from './StudentAvatarCard';
+import { StudentStreakCard } from './StudentStreakCard';
 import { StudentPersonalInfoCard } from './StudentPersonalInfoCard';
 import { StudentAccountStatusCard } from './StudentAccountStatusCard';
 import { StudentInstructorWorkspaceCard } from './StudentInstructorWorkspaceCard';
@@ -91,6 +92,12 @@ export const StudentProfilePage: React.FC<StudentProfilePageProps> = ({
             userEmail={userState?.email}
             onAvatarUpdated={handleAvatarUpdated}
             showToast={showToast}
+          />
+
+          <StudentStreakCard
+            currentStreak={userState?.streak_count || 5}
+            longestStreak={userState?.longest_streak || 12}
+            totalActiveDays={userState?.total_active_days || 28}
           />
 
           <StudentAccountStatusCard

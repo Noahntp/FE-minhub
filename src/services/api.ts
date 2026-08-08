@@ -910,6 +910,12 @@ export const ApiService = {
   return apiFetch<Course[]>('/me/courses');
   },
 
+  /** GET /me/streak */
+  async getLearningStreak(): Promise<any> {
+  devLog('Learning', 'Fetch live student streak and activity metrics');
+  return apiFetch<any>('/me/streak');
+  },
+
   /** GET /me/learning-dashboard */
   async getLearningDashboardStats(): Promise<any> {
   devLog('Learning', 'Calculate metrics, active days, hours studied, completion milestones');

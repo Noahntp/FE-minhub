@@ -42,6 +42,9 @@ const ClassroomPage = React.lazy(() => import('@/features/classroom/ClassroomPag
 const ProfilePage = React.lazy(() => import('@/features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const LoginPage = React.lazy(() => import('@/features/auth/LoginPage').then(m => ({ default: m.default })));
 const RegisterPage = React.lazy(() => import('@/features/auth/RegisterPage').then(m => ({ default: m.default })));
+const ForgotPasswordPage = React.lazy(() => import('@/features/auth/ForgotPasswordPage').then(m => ({ default: m.default })));
+const ResetPasswordPage = React.lazy(() => import('@/features/auth/ResetPasswordPage').then(m => ({ default: m.default })));
+const GoogleCallbackPage = React.lazy(() => import('@/features/auth/GoogleCallbackPage').then(m => ({ default: m.default })));
 const CartAndCheckout = React.lazy(() => import('@/features/cart/CartAndCheckout').then(m => ({ default: m.default })));
 const VNPayReturnPage = React.lazy(() => import('@/features/cart/VNPayReturnPage').then(m => ({ default: m.default })));
 const InstructorDashboard = React.lazy(() => import('@/features/instructor/InstructorPage'));
@@ -188,6 +191,9 @@ function AppRoutes() {
           {/* Auth Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
           
           {/* Main Layout Routes (Navbar + Footer) */}
           <Route element={<MainLayout />}>
@@ -251,7 +257,11 @@ function AppRoutes() {
           {/* Instructor Workspace (No Main Navbar/Footer) */}
           <Route path="/instructor/:instructorId/*" element={
             // @ts-ignore
-            isLoggedIn ? <InstructorDashboard /> : <Navigate to="/login" replace />
+            isLoggedIn && (currentUser?.role === 'instructor' || currentUser?.role === 'admin') ? (
+              <InstructorDashboard />
+            ) : (
+              <Navigate to="/my-courses" replace />
+            )
           } />
 
           {/* Admin Workspace */}

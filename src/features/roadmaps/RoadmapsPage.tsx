@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
+import { roadmapsApi } from './api';
+import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import {
   Map,
   Code2,
@@ -20,18 +22,56 @@ import {
   Trophy,
   Rocket,
   MessageSquare,
+  Compass,
+  Zap,
 } from 'lucide-react';
 
 export default function RoadmapsPage() {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [bookmarkedIds, setBookmarkedIds] = useState<Record<string, boolean>>({});
+  const [bookmarkedIds, setBookmarkedIds] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('mindhub_bookmarked_roadmaps');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
 
   const toggleBookmark = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setBookmarkedIds((prev) => ({ ...prev, [id]: !prev[id] }));
+    setBookmarkedIds((prev) => {
+      const updated = { ...prev, [id]: !prev[id] };
+      try {
+        localStorage.setItem('mindhub_bookmarked_roadmaps', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
   };
+
+  const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchApiData = async () => {
+      try {
+        const [courses, statsData] = await Promise.all([
+          roadmapsApi.getCatalogCourses(),
+          roadmapsApi.getStats(),
+        ]);
+        if (Array.isArray(courses) && courses.length > 0) {
+          setCatalogCourses(courses);
+        }
+        if (statsData) {
+          setStats(statsData);
+        }
+      } catch (e) {
+        console.warn('Could not load catalog courses/stats for RoadmapsPage:', e);
+      }
+    };
+    fetchApiData();
+  }, []);
 
   const roadmapsList = [
     {
@@ -126,10 +166,26 @@ export default function RoadmapsPage() {
     },
   ];
 
+  const dynamicRoadmapsList = useMemo(() => {
+    return roadmapsList.map((item) => {
+      const realMatches = catalogCourses.filter((c: any) => {
+        const catName = String(c.category?.name || c.category || c.category_slug || '').toLowerCase();
+        const titleStr = String(c.title || '').toLowerCase();
+        return catName.includes(item.category) || titleStr.includes(item.category) || catName.includes(item.id);
+      });
+
+      const count = realMatches.length > 0 ? realMatches.length : parseInt(item.coursesCount);
+      return {
+        ...item,
+        coursesCount: `${count} khóa học`,
+      };
+    });
+  }, [catalogCourses]);
+
   const filteredRoadmaps =
     activeCategory === 'all'
-      ? roadmapsList
-      : roadmapsList.filter((item) => item.category === activeCategory);
+      ? dynamicRoadmapsList
+      : dynamicRoadmapsList.filter((item) => item.category === activeCategory);
 
   return (
     <PageTransition>
@@ -137,21 +193,29 @@ export default function RoadmapsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
           
           {/* 1. Hero Section & Path Illustration Background */}
-          <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/80 shadow-sm relative overflow-hidden text-left">
+          <div className="relative rounded-3xl p-6 sm:p-10 border border-slate-800 bg-slate-950 text-white shadow-2xl overflow-hidden text-left">
+            {/* Ambient Background Glows */}
+            <div className="absolute top-0 left-1/3 w-96 h-96 bg-blue-500/15 rounded-full blur-3xl pointer-events-none -z-0" />
+            <div className="absolute bottom-0 right-10 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none -z-0" />
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
               
-              {/* Left Content (8 cols) */}
-              <div className="lg:col-span-8 space-y-6">
+              {/* Left Content (7 cols) */}
+              <div className="lg:col-span-7 space-y-6">
                 
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
-                  <Map className="w-6 h-6" />
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold shadow-sm">
+                  <Compass className="w-4 h-4 text-blue-400 animate-spin-slow" />
+                  <span>LỘ TRÌNH CHUẨN DOANH NGHIỆP 2026</span>
                 </div>
 
-                <div className="space-y-2">
-                  <h1 className="text-3xl sm:text-5xl font-black text-slate-900 leading-tight tracking-tight">
-                    Lộ trình học tập chuyên nghiệp
+                <div className="space-y-3">
+                  <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-[1.15] text-white">
+                    Lộ trình học tập{' '}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300">
+                      chuyên nghiệp
+                    </span>
                   </h1>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xl font-medium">
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl font-normal">
                     Các lộ trình được thiết kế bởi chuyên gia hàng đầu, giúp bạn đi từ con số 0 tới thành thạo và sẵn sàng cho công việc mơ ước.
                   </p>
                 </div>
@@ -163,7 +227,7 @@ export default function RoadmapsPage() {
                       const el = document.getElementById('roadmaps-grid');
                       el?.scrollIntoView({ behavior: 'smooth' });
                     }}
-                    className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm inline-flex items-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
+                    className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-extrabold text-xs sm:text-sm inline-flex items-center gap-2 shadow-lg shadow-blue-600/30 active:scale-95 transition-all"
                   >
                     <span>Khám phá lộ trình</span>
                     <ArrowRight className="w-4 h-4" />
@@ -171,55 +235,107 @@ export default function RoadmapsPage() {
 
                   <button
                     onClick={() => navigate('/contact')}
-                    className="px-5 py-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs sm:text-sm inline-flex items-center gap-2 transition-colors"
+                    className="px-5 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-blue-300 font-extrabold text-xs sm:text-sm inline-flex items-center gap-2 active:scale-95 transition-all shadow-inner"
                   >
-                    <MessageSquare className="w-4 h-4 text-blue-600" />
+                    <MessageSquare className="w-4 h-4 text-blue-400" />
                     <span>Tư vấn chọn lộ trình</span>
                   </button>
                 </div>
 
                 {/* Metrics Stats Badge Bar */}
-                <div className="pt-4 border-t border-slate-100 grid grid-cols-3 gap-4 text-left max-w-lg">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                <div className="pt-5 border-t border-slate-800/80 grid grid-cols-3 gap-3 text-left max-w-lg">
+                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-3 shadow-inner">
+                    <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
                       <Map className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-base sm:text-lg font-black text-slate-900">12+</div>
-                      <div className="text-[11px] text-slate-500 font-medium">Lộ trình học tập</div>
+                      <div className="text-base sm:text-lg font-black text-white">
+                        {stats?.total_roadmaps || stats?.total_courses || '12'}+
+                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Lộ trình học tập</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-3 shadow-inner">
+                    <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
                       <Users className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-base sm:text-lg font-black text-slate-900">25.000+</div>
-                      <div className="text-[11px] text-slate-500 font-medium">Học viên đã tham gia</div>
+                      <div className="text-base sm:text-lg font-black text-emerald-400">
+                        {stats?.total_students
+                          ? `${Number(stats.total_students).toLocaleString('vi-VN')}+`
+                          : '25.000+'}
+                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Học viên tham gia</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                  <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-3 shadow-inner">
+                    <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
                       <TrendingUp className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-base sm:text-lg font-black text-slate-900">92%</div>
-                      <div className="text-[11px] text-slate-500 font-medium">Tỷ lệ hoàn thành</div>
+                      <div className="text-base sm:text-lg font-black text-cyan-400">
+                        {stats?.completion_rate ? `${stats.completion_rate}%` : '92%'}
+                      </div>
+                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Tỷ lệ hoàn thành</div>
                     </div>
                   </div>
                 </div>
 
               </div>
 
-              {/* Right Winding Path Graphic (4 cols) */}
-              <div className="lg:col-span-4 hidden lg:flex justify-end relative">
-                <div className="w-72 h-72 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-full flex items-center justify-center relative border border-blue-100">
-                  <div className="text-6xl animate-pulse">🛣️</div>
-                  <div className="absolute top-6 right-8 text-2xl">🚩</div>
-                  <div className="absolute bottom-8 left-8 text-2xl">📱</div>
-                  <div className="absolute top-12 left-6 text-2xl">💻</div>
+              {/* Right Winding Path Graphic (5 cols) */}
+              <div className="lg:col-span-5 hidden lg:flex justify-center relative">
+                <div className="relative w-full max-w-sm bg-gradient-to-b from-slate-900 to-slate-950 rounded-3xl p-5 border border-slate-800 shadow-2xl space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Compass className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs font-mono font-bold text-blue-300">CareerPath.roadmap</span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">VERIFIED</span>
+                  </div>
+
+                  <div className="space-y-2.5 relative">
+                    {/* Winding Connection Line aligned with circle centers */}
+                    <div className="absolute left-[23.5px] top-6 bottom-6 -translate-x-1/2 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-emerald-500 opacity-60 z-0 pointer-events-none" />
+
+                    <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3 relative z-10">
+                      <span className="w-7 h-7 rounded-full bg-slate-950 text-blue-400 text-xs font-bold flex items-center justify-center border border-blue-500/60 shrink-0 shadow-md">1</span>
+                      <div className="flex-1 text-left">
+                        <p className="text-xs font-bold text-white">Nền tảng & Tư duy Lập trình</p>
+                        <p className="text-[11px] text-slate-400">HTML5, CSS3, JavaScript ES6+, Git</p>
+                      </div>
+                      <Code2 className="w-4 h-4 text-blue-400 shrink-0" />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3 relative z-10">
+                      <span className="w-7 h-7 rounded-full bg-slate-950 text-indigo-400 text-xs font-bold flex items-center justify-center border border-indigo-500/60 shrink-0 shadow-md">2</span>
+                      <div className="flex-1 text-left">
+                        <p className="text-xs font-bold text-white">Chuyên sâu Frontend / Backend</p>
+                        <p className="text-[11px] text-slate-400">React.js, Next.js, Node.js / Laravel</p>
+                      </div>
+                      <Zap className="w-4 h-4 text-indigo-400 shrink-0" />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3 relative z-10">
+                      <span className="w-7 h-7 rounded-full bg-slate-950 text-cyan-400 text-xs font-bold flex items-center justify-center border border-cyan-500/60 shrink-0 shadow-md">3</span>
+                      <div className="flex-1 text-left">
+                        <p className="text-xs font-bold text-white">Dự án Doanh nghiệp Capstone</p>
+                        <p className="text-[11px] text-slate-400">Xây dựng ứng dụng hoàn chỉnh ghi CV</p>
+                      </div>
+                      <Rocket className="w-4 h-4 text-cyan-400 shrink-0" />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-950 border border-emerald-500/50 flex items-center gap-3 relative z-10 shadow-lg shadow-emerald-500/10">
+                      <span className="w-7 h-7 rounded-full bg-slate-950 text-emerald-400 text-xs font-bold flex items-center justify-center border border-emerald-500/80 shrink-0 shadow-md">4</span>
+                      <div className="flex-1 text-left">
+                        <p className="text-xs font-bold text-emerald-300">Nhận việc & Tốt nghiệp</p>
+                        <p className="text-[11px] text-slate-400">Phỏng vấn thử & Nhận hỗ trợ việc làm</p>
+                      </div>
+                      <Trophy className="w-4 h-4 text-emerald-400 shrink-0 animate-bounce" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
