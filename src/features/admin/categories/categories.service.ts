@@ -222,24 +222,24 @@ export const CategoriesService = {
         } else if (sortBy === "name_desc") {
           return (b.name || "").localeCompare(a.name || "", "vi");
         } else if (sortBy === "sort_order_asc") {
-          const sa = a.sort_order || 0;
-          const sb = b.sort_order || 0;
-          if (sa > 0 && sb > 0) {
-            if (sa !== sb) return sa - sb;
+          const sa = a.sort_order !== undefined && a.sort_order !== null ? String(a.sort_order) : "";
+          const sb = b.sort_order !== undefined && b.sort_order !== null ? String(b.sort_order) : "";
+          if (sa && sb) {
+            if (sa !== sb) return sa.localeCompare(sb, undefined, { numeric: true });
             return (a.name || "").localeCompare(b.name || "", "vi");
           }
-          if (sa > 0 && sb === 0) return -1;
-          if (sa === 0 && sb > 0) return 1;
+          if (sa && !sb) return -1;
+          if (!sa && sb) return 1;
           return (a.name || "").localeCompare(b.name || "", "vi");
         } else if (sortBy === "sort_order_desc") {
-          const sa = a.sort_order || 0;
-          const sb = b.sort_order || 0;
-          if (sa > 0 && sb > 0) {
-            if (sa !== sb) return sb - sa;
+          const sa = a.sort_order !== undefined && a.sort_order !== null ? String(a.sort_order) : "";
+          const sb = b.sort_order !== undefined && b.sort_order !== null ? String(b.sort_order) : "";
+          if (sa && sb) {
+            if (sa !== sb) return sb.localeCompare(sa, undefined, { numeric: true });
             return (a.name || "").localeCompare(b.name || "", "vi");
           }
-          if (sa > 0 && sb === 0) return -1;
-          if (sa === 0 && sb > 0) return 1;
+          if (sa && !sb) return -1;
+          if (!sa && sb) return 1;
           return (a.name || "").localeCompare(b.name || "", "vi");
         } else if (sortBy === "courses_desc") {
           const countA = courseCounts[a.id] || 0;
@@ -365,11 +365,16 @@ export const CategoriesService = {
    * Lưu thứ tự hiển thị hàng loạt
    */
   async reorderCategories(
-    items: Array<{ id: number; sort_order: number; parent_id: number | null }>,
+    items: Array<{ id: number; sort_order: number | string; parent_id: number | null }>,
   ): Promise<{ success: boolean; message: string }> {
     if (isApiMode()) {
       try {
-        await adminApi.reorderAdminCategories(items);
+        const payload = items.map((item) => ({
+          id: item.id,
+          sort_order: Number(item.sort_order),
+          parent_id: item.parent_id as number,
+        }));
+        await adminApi.reorderAdminCategories(payload);
         return {
           success: true,
           message: "Cập nhật thứ tự hiển thị danh mục thành công.",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Search,
@@ -21,8 +22,7 @@ import {
   fetchPayoutAccountById,
   approvePayoutAccountApi,
   rejectPayoutAccountApi,
-  disablePayoutAccountApi,
-  updatePayoutAccountStatus
+  disablePayoutAccountApi
 } from '@/assets/js/api/payout-accounts-api';
 import AdminPagination from "../shared/AdminPagination";
 
@@ -56,12 +56,29 @@ interface SummaryStats {
 }
 
 export default function PayoutAccounts() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   // Query parameters state
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   const [search, setSearch] = useState('');
   const [provider, setProvider] = useState('all');
   const [status, setStatus] = useState('all');
+
+  // Handle clicking on stat cards to filter and scroll
+  const handleFilterClick = (newStatus: string, label: string) => {
+    setStatus(newStatus);
+    setPage(1);
+    toast.success(`Đã tự động lọc: ${label}`);
+
+    // Smooth scroll down to the list section
+    setTimeout(() => {
+      const section = document.getElementById('payout-accounts-list-section');
+      if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -166,10 +183,30 @@ export default function PayoutAccounts() {
   useEffect(() => {
     if (selectedAccountId) {
       loadDetail(selectedAccountId);
+      // Sync URL
+      const nextParams = new URLSearchParams(searchParams);
+      if (nextParams.get('open_payout_account_id') !== String(selectedAccountId)) {
+        nextParams.set('open_payout_account_id', String(selectedAccountId));
+        setSearchParams(nextParams, { replace: true });
+      }
     } else {
       setDetail(null);
+      // Cleanup URL
+      if (searchParams.has('open_payout_account_id')) {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('open_payout_account_id');
+        setSearchParams(nextParams, { replace: true });
+      }
     }
   }, [selectedAccountId]);
+
+  // Handle deep link
+  useEffect(() => {
+    const openId = searchParams.get('open_payout_account_id');
+    if (openId && !selectedAccountId) {
+      setSelectedAccountId(Number(openId));
+    }
+  }, [searchParams]);
 
   // Handle Approve Account Action
   const handleApprove = async () => {
@@ -338,7 +375,7 @@ export default function PayoutAccounts() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
         {/* Total Accounts */}
         <div
-          onClick={() => setStatus('all')}
+          onClick={() => handleFilterClick('all', 'Tất cả tài khoản')}
           className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
             status === 'all'
               ? 'bg-paper shadow-md ring-2 ring-ink/10 border-transparent translate-y-[-2px]'
@@ -357,7 +394,7 @@ export default function PayoutAccounts() {
 
         {/* Pending Verification */}
         <div
-          onClick={() => setStatus('pending_verification')}
+          onClick={() => handleFilterClick('pending_verification', 'Chờ xác minh')}
           className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
             status === 'pending_verification'
               ? 'bg-paper shadow-md ring-2 ring-amber-500/20 border-transparent translate-y-[-2px]'
@@ -384,7 +421,7 @@ export default function PayoutAccounts() {
 
         {/* Active Accounts */}
         <div
-          onClick={() => setStatus('active')}
+          onClick={() => handleFilterClick('active', 'Hoạt động')}
           className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
             status === 'active'
               ? 'bg-paper shadow-md ring-2 ring-emerald-500/20 border-transparent translate-y-[-2px]'
@@ -411,7 +448,7 @@ export default function PayoutAccounts() {
 
         {/* Rejected Accounts */}
         <div
-          onClick={() => setStatus('rejected')}
+          onClick={() => handleFilterClick('rejected', 'Đã từ chối')}
           className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
             status === 'rejected'
               ? 'bg-paper shadow-md ring-2 ring-rose-500/20 border-transparent translate-y-[-2px]'
@@ -438,7 +475,7 @@ export default function PayoutAccounts() {
 
         {/* Inactive Accounts */}
         <div
-          onClick={() => setStatus('inactive')}
+          onClick={() => handleFilterClick('inactive', 'Vô hiệu hóa')}
           className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
             status === 'inactive'
               ? 'bg-paper shadow-md ring-2 ring-slate-500/20 border-transparent translate-y-[-2px]'
@@ -561,7 +598,7 @@ export default function PayoutAccounts() {
               <span className="text-[10px] font-bold text-mid-gray uppercase tracking-wider mr-1 select-none">
                 Đang lọc:
               </span>
-              
+
               {search.trim() !== '' && (
                 <span className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border border-blue-200/80 bg-blue-50/20 text-[11px] font-medium transition-all">
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
@@ -667,7 +704,7 @@ export default function PayoutAccounts() {
                     textClass: 'text-mid-gray',
                   };
                   const initials = getInitials(item.user?.full_name);
-                  
+
                   return (
                     <tr
                       key={item.id}
@@ -767,7 +804,7 @@ export default function PayoutAccounts() {
           {/* Panel */}
           <div className="absolute inset-y-0 right-0 max-w-full flex">
             <div className="w-screen max-w-lg bg-paper shadow-2xl flex flex-col relative border-l border-hairline">
-              
+
               {/* Drawer Header */}
               <div className="p-6 border-b border-hairline bg-paper flex items-center justify-between">
                 <div>
@@ -900,12 +937,9 @@ export default function PayoutAccounts() {
                           detail.related_withdrawals.map((w: any) => (
                             <div key={w.id} className="flex items-center justify-between p-3 rounded-xl border border-hairline bg-canvas/30 hover:bg-canvas/50 transition-colors text-xs">
                               <div className="flex items-center gap-2">
-                                <a
-                                  href={`/admin/withdrawals?open_withdrawal_id=${w.id}`}
-                                  className="font-mono font-bold text-ink hover:text-blue-600 hover:underline transition-all"
-                                >
+                                <span className="font-mono font-bold text-ink">
                                   {w.withdrawal_code}
-                                </a>
+                                </span>
                                 <span className="text-[10px] text-mid-gray">{formatDate(w.requested_at)}</span>
                               </div>
                               <div className="flex items-center gap-3">
@@ -915,6 +949,12 @@ export default function PayoutAccounts() {
                                 }`}>
                                   {w.status}
                                 </span>
+                                <button
+                                  onClick={() => navigate(`/admin/withdrawals?open_withdrawal_id=${w.id}`)}
+                                  className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                                >
+                                  Xem chi tiết &rarr;
+                                </button>
                               </div>
                             </div>
                           ))
@@ -937,7 +977,7 @@ export default function PayoutAccounts() {
                                 t.status === 'error' ? 'bg-rose-500' :
                                 t.status === 'warning' ? 'bg-slate-400' : 'bg-blue-500'
                               } z-10`} />
-                              
+
                               <div>
                                 <span className="text-[10px] text-mid-gray block font-semibold">{formatDate(t.timestamp)}</span>
                                 <h4 className="font-bold text-ink mt-0.5">{t.title}</h4>
@@ -974,7 +1014,7 @@ export default function PayoutAccounts() {
                   {detail.status === 'active' && (
                     <button
                       onClick={() => setIsDisableOpen(true)}
-                      className="px-5 py-2.5 text-xs font-bold rounded-xl border border-hairline text-slate-700 bg-paper hover:bg-canvas-alt shadow-sm active:scale-[0.98] transition-all cursor-pointer"
+                      className="px-5 py-2.5 text-xs font-bold rounded-xl border-none text-white bg-danger-brick hover:bg-danger-brick/90 shadow-sm active:scale-[0.98] transition-all cursor-pointer"
                     >
                       Vô hiệu hóa tài khoản
                     </button>
@@ -995,7 +1035,7 @@ export default function PayoutAccounts() {
               <CheckCircle2 className="w-6 h-6" />
               <h3 className="text-lg font-bold text-ink">Xác nhận duyệt tài khoản</h3>
             </div>
-            
+
             <p className="text-xs text-mid-gray">
               Kiểm chứng thông tin tài khoản nhận tiền sau đây:
             </p>
@@ -1050,7 +1090,7 @@ export default function PayoutAccounts() {
               <XCircle className="w-6 h-6" />
               <h3 className="text-lg font-bold text-ink">Xác nhận từ chối tài khoản</h3>
             </div>
-            
+
             <p className="text-xs text-mid-gray">
               Từ chối tài khoản chờ xác minh của giảng viên: <strong>{detail.user?.full_name}</strong>
             </p>
@@ -1109,7 +1149,7 @@ export default function PayoutAccounts() {
               <AlertTriangle className="w-6 h-6" />
               <h3 className="text-lg font-bold text-ink">Xác nhận vô hiệu hóa</h3>
             </div>
-            
+
             <p className="text-xs text-mid-gray">
               Tạm ngưng tài khoản đang hoạt động của giảng viên: <strong>{detail.user?.full_name}</strong>
             </p>

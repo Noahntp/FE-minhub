@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import * as upgradesApi from "@/assets/js/api/instructor-upgrades-api.js";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
@@ -185,6 +185,7 @@ const timeOptions: SelectOption[] = [
 
 export default function InstructorUpgrades() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Search parameters sync
   const searchParam = searchParams.get("search") || "";
@@ -359,11 +360,18 @@ export default function InstructorUpgrades() {
       date_preset: formDatePreset,
       page: 1,
     });
+    toast.success("Áp dụng bộ lọc thành công");
   };
 
   // KPI Card clicks -> updates status param
   const handleTabChange = (tabValue: string) => {
     updateFilters({ status: tabValue, page: 1 });
+    setTimeout(() => {
+      const el = document.getElementById("upgrade-list-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 50);
   };
 
   // Date/Time Format Helpers
@@ -445,7 +453,35 @@ export default function InstructorUpgrades() {
       const allRes = await upgradesApi.getUpgradeRequests({ per_page: 99999 });
 
       if (tableRes.success && allRes.success) {
-        setPaginatedItems(tableRes.data.items);
+        let fetchedItems = tableRes.data.items || [];
+
+        // 1. Lọc bớt dữ liệu trùng lặp (Deduplicate) dựa vào user.id
+        // (Do backend trả về trùng nhiều request của 1 user)
+        const uniqueItemsMap = new Map();
+        fetchedItems.forEach((item: any) => {
+          if (item?.user?.id) {
+            // Ưu tiên giữ lại item mới nhất hoặc item chưa duyệt
+            if (!uniqueItemsMap.has(item.user.id)) {
+              uniqueItemsMap.set(item.user.id, item);
+            } else {
+              const existing = uniqueItemsMap.get(item.user.id);
+              if (existing.application_status !== "pending" && item.application_status === "pending") {
+                uniqueItemsMap.set(item.user.id, item); // Ưu tiên pending
+              }
+            }
+          }
+        });
+        let processedItems = Array.from(uniqueItemsMap.values());
+
+        // 2. Lọc theo trạng thái (Frontend fallback)
+        // (Trong trường hợp backend không nhận param status)
+        if (statusParam) {
+          processedItems = processedItems.filter(
+            (item: any) => item.application_status === statusParam
+          );
+        }
+
+        setPaginatedItems(processedItems);
         const resolvedMeta = tableRes.meta ?? tableRes.data?.meta ?? null;
         setMeta(resolvedMeta);
         setSummary(allRes.data.summary);
@@ -2524,49 +2560,58 @@ export default function InstructorUpgrades() {
             {/* Scrollable Content */}
             <div className="flex-grow overflow-y-auto p-5 space-y-6 custom-scrollbar text-xs">
               {/* Header profile card */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white font-bold text-lg shrink-0 select-none">
-                  {activeDetailUser.user?.full_name
-                    ? activeDetailUser.user.full_name.charAt(0).toUpperCase()
-                    : "U"}
-                </div>
-                <div className="space-y-0.5">
-                  <h3 className="text-base font-semibold text-ink flex items-center">
-                    {activeDetailUser.user?.full_name}
-                  </h3>
-                  <p className="text-xs text-mid-gray">
-                    {activeDetailUser.user?.email}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {activeDetailUser.user?.role === "admin" ? (
-                      <span className="px-2 py-0.5 text-[9px] font-bold bg-ink text-white rounded">
-                        Quản trị viên
-                      </span>
-                    ) : activeDetailUser.user?.role === "instructor" ? (
-                      <span className="px-2 py-0.5 text-[9px] font-medium text-success border border-success/20 bg-success-soft/20 rounded">
-                        Giảng viên
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 text-[9px] font-medium text-mid-gray border border-hairline bg-canvas rounded">
-                        Học viên
-                      </span>
-                    )}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white font-bold text-lg shrink-0 select-none">
+                    {activeDetailUser.user?.full_name
+                      ? activeDetailUser.user.full_name.charAt(0).toUpperCase()
+                      : "U"}
+                  </div>
+                  <div className="space-y-0.5">
+                    <h3 className="text-base font-semibold text-ink flex items-center">
+                      {activeDetailUser.user?.full_name}
+                    </h3>
+                    <p className="text-xs text-mid-gray">
+                      {activeDetailUser.user?.email}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {activeDetailUser.user?.role === "admin" ? (
+                        <span className="px-2 py-0.5 text-[9px] font-bold bg-ink text-white rounded">
+                          Quản trị viên
+                        </span>
+                      ) : activeDetailUser.user?.role === "instructor" ? (
+                        <span className="px-2 py-0.5 text-[9px] font-medium text-success border border-success/20 bg-success-soft/20 rounded">
+                          Giảng viên
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[9px] font-medium text-mid-gray border border-hairline bg-canvas rounded">
+                          Học viên
+                        </span>
+                      )}
 
-                    {activeDetailUser.application_status === "pending" ? (
-                      <span className="px-2 py-0.5 text-[9px] font-semibold text-warning border border-warning/20 bg-warning-soft/20 rounded">
-                        Hồ sơ chờ xử lý
-                      </span>
-                    ) : activeDetailUser.application_status === "approved" ? (
-                      <span className="px-2 py-0.5 text-[9px] font-semibold text-success border border-success/20 bg-success-soft/20 rounded">
-                        Đã phê duyệt
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 text-[9px] font-semibold text-danger-brick border border-danger-brick/20 bg-danger-brick-soft/20 rounded">
-                        Bị từ chối
-                      </span>
-                    )}
+                      {activeDetailUser.application_status === "pending" ? (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold text-warning border border-warning/20 bg-warning-soft/20 rounded">
+                          Hồ sơ chờ xử lý
+                        </span>
+                      ) : activeDetailUser.application_status === "approved" ? (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold text-success border border-success/20 bg-success-soft/20 rounded">
+                          Đã phê duyệt
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold text-danger-brick border border-danger-brick/20 bg-danger-brick-soft/20 rounded">
+                          Bị từ chối
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/admin/users?open_user_id=${activeDetailUser.user?.id}`)}
+                  className="px-3 py-1 text-[11px] font-semibold rounded-[4px] border border-hairline bg-paper hover:bg-surface-alt text-ink transition-colors cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
+                >
+                  Xem chi tiết
+                </button>
               </div>
 
               {/* SECTION 1: Người dùng */}
@@ -2649,9 +2694,20 @@ export default function InstructorUpgrades() {
 
               {/* SECTION 3: Tài khoản nhận tiền */}
               <div className="space-y-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                  Tài khoản nhận tiền
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
+                    Tài khoản nhận tiền
+                  </h4>
+                  {activeDetailUser.payout_account && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/payout-accounts?open_payout_account_id=${activeDetailUser.payout_account.id}`)}
+                      className="px-3 py-1 text-[11px] font-semibold rounded-[4px] border border-hairline bg-paper hover:bg-surface-alt text-ink transition-colors cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
+                    >
+                      Xem chi tiết
+                    </button>
+                  )}
+                </div>
                 {activeDetailUser.payout_account ? (
                   <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
                     <div className="flex justify-between">
@@ -2788,6 +2844,7 @@ export default function InstructorUpgrades() {
 
             {/* Footer actions inside drawer */}
             <div className="p-4 border-t border-hairline bg-surface-alt flex flex-wrap gap-2 justify-end shrink-0">
+
               {activeDetailUser.application_status === "pending" ? (
                 <>
                   <button

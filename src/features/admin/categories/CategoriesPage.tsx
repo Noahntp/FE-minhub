@@ -444,13 +444,16 @@ export default function CategoriesPage() {
     }
   };
 
-  const generateSortOrderBetween = (prev: string | null, next: string | null): string => {
+  const generateSortOrderBetween = (
+    prev: string | null,
+    next: string | null,
+  ): string => {
     const CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
     const p = prev || "";
     const n = next || "";
-    
+
     if (p === "" && n === "") return "m";
-    
+
     if (p === "") {
       const firstChar = n.charAt(0);
       if (firstChar === "0") {
@@ -463,7 +466,7 @@ export default function CategoriesPage() {
       }
       return "0m";
     }
-    
+
     if (n === "") {
       const lastChar = p.charAt(p.length - 1);
       const index = CHARS.indexOf(lastChar);
@@ -473,23 +476,23 @@ export default function CategoriesPage() {
       }
       return p + "m";
     }
-    
+
     let i = 0;
     while (i < p.length && i < n.length && p.charAt(i) === n.charAt(i)) {
       i++;
     }
-    
+
     const charP = i < p.length ? p.charAt(i) : "0";
     const charN = i < n.length ? n.charAt(i) : "z";
-    
+
     const idxP = CHARS.indexOf(charP);
     const idxN = CHARS.indexOf(charN);
-    
+
     if (idxN - idxP > 1) {
       const midIdx = Math.floor((idxP + idxN) / 2);
       return p.slice(0, i) + CHARS.charAt(midIdx);
     }
-    
+
     if (i === p.length) {
       const nextCharN = n.charAt(i);
       const idxNextN = CHARS.indexOf(nextCharN);
@@ -499,31 +502,24 @@ export default function CategoriesPage() {
       }
       return p + "0m";
     }
-    
+
     if (i < p.length - 1) {
       const nextCharP = p.charAt(i + 1);
       const idxNextP = CHARS.indexOf(nextCharP);
       const midIdx = Math.floor((idxNextP + CHARS.length) / 2);
       return p.slice(0, i + 1) + CHARS.charAt(midIdx);
     }
-    
+
     return p + "m";
   };
 
-  // 7. Xử lý Reordering trong nhóm sibling (draft mode)
-  const reorderWithinSiblings = (
-    parentId: number | null,
+  const calculateNewOrder = (
+    targetParentId: number | null,
     draggedCategoryId: number,
     targetCategoryId: number,
     action: "before" | "after" | "up" | "down",
   ) => {
-    // Backup cache snapshot before first draft change
-    if (!isOrderChanged && allCategoriesBase) {
-      setOriginalCategoriesCache(JSON.parse(JSON.stringify(allCategoriesBase)));
-    }
-
-    const siblings = allCategoriesBase.filter((c) => c.parent_id === parentId);
-    siblings.sort((a, b) => {
+    const sortFn = (a: Category, b: Category) => {
       const sa = a.sort_order !== undefined && a.sort_order !== null ? String(a.sort_order) : "";
       const sb = b.sort_order !== undefined && b.sort_order !== null ? String(b.sort_order) : "";
       if (sa && sb) {
@@ -533,68 +529,90 @@ export default function CategoriesPage() {
       if (sa && !sb) return -1;
       if (!sa && sb) return 1;
       return (a.name || "").localeCompare(b.name || "", "vi");
-    });
+    };
 
-    const oldIndex = siblings.findIndex((c) => c.id === draggedCategoryId);
-    if (oldIndex === -1) return;
+    const targetSiblings = allCategoriesBase.filter(
+      (c) => c.parent_id === targetParentId && c.id !== draggedCategoryId
+    );
+    targetSiblings.sort(sortFn);
 
-    const tempSiblings = [...siblings];
-    const [moved] = tempSiblings.splice(oldIndex, 1);
+    const draggedItem = allCategoriesBase.find((c) => c.id === draggedCategoryId);
+    if (!draggedItem) return null;
 
-    let newIndex = oldIndex;
-    if (action === "up") {
-      newIndex = Math.max(0, oldIndex - 1);
-    } else if (action === "down") {
-      newIndex = Math.min(siblings.length - 1, oldIndex + 1);
+    let newIndex = 0;
+    if (action === "up" || action === "down") {
+      const originalSiblings = allCategoriesBase.filter((c) => c.parent_id === draggedItem.parent_id);
+      originalSiblings.sort(sortFn);
+      const oldIndex = originalSiblings.findIndex((c) => c.id === draggedCategoryId);
+      if (oldIndex === -1) return null;
+      newIndex = action === "up" ? Math.max(0, oldIndex - 1) : Math.min(originalSiblings.length - 1, oldIndex + 1);
     } else {
-      const targetIndexInSpliced = tempSiblings.findIndex(
-        (c) => c.id === targetCategoryId,
-      );
-      if (targetIndexInSpliced !== -1) {
-        newIndex =
-          action === "before" ? targetIndexInSpliced : targetIndexInSpliced + 1;
+      const targetIndex = targetSiblings.findIndex((c) => c.id === targetCategoryId);
+      if (targetIndex !== -1) {
+        newIndex = action === "before" ? targetIndex : targetIndex + 1;
+      } else {
+        newIndex = targetSiblings.length;
       }
     }
 
-    tempSiblings.splice(newIndex, 0, moved);
+    targetSiblings.splice(newIndex, 0, draggedItem);
 
-    // Calculate new string sort key
-    const prevItem = newIndex > 0 ? tempSiblings[newIndex - 1] : null;
-    const nextItem = newIndex < tempSiblings.length - 1 ? tempSiblings[newIndex + 1] : null;
+    const prevItem = newIndex > 0 ? targetSiblings[newIndex - 1] : null;
+    const nextItem = newIndex < targetSiblings.length - 1 ? targetSiblings[newIndex + 1] : null;
 
     const prevSort = prevItem ? String(prevItem.sort_order) : null;
     const nextSort = nextItem ? String(nextItem.sort_order) : null;
 
     const newSortOrder = generateSortOrderBetween(prevSort, nextSort);
-    (window as any).lastReorderDebug = {
-      draggedCategoryId,
-      action,
-      siblings: siblings.map(s => ({ id: s.id, name: s.name, sort_order: s.sort_order })),
-      tempSiblings: tempSiblings.map(s => ({ id: s.id, name: s.name, sort_order: s.sort_order })),
-      prevSort,
-      nextSort,
-      newSortOrder
-    };
-    console.log("REORDER DEBUG:", (window as any).lastReorderDebug);
 
     const nextBase = allCategoriesBase.map((c) => {
       if (c.id === draggedCategoryId) {
-        return { ...c, sort_order: newSortOrder };
+        return { ...c, sort_order: newSortOrder, parent_id: targetParentId };
       }
       return c;
     });
 
+    return { nextBase, newSortOrder, newParentId: targetParentId };
+  };
+
+  const persistReorder = async (
+    draggedCategoryId: number,
+    newParentId: number | null,
+    newSortOrder: string,
+    nextBase: Category[]
+  ) => {
+    // Optimistic UI update
     setAllCategoriesBase(nextBase);
-    setIsOrderChanged(true);
+
+    try {
+      const res = await CategoriesService.updateCategory(draggedCategoryId, {
+        parent_id: newParentId,
+        sort_order: newSortOrder,
+      } as any);
+
+      if (res.success) {
+        toast.success("Thay đổi vị trí thành công.");
+      } else {
+        toast.error(res.message || "Không thể lưu vị trí.");
+        // Revert on failure
+        fetchData(true);
+      }
+    } catch (e) {
+      toast.error("Đã xảy ra sự cố kết nối máy chủ.");
+      fetchData(true);
+    }
   };
 
   const handleMovePosition = useCallback(
     (id: number, direction: "up" | "down") => {
       const item = allCategoriesBase.find((c) => c.id === id);
       if (!item) return;
-      reorderWithinSiblings(item.parent_id, id, id, direction);
+      const result = calculateNewOrder(item.parent_id, id, id, direction);
+      if (result) {
+        persistReorder(id, result.newParentId, result.newSortOrder, result.nextBase);
+      }
     },
-    [allCategoriesBase, isOrderChanged],
+    [allCategoriesBase],
   );
 
   const handleDragDrop = useCallback(
@@ -605,23 +623,15 @@ export default function CategoriesPage() {
     ) => {
       if (draggedCategoryId === targetCategoryId) return;
 
-      const draggedItem = allCategoriesBase.find(
-        (c) => c.id === draggedCategoryId,
-      );
-      const targetItem = allCategoriesBase.find(
-        (c) => c.id === targetCategoryId,
-      );
-      if (!draggedItem || !targetItem) return;
-      if (draggedItem.parent_id !== targetItem.parent_id) return; // Block dragging across parent boundaries
+      const targetItem = allCategoriesBase.find((c) => c.id === targetCategoryId);
+      if (!targetItem) return;
 
-      reorderWithinSiblings(
-        draggedItem.parent_id,
-        draggedCategoryId,
-        targetCategoryId,
-        dropPosition,
-      );
+      const result = calculateNewOrder(targetItem.parent_id, draggedCategoryId, targetCategoryId, dropPosition);
+      if (result) {
+        persistReorder(draggedCategoryId, result.newParentId, result.newSortOrder, result.nextBase);
+      }
     },
-    [allCategoriesBase, isOrderChanged],
+    [allCategoriesBase],
   );
 
   const handleCancelReorder = () => {
@@ -637,7 +647,7 @@ export default function CategoriesPage() {
 
     const changedItems: Array<{
       id: number;
-      sort_order: string | number;
+      sort_order: number;
       parent_id: number | null;
     }> = [];
     allCategoriesBase.forEach((c) => {
@@ -648,7 +658,7 @@ export default function CategoriesPage() {
       ) {
         changedItems.push({
           id: c.id,
-          sort_order: c.sort_order,
+          sort_order: Number(c.sort_order) || 0,
           parent_id: c.parent_id,
         });
       }
@@ -715,9 +725,7 @@ export default function CategoriesPage() {
   const treeMetrics = useMemo(() => {
     if (viewMode !== "tree") return null;
     const matchedIds = new Set(allCategoriesCache.map((c) => c.id));
-    const backendSortedIds = isOrderChanged
-      ? undefined
-      : allCategoriesCache.map((c) => c.id);
+    const backendSortedIds = undefined; // Always use client-side sort_order for optimistic UI
     const data = processTreeViewData(
       allCategoriesBase,
       {
@@ -734,7 +742,6 @@ export default function CategoriesPage() {
     allCategoriesBase,
     filters,
     expandedCategoryIds,
-    isOrderChanged,
   ]);
 
   // Phân trang Metadata tính toán
@@ -827,8 +834,6 @@ export default function CategoriesPage() {
       }, 100);
     });
   };
-
-
 
   // Build active chips
   const activeChips = useMemo(() => {
@@ -1064,7 +1069,7 @@ export default function CategoriesPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tên hoặc slug danh mục..."
                 disabled={isLoading}
-                className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink placeholder-mid-gray/70 transition-all"
+                className="w-full h-10 pl-8 pr-3 text-xs bg-paper border border-hairline rounded-lg hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none shadow-subtle font-medium text-ink transition-all placeholder:text-mid-gray/60 placeholder:font-normal"
               />
               <Search className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" />
             </div>
@@ -1138,8 +1143,11 @@ export default function CategoriesPage() {
               options={[
                 { value: "", label: "Tất cả cha" },
                 ...allCategoriesBase
-                  .filter((c) => c.parent_id === null && c.deleted_at === null)
-                  .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                  .filter((c) => c.parent_id === null && c.deleted_at === null && c.status === "active")
+                  .sort(
+                    (a, b) =>
+                      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),
+                  )
                   .map((c) => {
                     const childCount = allCategoriesBase.filter(
                       (ch) => ch.parent_id === c.id && ch.deleted_at === null,
@@ -1222,30 +1230,7 @@ export default function CategoriesPage() {
       {/* Main Data Section */}
       <section className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden">
         {/* Banner Lưu thứ tự hiển thị (Batch Reorder Action Bar) */}
-        {isOrderChanged && (
-          <div className="flex h-12 items-center justify-between px-4 border-b border-warning/20 bg-warning-soft text-warning-brick text-xs font-semibold select-none animate-fadeIn">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-warning animate-pulse"></span>
-              <span>Bạn có thay đổi chưa lưu về thứ tự hiển thị danh mục.</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCancelReorder}
-                className="px-3 py-1 rounded-[4px] border border-warning/30 hover:bg-warning-soft/80 text-warning-brick transition-colors cursor-pointer"
-              >
-                Hủy thay đổi
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveReorder}
-                className="px-3 py-1 rounded-[4px] bg-warning text-warning-brick hover:bg-warning/90 font-bold transition-all cursor-pointer shadow-sm"
-              >
-                Lưu thứ tự
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Banner Removed since we auto save */}
 
         {/* Table Toolbar */}
         <div className="flex h-12 items-center justify-between px-4 border-b border-hairline bg-surface-alt/40 text-xs text-mid-gray">
@@ -1346,15 +1331,27 @@ export default function CategoriesPage() {
                             c.deleted_at === null,
                         );
                         sameLevel.sort((a, b) => {
-                          const sa = a.sort_order !== undefined && a.sort_order !== null ? String(a.sort_order) : "";
-                          const sb = b.sort_order !== undefined && b.sort_order !== null ? String(b.sort_order) : "";
+                          const sa =
+                            a.sort_order !== undefined && a.sort_order !== null
+                              ? String(a.sort_order)
+                              : "";
+                          const sb =
+                            b.sort_order !== undefined && b.sort_order !== null
+                              ? String(b.sort_order)
+                              : "";
                           if (sa && sb) {
                             if (sa !== sb) return sa.localeCompare(sb, "en");
-                            return (a.name || "").localeCompare(b.name || "", "vi");
+                            return (a.name || "").localeCompare(
+                              b.name || "",
+                              "vi",
+                            );
                           }
                           if (sa && !sb) return -1;
                           if (!sa && sb) return 1;
-                          return (a.name || "").localeCompare(b.name || "", "vi");
+                          return (a.name || "").localeCompare(
+                            b.name || "",
+                            "vi",
+                          );
                         });
                         const idx = sameLevel.findIndex((c) => c.id === cat.id);
                         const isFirstChild = idx === 0;
@@ -1474,7 +1471,11 @@ export default function CategoriesPage() {
         <AdminPagination
           currentPage={filters.page}
           perPage={filters.per_page}
-          total={viewMode === "tree" && treeMetrics ? treeMetrics.totalRootBranches : summary.total_categories}
+          total={
+            viewMode === "tree" && treeMetrics
+              ? treeMetrics.totalRootBranches
+              : summary.total_categories
+          }
           onPageChange={handlePageChange}
           onPerPageChange={(pp) => {
             safeFilterAction(() => {

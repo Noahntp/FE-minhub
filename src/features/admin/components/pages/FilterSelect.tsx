@@ -15,8 +15,8 @@ interface FilterSelectProps {
   onChange: (val: string) => void;
   placeholder: string;
   id: string;
-  activeId: string | null;
-  setActiveId: (id: string | null) => void;
+  activeId?: string | null;
+  setActiveId?: (id: string | null) => void;
   className?: string;
 }
 
@@ -31,8 +31,25 @@ export default function FilterSelect({
   setActiveId,
   className,
 }: FilterSelectProps) {
-  const isOpen = activeId === id;
+  const [internalIsOpen, setInternalIsOpen] = React.useState(false);
+  const isOpen = activeId !== undefined ? activeId === id : internalIsOpen;
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleToggle = () => {
+    if (setActiveId) {
+      setActiveId(isOpen ? null : id);
+    } else {
+      setInternalIsOpen(!internalIsOpen);
+    }
+  };
+
+  const handleClose = () => {
+    if (setActiveId) {
+      setActiveId(null);
+    } else {
+      setInternalIsOpen(false);
+    }
+  };
 
   const selectedOption = options.find((o) => o.value === value);
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
@@ -41,24 +58,24 @@ export default function FilterSelect({
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        if (activeId === id) setActiveId(null);
+        if (isOpen) handleClose();
       }
     };
     if (isOpen) {
-      window.addEventListener('click', handleOutside);
+      document.addEventListener('mousedown', handleOutside);
     }
-    return () => window.removeEventListener('click', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
   }, [isOpen, activeId, id, setActiveId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        setActiveId(null);
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, setActiveId]);
+  }, [isOpen]);
 
   return (
     <div ref={containerRef} className={cn("w-full relative flex flex-col", className)}>
@@ -69,18 +86,18 @@ export default function FilterSelect({
       )}
       <button
         type="button"
-        onClick={() => setActiveId(isOpen ? null : id)}
+        onClick={handleToggle}
         className="w-full h-10 px-3 text-xs bg-paper border border-hairline rounded-[6px] hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none flex items-center justify-between transition-all cursor-pointer text-left shadow-subtle font-medium text-ink"
       >
-        <span className={cn("truncate font-semibold", displayColor)}>
+        <span className={cn("truncate", displayColor, !selectedOption && "text-mid-gray/70")}>
           {displayLabel}
         </span>
-        <svg className={cn("w-3 h-3 text-mid-gray shrink-0 transition-transform duration-200 ml-1.5", isOpen && "rotate-180")} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        <svg className={cn("w-3.5 h-3.5 text-mid-gray/80 shrink-0 transition-transform duration-200 ml-1.5", isOpen && "transform rotate-180")} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+          <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute left-0 right-0 top-[62px] z-20 bg-paper border border-hairline rounded-[6px] p-1 shadow-subtle flex flex-col max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in duration-100">
+        <div className="absolute left-0 right-0 top-[62px] z-40 bg-paper border border-hairline rounded-[6px] shadow-lg py-1 flex flex-col max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in duration-100">
           {options.map((opt) => {
             const isSelected = opt.value === value;
             return (
@@ -89,20 +106,17 @@ export default function FilterSelect({
                 type="button"
                 onClick={() => {
                   onChange(opt.value);
-                  setActiveId(null);
+                  handleClose();
                 }}
                 className={cn(
-                  "w-full text-left px-3 py-2 text-xs rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent flex items-center justify-between",
+                  "w-full text-left px-3 py-2 text-xs transition-colors cursor-pointer border-none bg-transparent flex items-center justify-between select-none truncate",
                   opt.colorClass,
-                  isSelected ? "bg-neutral-50 font-semibold text-ink" : opt.hoverBgClass
+                  isSelected 
+                    ? "bg-emerald-50 text-emerald-700 font-semibold" 
+                    : "text-ink hover:bg-canvas"
                 )}
               >
                 <span>{opt.label}</span>
-                {isSelected && (
-                  <svg className="w-3.5 h-3.5 text-ink shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                )}
               </button>
             );
           })}
