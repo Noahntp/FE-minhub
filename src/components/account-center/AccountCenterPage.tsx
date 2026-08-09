@@ -42,7 +42,9 @@ export const AccountCenterPage: React.FC<AccountCenterPageProps> = ({
 
   // Sync prop changes
   useEffect(() => {
-    setUserState(currentUser);
+    if (currentUser && JSON.stringify(currentUser) !== JSON.stringify(userState)) {
+      setUserState(currentUser);
+    }
   }, [currentUser]);
 
   // Fetch latest profile from DB on component mount
@@ -66,11 +68,15 @@ export const AccountCenterPage: React.FC<AccountCenterPageProps> = ({
             avatar_url: data.avatar_url || data.avatar || userState?.avatar_url,
             role: data.role || userState?.role
           };
-          setUserState(fresh);
-          setCurrentUser(fresh);
-          localStorage.setItem('mindhub_current_user', JSON.stringify(fresh));
-          if (onUpdateUser) {
-            onUpdateUser(fresh);
+          if (JSON.stringify(fresh) !== JSON.stringify(currentUser)) {
+            setUserState(fresh);
+            setCurrentUser(fresh);
+            try {
+              localStorage.setItem('mindhub_current_user', JSON.stringify(fresh));
+            } catch (e) {}
+            if (onUpdateUser) {
+              onUpdateUser(fresh);
+            }
           }
         }
       } catch (e) {
@@ -91,7 +97,7 @@ export const AccountCenterPage: React.FC<AccountCenterPageProps> = ({
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', newTab);
-      window.history.pushState({}, '', url.toString());
+      window.history.replaceState({}, '', url.toString());
     }
   };
 

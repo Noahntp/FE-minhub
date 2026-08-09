@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Chart } from 'chart.js/auto';
 import zoomPlugin from 'chartjs-plugin-zoom';
-import { 
-  getRevenues, 
-  getRevenueReport, 
-  getRevenueById 
+import {
+  getRevenues,
+  getRevenueReport,
+  getRevenueById
 } from '@/assets/js/api/revenues-api';
 import AdminPagination from "../shared/AdminPagination";
+import FilterSelect from "./FilterSelect";
+import { Search, X } from "lucide-react";
 
 // Register zoom plugin
 Chart.register(zoomPlugin);
@@ -19,6 +22,7 @@ function roundPercent(part: number, total: number): number {
 }
 
 export default function RevenuesManagement() {
+  const navigate = useNavigate();
   // --- States ---
   const [items, setItems] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({
@@ -542,21 +546,23 @@ export default function RevenuesManagement() {
 
           {/* Chart range controls */}
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
-            <div className="w-[120px]">
-              <label className="block text-[9px] uppercase tracking-wider text-mid-gray mb-1 font-semibold">Phạm vi xem</label>
-              <select
+            <div className="w-[150px]">
+              <FilterSelect
+                id="chart-range"
+                label="PHẠM VI XEM"
                 value={chartRangePreset}
-                onChange={(e) => setChartRangePreset(e.target.value)}
-                className="w-full h-8 px-2 text-xs bg-paper border border-hairline rounded-[6px] focus:outline-none focus:border-ink text-ink cursor-pointer"
-              >
-                <option value="1_day">1 ngày</option>
-                <option value="3_days">3 ngày</option>
-                <option value="7_days">7 ngày</option>
-                <option value="1_month">1 tháng</option>
-                <option value="3_months">3 tháng</option>
-                <option value="6_months">6 tháng</option>
-                <option value="custom">Tùy chọn</option>
-              </select>
+                onChange={(val) => setChartRangePreset(val)}
+                placeholder="Chọn phạm vi"
+                options={[
+                  { value: "1_day", label: "1 ngày" },
+                  { value: "3_days", label: "3 ngày" },
+                  { value: "7_days", label: "7 ngày" },
+                  { value: "1_month", label: "1 tháng" },
+                  { value: "3_months", label: "3 tháng" },
+                  { value: "6_months", label: "6 tháng" },
+                  { value: "custom", label: "Tùy chọn" },
+                ]}
+              />
             </div>
 
             {chartRangePreset === "custom" && (
@@ -607,11 +613,11 @@ export default function RevenuesManagement() {
 
       {/* FILTERS & LIST SECTION */}
       <section className="rounded-[6px] border border-hairline bg-paper shadow-subtle space-y-3 p-4 mb-4">
-        <form onSubmit={handleApplyFilters} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] items-end gap-3 w-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(240px,1fr)_190px_220px] items-end gap-3 min-w-0 w-full">
+        <form onSubmit={handleApplyFilters}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Unified Search */}
-            <div className="relative w-full">
-              <label htmlFor="filter-search" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1">TÌM KIẾM</label>
+            <div className="sm:col-span-2 lg:col-span-2">
+              <label htmlFor="filter-search" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1.5 select-none">TÌM KIẾM</label>
               <div className="relative">
                 <input
                   type="text"
@@ -619,76 +625,77 @@ export default function RevenuesManagement() {
                   value={tempSearch}
                   onChange={(e) => setTempSearch(e.target.value)}
                   placeholder="Nhập tên khóa học, giảng viên hoặc mã đơn..."
-                  className="w-full h-9 pl-8 pr-8 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink transition-colors placeholder:text-mid-gray/60"
+                  className="w-full h-10 pl-8 pr-8 text-xs bg-paper border border-hairline rounded-lg hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none shadow-subtle font-medium text-ink transition-all placeholder:text-mid-gray/60 placeholder:font-normal"
                 />
-                <svg className="w-3.5 h-3.5 text-mid-gray/80 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                </svg>
+                <Search className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" aria-hidden="true" />
                 {tempSearch && (
                   <button
                     type="button"
                     onClick={() => setTempSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mid-gray hover:text-ink cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mid-gray hover:text-ink cursor-pointer p-0.5"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
 
             {/* Trạng thái */}
-            <div className="w-full">
-              <label htmlFor="filter-status" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1">TRẠNG THÁI</label>
-              <select
+            <div>
+              <FilterSelect
                 id="filter-status"
+                label="TRẠNG THÁI"
                 value={tempStatus}
-                onChange={(e) => setTempStatus(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink text-ink cursor-pointer"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="available">Khả dụng</option>
-                <option value="withdrawn">Đã rút</option>
-                <option value="pending">Đang chờ</option>
-                <option value="cancelled">Đã hủy</option>
-              </select>
+                onChange={(val) => setTempStatus(val)}
+                placeholder="Tất cả trạng thái"
+                options={[
+                  { value: "all", label: "Tất cả trạng thái" },
+                  { value: "available", label: "Khả dụng", colorClass: "text-emerald-600" },
+                  { value: "withdrawn", label: "Đã rút", colorClass: "text-blue-600" },
+                  { value: "pending", label: "Đang chờ", colorClass: "text-amber-600" },
+                  { value: "cancelled", label: "Đã hủy", colorClass: "text-mid-gray" },
+                ]}
+              />
             </div>
 
             {/* Sắp xếp */}
-            <div className="w-full">
-              <label htmlFor="filter-sort" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1">SẮP XẾP DOANH THU</label>
-              <select
+            <div>
+              <FilterSelect
                 id="filter-sort"
+                label="SẮP XẾP DOANH THU"
                 value={tempSortBy}
-                onChange={(e) => setTempSortBy(e.target.value)}
-                className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink text-ink cursor-pointer"
-              >
-                <option value="latest">Mới ghi nhận</option>
-                <option value="oldest">Cũ nhất</option>
-                <option value="gross_desc">Doanh thu cao nhất</option>
-                <option value="gross_asc">Doanh thu thấp nhất</option>
-                <option value="instructor_desc">Phần giảng viên cao nhất</option>
-                <option value="platform_desc">Phí nền tảng cao nhất</option>
-              </select>
+                onChange={(val) => setTempSortBy(val)}
+                placeholder="Mới ghi nhận"
+                options={[
+                  { value: "latest", label: "Mới ghi nhận" },
+                  { value: "oldest", label: "Cũ nhất" },
+                  { value: "gross_desc", label: "Doanh thu cao nhất" },
+                  { value: "gross_asc", label: "Doanh thu thấp nhất" },
+                  { value: "instructor_desc", label: "Phần GV cao nhất" },
+                  { value: "platform_desc", label: "Phí nền tảng cao nhất" },
+                ]}
+              />
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2 h-9 shrink-0 w-full lg:w-auto self-end">
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="h-9 px-4 text-xs font-semibold rounded-[6px] border border-hairline bg-paper text-ink hover:bg-canvas transition-colors cursor-pointer"
-            >
-              Đặt lại
-            </button>
-            <button
-              type="submit"
-              className="h-9 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:bg-ink/90 transition-colors shadow-sm cursor-pointer"
-            >
-              Áp dụng
-            </button>
+          <div className="flex items-center justify-between pt-3 mt-3 border-t border-hairline/60 gap-3">
+            <span className="text-[10px] text-mid-gray italic">* Bấm "Áp dụng" để tìm kiếm với bộ lọc.</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-ink text-white hover:bg-ink/90 transition-colors shadow-subtle cursor-pointer"
+              >
+                Áp dụng
+              </button>
+            </div>
           </div>
         </form>
 
@@ -728,7 +735,7 @@ export default function RevenuesManagement() {
                 </thead>
                 <tbody className="divide-y divide-hairline">
                   {items.map((item) => (
-                    <tr 
+                    <tr
                       key={item.id}
                       onClick={() => handleOpenDrawer(item.id)}
                       className={`transition-colors cursor-pointer hover:bg-canvas/50 ${
@@ -736,14 +743,15 @@ export default function RevenuesManagement() {
                       }`}
                     >
                       {/* Col 1: REVENUE / ĐƠN HÀNG */}
-                      <td className="py-2.5 pl-2 pr-3">
-                        <div className="space-y-1 select-none">
-                          <div className="flex items-center gap-1">
-                            <span className="font-mono font-bold text-ink leading-none">#REV-{item.id}</span>
+                      <td className="py-2.5 pl-3 pr-3">
+                        <div className="flex flex-col gap-1.5 select-none min-w-0">
+                          <div className="flex items-center gap-1.5 group/rev">
+                            <span className="font-mono font-bold text-ink text-[11px] leading-none truncate">#REV-{item.id}</span>
                             <button
                               type="button"
                               onClick={(e) => handleCopyText(e, `#REV-${item.id}`, "mã doanh thu")}
-                              className="text-mid-gray hover:text-ink transition-colors p-0.5 rounded cursor-pointer shrink-0"
+                              className="text-mid-gray hover:text-ink p-0.5 rounded cursor-pointer shrink-0"
+                              title="Sao chép mã doanh thu"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                 <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
@@ -752,13 +760,14 @@ export default function RevenuesManagement() {
                             </button>
                           </div>
                           {item.order && (
-                            <div className="flex items-center gap-1 text-[10px] mt-0.5">
-                              <span className="text-mid-gray font-mono">Đơn:</span>
-                              <span className="font-mono font-semibold text-blue-600 hover:underline">{item.order.order_code}</span>
+                            <div className="flex items-center gap-1.5 group/ord">
+                              <span className="text-[10px] font-semibold text-mid-gray uppercase tracking-wider shrink-0">Đơn:</span>
+                              <span className="font-mono font-semibold text-blue-600 text-[10px] truncate hover:underline cursor-pointer" title={item.order.order_code}>{item.order.order_code}</span>
                               <button
                                 type="button"
                                 onClick={(e) => handleCopyText(e, item.order.order_code, "mã đơn")}
-                                className="text-mid-gray hover:text-ink transition-colors p-0.5 rounded cursor-pointer shrink-0"
+                                className="text-mid-gray hover:text-ink p-0.5 rounded cursor-pointer shrink-0"
+                                title="Sao chép mã đơn"
                               >
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                   <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
@@ -828,8 +837,11 @@ export default function RevenuesManagement() {
                       </td>
 
                       {/* Col 6: NGÀY GHI NHẬN */}
-                      <td className="py-2.5 px-3 text-mid-gray font-sans">
-                        {formatDateTime(item.earned_at)}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="flex flex-col gap-0.5 select-none text-[11px] leading-tight font-sans text-mid-gray">
+                          <span className="font-semibold text-ink">{formatDateTime(item.earned_at).split(' ')[0]}</span>
+                          <span>{formatDateTime(item.earned_at).split(' ')[1]}</span>
+                        </div>
                       </td>
 
                       {/* Col 7: ĐỐI SOÁT */}
@@ -937,7 +949,15 @@ export default function RevenuesManagement() {
                     {/* Course */}
                     {selectedRevenue.course && (
                       <div>
-                        <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-2">Khóa học</h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">Khóa học</h3>
+                          <button
+                            onClick={() => navigate(`/admin/courses?open_course_id=${selectedRevenue.course.id}`)}
+                            className="text-[10px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Xem chi tiết
+                          </button>
+                        </div>
                         <div className="p-3.5 border border-hairline rounded-[6px] bg-paper flex items-center gap-3.5 text-xs">
                           <img
                             src={selectedRevenue.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
@@ -946,7 +966,11 @@ export default function RevenuesManagement() {
                           />
                           <div className="min-w-0 flex-1">
                             <div className="font-semibold text-ink truncate">{selectedRevenue.course.title}</div>
-                            <div className="text-[10px] text-mid-gray mt-1">Cấp độ: <span className="capitalize">{selectedRevenue.course.level || "Tất cả"}</span></div>
+                            <div className="text-[10px] text-mid-gray mt-1 flex items-center gap-1.5">
+                              <span>Cấp độ: <span className="capitalize">{selectedRevenue.course.level || "Tất cả"}</span></span>
+                              <span className="text-hairline">•</span>
+                              <span>ID: {selectedRevenue.course.id}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -955,10 +979,31 @@ export default function RevenuesManagement() {
                     {/* Instructor */}
                     {selectedRevenue.instructor && (
                       <div>
-                        <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-2">Giảng viên</h3>
-                        <div className="p-3.5 border border-hairline rounded-[6px] bg-paper text-xs space-y-1">
-                          <div className="font-semibold text-ink">{selectedRevenue.instructor.name}</div>
-                          <div className="text-mid-gray font-mono text-[11px]">{selectedRevenue.instructor.email}</div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">Giảng viên</h3>
+                          <button
+                            onClick={() => navigate(`/admin/users?open_user_id=${selectedRevenue.instructor.id}`)}
+                            className="text-[10px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Xem chi tiết
+                          </button>
+                        </div>
+                        <div className="p-3.5 border border-hairline rounded-[6px] bg-paper text-xs space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
+                              {selectedRevenue.instructor.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-ink">{selectedRevenue.instructor.name}</div>
+                              <div className="text-mid-gray font-mono text-[11px]">{selectedRevenue.instructor.email}</div>
+                            </div>
+                          </div>
+                          {selectedRevenue.instructor.phone && (
+                            <div className="flex items-center justify-between pt-2 border-t border-hairline">
+                              <span className="text-mid-gray">Số điện thoại:</span>
+                              <span className="font-mono text-ink">{selectedRevenue.instructor.phone}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -966,7 +1011,15 @@ export default function RevenuesManagement() {
                     {/* Original Order */}
                     {selectedRevenue.order && (
                       <div>
-                        <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-2">Đơn hàng gốc</h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">Đơn hàng gốc</h3>
+                          <button
+                            onClick={() => navigate(`/admin/orders?open_order_id=${selectedRevenue.order.id}`)}
+                            className="text-[10px] font-semibold text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Xem chi tiết
+                          </button>
+                        </div>
                         <div className="p-3.5 border border-hairline rounded-[6px] bg-paper text-xs space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-mid-gray">Mã đơn hàng:</span>
@@ -982,6 +1035,12 @@ export default function RevenuesManagement() {
                               {selectedRevenue.order.payment_method === "vnpay" ? "VNPay" : selectedRevenue.order.payment_method === "momo" ? "MoMo" : "Chuyển khoản"}
                             </span>
                           </div>
+                          {selectedRevenue.order.created_at && (
+                            <div className="flex items-center justify-between pt-1 border-t border-hairline/50">
+                              <span className="text-mid-gray">Ngày tạo đơn:</span>
+                              <span className="font-medium text-ink text-[11px]">{formatDateTime(selectedRevenue.order.created_at)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -997,7 +1056,7 @@ export default function RevenuesManagement() {
                 <button
                   type="button"
                   onClick={handleCloseDrawer}
-                  className="h-8 px-4 font-medium rounded-[6px] border border-hairline bg-paper text-ink hover:bg-canvas transition-colors cursor-pointer text-xs"
+                  className="h-8 px-4 font-semibold rounded-[6px] border border-rose-500/20 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:border-rose-500/30 transition-colors cursor-pointer text-xs"
                 >
                   Đóng
                 </button>

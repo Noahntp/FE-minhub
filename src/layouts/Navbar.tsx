@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, Bell, LogOut, Settings, User, Calendar } from "lucide-react";
+import { Search, Bell, LogOut, Settings, User, Calendar, Heart, BookOpen, HelpCircle } from "lucide-react";
 import { useApp } from "@/app/AppContext";
+import { apiFetch } from "@/shared/lib/api-client";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 // Try to use shadcn if available, otherwise fallback to native tags for now
 import { Button } from "@/shared/components/ui/button";
@@ -21,86 +23,251 @@ export default function Navbar() {
   const { currentUser, isLoggedIn, setIsLoggedIn } = useApp();
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Sync searchQuery with URL q param if on /search page
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qParam = params.get('q');
+    if (location.pathname === '/search' && qParam) {
+      setSearchQuery(qParam);
+    }
+  }, [location]);
+
+  // Live search suggestions fetch
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    let isMounted = true;
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiFetch<any>(`/courses?search=${encodeURIComponent(searchQuery)}`);
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (isMounted) {
+          const q = searchQuery.toLowerCase();
+          const filtered = list.filter((c: any) =>
+            (c.title || '').toLowerCase().includes(q) ||
+            (c.instructor?.full_name || '').toLowerCase().includes(q)
+          );
+          setSuggestions(filtered.slice(0, 5));
+        }
+      } catch (err) {
+        if (isMounted) setSuggestions([]);
+      } finally {
+        if (isMounted) setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
     navigate("/");
   };
-  
+
+  const rawAvatar = currentUser?.avatar_url || currentUser?.avatar;
+  const avatarUrl = rawAvatar ? resolveMediaUrl(rawAvatar) : "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80";
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center gap-4">
+      <div className="container flex h-16 items-center px-4 md:px-8 max-w-7xl mx-auto gap-4">
         {/* Logo */}
-        <Link to="/" className="flex items-center shrink-0">
-          <img src="/header-logo.png" alt="MindHub" className="h-7 sm:h-8 w-auto object-contain" />
+        <Link to="/" className="flex items-center space-x-2 shrink-0">
+          <div className="bg-emerald-600 text-white p-1.5 rounded-xl font-bold flex items-center justify-center w-9 h-9 shadow-md shadow-emerald-600/20">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <span className="font-black text-xl bg-gradient-to-r from-emerald-700 to-teal-600 bg-clip-text text-transparent">
+            MindHub
+          </span>
         </Link>
-        
-        <nav className="hidden lg:flex items-center gap-6 ml-6">
-          <Link to="/courses" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Khám phá</Link>
-          <Link to="/roadmaps" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Lộ trình</Link>
-          <Link to="/services" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors">Dịch vụ</Link>
+
+        {/* Navigation Links */}
+        <nav className="hidden md:flex items-center space-x-6 text-sm font-extrabold mx-4">
+          <Link to="/courses" className="text-slate-600 hover:text-emerald-600 transition-colors">Khóa học</Link>
+          <Link to="/instructors" className="text-slate-600 hover:text-emerald-600 transition-colors">Giảng viên</Link>
+          <Link to="/services" className="text-slate-600 hover:text-emerald-600 transition-colors">Dịch vụ</Link>
+          <Link to="/faq" className="text-slate-600 hover:text-emerald-600 transition-colors">Hỏi đáp</Link>
         </nav>
 
-        {/* Search */}
-        <div className="flex-1 flex justify-center px-4 md:px-6">
-          <form 
-            className="relative w-full max-w-[400px]"
+        {/* Global Live Search Bar */}
+        <div className="flex-1 max-w-md hidden sm:block relative">
+           <form 
             onSubmit={(e) => {
               e.preventDefault();
               if (searchQuery.trim()) {
-                navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                setIsSearchFocused(false);
+                navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
               }
             }}
           >
-             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 z-10" />
              <Input 
                placeholder="Tìm kiếm khoá học, giảng viên..."
-               className="w-full bg-muted shadow-none appearance-none pl-9 rounded-full h-10 border-transparent focus-visible:ring-primary/20 focus-visible:border-primary/50 transition-all"
+               className="w-full bg-slate-100/80 shadow-none appearance-none pl-9 rounded-full h-10 border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500/50 transition-all text-xs font-semibold placeholder:text-slate-400"
                value={searchQuery}
                onChange={(e) => setSearchQuery(e.target.value)}
+               onFocus={() => setIsSearchFocused(true)}
+               onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
              />
+
+             {/* Live Search Suggestions Dropdown */}
+             {isSearchFocused && searchQuery.trim().length > 0 && (
+               <div className="absolute top-12 left-0 right-0 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 text-left p-2 space-y-1">
+                 <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                   Gợi ý tìm kiếm ({suggestions.length})
+                 </div>
+                 
+                 {isSearching ? (
+                   <div className="px-4 py-3 text-xs text-slate-400 italic flex items-center gap-2">
+                     <span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
+                     <span>Đang tìm kiếm...</span>
+                   </div>
+                 ) : suggestions.length > 0 ? (
+                   suggestions.map((item: any) => (
+                     <div
+                       key={item.id || item.slug}
+                       onMouseDown={() => {
+                         setIsSearchFocused(false);
+                         navigate(`/courses/${item.slug || item.id}`);
+                       }}
+                       className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+                     >
+                       <img
+                         src={item.thumbnail_url || item.thumbnail || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=150&q=80'}
+                         alt={item.title}
+                         className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
+                       />
+                       <div className="min-w-0 flex-1">
+                         <div className="text-xs font-bold text-slate-900 truncate">{item.title}</div>
+                         <div className="text-[11px] text-slate-400 truncate">
+                           {item.instructor?.full_name || 'Giảng viên MindHub'} • {item.price ? `${Number(item.price).toLocaleString('vi-VN')}đ` : 'Miễn phí'}
+                         </div>
+                       </div>
+                     </div>
+                   ))
+                 ) : (
+                   <div className="px-4 py-3 text-xs text-slate-500 italic">
+                     Không tìm thấy kết quả cho "{searchQuery}"
+                   </div>
+                 )}
+
+                 <button
+                   type="button"
+                   onMouseDown={() => {
+                     setIsSearchFocused(false);
+                     navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                   }}
+                   className="w-full text-center py-2 text-xs font-bold text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors border-t border-slate-100 cursor-pointer"
+                 >
+                   Xem tất cả kết quả cho "{searchQuery}" →
+                 </button>
+               </div>
+             )}
           </form>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 md:gap-2 ml-auto shrink-0">
+        {/* Premium Actions Bar */}
+        <div className="flex items-center gap-2.5 ml-auto shrink-0">
           {isLoggedIn ? (
             <>
-              <Link to="/my-courses" className="text-sm font-bold text-muted-foreground hover:text-primary transition-colors hidden lg:block mr-2">Khóa học của tôi</Link>
-              <Button asChild variant="ghost" size="icon" className="text-muted-foreground relative">
-                <Link to="/notifications">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-background"></span>
-                </Link>
-              </Button>
+              {/* My Courses Link */}
+              <Link
+                to="/my-courses"
+                className="hidden lg:inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 font-extrabold text-xs border border-emerald-200/80 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95"
+              >
+                <BookOpen className="w-4 h-4 text-emerald-600" />
+                <span>Khóa học của tôi</span>
+              </Link>
+              
+              {/* Favorites Heart Button */}
+              <Link
+                to="/favorites"
+                className="w-9 h-9 rounded-2xl bg-rose-50/90 hover:bg-rose-100 text-rose-600 border border-rose-200/80 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
+                title="Khóa học yêu thích"
+              >
+                <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+              </Link>
+
+              {/* Notification Bell */}
+              <Link
+                to="/notifications"
+                className="w-9 h-9 rounded-2xl bg-slate-100/90 hover:bg-slate-200/90 text-slate-700 border border-slate-200/80 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm relative"
+                title="Thông báo"
+              >
+                <Bell className="w-4 h-4 text-slate-600" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
+              </Link>
+
+              {/* Avatar Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
+                  <button className="p-0.5 rounded-full ring-2 ring-emerald-500/20 hover:ring-emerald-500 transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer focus:outline-none ml-1">
                     <img 
-                      src={currentUser?.avatar || "https://i.pravatar.cc/150?u=a042581f4e29026704d"} 
+                      src={avatarUrl} 
                       alt="Avatar" 
-                      className="w-8 h-8 rounded-full border"
+                      className="w-9 h-9 rounded-full object-cover bg-slate-100"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
+                      }}
                     />
-                  </Button>
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Tài khoản của tôi</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/profile")}>
-                    <User className="mr-2 h-4 w-4" />
-                    Hồ sơ
+                <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl border border-slate-200/80 shadow-2xl space-y-1">
+                  <DropdownMenuLabel className="p-3 bg-slate-50/80 rounded-xl mb-1 border border-slate-100">
+                    <div className="flex flex-col space-y-0.5">
+                      <p className="text-xs font-black text-slate-900 truncate">{currentUser?.full_name || currentUser?.name || 'Tài khoản'}</p>
+                      {currentUser?.email && (
+                        <p className="text-[11px] text-slate-500 font-semibold truncate">{currentUser.email}</p>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  
+                  <DropdownMenuItem onClick={() => navigate("/profile")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                    <User className="mr-2.5 h-4 w-4 text-emerald-600" />
+                    Hồ sơ cá nhân
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/calendar")}>
-                    <Calendar className="mr-2 h-4 w-4" />
+
+                  <DropdownMenuItem onClick={() => navigate("/favorites")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-rose-50 text-rose-700">
+                    <Heart className="mr-2.5 h-4 w-4 text-rose-500 fill-rose-500" />
+                    Khóa học yêu thích
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => navigate("/my-courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                    <BookOpen className="mr-2.5 h-4 w-4 text-blue-600" />
+                    Khóa học của tôi
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => navigate("/calendar")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                    <Calendar className="mr-2.5 h-4 w-4 text-amber-600" />
                     Lịch học
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />
+
+                  <DropdownMenuItem onClick={() => navigate("/faq")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                    <HelpCircle className="mr-2.5 h-4 w-4 text-teal-600" />
+                    Hỏi đáp (FAQ)
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => navigate("/settings")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                    <Settings className="mr-2.5 h-4 w-4 text-slate-600" />
                     Cài đặt
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
+
+                  <DropdownMenuSeparator className="my-1 border-slate-100" />
+
+                  <DropdownMenuItem className="p-2.5 rounded-xl font-bold text-xs text-rose-600 hover:bg-rose-50 cursor-pointer" onClick={handleLogout}>
+                    <LogOut className="mr-2.5 h-4 w-4" />
                     Đăng xuất
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -108,8 +275,12 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => navigate("/login")}>Đăng nhập</Button>
-              <Button onClick={() => navigate("/register")} className="rounded-full px-6">Đăng ký</Button>
+              <Button variant="ghost" onClick={() => navigate("/login")} className="rounded-full text-xs font-bold hover:bg-slate-100">
+                Đăng nhập
+              </Button>
+              <Button onClick={() => navigate("/register")} className="rounded-full px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20">
+                Đăng ký
+              </Button>
             </>
           )}
         </div>

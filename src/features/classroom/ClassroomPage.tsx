@@ -45,6 +45,9 @@ export default function ClassroomPage() {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [hasShownCompletionModal, setHasShownCompletionModal] = useState(false);
 
+  // State for real-time video playback position
+  const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
+
   // Flat list of all lessons in order
   const allLessons = useMemo(() => {
     if (!course?.chapters) return [];
@@ -223,6 +226,7 @@ export default function ClassroomPage() {
               activeLesson={activeLesson}
               onEnded={handleVideoEnded}
               onProgress90={handleProgress90}
+              onTimeUpdate={setCurrentVideoTime}
             />
 
             {/* Classroom Tabs (Overview, QA, Notes, Resources) */}
@@ -231,6 +235,7 @@ export default function ClassroomPage() {
               activeLesson={activeLesson}
               activeTab={activeTab}
               onTabChange={setTab}
+              currentVideoTime={currentVideoTime}
             />
 
             {/* Bottom Lesson Navigation Bar with Completion Toggle Button */}
@@ -295,7 +300,7 @@ export default function ClassroomPage() {
                 {/* Next Button */}
                 <button
                   onClick={handleGoNext}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold inline-flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold inline-flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer"
                 >
                   <span>Bài tiếp theo</span>
                   <ChevronRight className="w-4 h-4" />
@@ -365,18 +370,17 @@ export default function ClassroomPage() {
                 onClick={() => setShowCompletionModal(false)}
                 className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-extrabold transition-colors cursor-pointer"
               >
-                Xem tổng kết khóa học
+                Xem lại bài học
               </button>
 
               <button
                 onClick={() => {
-                  toast.success('Đã cấp chứng chỉ hoàn thành khóa học!');
                   setShowCompletionModal(false);
+                  navigate('/courses');
                 }}
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md shadow-blue-600/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <Award className="w-4 h-4" />
-                <span>Nhận chứng chỉ</span>
+                <span>Khám phá khóa học khác</span>
               </button>
             </div>
 

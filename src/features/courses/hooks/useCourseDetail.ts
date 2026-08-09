@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Course } from '@/shared/types';
 import { INITIAL_COURSES } from '@/shared/data';
+import { apiFetch } from '@/shared/lib/api-client';
 
 interface UseCourseDetailResult {
   course: Course | null;
@@ -30,41 +31,13 @@ export const FALLBACK_COURSES_MAP: Record<string, Partial<Course>> = {
     image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
     willLearn: [
       'Hiểu và thiết kế kiến thức RESTful API chuẩn quốc tế',
-      'Xử lý Authentication & Authorization bảo mật với JWT / Sanctuam',
+      'Xử lý Authentication & Authorization bảo mật với JWT / Sanctum',
       'Làm việc với Eloquent ORM, Migration, Seeder và Relationships',
       'Xây dựng dự án Backend thực tế và tối ưu hiệu năng Query SQL',
       'Tự tin viết API tích hợp với các ứng dụng Frontend React/Vue/Mobile',
       'Triển khai ứng dụng Laravel REST API lên môi trường Production VPS/Docker'
     ],
     status: 'active',
-    chapters: [
-      {
-        id: 'ch1',
-        title: 'Chương 1: Tổng quan về RESTful API & Laravel Framework',
-        lessons: [
-          { id: 'l1', title: '1.1 RESTful API là gì? Các chuẩn HTTP Methods & Status Codes', type: 'video', duration: '10:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-          { id: 'l2', title: '1.2 Khởi tạo dự án Laravel 11 & Cấu hình môi trường .env', type: 'video', duration: '14:30', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
-          { id: 'l3', title: '1.3 Tạo API Controller & Định tuyến API Routes đầu tiên', type: 'video', duration: '12:45', isPreview: false }
-        ]
-      },
-      {
-        id: 'ch2',
-        title: 'Chương 2: Thiết kế Database & Eloquent ORM',
-        lessons: [
-          { id: 'l4', title: '2.1 Thiết kế Schema Database với Laravel Migrations', type: 'video', duration: '15:20', isPreview: false },
-          { id: 'l5', title: '2.2 Tạo Model & Relationships (One-to-Many, Many-to-Many)', type: 'video', duration: '18:10', isPreview: false },
-          { id: 'l6', title: '2.3 Giả lập dữ liệu mẫu với Factories & Seeders', type: 'video', duration: '11:50', isPreview: false }
-        ]
-      },
-      {
-        id: 'ch3',
-        title: 'Chương 3: Bảo mật Authentication với Laravel Sanctum & JWT',
-        lessons: [
-          { id: 'l7', title: '3.1 Xây dựng API Đăng ký & Đăng nhập cho người dùng', type: 'video', duration: '20:15', isPreview: false },
-          { id: 'l8', title: '3.2 Quản lý Access Tokens & Refresh Tokens', type: 'video', duration: '16:40', isPreview: false }
-        ]
-      }
-    ]
   },
   'php-mysql-backend': {
     id: 'php-mysql-backend',
@@ -77,19 +50,12 @@ export const FALLBACK_COURSES_MAP: Record<string, Partial<Course>> = {
     instructorName: 'Trần Minh Đức',
     instructorTitle: 'Senior PHP Specialist',
     instructorAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
-    instructorBio: 'Hơn 8 năm kinh nghiệm đào tạo lập trình Backend web.',
     price: 399000,
     rating: 4.6,
     reviewCount: 980,
     enrolledCount: 8900,
     image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
-    willLearn: [
-      'Cú pháp PHP 8 hiện đại và lập trình hướng đối tượng (OOP)',
-      'Truy vấn MySQL từ cơ bản tới các câu lệnh JOIN phức tạp',
-      'Bảo mật ứng dụng web tránh các lỗ hổng SQL Injection, XSS'
-    ],
     status: 'active',
-    chapters: []
   },
   'react-frontend-elearning': {
     id: 'react-frontend-elearning',
@@ -102,48 +68,90 @@ export const FALLBACK_COURSES_MAP: Record<string, Partial<Course>> = {
     instructorName: 'Lê Hoàng Nam',
     instructorTitle: 'Lead Frontend Engineer',
     instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
-    instructorBio: 'Kỹ sư Frontend có hơn 7 năm kinh nghiệm với React & Next.js.',
     price: 449000,
     rating: 4.7,
     reviewCount: 860,
     enrolledCount: 7600,
     image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
-    willLearn: [
-      'Xây dựng giao diện web phản hồi nhanh (Responsive Design)',
-      'Quản lý State phức tạp và kết nối REST API mượt mà',
-      'Tối ưu hóa hiệu năng ứng dụng React với Custom Hooks'
-    ],
     status: 'active',
-    chapters: []
   },
-  'ai-learning-assistant': {
-    id: 'ai-learning-assistant',
-    title: 'AI Learning Assistant & Generative AI Agents',
-    subtitle: 'Xây dựng trợ lý học tập AI thông minh tích hợp LLM OpenAI, Anthropic Claude và LangChain.',
-    description: '<p>Khóa học hướng dẫn bạn từng bước tích hợp Trí Tuệ Nhân Tạo vào sản phẩm Web, tạo AI Tutor giải đáp thắc mắc và tự động hóa lộ trình học tập cho học viên.</p>',
-    category: 'Development',
-    subcategory: 'Artificial Intelligence',
-    instructorId: 'inst-1',
-    instructorName: 'Dr. Lê Quốc Khánh',
-    instructorTitle: 'Cựu Kỹ sư Google Brain',
-    instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&q=80',
-    instructorBio: 'Chuyên gia AI hàng đầu với hơn 12 năm kinh nghiệm nghiên cứu và phát triển Generative AI.',
-    price: 699000,
-    salePrice: 499000,
-    rating: 4.9,
-    reviewCount: 1540,
-    enrolledCount: 18500,
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
-    willLearn: [
-      'Xây dựng AI Agent cá nhân hóa lộ trình học tập bằng LangChain & LlamaIndex',
-      'Tích hợp OpenAI GPT-4o API & Anthropic Claude 3.5 Sonnet',
-      'Kỹ thuật Prompt Engineering chuyên sâu và RAG (Retrieval-Augmented Generation)',
-      'Triển khai AI Chatbot trợ giảng tự động trả lời 24/7'
+};
+
+// Map Backend API response to Course type
+function mapApiDetailToCourse(res: any): Course {
+  const rawPrice = Number(res.price || 0);
+  const rawSalePrice = res.sale_price !== null && res.sale_price !== undefined ? Number(res.sale_price) : undefined;
+  const finalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawSalePrice : rawPrice;
+  const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : undefined;
+
+  const mappedChapters = Array.isArray(res.sections)
+    ? res.sections.map((sec: any, sIdx: number) => ({
+        id: String(sec.id || `ch-${sIdx + 1}`),
+        title: sec.title || `Chương ${sIdx + 1}`,
+        lessons: Array.isArray(sec.lessons)
+          ? sec.lessons.map((les: any, lIdx: number) => ({
+              id: String(les.id || `l-${sIdx + 1}-${lIdx + 1}`),
+              title: les.title || `Bài ${lIdx + 1}`,
+              type: les.type || 'video',
+              duration: les.duration ? `${Math.floor(les.duration / 60)}:${les.duration % 60}` : '10:00',
+              isPreview: Boolean(les.is_free_preview || les.isPreview),
+              videoUrl: les.video_url || 'https://www.w3schools.com/html/mov_bbb.mp4',
+            }))
+          : [],
+      }))
+    : [];
+
+  return {
+    id: String(res.id || res.slug),
+    slug: res.slug || String(res.id),
+    title: res.title || 'Khóa học chưa có tên',
+    subtitle: res.short_description || 'Khóa học chất lượng cao từ giảng viên MindHub.',
+    description: res.description || `<p>${res.short_description || 'Khóa học cung cấp đầy đủ kiến thức thực chiến.'}</p>`,
+    category: res.category?.name || 'Development',
+    subcategory: res.subcategory?.name || 'General',
+    instructorId: String(res.instructor?.id || 'inst-1'),
+    instructorName: res.instructor?.full_name || 'Giảng viên MindHub',
+    instructorTitle: res.instructor?.expertise || 'Senior Instructor tại MindHub',
+    instructorAvatar: res.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    instructorBio: res.instructor?.bio || 'Chuyên gia giảng dạy với nhiều năm kinh nghiệm thực chiến.',
+    price: finalPrice,
+    salePrice: originalPrice ? finalPrice : undefined,
+    originalPrice: originalPrice,
+    rating: Number(res.average_rating || 5.0),
+    reviewCount: Number(res.reviews_count || 120),
+    enrolledCount: Number(res.enrollments_count || 1250),
+    completionRate: 90,
+    isFeatured: Boolean(res.is_featured),
+    isBestseller: true,
+    isNew: Boolean(res.is_new),
+    image: res.thumbnail_url || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+    requirements: Array.isArray(res.requirements) ? res.requirements : ['Máy tính có kết nối Internet', 'Đam mê lập trình và học tập'],
+    willLearn: Array.isArray(res.outcomes) ? res.outcomes : [
+      'Nắm vững kiến thức nền tảng và tư duy công nghệ',
+      'Thực hành làm dự án thực tế để tự tin xin việc',
+      'Tự tin áp dụng kiến thức vào các sản phẩm thực tế'
     ],
     status: 'active',
-    chapters: []
-  }
-};
+    chapters: mappedChapters.length > 0 ? mappedChapters : [
+      {
+        id: 'ch1',
+        title: 'Chương 1: Giới thiệu và thiết lập môi trường',
+        lessons: [
+          { id: 'l1', title: '1.1 Tổng quan về khóa học', type: 'video', duration: '08:30', isPreview: true },
+          { id: 'l2', title: '1.2 Cài đặt phần mềm cần thiết', type: 'video', duration: '12:15', isPreview: true }
+        ]
+      },
+      {
+        id: 'ch2',
+        title: 'Chương 2: Kiến thức cốt lõi & Thực hành',
+        lessons: [
+          { id: 'l3', title: '2.1 Các khái niệm quan trọng', type: 'video', duration: '15:45', isPreview: false },
+          { id: 'l4', title: '2.2 Viết đoạn chương trình đầu tiên', type: 'video', duration: '20:10', isPreview: false }
+        ]
+      }
+    ]
+  };
+}
 
 export function useCourseDetail(courseId: string | undefined): UseCourseDetailResult {
   const [course, setCourse] = useState<Course | null>(null);
@@ -161,17 +169,28 @@ export function useCourseDetail(courseId: string | undefined): UseCourseDetailRe
       return;
     }
 
-    const timeoutId = setTimeout(() => {
-      if (!isMounted) return;
+    async function loadCourse() {
+      try {
+        // 1. Primary: Fetch from Backend API /api/courses/{slug_or_id}
+        const apiRes = await apiFetch<any>(`/courses/${courseId}`);
+        if (isMounted && apiRes && (apiRes.id || apiRes.title)) {
+          setCourse(mapApiDetailToCourse(apiRes));
+          setIsLoading(false);
+          return;
+        }
+      } catch (apiErr) {
+        console.warn(`API lookup failed for courseId=${courseId}, trying local fallback`, apiErr);
+      }
 
-      // 1. Check in INITIAL_COURSES by ID exact match
-      let foundCourse = INITIAL_COURSES.find(c => c.id === courseId);
+      // 2. Local Fallback by ID match in INITIAL_COURSES
+      let foundCourse = INITIAL_COURSES.find(c => c.id === courseId || c.slug === courseId);
 
-      // 2. Check in FALLBACK_COURSES_MAP if custom slug ID (e.g. laravel-rest-api)
+      // 3. Fallback map check
       if (!foundCourse && FALLBACK_COURSES_MAP[courseId]) {
         const fallback = FALLBACK_COURSES_MAP[courseId];
         foundCourse = {
           id: courseId,
+          slug: fallback.slug || courseId,
           title: fallback.title || 'Khóa học lập trình thực chiến',
           subtitle: fallback.subtitle || 'Khóa học giúp bạn làm chủ kiến thức từ cơ bản đến ứng dụng nâng cao.',
           description: fallback.description || '<p>Nội dung khóa học được biên soạn chi tiết bám sát nhu cầu thực tế của doanh nghiệp.</p>',
@@ -207,20 +226,12 @@ export function useCourseDetail(courseId: string | undefined): UseCourseDetailRe
                 { id: 'l1', title: '1.1 Tổng quan về khóa học', type: 'video', duration: '08:30', isPreview: true },
                 { id: 'l2', title: '1.2 Cài đặt phần mềm cần thiết', type: 'video', duration: '12:15', isPreview: true }
               ]
-            },
-            {
-              id: 'ch2',
-              title: 'Chương 2: Kiến thức cốt lõi & Thực hành',
-              lessons: [
-                { id: 'l3', title: '2.1 Các khái niệm quan trọng', type: 'video', duration: '15:45', isPreview: false },
-                { id: 'l4', title: '2.2 Viết đoạn chương trình đầu tiên', type: 'video', duration: '20:10', isPreview: false }
-              ]
             }
           ]
         };
       }
 
-      // 3. Dynamic generic fallback for any unknown ID (e.g. custom IDs)
+      // 4. Dynamic generic fallback for any unknown ID
       if (!foundCourse) {
         const cleanTitle = courseId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         foundCourse = {
@@ -269,11 +280,12 @@ export function useCourseDetail(courseId: string | undefined): UseCourseDetailRe
         setCourse(foundCourse);
         setIsLoading(false);
       }
-    }, 200); // 200ms latency for smooth transition
+    }
+
+    loadCourse();
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
     };
   }, [courseId]);
 

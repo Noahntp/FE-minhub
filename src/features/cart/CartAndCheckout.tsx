@@ -14,12 +14,25 @@ import {
   FileText,
   Clock,
   Layers,
+  Sparkles,
+  PlayCircle,
+  BookOpen,
+  Award,
 } from 'lucide-react';
 import { Course, Order, Coupon } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_COUPONS, INITIAL_COURSES } from '@/shared/data';
 import { FALLBACK_COURSES_MAP } from '@/features/courses/hooks/useCourseDetail';
 import { toast } from 'sonner';
+import { apiFetch } from '@/shared/lib/api-client';
+import { useApp } from '@/app/AppContext';
+
+export function resolveImageUrl(url?: string): string {
+  if (!url) return 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/')) return `http://127.0.0.1:8000${url}`;
+  return `http://127.0.0.1:8000/${url}`;
+}
 
 export function resolveCourseById(id: string, allCourses: Course[] = []): Course {
   if (!id) {
@@ -30,9 +43,9 @@ export function resolveCourseById(id: string, allCourses: Course[] = []): Course
       price: 1299000,
       salePrice: 909300,
       image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
-      instructorName: 'Nguyễn Văn A',
-      instructorTitle: 'Giảng viên',
-      instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+      instructorName: 'Dr. Lê Quốc Khánh',
+      instructorTitle: 'Cựu Kỹ sư Google Brain',
+      instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&q=80',
       rating: 4.9,
       reviewCount: 1250,
       enrolledCount: 31200,
@@ -71,21 +84,22 @@ export function resolveCourseById(id: string, allCourses: Course[] = []): Course
     } as Course;
   }
 
-  const readableTitle = id
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, (l) => l.toUpperCase());
+  const isNumeric = /^\d+$/.test(id);
+  const readableTitle = isNumeric
+    ? `Lập Trình Web Real-Time & Restful API`
+    : id.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
   return {
     id: id,
-    title: `Khóa học ${readableTitle}`,
-    subtitle: `Khóa học ${readableTitle} từ cơ bản đến nâng cao`,
-    description: `<p>Khóa học ${readableTitle} chất lượng cao tại MindHub.</p>`,
+    title: readableTitle,
+    subtitle: `${readableTitle} từ cơ bản đến nâng cao`,
+    description: `<p>${readableTitle} chất lượng cao tại MindHub.</p>`,
     category: 'Development',
-    subcategory: 'General',
+    subcategory: 'Fullstack',
     instructorId: 'inst-1',
-    instructorName: 'Nguyễn Văn A',
-    instructorTitle: 'Giảng viên',
-    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    instructorName: 'Dr. Lê Quốc Khánh',
+    instructorTitle: 'Senior Instructor',
+    instructorAvatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&q=80',
     price: 1299000,
     salePrice: 909300,
     rating: 4.8,
@@ -135,17 +149,99 @@ export default function CartAndCheckout({
   useEffect(() => {
     if (initialCourseId) {
       setCheckoutCourse(resolveCourseById(initialCourseId, effectiveAllCourses));
+
+      // Fetch dynamic course data from Backend API
+      apiFetch<any>(`/courses/${initialCourseId}`)
+        .then((res) => {
+          const item = res?.data || res;
+          if (item && (item.id || item.title)) {
+            const rawPrice = Number(item.price || 0);
+            const rawSalePrice = item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : undefined;
+            const finalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawSalePrice : rawPrice;
+            const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : undefined;
+
+            setCheckoutCourse({
+              id: String(item.id || initialCourseId),
+              title: item.title || 'Khóa học',
+              subtitle: item.short_description || 'Khóa học chất lượng cao tại MindHub',
+              description: item.description || '',
+              price: finalPrice,
+              salePrice: originalPrice ? finalPrice : undefined,
+              originalPrice: originalPrice,
+              image: item.thumbnail_url || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+              instructorName: item.instructor?.full_name || 'Giảng viên MindHub',
+              instructorTitle: item.instructor?.expertise || 'Senior Instructor tại MindHub',
+              instructorAvatar: item.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+              rating: Number(item.average_rating || 4.8),
+              reviewCount: Number(item.reviews_count || 120),
+              enrolledCount: Number(item.enrollments_count || 1250),
+              category: 'Development',
+              level: 'Intermediate',
+              status: 'active',
+            } as any);
+          }
+        })
+        .catch(() => {});
     }
   }, [initialCourseId, effectiveAllCourses]);
 
-  // Buyer Form States
-  const [buyerName, setBuyerName] = useState('Nguyễn Văn B');
-  const [buyerEmail, setBuyerEmail] = useState('student@example.com');
-  const [buyerPhone, setBuyerPhone] = useState('0987654321');
+  const { currentUser } = useApp();
+
+  // Buyer Form States initialized from logged-in user
+  const [buyerName, setBuyerName] = useState(() => currentUser?.full_name || currentUser?.name || '');
+  const [buyerEmail, setBuyerEmail] = useState(() => currentUser?.email || '');
+  const [buyerPhone, setBuyerPhone] = useState(() => currentUser?.phone || (currentUser as any)?.phone_number || '');
   const [saveInfo, setSaveInfo] = useState(true);
 
-  // Payment Method State: 'momo' | 'bank' | 'card'
-  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'bank' | 'card'>('momo');
+  // Fetch fresh logged in user profile from API /api/users/me
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.full_name || currentUser.name) setBuyerName(currentUser.full_name || currentUser.name);
+      if (currentUser.email) setBuyerEmail(currentUser.email);
+      if (currentUser.phone || (currentUser as any)?.phone_number) {
+        setBuyerPhone(currentUser.phone || (currentUser as any)?.phone_number);
+      }
+    }
+
+    apiFetch<any>('/users/me')
+      .then((res) => {
+        const u = res?.data || res;
+        if (u && (u.id || u.email)) {
+          if (u.full_name || u.name) setBuyerName(u.full_name || u.name);
+          if (u.email) setBuyerEmail(u.email);
+          if (u.phone || u.phone_number) setBuyerPhone(u.phone || u.phone_number);
+        }
+      })
+      .catch(() => {
+        apiFetch<any>('/account/profile')
+          .then((res) => {
+            const u = res?.data || res;
+            if (u && (u.id || u.email)) {
+              if (u.full_name || u.name) setBuyerName(u.full_name || u.name);
+              if (u.email) setBuyerEmail(u.email);
+              if (u.phone || u.phone_number) setBuyerPhone(u.phone || u.phone_number);
+            }
+          })
+          .catch(() => {});
+      });
+  }, [currentUser]);
+
+  // Payment Method State: 'sepay' | 'vnpay' | 'momo' | 'bank' | 'card'
+  const [paymentMethod, setPaymentMethod] = useState<'sepay' | 'vnpay' | 'momo' | 'bank' | 'card'>('sepay');
+
+  // SePay VietQR Modal States
+  const [sepayData, setSepayData] = useState<{
+    order_id: number;
+    order_code: string;
+    amount: number;
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+    transfer_content: string;
+    qr_url: string;
+  } | null>(null);
+  const [showSepayModal, setShowSepayModal] = useState(false);
+  const [isCheckingSepay, setIsCheckingSepay] = useState(false);
 
   // Coupon States
   const [couponCode, setCouponCode] = useState('');
@@ -174,51 +270,100 @@ export default function CartAndCheckout({
     return new Intl.NumberFormat('vi-VN').format(num) + 'đ';
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setCouponError('');
     setCouponSuccess('');
 
-    if (!couponCode.trim()) {
+    const cleanCode = couponCode.trim().toUpperCase();
+    if (!cleanCode) {
       setCouponError('Vui lòng nhập mã giảm giá.');
       return;
     }
 
+    // 1. Try Backend API Coupon Validation endpoint
+    try {
+      const res = await apiFetch<any>(`/coupons/validate?code=${encodeURIComponent(cleanCode)}&course_id=${checkoutCourse.id}`);
+      if (res?.success && res?.data) {
+        const item = res.data;
+        let percent = 0;
+        if (item.discount_type === 'percent') {
+          percent = Number(item.discount_value);
+        } else {
+          const val = Number(item.discount_value || 0);
+          percent = salePrice > 0 ? Math.round((val / salePrice) * 100) : 10;
+        }
+        percent = Math.min(100, Math.max(1, percent));
+        setActiveDiscount({ code: item.code || cleanCode, percent });
+        setCouponSuccess(`Đã áp dụng mã ${item.code || cleanCode}: Giảm ${percent}%`);
+        toast.success(`Đã áp dụng mã ${item.code || cleanCode}: Giảm ${percent}%`);
+        return;
+      }
+    } catch (err: any) {
+      if (err?.message && !err.message.includes('Fetch') && !err.message.includes('404')) {
+        setCouponError(err.message);
+        toast.error(err.message);
+        return;
+      }
+    }
+
+    // 2. Check local coupons list (SYSTEM_COUPONS + localStorage)
     const saved = localStorage.getItem('mindhub_coupons');
     let couponsList: Coupon[] = SYSTEM_COUPONS;
     if (saved) {
       try {
-        couponsList = JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          couponsList = [...SYSTEM_COUPONS, ...parsed];
+        }
       } catch (err) {}
     }
 
     const matched = couponsList.find(
-      (c) => c.code.toUpperCase() === couponCode.trim().toUpperCase()
+      (c) => c.code.toUpperCase() === cleanCode
     );
 
     if (matched) {
       setActiveDiscount({ code: matched.code, percent: matched.discount });
       setCouponSuccess(`Đã áp dụng mã ${matched.code}: Giảm ${matched.discount}%`);
       toast.success(`Đã áp dụng mã ${matched.code}: Giảm ${matched.discount}%`);
-    } else {
-      setCouponError('Mã giảm giá không chính xác hoặc đã hết hạn.');
-      toast.error('Mã giảm giá không chính xác hoặc đã hết hạn.');
-    }
-  };
-
-  const handleStartPayment = () => {
-    if (!buyerName.trim() || !buyerEmail.trim() || !buyerPhone.trim()) {
-      toast.error('Vui lòng điền đầy đủ thông tin người mua.');
       return;
     }
 
-    setIsProcessing(true);
+    // 3. Dynamic Pattern Matching (e.g. LARAVEL50 -> 50%, REACT30 -> 30%, KHUYENMAI20 -> 20%)
+    const patternMatch = cleanCode.match(/^([A-Z0-9_\-]+?)(100|[1-9][0-9]?)$/i);
+    if (patternMatch) {
+      const extractedPercent = parseInt(patternMatch[2], 10);
+      if (extractedPercent >= 1 && extractedPercent <= 90) {
+        setActiveDiscount({ code: cleanCode, percent: extractedPercent });
+        setCouponSuccess(`Đã áp dụng mã ${cleanCode}: Giảm ${extractedPercent}%`);
+        toast.success(`Đã áp dụng mã ${cleanCode}: Giảm ${extractedPercent}%`);
+        return;
+      }
+    }
 
-    setTimeout(() => {
-      setIsProcessing(false);
-      const orderId = 'MH-' + Math.floor(100000 + Math.random() * 900000);
+    // 4. Failed
+    setCouponError('Mã giảm giá không chính xác hoặc đã hết hạn.');
+    toast.error('Mã giảm giá không chính xác hoặc đã hết hạn.');
+  };
+
+  const handleConfirmSepayPayment = async () => {
+    if (!sepayData) return;
+    setIsCheckingSepay(true);
+
+    try {
+      await apiFetch<any>('/payments/sepay/confirm', {
+        method: 'POST',
+        body: JSON.stringify({
+          order_id: sepayData.order_id,
+          payment_method: 'sepay',
+        }),
+      });
+
+      setShowSepayModal(false);
+
       const order: Order = {
-        id: orderId,
+        id: String(sepayData.transfer_content || sepayData.order_id),
         date: new Date().toISOString().split('T')[0],
         courses: [
           {
@@ -230,19 +375,147 @@ export default function CartAndCheckout({
         discountAmount: initialDiscountAmount + couponDiscountAmount,
         total: finalTotal,
         status: 'success',
-        paymentMethod:
-          paymentMethod === 'momo'
-            ? 'Ví MoMo'
-            : paymentMethod === 'bank'
-            ? 'Thẻ ATM nội địa / Internet Banking'
-            : 'Thẻ quốc tế (Visa/Mastercard)',
+        paymentMethod: 'Chuyển khoản VietQR (SePay)',
       };
 
       setCompletedOrder(order);
       setPhase('success');
       onEnrollSuccess([checkoutCourse.id], order);
-      toast.success('Thanh toán và đăng ký khóa học thành công!');
-    }, 1000);
+      toast.success('Xác nhận thanh toán SePay thành công! Bạn có thể bắt đầu học ngay.');
+    } catch (err: any) {
+      toast.error(err.message || 'Có lỗi khi xác nhận giao dịch SePay.');
+    } finally {
+      setIsCheckingSepay(false);
+    }
+  };
+
+  const saveCourseToEnrolledList = (courseItem: any) => {
+    try {
+      const courseId = String(courseItem.id);
+      const storedIds = JSON.parse(localStorage.getItem('mindhub_enrolled_courses') || '[]');
+      const updatedIds = Array.from(new Set([...storedIds, courseId]));
+      localStorage.setItem('mindhub_enrolled_courses', JSON.stringify(updatedIds));
+
+      const storedCourses = JSON.parse(localStorage.getItem('mindhub_purchased_courses_data') || '[]');
+      const exists = storedCourses.some((c: any) => String(c.id) === courseId);
+      if (!exists) {
+        const courseObj = {
+          id: courseId,
+          title: courseItem.title || 'Khóa học đã đăng ký',
+          category: courseItem.category || 'Lập trình',
+          status: 'learning',
+          badgeText: 'Đang học',
+          badgeType: 'learning',
+          instructorName: courseItem.instructorName || courseItem.instructor?.full_name || 'Giảng viên MindHub',
+          instructorAvatar: courseItem.instructorAvatar || courseItem.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+          thumbnail: courseItem.thumbnail || courseItem.thumbnail_url || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+          progress: 0,
+          lessonsCount: 40,
+          duration: '12h 30m',
+          buttonText: 'Tiếp tục học',
+          buttonBg: 'bg-[#0f172a] text-white hover:bg-slate-800',
+          hasPlayIcon: true,
+        };
+        storedCourses.unshift(courseObj);
+        localStorage.setItem('mindhub_purchased_courses_data', JSON.stringify(storedCourses));
+      }
+    } catch (e) {
+      console.warn('Failed to save purchased course locally:', e);
+    }
+  };
+
+  const handleStartPayment = async () => {
+    if (!buyerName.trim() || !buyerEmail.trim() || !buyerPhone.trim()) {
+      toast.error('Vui lòng điền đầy đủ thông tin người mua.');
+      return;
+    }
+
+    setIsProcessing(true);
+    saveCourseToEnrolledList(checkoutCourse);
+
+    try {
+      const numericCourseId = Number(checkoutCourse.id) || 1;
+
+      // 1. Post /api/orders
+      const orderRes = await apiFetch<any>('/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          course_id: numericCourseId,
+        }),
+      });
+
+      const createdOrder = orderRes?.data || orderRes;
+      const orderId = createdOrder?.id;
+
+      if (!orderId) {
+        throw new Error(orderRes?.message || 'Không thể tạo đơn hàng');
+      }
+
+      if (paymentMethod === 'sepay') {
+        // 2. SePay VietQR payment info
+        const sepayRes = await apiFetch<any>('/payments/sepay/create', {
+          method: 'POST',
+          body: JSON.stringify({
+            order_id: Number(orderId),
+            payment_method: 'sepay',
+          }),
+        });
+
+        const sData = sepayRes?.data || sepayRes;
+        setSepayData(sData);
+        setShowSepayModal(true);
+        toast.success('Đã tạo mã VietQR SePay! Vui lòng quét mã chuyển khoản.');
+        return;
+      }
+
+      if (paymentMethod === 'vnpay') {
+        // 2. Post /api/payments/vnpay/create
+        const vnpayRes = await apiFetch<any>('/payments/vnpay/create', {
+          method: 'POST',
+          body: JSON.stringify({
+            order_id: Number(orderId),
+            payment_method: 'vnpay',
+          }),
+        });
+
+        const paymentUrl = vnpayRes?.data?.payment_url || vnpayRes?.payment_url;
+
+        if (paymentUrl) {
+          toast.success('Tạo đơn hàng thành công! Đang chuyển hướng tới cổng thanh toán VNPAY...');
+          setTimeout(() => {
+            window.location.href = paymentUrl;
+          }, 600);
+          return;
+        }
+      }
+
+      // Local success fallback
+      const order: Order = {
+        id: String(createdOrder.order_code || orderId),
+        date: new Date().toISOString().split('T')[0],
+        courses: [
+          {
+            id: checkoutCourse.id,
+            title: checkoutCourse.title,
+            price: finalTotal,
+          },
+        ],
+        discountAmount: initialDiscountAmount + couponDiscountAmount,
+        total: finalTotal,
+        status: 'success',
+        paymentMethod: 'Thanh toán bảo mật',
+      };
+
+      setCompletedOrder(order);
+      setPhase('success');
+      onEnrollSuccess([checkoutCourse.id], order);
+      toast.success('Đăng ký khóa học thành công!');
+    } catch (err: any) {
+      console.error('Payment API error:', err);
+      toast.error(err.message || 'Có lỗi xảy ra khi tạo thanh toán. Vui lòng đăng nhập và thử lại.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -327,58 +600,182 @@ export default function CartAndCheckout({
 
         {/* 4. PHASE CONDITION: FORM VS RECEIPT SUCCESS */}
         {phase === 'success' ? (
-          /* SUCCESS SCREEN RECEIPT */
-          <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-slate-200/80 p-8 shadow-sm text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
+          /* PREMIUM SUCCESS RECEIPT SCREEN */
+          <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-300">
+            
+            {/* Top Celebratory Card */}
+            <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden text-center space-y-5 border border-emerald-700/50">
+              <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black text-slate-900">
-                Thanh toán thành công!
-              </h2>
-              <p className="text-sm text-slate-600 font-medium">
-                Cảm ơn bạn đã đăng ký khóa học. Mã đơn hàng của bạn là{' '}
-                <span className="font-bold text-slate-900">{completedOrder?.id}</span>.
-              </p>
-            </div>
+              {/* Glowing Icon */}
+              <div className="relative inline-flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-emerald-400/30 animate-ping" />
+                <div className="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg relative border-4 border-emerald-400/40">
+                  <CheckCircle2 className="w-12 h-12" />
+                </div>
+              </div>
 
-            {/* Course Summary Box */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 text-left flex items-center gap-4">
-              <img
-                src={checkoutCourse.image}
-                alt={checkoutCourse.title}
-                className="w-20 aspect-video rounded-xl object-cover shrink-0 border"
-              />
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900">
-                  {checkoutCourse.title}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Giảng viên: {checkoutCourse.instructorName}
+              <div className="space-y-2 relative z-10">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 text-emerald-200 text-xs font-bold">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                  Đăng ký thành công & Đã sẵn sàng vào học!
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                  Thanh toán hoàn tất!
+                </h2>
+                <p className="text-xs sm:text-sm text-emerald-100/90 max-w-lg mx-auto font-medium leading-relaxed">
+                  Cảm ơn bạn đã tin tưởng lựa chọn MindHub. Khóa học đã được kích hoạt trọn đời trong tài khoản của bạn.
                 </p>
-                <div className="text-xs font-extrabold text-blue-600 mt-1">
-                  Đã thanh toán: {formatVND(finalTotal)}
+              </div>
+
+              {/* Order Ref Pill */}
+              <div className="pt-2">
+                <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 text-xs text-emerald-50 font-semibold">
+                  <span>Mã đơn hàng: <strong className="text-white font-mono text-xs">{completedOrder?.id}</strong></span>
+                  <button
+                    onClick={() => {
+                      if (completedOrder?.id) {
+                        navigator.clipboard.writeText(completedOrder.id);
+                        toast.success('Đã sao chép mã đơn hàng!');
+                      }
+                    }}
+                    className="hover:text-emerald-300 transition-colors cursor-pointer underline text-[11px]"
+                  >
+                    Sao chép
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => navigate(`/learn/${checkoutCourse.id}`)}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
-              >
-                <span>Bắt đầu học ngay</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+            {/* Receipt Details & Course Card */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-6">
+              
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Chi tiết đơn hàng đã mua
+                </h3>
+                <span className="text-xs font-bold text-slate-400">
+                  {completedOrder?.date || new Date().toLocaleDateString('vi-VN')}
+                </span>
+              </div>
 
-              <button
-                onClick={() => navigate('/my-courses')}
-                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold text-sm transition-colors cursor-pointer"
-              >
-                Về khóa học của tôi
-              </button>
+              {/* Course Detail Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative w-28 sm:w-36 aspect-video rounded-xl overflow-hidden shrink-0 bg-slate-900 border border-slate-200 shadow-sm">
+                    <img
+                      src={resolveImageUrl(checkoutCourse.image)}
+                      alt={checkoutCourse.title}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80';
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-slate-900/20 flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-white/40 backdrop-blur-md flex items-center justify-center">
+                        <div className="w-0 h-0 border-y-4 border-y-transparent border-l-6 border-l-white ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-extrabold">
+                      Khóa học đã sở hữu
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 line-clamp-2">
+                      {checkoutCourse.title}
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Giảng viên: <span className="font-bold text-slate-800">{checkoutCourse.instructorName}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200 w-full sm:w-auto">
+                  <span className="text-[11px] font-semibold text-slate-400 block">Đã thanh toán</span>
+                  <span className="text-lg font-black text-emerald-600">{formatVND(finalTotal)}</span>
+                </div>
+              </div>
+
+              {/* Payment Summary breakdown */}
+              <div className="space-y-2 text-xs border-b border-slate-100 pb-4">
+                <div className="flex justify-between text-slate-500 font-medium">
+                  <span>Giá niêm yết:</span>
+                  <span className="font-bold text-slate-700">{formatVND(originalPrice)}</span>
+                </div>
+                <div className="flex justify-between text-slate-500 font-medium">
+                  <span>Giảm giá khóa học:</span>
+                  <span className="font-bold text-rose-600">-{formatVND(initialDiscountAmount)}</span>
+                </div>
+                {activeDiscount && (
+                  <div className="flex justify-between text-emerald-600 font-semibold">
+                    <span>Voucher ({activeDiscount.code}):</span>
+                    <span>-{formatVND(couponDiscountAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-500 font-medium">
+                  <span>Phương thức thanh toán:</span>
+                  <span className="font-bold text-slate-900">
+                    {completedOrder?.paymentMethod || (paymentMethod === 'sepay' ? 'Chuyển khoản VietQR (SePay)' : 'VNPAY Gateway')}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-100">
+                  <span>Tổng tiền đã thu:</span>
+                  <span className="text-emerald-600 font-black">{formatVND(finalTotal)}</span>
+                </div>
+              </div>
+
+              {/* Next Steps / Privileges */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-100 flex items-start gap-3">
+                  <BookOpen className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-900">Truy cập trọn đời</h5>
+                    <p className="text-[11px] text-slate-500 font-medium">Học lại bất kỳ lúc nào</p>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 flex items-start gap-3">
+                  <Award className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-900">Chứng chỉ uy tín</h5>
+                    <p className="text-[11px] text-slate-500 font-medium">Cấp khi hoàn thành</p>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-900">Hỗ trợ 24/7</h5>
+                    <p className="text-[11px] text-slate-500 font-medium">Giải đáp thắc mắc bài học</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => navigate(`/learn/${checkoutCourse.id}`)}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-sm inline-flex items-center justify-center gap-2.5 shadow-xl shadow-blue-600/25 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                >
+                  <PlayCircle className="w-5 h-5" />
+                  <span>Vào Học Ngay Bây Giờ</span>
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </button>
+
+                <button
+                  onClick={() => navigate('/my-courses')}
+                  className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <BookOpen className="w-4 h-4 text-slate-600" />
+                  <span>Khóa học của tôi</span>
+                </button>
+              </div>
+
             </div>
+
           </div>
         ) : (
           /* FORM PHASE: 2-COLUMN MAIN LAYOUT */
@@ -398,8 +795,11 @@ export default function CartAndCheckout({
                     {/* Course Thumbnail */}
                     <div className="relative w-36 sm:w-44 aspect-video rounded-xl overflow-hidden shrink-0 bg-slate-900 border border-slate-200/60">
                       <img
-                        src={checkoutCourse.image}
+                        src={resolveImageUrl(checkoutCourse.image)}
                         alt={checkoutCourse.title}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80';
+                        }}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-slate-900/20 flex items-center justify-center">
@@ -541,37 +941,65 @@ export default function CartAndCheckout({
 
                 <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
                   
-                  {/* Option 1: Ví MoMo */}
+                  {/* Option 1: SePay VietQR (Chuyển khoản VietQR tự động) */}
                   <div
-                    onClick={() => setPaymentMethod('momo')}
+                    onClick={() => setPaymentMethod('sepay')}
                     className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
-                      paymentMethod === 'momo'
+                      paymentMethod === 'sepay'
+                        ? 'border-emerald-600 bg-emerald-50/20 ring-1 ring-emerald-600'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        paymentMethod === 'sepay' ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300'
+                      }`}>
+                        {paymentMethod === 'sepay' && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+
+                      {/* SePay VietQR Logo Badge */}
+                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
+                        VietQR
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-extrabold text-slate-900">Chuyển khoản VietQR tự động (SePay)</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Quét mã VietQR bằng App Ngân hàng bất kỳ - Kích hoạt khóa học ngay</p>
+                      </div>
+                    </div>
+
+                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Khuyên dùng
+                    </span>
+                  </div>
+
+                  {/* Option 2: Cổng thanh toán VNPAY */}
+                  <div
+                    onClick={() => setPaymentMethod('vnpay')}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                      paymentMethod === 'vnpay'
                         ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        paymentMethod === 'momo' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                        paymentMethod === 'vnpay' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
                       }`}>
-                        {paymentMethod === 'momo' && <div className="w-2 h-2 rounded-full bg-white" />}
+                        {paymentMethod === 'vnpay' && <div className="w-2 h-2 rounded-full bg-white" />}
                       </div>
 
-                      {/* MoMo Logo Badge */}
-                      <div className="w-10 h-10 rounded-xl bg-pink-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
-                        momo
+                      {/* VNPay Logo Badge */}
+                      <div className="w-10 h-10 rounded-xl bg-blue-700 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-sm tracking-wider">
+                        VNPAY
                       </div>
 
                       <div>
-                        <h4 className="text-xs font-extrabold text-slate-900">Ví điện tử (MoMo)</h4>
-                        <p className="text-[11px] text-slate-500 font-medium">Thanh toán nhanh với ví MoMo</p>
+                        <h4 className="text-xs font-extrabold text-slate-900">Cổng thanh toán VNPAY (ATM / QR Code / Internet Banking)</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Thanh toán an toàn qua cổng VNPAY Sandbox</p>
                       </div>
                     </div>
-
-                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 shrink-0">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Hoàn tiền trong 7 ngày
-                    </span>
                   </div>
 
                   {/* Option 2: Thẻ ATM nội địa */}
@@ -735,12 +1163,17 @@ export default function CartAndCheckout({
 
                 {/* Selected Item Preview */}
                 <div className="flex items-center gap-3">
-                  <img
-                    src={checkoutCourse.image}
-                    alt={checkoutCourse.title}
-                    className="w-16 aspect-video rounded-lg object-cover shrink-0 border"
-                  />
-                  <div className="space-y-0.5 overflow-hidden">
+                  <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center">
+                    <img
+                      src={resolveImageUrl(checkoutCourse.image)}
+                      alt={checkoutCourse.title}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80';
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="space-y-0.5 overflow-hidden flex-1 min-w-0">
                     <h4 className="text-xs font-extrabold text-slate-900 truncate">
                       {checkoutCourse.title}
                     </h4>
@@ -867,6 +1300,124 @@ export default function CartAndCheckout({
 
           </div>
         )}
+
+      {/* SEPAY VIETQR PAYMENT MODAL */}
+      {showSepayModal && sepayData && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 relative border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-md">
+                  VietQR
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Thanh toán VietQR qua SePay</h3>
+                  <p className="text-xs text-slate-500 font-medium">Quét mã bằng App Ngân hàng bất kỳ để tự động duyệt</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSepayModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* QR Code & Banking Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-center">
+              {/* VietQR Code Image */}
+              <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                <img
+                  src={sepayData.qr_url}
+                  alt="SePay VietQR Code"
+                  className="w-44 aspect-square object-contain rounded-xl bg-white p-2 shadow-sm border border-slate-200"
+                />
+                <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  Kích hoạt tự động sau 1-3 giây
+                </span>
+              </div>
+
+              {/* Transfer Details */}
+              <div className="space-y-2.5 text-xs">
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Ngân hàng:</span>
+                  <span className="font-extrabold text-slate-900">{sepayData.bank_name}</span>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Số tài khoản:</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="font-black text-blue-600 text-sm tracking-wide">{sepayData.account_number}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(sepayData.account_number);
+                        toast.success('Đã sao chép số tài khoản!');
+                      }}
+                      className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold hover:bg-blue-100 transition-colors cursor-pointer"
+                    >
+                      Sao chép
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Chủ tài khoản:</span>
+                  <span className="font-bold text-slate-900">{sepayData.account_name}</span>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Nội dung chuyển khoản:</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="font-black text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-200 text-xs tracking-wider">
+                      {sepayData.transfer_content}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(sepayData.transfer_content);
+                        toast.success('Đã sao chép nội dung chuyển khoản!');
+                      }}
+                      className="px-2 py-1 rounded bg-rose-100 text-rose-700 text-[10px] font-bold hover:bg-rose-200 transition-colors cursor-pointer"
+                    >
+                      Sao chép
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Số tiền thanh toán:</span>
+                  <span className="font-black text-slate-900 text-sm">{formatVND(sepayData.amount)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 border-t border-slate-100 pt-3">
+              <button
+                onClick={handleConfirmSepayPayment}
+                disabled={isCheckingSepay}
+                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isCheckingSepay ? (
+                  <span>Đang xác nhận giao dịch...</span>
+                ) : (
+                  <span>Tôi đã chuyển khoản thành công</span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowSepayModal(false)}
+                className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Đóng / Chọn phương thức khác
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

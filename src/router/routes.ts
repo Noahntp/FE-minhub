@@ -10,6 +10,8 @@ export const AppRoutes = {
   home: '/',
   login: '/login',
   register: '/register',
+  forgotPassword: '/forgot-password',
+  resetPassword: '/reset-password',
   explore: '/explore',
   
   // Authenticated Profile Route
@@ -72,7 +74,7 @@ export function getDashboardRouteByRole(role?: string): string {
     case 'student':
     case 'learner':
     default:
-      return '/dashboard';
+      return '/';
   }
 }
 

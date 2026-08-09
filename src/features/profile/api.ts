@@ -57,29 +57,61 @@ async resolveAccountRequest(requestId: string, action: 'approved' | 'rejected'):
             });
   },
 
-async getAccountProfile(): Promise<any> {
-    return this.getInstructorProfile();
+  async getInstructorProfile(): Promise<any> {
+    devLog('Profile', 'Fetch instructor profile');
+    return apiFetch<any>('/users/me');
   },
 
-async updateAccountProfile(payload: any): Promise<any> {
-    return this.updateInstructorProfile(payload);
+  async updateInstructorProfile(payload: any): Promise<any> {
+    devLog('Profile', 'Update instructor profile', payload);
+    return apiFetch<any>('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   },
 
-async uploadAccountAvatar(file: File): Promise<any> {
-    return this.uploadInstructorAvatar(file);
+  async uploadInstructorAvatar(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return apiFetch<any>('/users/me/avatar', {
+      method: 'POST',
+      body: formData,
+    });
   },
 
-async selectAccountAvatarPreset(presetId: string): Promise<any> {
+  async getAccountProfile(): Promise<any> {
+    devLog('Profile', 'Get account profile');
+    return apiFetch<any>('/users/me');
+  },
+
+  async updateAccountProfile(payload: any): Promise<any> {
+    devLog('Profile', 'Update account profile', payload);
+    return apiFetch<any>('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async uploadAccountAvatar(file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return apiFetch<any>('/users/me/avatar', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  async selectAccountAvatarPreset(presetId: string): Promise<any> {
     return apiFetch<any>('/account/avatar/preset', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ preset_id: presetId })
-            });
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preset_id: presetId })
+    });
   },
 
-async deleteAccountAvatar(): Promise<any> {
+  async deleteAccountAvatar(): Promise<any> {
     return apiFetch<any>('/account/avatar', {
-              method: 'DELETE'
-            });
+      method: 'DELETE'
+    });
   }
 };

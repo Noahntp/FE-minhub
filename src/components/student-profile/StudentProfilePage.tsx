@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
 import { StudentProfileHeader } from './StudentProfileHeader';
 import { StudentAvatarCard } from './StudentAvatarCard';
+import { StudentStreakCard } from './StudentStreakCard';
 import { StudentPersonalInfoCard } from './StudentPersonalInfoCard';
 import { StudentAccountStatusCard } from './StudentAccountStatusCard';
 import { StudentInstructorWorkspaceCard } from './StudentInstructorWorkspaceCard';
 import { StudentSecurityCard } from './StudentSecurityCard';
+
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 interface StudentProfilePageProps {
   currentUser: any;
@@ -21,10 +24,12 @@ export const StudentProfilePage: React.FC<StudentProfilePageProps> = ({
   onLogout
 }) => {
   const [userState, setUserState] = useState(currentUser);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    setUserState(currentUser);
+    if (currentUser && JSON.stringify(currentUser) !== JSON.stringify(userState)) {
+      setUserState(currentUser);
+    }
   }, [currentUser]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -34,19 +39,26 @@ export const StudentProfilePage: React.FC<StudentProfilePageProps> = ({
 
   const handleProfileUpdated = (updatedUser: any) => {
     setUserState(updatedUser);
+    try {
+      localStorage.setItem('mindhub_current_user', JSON.stringify(updatedUser));
+    } catch (e) {}
     if (onUpdateUser) {
       onUpdateUser(updatedUser);
     }
   };
 
   const handleAvatarUpdated = (newAvatarUrl: string | null) => {
+    const resolved = newAvatarUrl ? resolveMediaUrl(newAvatarUrl) : null;
     const updated = {
       ...userState,
-      avatar: newAvatarUrl,
-      avatar_url: newAvatarUrl,
-      avatarUrl: newAvatarUrl
+      avatar: resolved,
+      avatar_url: resolved,
+      avatarUrl: resolved
     };
     setUserState(updated);
+    try {
+      localStorage.setItem('mindhub_current_user', JSON.stringify(updated));
+    } catch (e) {}
     if (onUpdateUser) {
       onUpdateUser(updated);
     }
@@ -91,6 +103,12 @@ export const StudentProfilePage: React.FC<StudentProfilePageProps> = ({
             userEmail={userState?.email}
             onAvatarUpdated={handleAvatarUpdated}
             showToast={showToast}
+          />
+
+          <StudentStreakCard
+            currentStreak={userState?.streak_count ?? 0}
+            longestStreak={userState?.longest_streak ?? 0}
+            totalActiveDays={userState?.total_active_days ?? 0}
           />
 
           <StudentAccountStatusCard

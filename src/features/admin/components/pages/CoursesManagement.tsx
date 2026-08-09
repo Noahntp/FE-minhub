@@ -350,6 +350,7 @@ export default function CoursesManagement() {
   const handleResetFilters = () => {
     setSearchParams(new URLSearchParams());
     setActiveFilterDropdown(null);
+    toast.success("Đã xóa bộ lọc");
   };
 
   const handleFieldChange = (key: string, value: string) => {
@@ -362,6 +363,7 @@ export default function CoursesManagement() {
       }
     }
     updateFilters(updates);
+    toast.success("Đã áp dụng bộ lọc");
   };
 
   const handleCustomDateSubmit = (e?: React.FormEvent) => {
@@ -375,9 +377,20 @@ export default function CoursesManagement() {
       date_to: formDateTo,
       page: 1,
     });
+    toast.success("Đã áp dụng bộ lọc");
   };
 
   const tableRef = React.useRef<HTMLDivElement>(null);
+
+  const handleKPIClick = (status: string) => {
+    handleFieldChange("status", status);
+    setTimeout(() => {
+      tableRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
+  };
 
   // Load Data
   const loadData = async (showSuccessToast = false) => {
@@ -603,6 +616,7 @@ export default function CoursesManagement() {
       sort_direction: nextOrder,
       page: 1,
     });
+    toast.success("Đã sắp xếp danh sách");
   };
 
   // Helper render count filter chips
@@ -685,6 +699,7 @@ export default function CoursesManagement() {
     } else {
       updateFilters({ [key]: "" });
     }
+    toast.success("Đã xóa bộ lọc");
   };
 
   return (
@@ -771,7 +786,7 @@ export default function CoursesManagement() {
         {/* KPI: Tổng khóa học */}
         <button
           type="button"
-          onClick={() => handleFieldChange("status", "")}
+          onClick={() => handleKPIClick("")}
           className="text-left w-full rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/40 transition-colors cursor-pointer select-none"
         >
           <div className="flex items-center justify-between text-mid-gray">
@@ -800,7 +815,7 @@ export default function CoursesManagement() {
         {/* KPI: Đã xuất bản */}
         <button
           type="button"
-          onClick={() => handleFieldChange("status", "published")}
+          onClick={() => handleKPIClick("published")}
           className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-success bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/40 transition-colors cursor-pointer select-none"
         >
           <div className="flex items-center justify-between text-mid-gray">
@@ -820,7 +835,7 @@ export default function CoursesManagement() {
         {/* KPI: Chờ duyệt */}
         <button
           type="button"
-          onClick={() => handleFieldChange("status", "pending_review")}
+          onClick={() => handleKPIClick("pending_review")}
           className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-warning bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/40 transition-colors cursor-pointer select-none"
         >
           <div className="flex items-center justify-between text-mid-gray">
@@ -854,7 +869,7 @@ export default function CoursesManagement() {
         {/* KPI: Bản nháp */}
         <button
           type="button"
-          onClick={() => handleFieldChange("status", "draft")}
+          onClick={() => handleKPIClick("draft")}
           className="text-left w-full rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/40 transition-colors cursor-pointer select-none"
         >
           <div className="flex items-center justify-between text-mid-gray">
@@ -883,7 +898,7 @@ export default function CoursesManagement() {
         {/* KPI: Đã bị ẩn */}
         <button
           type="button"
-          onClick={() => handleFieldChange("status", "hidden")}
+          onClick={() => handleKPIClick("hidden")}
           className="text-left w-full rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/40 transition-colors cursor-pointer select-none"
         >
           <div className="flex items-center justify-between text-mid-gray">
@@ -913,7 +928,7 @@ export default function CoursesManagement() {
         {/* KPI: Bị từ chối */}
         <button
           type="button"
-          onClick={() => handleFieldChange("status", "rejected")}
+          onClick={() => handleKPIClick("rejected")}
           className="text-left w-full rounded-[6px] border border-hairline border-t-2 border-t-danger-brick bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/40 transition-colors cursor-pointer select-none"
         >
           <div className="flex items-center justify-between text-mid-gray">
@@ -1232,6 +1247,7 @@ export default function CoursesManagement() {
                   updates.date_to = preset.date_to;
                 }
                 updateFilters(updates);
+                toast.success("Đã áp dụng bộ lọc");
               }}
               placeholder="Tất cả thời gian"
               id="course-time"
@@ -2516,36 +2532,38 @@ export default function CoursesManagement() {
             >
               {activeDetailCourse && (
                 <>
-                  {activeDetailCourse.is_featured ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await closeDetailDrawer();
-                        setFeaturedModal({
-                          open: true,
-                          course: activeDetailCourse,
-                          targetFeatured: false,
-                        });
-                      }}
-                      className="px-4 py-1.5 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas hover:bg-hairline text-ink transition-colors cursor-pointer"
-                    >
-                      Bỏ nổi bật
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await closeDetailDrawer();
-                        setFeaturedModal({
-                          open: true,
-                          course: activeDetailCourse,
-                          targetFeatured: true,
-                        });
-                      }}
-                      className="px-4 py-1.5 text-xs font-semibold rounded-[6px] border border-warning/20 bg-canvas text-warning hover:bg-warning-soft/20 transition-colors cursor-pointer"
-                    >
-                      Đánh dấu nổi bật
-                    </button>
+                  {activeDetailCourse.status === "published" && (
+                    activeDetailCourse.is_featured ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await closeDetailDrawer();
+                          setFeaturedModal({
+                            open: true,
+                            course: activeDetailCourse,
+                            targetFeatured: false,
+                          });
+                        }}
+                        className="px-4 py-1.5 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas hover:bg-hairline text-ink transition-colors cursor-pointer"
+                      >
+                        Bỏ nổi bật
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await closeDetailDrawer();
+                          setFeaturedModal({
+                            open: true,
+                            course: activeDetailCourse,
+                            targetFeatured: true,
+                          });
+                        }}
+                        className="px-4 py-1.5 text-xs font-semibold rounded-[6px] border border-warning/20 bg-canvas text-warning hover:bg-warning-soft/20 transition-colors cursor-pointer"
+                      >
+                        Đánh dấu nổi bật
+                      </button>
+                    )
                   )}
 
                   {activeDetailCourse.status === "published" && (

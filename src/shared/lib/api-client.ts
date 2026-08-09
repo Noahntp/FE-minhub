@@ -82,8 +82,9 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   }
   headers.set('Accept', 'application/json');
   
-  if (config.authToken) {
-    headers.set('Authorization', `Bearer ${config.authToken}`);
+  const effectiveToken = config.authToken || localStorage.getItem('mindhub_api_token');
+  if (effectiveToken) {
+    headers.set('Authorization', `Bearer ${effectiveToken}`);
   }
 
   let response: Response;
@@ -145,8 +146,9 @@ async function apiFetchEnvelope<T>(endpoint: string, options: RequestInit = {}):
   }
   headers.set('Accept', 'application/json');
   
-  if (config.authToken) {
-    headers.set('Authorization', `Bearer ${config.authToken}`);
+  const effectiveToken = config.authToken || localStorage.getItem('mindhub_api_token');
+  if (effectiveToken) {
+    headers.set('Authorization', `Bearer ${effectiveToken}`);
   }
 
   let response;

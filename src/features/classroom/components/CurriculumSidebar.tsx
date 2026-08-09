@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Course, Lesson } from '@/shared/types';
-import { PlayCircle, CheckCircle, Clock, ChevronDown, ChevronUp, X, Play } from 'lucide-react';
+import { PlayCircle, CheckCircle, Clock, ChevronDown, ChevronUp, X, Play, Award, Trophy, BookOpen } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 
 interface CurriculumSidebarProps {
@@ -38,34 +38,51 @@ export function CurriculumSidebar({
     }));
   };
 
-  const handleExpandAll = () => {
-    const allExpanded: Record<string, boolean> = {};
+  // Check if all chapters are currently expanded
+  const isAllExpanded = (course.chapters || []).every(
+    (ch) => expandedChapters[ch.id] ?? true
+  );
+
+  const handleToggleExpandAll = () => {
+    const nextState = !isAllExpanded;
+    const newState: Record<string, boolean> = {};
     (course.chapters || []).forEach((ch) => {
-      allExpanded[ch.id] = true;
+      newState[ch.id] = nextState;
     });
-    setExpandedChapters(allExpanded);
+    setExpandedChapters(newState);
   };
+
+  const totalLessons = (course.chapters || []).flatMap((c) => c.lessons).length;
+  const completedCount = completedLessonIds.length;
+  const percent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
   return (
     <aside
       className={`
-        bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm space-y-4 w-full lg:w-[380px] shrink-0
-        ${isOpen ? 'block' : 'hidden lg:block'}
+        bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex flex-col w-full lg:w-[380px] shrink-0 sticky top-20 max-h-[calc(100vh-100px)]
+        ${isOpen ? 'block' : 'hidden lg:flex'}
       `}
     >
       {/* SIDEBAR HEADER */}
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
-          Nội dung khóa học
-        </h3>
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-emerald-600" />
+          <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+            Nội dung khóa học
+          </h3>
+        </div>
         
         <div className="flex items-center gap-2">
           <button
-            onClick={handleExpandAll}
-            className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+            onClick={handleToggleExpandAll}
+            className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 cursor-pointer hover:bg-emerald-50 px-2 py-1 rounded-md transition-colors"
           >
-            <span>Mở rộng tất cả</span>
-            <ChevronDown className="w-3.5 h-3.5" />
+            <span>{isAllExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+            {isAllExpanded ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
           </button>
 
           <Button
@@ -79,8 +96,8 @@ export function CurriculumSidebar({
         </div>
       </div>
 
-      {/* CHAPTERS ACCORDION LIST */}
-      <div className="space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto pr-1 tactile-scrollbar">
+      {/* CHAPTERS ACCORDION LIST (SCROLLABLE) */}
+      <div className="space-y-3 flex-1 overflow-y-auto my-3 pr-1 tactile-scrollbar">
         {course.chapters.map((chapter, chapterIndex) => {
           const isExpanded = expandedChapters[chapter.id] ?? true;
           const completedInChapter = chapter.lessons.filter((l) =>
@@ -112,8 +129,8 @@ export function CurriculumSidebar({
                   </div>
                 </div>
 
-                <span className="text-[11px] font-bold text-slate-500 bg-white border border-slate-200/60 px-2 py-0.5 rounded-full shrink-0">
-                  {completedInChapter}/{chapter.lessons.length} bài đã hoàn thành
+                <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200/60 px-2 py-0.5 rounded-full shrink-0">
+                  {completedInChapter}/{chapter.lessons.length}
                 </span>
               </button>
 
@@ -132,28 +149,28 @@ export function CurriculumSidebar({
                           relative p-3 flex items-center justify-between gap-3 transition-all cursor-pointer group
                           ${
                             isActive
-                              ? 'bg-blue-50/60 font-bold'
+                              ? 'bg-emerald-50/70 font-bold'
                               : 'hover:bg-slate-50/80'
                           }
                         `}
                       >
                         {/* Active Left Indicator */}
                         {isActive && (
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600 rounded-r" />
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-600 rounded-r" />
                         )}
 
                         <div className="flex items-center gap-3 overflow-hidden">
                           {/* Icon Circle */}
                           {isCompleted ? (
-                            <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                              <CheckCircle className="w-4 h-4" />
+                            <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                              <CheckCircle className="w-3.5 h-3.5" />
                             </div>
                           ) : isActive ? (
-                            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                              <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                            <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                              <Play className="w-3 h-3 fill-white ml-0.5" />
                             </div>
                           ) : (
-                            <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center shrink-0">
+                            <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 font-bold text-[11px] flex items-center justify-center shrink-0">
                               {lessonIndex + 1}
                             </div>
                           )}
@@ -184,6 +201,32 @@ export function CurriculumSidebar({
           );
         })}
       </div>
+
+      {/* BOTTOM SIDEBAR WIDGET: COURSE PROGRESS BANNER */}
+      <div className="pt-3 border-t border-slate-100 shrink-0 space-y-3">
+        <div className="bg-slate-50/90 border border-slate-200/80 p-3.5 rounded-xl space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
+              <Trophy className="w-4 h-4 text-amber-500" />
+              Tiến độ khóa học
+            </span>
+            <span className="font-black text-emerald-600">{percent}%</span>
+          </div>
+
+          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+
+          <p className="text-[11px] text-slate-500 font-medium leading-tight pt-0.5">
+            Hoàn thành tất cả bài học để làm chủ hoàn toàn kiến thức khóa học.
+          </p>
+        </div>
+      </div>
+
     </aside>
   );
 }
+

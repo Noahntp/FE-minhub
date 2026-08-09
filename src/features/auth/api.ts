@@ -40,11 +40,19 @@ async getGoogleRedirectUrl(): Promise<string> {
     return res.url;
   },
 
-async requestPasswordReset(email: string): Promise<any> {
+  async requestPasswordReset(email: string): Promise<any> {
     devLog('Auth', 'Request password reset', { email });
     return apiFetch<any>('/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    });
+  },
+
+  async verifyOtp(payload: { email: string; otp: string }): Promise<any> {
+    devLog('Auth', 'Verify OTP email/phone code', payload);
+    return apiFetch<any>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 
@@ -103,25 +111,21 @@ async revokeSession(sessionId: string): Promise<{ success: boolean }> {
     return apiFetch<{ success: boolean }>(`/auth/sessions/${sessionId}`, { method: 'DELETE' });
   },
 
-async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     devLog('Auth', 'Send password reset link to', { email });
-    return this.requestPasswordReset(email);
+    return authApi.requestPasswordReset(email);
   },
 
-async resendVerificationEmail(email: string, purpose: string = 'verify_email'): Promise<{ success: boolean; message: string }> {
+  async resendVerificationEmail(email: string, purpose: string = 'verify_email'): Promise<{ success: boolean; message: string }> {
     devLog('Auth', 'Resend email verification notification mail', { email, purpose });
-    try {
-      const res = await fetch('http://localhost:3000/api/auth/email/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, purpose })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi gửi email xác minh');
-      return data;
-    } catch (err: any) {
-      throw new Error(err.message || 'Lỗi gửi email xác minh');
-    }
+    const res = await apiFetch<any>('/auth/verify-email/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
+    });
+    return {
+      success: true,
+      message: res.message || 'Đã gửi lại email xác thực thành công. Vui lòng kiểm tra hộp thư.',
+    };
   },
 
 async verifyEmailOtp(email: string, purpose: string, token: string): Promise<{ success: boolean, ticket?: string }> {

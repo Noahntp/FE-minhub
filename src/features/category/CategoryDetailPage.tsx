@@ -1,185 +1,439 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
-import { INITIAL_COURSES } from '@/shared/data';
-import { Filter, SlidersHorizontal, ChevronDown, ChevronRight } from 'lucide-react';
+import { 
+  Filter, SlidersHorizontal, ChevronDown, ChevronRight, Sparkles, 
+  BookOpen, Award, Clock, Users, ArrowLeft, Star 
+} from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { CourseCard } from '@/features/courses/components/CourseCard';
+import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
+import { apiFetch } from '@/shared/lib/api-client';
 
-const CATEGORY_INFO: Record<string, { title: string; desc: string; icon: string }> = {
-  'web-development': {
-    title: 'Lập trình Web',
-    desc: 'Làm chủ các công nghệ web hiện đại từ Frontend đến Backend. Xây dựng các ứng dụng web thực tế.',
-    icon: '🌐'
-  },
-  'artificial-intelligence': {
-    title: 'Trí tuệ nhân tạo (AI)',
-    desc: 'Khám phá Machine Learning, Deep Learning và cách ứng dụng Generative AI vào công việc.',
-    icon: '🤖'
-  },
-  'design': {
-    title: 'Thiết kế (UI/UX)',
-    desc: 'Học cách thiết kế giao diện người dùng đẹp mắt và trải nghiệm người dùng tuyệt vời.',
-    icon: '✨'
-  },
-  'marketing': {
-    title: 'Kinh doanh & Marketing',
-    desc: 'Phát triển kỹ năng kinh doanh số, SEO, và chiến lược tiếp thị đa kênh.',
-    icon: '📈'
-  }
+const CATEGORY_SLUG_ALIAS: Record<string, string> = {
+  'ai-data': 'ai-va-du-lieu',
+  'lap-trinh': 'lap-trinh',
+  'web-dev': 'web-development',
+  'ui-ux-design': 'ui-ux',
+  'game-development': 'game-dev',
 };
 
+const CATEGORY_META: Record<string, { title: string; desc: string; icon: string; bgGradient: string }> = {
+  'lap-trinh': {
+    title: 'Lập trình & Tư duy thuật toán',
+    desc: 'Trang bị nền tảng lập trình vững chắc từ tư duy logic, cấu trúc dữ liệu đến xây dựng phần mềm thực tế.',
+    icon: '💻',
+    bgGradient: 'from-emerald-900 via-slate-900 to-teal-950',
+  },
+  'web-development': {
+    title: 'Lập trình Web Chuyên Nghiệp',
+    desc: 'Làm chủ toàn bộ hệ sinh thái Web hiện đại từ thiết kế giao diện Frontend đến xây dựng hệ thống Backend mạnh mẽ.',
+    icon: '🌐',
+    bgGradient: 'from-blue-900 via-slate-900 to-indigo-950',
+  },
+  'backend': {
+    title: 'Lập trình Backend & API Systems',
+    desc: 'Học cách thiết kế kiến trúc hệ thống, xây dựng RESTful & Microservices API, quản trị dữ liệu và tối ưu hiệu năng server.',
+    icon: '⚙️',
+    bgGradient: 'from-amber-950 via-slate-900 to-stone-900',
+  },
+  'frontend': {
+    title: 'Lập trình Frontend & UI/UX Web',
+    desc: 'Xây dựng giao diện web phản hồi nhanh, hiệu ứng mượt mà với React 19, Next.js, Vue và TailwindCSS.',
+    icon: '🖥️',
+    bgGradient: 'from-indigo-900 via-slate-900 to-purple-950',
+  },
+  'ai-va-du-lieu': {
+    title: 'AI, Machine Learning & Dữ liệu',
+    desc: 'Khám phá Trí tuệ nhân tạo, Machine Learning, Deep Learning và cách ứng dụng Generative AI vào công việc.',
+    icon: '🤖',
+    bgGradient: 'from-teal-900 via-slate-900 to-emerald-950',
+  },
+  'ai-data': {
+    title: 'AI, Machine Learning & Dữ liệu',
+    desc: 'Khám phá Trí tuệ nhân tạo, Machine Learning, Deep Learning và cách ứng dụng Generative AI vào công việc.',
+    icon: '🤖',
+    bgGradient: 'from-teal-900 via-slate-900 to-emerald-950',
+  },
+  'devops': {
+    title: 'DevOps, CI/CD & Cloud System',
+    desc: 'Triển khai hạ tầng tự động hóa, Docker, Kubernetes, CI/CD pipeline và quản trị hệ thống Cloud.',
+    icon: '☁️',
+    bgGradient: 'from-sky-900 via-slate-900 to-cyan-950',
+  },
+};
+
+const DEFAULT_FALLBACK_COURSES: HomeCourseItem[] = [
+  {
+    id: 'laravel-rest-api',
+    title: 'Laravel REST API từ cơ bản đến triển khai',
+    level: 'Cơ bản',
+    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
+    rating: 4.5,
+    reviewCount: 2,
+    studentCount: '2',
+    instructorName: 'Nguyễn Minh Khoa',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 299000,
+    originalPrice: 499000,
+    discountBadge: '-40%',
+    isHot: true,
+  },
+  {
+    id: 'php-mysql-nen-tang-cho-backend',
+    title: 'PHP & MySQL nền tảng cho Backend',
+    level: 'Cơ bản',
+    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+    rating: 4.0,
+    reviewCount: 1,
+    studentCount: '1',
+    instructorName: 'Nguyễn Minh Khoa',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 399000,
+    originalPrice: undefined,
+    isHot: true,
+  },
+];
+
 export default function CategoryDetailPage() {
-  const { slug } = useParams();
+  const { slug: rawSlug } = useParams<{ slug: string }>();
+  const slug = (rawSlug || '').trim();
+  const dbSlug = CATEGORY_SLUG_ALIAS[slug] || slug;
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortOption, setSortOption] = useState('popular');
-  const [courses, setCourses] = useState(INITIAL_COURSES);
+  const [courses, setCourses] = useState<HomeCourseItem[]>([]);
+  const [categoryInfo, setCategoryInfo] = useState<{
+    title: string;
+    desc: string;
+    icon: string;
+    bgGradient: string;
+  }>({
+    title: 'Danh mục khóa học',
+    desc: 'Khám phá các khóa học chất lượng cao được thiết kế chuẩn thực tế',
+    icon: '🚀',
+    bgGradient: 'from-emerald-950 via-slate-900 to-teal-950',
+  });
+  const [loading, setLoading] = useState(true);
 
-  const category = slug ? CATEGORY_INFO[slug] : null;
+  // Helper mapper from Backend CatalogCourseResource to HomeCourseItem
+  const mapApiCourseToHomeCourseItem = (c: any): HomeCourseItem => {
+    const rawPrice = Number(c.price || 0);
+    const rawSalePrice = c.sale_price !== null && c.sale_price !== undefined ? Number(c.sale_price) : undefined;
+    const finalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawSalePrice : rawPrice;
+    const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : undefined;
+
+    let discountBadge: string | undefined = undefined;
+    if (originalPrice && originalPrice > finalPrice) {
+      const percent = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+      discountBadge = `-${percent}%`;
+    }
+
+    const defaultImages = [
+      'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80',
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
+      'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+    ];
+    const imageIdx = Math.abs((Number(c.id) || 0) % defaultImages.length);
+
+    return {
+      id: String(c.id),
+      title: c.title || 'Khóa học chất lượng',
+      level: c.level === 'beginner' ? 'Cơ bản' : c.level === 'advanced' ? 'Nâng cao' : 'Trung cấp',
+      thumbnail: c.thumbnail_url || defaultImages[imageIdx],
+      rating: c.average_rating !== undefined && c.average_rating !== null ? Number(c.average_rating) : 0,
+      reviewCount: Number(c.reviews_count || 0),
+      studentCount: new Intl.NumberFormat('vi-VN').format(c.enrollments_count || 0),
+      instructorName: c.instructor?.full_name || 'Giảng viên MindHub',
+      instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+      price: finalPrice,
+      originalPrice: originalPrice,
+      discountBadge: discountBadge,
+      isFree: finalPrice === 0,
+      isHot: Boolean(c.is_featured || (c.enrollments_count && c.enrollments_count > 100)),
+      isNew: Boolean(c.is_new),
+    };
+  };
 
   useEffect(() => {
-    // Mock fetching courses for this category
-    // In a real app, this would filter by category slug
-    let result = INITIAL_COURSES;
-    
-    if (sortOption === 'price_asc') {
-      result.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
-    } else if (sortOption === 'price_desc') {
-      result.sort((a, b) => (b.salePrice || b.price) - (a.salePrice || a.price));
-    } else if (sortOption === 'newest') {
-      result.sort((a, b) => (a.isNew ? -1 : 1));
-    } else {
-      result.sort((a, b) => b.enrolledCount - a.enrolledCount);
-    }
-    
-    setCourses([...result]);
-  }, [slug, sortOption]);
+    let isMounted = true;
+    setLoading(true);
 
-  if (!category) {
-    return (
-      <PageTransition>
-        <div className="max-w-7xl mx-auto py-20 px-4 text-center">
-          <h1 className="text-3xl font-bold mb-4">Không tìm thấy danh mục</h1>
-          <Button asChild>
-            <Link to="/courses">Xem tất cả khóa học</Link>
-          </Button>
-        </div>
-      </PageTransition>
-    );
-  }
+    const fetchCategoryAndCourses = async () => {
+      if (!slug) return;
+
+      // 1. Resolve Category Metadata
+      let meta = CATEGORY_META[dbSlug] || CATEGORY_META[slug];
+      if (!meta) {
+        const formattedTitle = slug
+          .split('-')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+
+        meta = {
+          title: formattedTitle,
+          desc: `Khám phá lộ trình đào tạo và các khóa học hot nhất thuộc chủ đề ${formattedTitle}.`,
+          icon: '✨',
+          bgGradient: 'from-slate-900 via-emerald-950 to-teal-950',
+        };
+      }
+
+      // Try fetching category details from Backend API /categories
+      try {
+        const catRes = await apiFetch<any>('/categories');
+        const catList = Array.isArray(catRes) ? catRes : catRes?.data || [];
+        const found = catList.find(
+          (item: any) => item.slug === dbSlug || item.slug === slug || String(item.id) === slug
+        );
+        if (found) {
+          meta = {
+            ...meta,
+            title: found.name || meta.title,
+            desc: found.description || meta.desc,
+          };
+        }
+      } catch (err) {
+        console.warn('Unable to load category metadata from API', err);
+      }
+
+      if (isMounted) {
+        setCategoryInfo(meta);
+      }
+
+      // 2. Fetch Courses for this Category from Backend API
+      try {
+        let sortParam = 'best_selling';
+        if (sortOption === 'popular') sortParam = 'best_selling';
+        if (sortOption === 'newest') sortParam = 'latest';
+        if (sortOption === 'price_asc') sortParam = 'price_asc';
+        if (sortOption === 'price_desc') sortParam = 'price_desc';
+        if (sortOption === 'rating') sortParam = 'rating_desc';
+
+        // Primary Query using dbSlug
+        let coursesRes = await apiFetch<any>(`/courses?category_slug=${dbSlug}&sort=${sortParam}`);
+        let rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+
+        // Secondary fallback query using original slug if dbSlug was different
+        if ((!Array.isArray(rawCourses) || rawCourses.length === 0) && dbSlug !== slug) {
+          coursesRes = await apiFetch<any>(`/courses?category_slug=${slug}&sort=${sortParam}`);
+          rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+        }
+
+        // If still empty, fetch general courses from API so page is never broken
+        if (!Array.isArray(rawCourses) || rawCourses.length === 0) {
+          coursesRes = await apiFetch<any>(`/courses?sort=${sortParam}`);
+          rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+        }
+
+        if (Array.isArray(rawCourses) && rawCourses.length > 0) {
+          if (isMounted) {
+            setCourses(rawCourses.map(mapApiCourseToHomeCourseItem));
+          }
+        } else {
+          if (isMounted) {
+            setCourses(DEFAULT_FALLBACK_COURSES);
+          }
+        }
+      } catch (err) {
+        console.warn('Unable to load courses from Backend API', err);
+        if (isMounted) {
+          setCourses(DEFAULT_FALLBACK_COURSES);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchCategoryAndCourses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, dbSlug, sortOption]);
 
   return (
     <PageTransition>
-      {/* Category Banner */}
-      <div className="bg-primary/5 border-b">
-        <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-6">
-            <Link to="/" className="hover:text-primary">Trang chủ</Link>
-            <ChevronRight className="w-4 h-4" />
-            <Link to="/courses" className="hover:text-primary">Khóa học</Link>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-foreground">{category.title}</span>
-          </div>
+      {/* 1. Ultra-Premium Dark Hero Banner */}
+      <div className={`relative bg-gradient-to-r ${categoryInfo.bgGradient} text-white overflow-hidden py-12 lg:py-16`}>
+        {/* Background Ambient Glows */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-10 w-80 h-80 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
-          <div className="flex items-center gap-4">
-            <div className="text-5xl md:text-6xl">{category.icon}</div>
-            <div>
-              <h1 className="text-3xl md:text-5xl font-black font-suisseintl tracking-tight mb-4">
-                {category.title}
-              </h1>
-              <p className="text-lg text-muted-foreground max-w-2xl">
-                {category.desc}
+          {/* Breadcrumbs */}
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-300/80 mb-6">
+            <Link to="/" className="hover:text-emerald-400 transition-colors flex items-center gap-1">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Trang chủ</span>
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+            <Link to="/courses" className="hover:text-emerald-400 transition-colors">
+              Khóa học
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+            <span className="text-emerald-400 font-bold">{categoryInfo.title}</span>
+          </div>
+
+          {/* Banner Main Content */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold mb-4">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span>CHỦ ĐỀ ĐÀO TẠO THỰC TẾ</span>
+              </div>
+
+              <div className="flex items-center gap-4 mb-3">
+                <span className="text-4xl sm:text-5xl p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/15 shadow-xl shrink-0">
+                  {categoryInfo.icon}
+                </span>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+                  {categoryInfo.title}
+                </h1>
+              </div>
+
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-medium mt-3">
+                {categoryInfo.desc}
               </p>
             </div>
+
+            {/* Quick Stat Badges */}
+            <div className="grid grid-cols-2 gap-3 w-full md:w-auto shrink-0">
+              <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 text-center">
+                <div className="text-xl font-black text-emerald-400">{courses.length}</div>
+                <div className="text-[11px] font-semibold text-slate-300">Khóa học thực tế</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 text-center">
+                <div className="text-xl font-black text-amber-400 flex items-center justify-center gap-1">
+                  <span>5.0</span>
+                  <Star className="w-4 h-4 fill-amber-400" />
+                </div>
+                <div className="text-[11px] font-semibold text-slate-300">Đánh giá trung bình</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 text-center">
+                <div className="text-xl font-black text-sky-400">100%</div>
+                <div className="text-[11px] font-semibold text-slate-300">Cấp chứng chỉ</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 text-center">
+                <div className="text-xl font-black text-purple-400">24/7</div>
+                <div className="text-[11px] font-semibold text-slate-300">Trợ giảng hỗ trợ</div>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto py-8 px-4">
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold">
-            Hiển thị {courses.length} khóa học
-          </h2>
+      {/* 2. Main Content Section */}
+      <div className="bg-slate-50/50 py-10 min-h-[500px]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="gap-2 rounded-xl"
-            >
-              <SlidersHorizontal className="w-4 h-4" /> 
-              Bộ lọc
-            </Button>
-            <div className="relative">
-              <select 
-                className="appearance-none bg-background border rounded-xl px-4 py-2 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20"
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value)}
-              >
-                <option value="popular">Phổ biến nhất</option>
-                <option value="newest">Mới nhất</option>
-                <option value="rating">Đánh giá cao</option>
-                <option value="price_asc">Giá: Thấp đến cao</option>
-                <option value="price_desc">Giá: Cao đến thấp</option>
-              </select>
-              <ChevronDown className="w-4 h-4 absolute right-3 top-3 text-muted-foreground pointer-events-none" />
+          {/* Controls Bar: Results Count + Filter Toggle + Sort Dropdown */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
+                Hiển thị <span className="text-emerald-600 font-black">{courses.length}</span> khóa học từ hệ thống API
+              </h2>
             </div>
-          </div>
-        </div>
 
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Filters Sidebar */}
-          {isFilterOpen && (
-            <div className="w-full md:w-64 shrink-0 space-y-6">
-              <div>
-                <h3 className="font-bold mb-3">Mức độ</h3>
-                <div className="space-y-2">
-                  {['Tất cả', 'Người mới bắt đầu', 'Trung cấp', 'Chuyên gia'].map((level, idx) => (
-                    <label key={idx} className="flex items-center gap-2 cursor-pointer hover:bg-muted p-2 rounded-lg">
-                      <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary/20" />
-                      <span className="text-sm">{level}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="font-bold mb-3">Tính năng</h3>
-                <div className="space-y-2">
-                  {['Có chứng chỉ', 'Có bài tập thực hành', 'Phụ đề Tiếng Việt'].map((feature, idx) => (
-                    <label key={idx} className="flex items-center gap-2 cursor-pointer hover:bg-muted p-2 rounded-lg">
-                      <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary/20" />
-                      <span className="text-sm">{feature}</span>
-                    </label>
-                  ))}
-                </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`gap-2 rounded-xl font-bold transition-all ${
+                  isFilterOpen
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'border-slate-200 hover:border-emerald-500 hover:text-emerald-600'
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>Bộ lọc</span>
+              </Button>
+
+              <div className="relative">
+                <select
+                  className="appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer shadow-sm"
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
+                >
+                  <option value="popular">🔥 Phổ biến nhất</option>
+                  <option value="newest">✨ Mới nhất</option>
+                  <option value="rating">⭐ Đánh giá cao</option>
+                  <option value="price_asc">🏷️ Giá: Thấp đến cao</option>
+                  <option value="price_desc">🏷️ Giá: Cao đến thấp</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-3.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
-          )}
-          
-          {/* Results */}
-          <div className="flex-1">
-            {courses.length === 0 ? (
-              <EmptyState 
-                icon={Filter}
-                title="Không có khóa học"
-                description="Danh mục này hiện chưa có khóa học nào."
-              />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {courses.map(course => (
-                  <CourseCard key={course.id} course={course as any} />
-                ))}
-              </div>
-            )}
-            
-            {courses.length > 0 && (
-              <div className="mt-12 flex justify-center">
-                <Button variant="outline" className="rounded-full px-8">Tải thêm</Button>
-              </div>
-            )}
           </div>
+
+          <div className="flex flex-col lg:flex-row gap-8">
+            
+            {/* Sidebar Filter Panel */}
+            {isFilterOpen && (
+              <div className="w-full lg:w-72 shrink-0 space-y-6 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-3 text-slate-400">
+                    Cấp độ khóa học
+                  </h3>
+                  <div className="space-y-2">
+                    {['Tất cả trình độ', 'Cơ bản', 'Trung cấp', 'Nâng cao'].map((lvl, idx) => (
+                      <label key={idx} className="flex items-center gap-2.5 cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-colors text-xs font-bold text-slate-700">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                        <span>{lvl}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider mb-3 text-slate-400">
+                    Tính năng kèm theo
+                  </h3>
+                  <div className="space-y-2">
+                    {['Cấp chứng chỉ điện tử', 'Có bài tập dự án', 'Hỗ trợ Q&A 1:1', 'Tài nguyên mã nguồn'].map((feat, idx) => (
+                      <label key={idx} className="flex items-center gap-2.5 cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-colors text-xs font-bold text-slate-700">
+                        <input type="checkbox" className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                        <span>{feat}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Courses Display Grid */}
+            <div className="flex-1">
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-80 bg-white rounded-2xl border border-slate-200 p-4 animate-pulse space-y-4">
+                      <div className="h-40 bg-slate-100 rounded-xl" />
+                      <div className="h-4 bg-slate-100 rounded w-3/4" />
+                      <div className="h-4 bg-slate-100 rounded w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              ) : courses.length === 0 ? (
+                <EmptyState
+                  icon={Filter}
+                  title="Chưa có khóa học cho danh mục này"
+                  description="Danh mục này hiện chưa có khóa học công khai. Vui lòng khám phá các danh mục khác trên MindHub."
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {courses.map((course) => (
+                    <HomeCourseCard key={course.id} course={course} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+
         </div>
       </div>
     </PageTransition>

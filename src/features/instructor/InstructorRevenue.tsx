@@ -96,7 +96,7 @@ export const InstructorRevenue: React.FC<InstructorRevenueProps> = ({ instructor
 
   // URL sync parameters
   const filters: RevenueFilters = useMemo(() => ({
-    preset: (searchParams.get('preset') as any) || 'month',
+    preset: (searchParams.get('preset') as any) || 'all',
     dateFrom: searchParams.get('date_from') || '',
     dateTo: searchParams.get('date_to') || '',
     courseId: searchParams.get('course_id') || null,
@@ -237,14 +237,18 @@ export const InstructorRevenue: React.FC<InstructorRevenueProps> = ({ instructor
     // 3. Process Details Table Result
     if (detailsResult.status === 'fulfilled') {
       const res: any = detailsResult.value;
-      if (res?.data) {
-        const items = res.data.items || [];
-        setTableData(items);
-        setPagination(res.data.pagination || { current_page: 1, last_page: 1, total: items.length, from: 1, to: items.length, per_page: filters.perPage });
-      } else {
-        setTableData([]);
-        setPagination({ current_page: 1, last_page: 1, total: 0, from: 0, to: 0, per_page: filters.perPage });
-      }
+      const dataObj = res?.items ? res : (res?.data?.items ? res.data : (res?.data || res));
+      const items = dataObj?.items || (Array.isArray(dataObj) ? dataObj : []);
+      const pagination = dataObj?.pagination || res?.pagination || {
+        current_page: filters.page,
+        last_page: Math.ceil(items.length / filters.perPage) || 1,
+        total: items.length,
+        from: items.length > 0 ? (filters.page - 1) * filters.perPage + 1 : 0,
+        to: Math.min(filters.page * filters.perPage, items.length),
+        per_page: filters.perPage
+      };
+      setTableData(items);
+      setPagination(pagination);
     } else {
       console.error('Details API Error:', detailsResult.reason);
       setTableError('Không thể tải bảng chi tiết.');

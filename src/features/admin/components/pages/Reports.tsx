@@ -23,10 +23,10 @@ import { Chart } from 'chart.js/auto';
 import { getCourses } from '@/assets/js/api/courses-api';
 import { getUsers } from '@/assets/js/api/users-api';
 import {
-  fetchDashboardRevenue,
-  fetchTopCourses,
-  fetchTopInstructors
-} from '@/assets/js/api/dashboard-api';
+  getRevenueReport,
+  getTopCoursesReport,
+  getTopInstructorsReport
+} from '@/assets/js/api/reports-api';
 import AdminPagination from '../shared/AdminPagination';
 
 interface CourseOption {
@@ -75,6 +75,7 @@ export default function Reports() {
   const [revenueSort, setRevenueSort] = useState({ sort_by: 'period', sort_direction: 'asc' });
 
   // Tab 2: Top Courses data
+  const [coursesTimeframe, setCoursesTimeframe] = useState('90');
   const [coursesItems, setCoursesItems] = useState<any[]>([]);
   const [coursesSummary, setCoursesSummary] = useState<any>({
     total_courses: 0,
@@ -88,6 +89,7 @@ export default function Reports() {
   const [coursesSort, setCoursesSort] = useState({ sort_by: 'total_revenue', sort_direction: 'desc' });
 
   // Tab 3: Top Instructors data
+  const [instructorsTimeframe, setInstructorsTimeframe] = useState('90');
   const [instructorsItems, setInstructorsItems] = useState<any[]>([]);
   const [instructorsSummary, setInstructorsSummary] = useState<any>({
     total_instructors: 0,
@@ -131,7 +133,7 @@ export default function Reports() {
     let to = '';
     // Use fixed date to simulate mock date range matching local DB
     const now = new Date('2026-08-01');
-    
+
     if (preset === '7_days') {
       const start = new Date(now);
       start.setDate(now.getDate() - 7);
@@ -194,11 +196,13 @@ export default function Reports() {
       params.per_page = coursesPerPage;
       params.sort_by = coursesSort.sort_by;
       params.sort_direction = coursesSort.sort_direction;
+      params.timeframe = coursesTimeframe;
     } else if (tab === 'instructors') {
       params.page = instructorsPage;
       params.per_page = instructorsPerPage;
       params.sort_by = instructorsSort.sort_by;
       params.sort_direction = instructorsSort.sort_direction;
+      params.timeframe = instructorsTimeframe;
     }
 
     return params;
@@ -214,7 +218,7 @@ export default function Reports() {
     setIsLoading(true);
     try {
       const params = buildFetchParams(activeTab);
-      
+
       if (activeTab === 'revenue') {
         const res = await getRevenueReport(params);
         if (res.success) {
@@ -295,6 +299,8 @@ export default function Reports() {
     instructorsPage,
     instructorsPerPage,
     instructorsSort,
+    coursesTimeframe,
+    instructorsTimeframe,
   ]);
 
   // Chart Rendering Logic
@@ -448,6 +454,8 @@ export default function Reports() {
     setRevenuePage(1);
     setCoursesPage(1);
     setInstructorsPage(1);
+    setCoursesTimeframe('90');
+    setInstructorsTimeframe('90');
   };
 
   // Sort Table Columns Handler
@@ -795,7 +803,7 @@ export default function Reports() {
                     <h3 className="text-sm font-bold text-ink">Chi tiết báo cáo theo kỳ</h3>
                     <p className="text-xs text-mid-gray mt-0.5">Danh sách phân bổ doanh thu theo từng mốc thời gian</p>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="text-mid-gray">Hiển thị:</span>
@@ -960,8 +968,24 @@ export default function Reports() {
                     <h3 className="text-sm font-bold text-ink">Bảng xếp hạng khóa học nổi bật</h3>
                     <p className="text-xs text-mid-gray mt-0.5">Top khóa học có doanh thu và tỷ lệ hoàn thành cao nhất</p>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-mid-gray">Thời gian:</span>
+                      <select
+                        value={coursesTimeframe}
+                        onChange={(e) => {
+                          setCoursesTimeframe(e.target.value);
+                          setCoursesPage(1);
+                        }}
+                        className="px-2 py-1 rounded-lg border border-hairline bg-paper"
+                      >
+                        <option value="90">3 tháng qua (Mặc định)</option>
+                        <option value="180">6 tháng qua</option>
+                        <option value="365">1 năm qua</option>
+                        <option value="all">Toàn thời gian</option>
+                      </select>
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-mid-gray">Hiển thị:</span>
                       <select
@@ -1165,8 +1189,24 @@ export default function Reports() {
                     <h3 className="text-sm font-bold text-ink">Bảng xếp hạng giảng viên nổi bật</h3>
                     <p className="text-xs text-mid-gray mt-0.5">Top giảng viên có số lượng học viên và doanh thu dẫn đầu</p>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-mid-gray">Thời gian:</span>
+                      <select
+                        value={instructorsTimeframe}
+                        onChange={(e) => {
+                          setInstructorsTimeframe(e.target.value);
+                          setInstructorsPage(1);
+                        }}
+                        className="px-2 py-1 rounded-lg border border-hairline bg-paper"
+                      >
+                        <option value="90">3 tháng qua (Mặc định)</option>
+                        <option value="180">6 tháng qua</option>
+                        <option value="365">1 năm qua</option>
+                        <option value="all">Toàn thời gian</option>
+                      </select>
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-mid-gray">Hiển thị:</span>
                       <select

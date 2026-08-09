@@ -68,7 +68,7 @@ function ReviewStatusMarker({ status }: { status: string }) {
   let dotClass = 'bg-warning';
   let textClass = 'text-warning';
   let text = 'Chờ duyệt';
-  
+
   if (status === 'published' || status === 'approved') {
     dotClass = 'bg-success';
     textClass = 'text-success';
@@ -139,6 +139,7 @@ export default function CourseReviews() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState({
+    total_count: 0,
     pending_count: 0,
     approved_today: 0,
     rejected_today: 0,
@@ -311,7 +312,7 @@ export default function CourseReviews() {
     setPerPage(urlPerPage);
 
     try {
-      getCategories().then(res => {
+      getCategories().then((res: any) => {
         if (res && res.success) {
           setCategories(res.data.items || res.data || []);
         }
@@ -340,6 +341,9 @@ export default function CourseReviews() {
         sort: appliedFilters.sort,
       };
 
+      if (statusFilter) apiParams.status = statusFilter;
+      if (reviewedDateFilter) apiParams.reviewed_date = reviewedDateFilter;
+
       // Mapped date filters
       if (appliedFilters.date_preset && appliedFilters.date_preset !== 'all') {
         if (appliedFilters.date_preset === 'custom') {
@@ -360,9 +364,9 @@ export default function CourseReviews() {
           const yyyy = fromDate.getFullYear();
           const mm = String(fromDate.getMonth() + 1).padStart(2, '0');
           const dd = String(fromDate.getDate()).padStart(2, '0');
-          
+
           apiParams.date_from = `${yyyy}-${mm}-${dd}`;
-          
+
           const yyyyTo = anchorDate.getFullYear();
           const mmTo = String(anchorDate.getMonth() + 1).padStart(2, '0');
           const ddTo = String(anchorDate.getDate()).padStart(2, '0');
@@ -375,10 +379,10 @@ export default function CourseReviews() {
 
       if (res && res.success && res.data && allRes && allRes.success) {
         setItems(res.data.items || []);
-        setSummary(res.data.summary || { pending_count: 0, approved_today: 0, rejected_today: 0 });
+        setSummary(res.data.summary || { total_count: 0, pending_count: 0, approved_today: 0, rejected_today: 0 });
         setMeta(res.meta || { current_page: page, last_page: 1, per_page: perPage, total: 0 });
         setAllItems(allRes.data.items || []);
-        
+
         const now = new Date();
         const formatted = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
         setLastUpdated(formatted);
@@ -578,7 +582,7 @@ export default function CourseReviews() {
       setFormSort(val);
       setPage(1);
       setAppliedFilters((prev) => ({ ...prev, sort: val }));
-      
+
       // Update table sorting headers state accordingly
       if (val === 'submitted_asc') {
         setSortBy('submitted_at');
@@ -1009,8 +1013,8 @@ export default function CourseReviews() {
           aria-label="Lọc tất cả hồ sơ kiểm duyệt"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-indigo-500",
-            statusFilter === '' 
-              ? "border-indigo-500 bg-indigo-50/30 ring-1 ring-indigo-500/30" 
+            statusFilter === ''
+              ? "border-indigo-500 bg-indigo-50/30 ring-1 ring-indigo-500/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
         >
@@ -1024,7 +1028,7 @@ export default function CourseReviews() {
           </div>
           <div className="mt-2">
             <span className="text-2xl lg:text-3xl font-bold text-indigo-600 leading-none">
-              {summary.pending_count + summary.approved_today + summary.rejected_today}
+              {summary.total_count}
             </span>
             <p className="text-[10px] text-mid-gray mt-1">Tổng cộng các trạng thái</p>
           </div>
@@ -1038,8 +1042,8 @@ export default function CourseReviews() {
           aria-label="Lọc hồ sơ chờ duyệt"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-warning",
-            statusFilter === 'pending' 
-              ? "border-warning bg-warning-soft/10 ring-1 ring-warning/30" 
+            statusFilter === 'pending'
+              ? "border-warning bg-warning-soft/10 ring-1 ring-warning/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
         >
@@ -1083,7 +1087,7 @@ export default function CourseReviews() {
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-success",
             (statusFilter === 'approved' && reviewedDateFilter === 'today')
-              ? "border-success bg-success-soft/10 ring-1 ring-success/30" 
+              ? "border-success bg-success-soft/10 ring-1 ring-success/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
         >
@@ -1112,7 +1116,7 @@ export default function CourseReviews() {
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-danger-brick",
             (statusFilter === 'rejected' && reviewedDateFilter === 'today')
-              ? "border-danger-brick bg-danger-brick-soft/10 ring-1 ring-danger-brick/30" 
+              ? "border-danger-brick bg-danger-brick-soft/10 ring-1 ring-danger-brick/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
         >
@@ -1348,9 +1352,9 @@ export default function CourseReviews() {
       )}
 
       {/* 4. Target auto-scroll & Bảng dữ liệu */}
-      <section 
+      <section
         ref={resultsSectionRef}
-        id="course-reviews-results-section" 
+        id="course-reviews-results-section"
         className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden flex flex-col min-h-[400px] scroll-mt-24"
       >
         {/* Table Scroll Container */}

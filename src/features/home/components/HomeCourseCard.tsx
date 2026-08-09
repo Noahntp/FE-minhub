@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Star, Users, Heart, ShoppingCart, Flame, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiFetch } from '@/shared/lib/api-client';
+import { useApp } from '@/app/AppContext';
 
 export interface HomeCourseItem {
   id: string;
+  realId?: number;
   title: string;
   level: 'Cơ bản' | 'Trung cấp' | 'Nâng cao' | 'Mọi trình độ';
   thumbnail: string;
@@ -19,6 +22,7 @@ export interface HomeCourseItem {
   isFree?: boolean;
   isNew?: boolean;
   isHot?: boolean;
+  durationSeconds?: number;
 }
 
 interface HomeCourseCardProps {
@@ -28,7 +32,11 @@ interface HomeCourseCardProps {
 
 export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
   const navigate = useNavigate();
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const { favorites, setFavorites } = useApp();
+
+  const isWishlisted =
+    favorites.includes(course.id) ||
+    (course.realId ? favorites.includes(String(course.realId)) : false);
 
   // Determine which single tag to show on top-left of thumbnail
   const effectiveVariant =
@@ -41,14 +49,40 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
       ? 'discount'
       : undefined);
 
-  const handleWishlist = (e: React.MouseEvent) => {
+  const courseTarget = (course as any).slug || course.id;
+
+  const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsWishlisted(!isWishlisted);
-    if (!isWishlisted) {
+
+    const targetId = course.realId || (course as any).course_id || course.id;
+    const nextState = !isWishlisted;
+
+    if (nextState) {
       toast.success(`Đã thêm "${course.title}" vào danh sách yêu thích!`);
+      setFavorites((prev) => [...prev.filter((id) => id !== course.id), course.id]);
+
+      if (targetId && !isNaN(Number(targetId))) {
+        try {
+          await apiFetch('/wishlists', {
+            method: 'POST',
+            body: JSON.stringify({ course_id: Number(targetId) }),
+          });
+        } catch (err) {
+          console.warn('Could not add to wishlist on backend:', err);
+        }
+      }
     } else {
       toast.info(`Đã xóa khỏi danh sách yêu thích.`);
+      setFavorites((prev) => prev.filter((id) => id !== course.id && id !== String(targetId)));
+
+      if (targetId && !isNaN(Number(targetId))) {
+        try {
+          await apiFetch(`/wishlists/${targetId}`, { method: 'DELETE' });
+        } catch (err) {
+          console.warn('Could not remove from wishlist on backend:', err);
+        }
+      }
     }
   };
 
@@ -56,11 +90,11 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
     e.preventDefault();
     e.stopPropagation();
     if (course.isFree || course.price === 0) {
-      toast.success(`Đăng ký thành công khóa học miễn phí: ${course.title}`);
-      navigate(`/courses/${course.id}`);
+      toast.success(`Đăng ký tham gia khóa học miễn phí thành công: ${course.title}`);
+      navigate(`/learn/${courseTarget}`);
     } else {
       toast.success(`Đang mở trang thanh toán cho khóa học: ${course.title}`);
-      navigate(`/checkout?courseId=${course.id}`);
+      navigate(`/checkout?courseId=${courseTarget}`);
     }
   };
 
@@ -71,7 +105,7 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
   return (
     <div className="group relative bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full overflow-hidden">
       {/* Thumbnail Container */}
-      <Link to={`/courses/${course.id}`} className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 block">
+      <Link to={`/courses/${courseTarget}`} className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 block">
         <img
           src={course.thumbnail}
           alt={course.title}
@@ -127,7 +161,7 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
       <div className="p-4 flex flex-col flex-1 justify-between gap-3">
         <div>
           {/* Title */}
-          <Link to={`/courses/${course.id}`}>
+          <Link to={`/courses/${courseTarget}`}>
             <h3 className="font-bold text-slate-800 text-base line-clamp-2 leading-snug group-hover:text-emerald-600 transition-colors mb-2 min-h-[2.75rem]">
               {course.title}
             </h3>

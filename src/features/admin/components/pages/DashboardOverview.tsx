@@ -113,7 +113,7 @@ export default function DashboardOverview() {
 
   const [uiState, setUiState] = useState<'loading' | 'loaded' | 'empty' | 'error' | 'forbidden'>('loading');
   const [dashboardData, setDashboardData] = useState<any>(null);
-  
+
   // Tab cho dữ liệu gần đây
   const [activeTab, setActiveTab] = useState<'orders' | 'courses'>('orders');
 
@@ -137,7 +137,7 @@ export default function DashboardOverview() {
     if (chart) {
       chart.resetZoom();
       setIsZoomedOrPanned(false);
-      
+
       const initialInterval = chart.options.initialInterval;
       const initialGroupedData = chart.options.initialGroupedData;
       if (initialInterval && initialGroupedData) {
@@ -161,7 +161,7 @@ export default function DashboardOverview() {
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     };
-    
+
     // Dùng ngày thực tế thay vì hardcode
     const today = new Date();
     let params: any = {};
@@ -460,11 +460,11 @@ export default function DashboardOverview() {
                 if (chart.options.currentAutoInterval !== newInterval) {
                   chart.options.currentAutoInterval = newInterval;
                   const newGrouped = groupDashboardChartData(items, start, end, newInterval);
-                  
+
                   chart.data.datasets[0].data = newGrouped.map(d => ({ x: d.x, y: d.gross_amount }));
                   chart.data.datasets[1].data = newGrouped.map(d => ({ x: d.x, y: d.instructor_amount }));
                   chart.data.datasets[2].data = newGrouped.map(d => ({ x: d.x, y: d.platform_fee_amount }));
-                  
+
                   chart.options.currentGroupedData = newGrouped;
                   chart.update("none");
                 }
@@ -584,18 +584,18 @@ export default function DashboardOverview() {
     if (!isoString) return "---";
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return "---";
-    
+
     const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
-    
+
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
-  const getBtnClass = (filter: string) => 
-    activeFilter === filter 
+  const getBtnClass = (filter: string) =>
+    activeFilter === filter
       ? "px-3.5 py-1.5 text-xs font-semibold rounded-full bg-ink text-white transition-colors shadow-sm cursor-pointer"
       : "px-3.5 py-1.5 text-xs font-semibold rounded-full text-mid-gray hover:text-ink transition-colors bg-transparent cursor-pointer";
 
@@ -753,7 +753,7 @@ export default function DashboardOverview() {
   // Công việc cần xử lý
   const actionItemsList = useMemo(() => {
     const actions = dashboardData?.dashboard?.data?.action_required || {};
-    
+
     return [
       {
         count: actions.pending_course_reviews || 0,
@@ -819,7 +819,7 @@ export default function DashboardOverview() {
             Báo cáo hiệu suất hoạt động và kinh doanh hệ thống MindHub.
           </p>
         </div>
-        
+
         {/* Time & Custom Date Filters */}
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           {/* Presets */}
@@ -977,10 +977,10 @@ export default function DashboardOverview() {
       ) : dashboardData ? (
         /* ==================== LOADED CONTENT ==================== */
         <div id="dashboard-content-wrapper" className="space-y-4 animate-none">
-          
+
           {/* 1. KPI chính */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-none">
-            
+
             {/* KPI: Tổng người dùng */}
             <button
               onClick={() => navigate(`/admin/users`)}
@@ -1001,22 +1001,22 @@ export default function DashboardOverview() {
                 </span>
               </div>
               <div className="w-full bg-canvas h-1 rounded-full mt-2.5 overflow-hidden flex">
-                <div 
-                  className="bg-ink h-full rounded-l-full" 
+                <div
+                  className="bg-ink h-full rounded-l-full"
                   style={{
                     width: `${
-                      dashboardData.dashboard.data.summary.total_users > 0 
-                        ? (dashboardData.dashboard.data.summary.total_learners / dashboardData.dashboard.data.summary.total_users) * 100 
+                      dashboardData.dashboard.data.summary.total_users > 0
+                        ? (dashboardData.dashboard.data.summary.total_learners / dashboardData.dashboard.data.summary.total_users) * 100
                         : 0
                     }%`
                   }}
                 />
-                <div 
-                  className="bg-mid-gray h-full rounded-r-full" 
+                <div
+                  className="bg-mid-gray h-full rounded-r-full"
                   style={{
                     width: `${
-                      dashboardData.dashboard.data.summary.total_users > 0 
-                        ? (dashboardData.dashboard.data.summary.total_instructors / dashboardData.dashboard.data.summary.total_users) * 100 
+                      dashboardData.dashboard.data.summary.total_users > 0
+                        ? (dashboardData.dashboard.data.summary.total_instructors / dashboardData.dashboard.data.summary.total_users) * 100
                         : 0
                     }%`
                   }}
@@ -1026,7 +1026,7 @@ export default function DashboardOverview() {
                 {formatNumber(dashboardData.dashboard.data.summary.total_learners)} học viên • {formatNumber(dashboardData.dashboard.data.summary.total_instructors)} giảng viên
               </p>
             </button>
- 
+
             {/* KPI: Tổng khóa học */}
             <button
               onClick={() => navigate(`/admin/courses`)}
@@ -1052,12 +1052,12 @@ export default function DashboardOverview() {
                 </span>
               </div>
               <div className="w-full bg-canvas h-1 rounded-full mt-2.5 overflow-hidden">
-                <div 
-                  className="bg-success h-full rounded-full" 
+                <div
+                  className="bg-success h-full rounded-full"
                   style={{
                     width: `${
-                      dashboardData.dashboard.data.summary.total_courses > 0 
-                        ? (dashboardData.dashboard.data.summary.total_published_courses / dashboardData.dashboard.data.summary.total_courses) * 100 
+                      dashboardData.dashboard.data.summary.total_courses > 0
+                        ? (dashboardData.dashboard.data.summary.total_published_courses / dashboardData.dashboard.data.summary.total_courses) * 100
                         : 0
                     }%`
                   }}
@@ -1067,9 +1067,9 @@ export default function DashboardOverview() {
                 {formatNumber(dashboardData.dashboard.data.summary.total_published_courses)} đã xuất bản
               </p>
             </button>
- 
+
             {/* KPI: Tổng lượt ghi danh */}
-            <button 
+            <button
               onClick={() => navigate(`/admin/courses?sort_by=enrollment_count`)}
               className="text-left w-full block rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle hover:border-mid-gray/40 transition-all group cursor-pointer"
             >
@@ -1088,8 +1088,8 @@ export default function DashboardOverview() {
                 </span>
               </div>
               <div className="w-full bg-canvas h-1 rounded-full mt-2.5 overflow-hidden">
-                <div 
-                  className="bg-success h-full rounded-full" 
+                <div
+                  className="bg-success h-full rounded-full"
                   style={{ width: `${dashboardData.dashboard.data.summary.completion_rate}%` }}
                 />
               </div>
@@ -1097,7 +1097,7 @@ export default function DashboardOverview() {
                 {formatNumber(dashboardData.dashboard.data.summary.completed_enrollments)} hoàn thành • Tỉ lệ {dashboardData.dashboard.data.summary.completion_rate}%
               </p>
             </button>
- 
+
             {/* KPI: Tổng đơn hàng */}
             <button
               onClick={() => navigate(`/admin/orders`)}
@@ -1118,12 +1118,12 @@ export default function DashboardOverview() {
                 </span>
               </div>
               <div className="w-full bg-canvas h-1 rounded-full mt-2.5 overflow-hidden">
-                <div 
-                  className="bg-success h-full rounded-full" 
+                <div
+                  className="bg-success h-full rounded-full"
                   style={{
                     width: `${
-                      dashboardData.dashboard.data.summary.total_orders > 0 
-                        ? (dashboardData.dashboard.data.summary.paid_orders / dashboardData.dashboard.data.summary.total_orders) * 100 
+                      dashboardData.dashboard.data.summary.total_orders > 0
+                        ? (dashboardData.dashboard.data.summary.paid_orders / dashboardData.dashboard.data.summary.total_orders) * 100
                         : 0
                     }%`
                   }}
@@ -1138,7 +1138,7 @@ export default function DashboardOverview() {
 
           {/* 2. KPI tài chính phụ */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            
+
             {/* Doanh thu gộp */}
             <div className="rounded-[6px] border border-hairline bg-paper p-3.5 shadow-subtle flex flex-col justify-between min-h-[96px]">
               <div className="flex items-center justify-between">
@@ -1211,7 +1211,7 @@ export default function DashboardOverview() {
                 </span>
               </div>
             </button>
- 
+
             {/* Đã duyệt chờ chi */}
             <button
               onClick={() => navigate(`/admin/withdrawals?status=approved`)}
@@ -1239,7 +1239,7 @@ export default function DashboardOverview() {
                 </span>
               </div>
             </button>
- 
+
             {/* Đã thanh toán cho GV */}
             <button
               onClick={() => navigate(`/admin/withdrawals?status=paid`)}
@@ -1277,10 +1277,10 @@ export default function DashboardOverview() {
                   const percent = totalCourses > 0 ? (status.count / totalCourses) * 100 : 0;
                   if (percent === 0) return null;
                   return (
-                    <div 
-                      key={status.key} 
-                      className={cn(status.colorClass, "h-full")} 
-                      style={{ width: `${percent}%` }} 
+                    <div
+                      key={status.key}
+                      className={cn(status.colorClass, "h-full")}
+                      style={{ width: `${percent}%` }}
                       title={`${status.label}: ${formatNumber(status.count)} (${percent.toFixed(0)}%)`}
                     />
                   );
@@ -1293,8 +1293,8 @@ export default function DashboardOverview() {
                 {courseStatuses.map(status => {
                   const percent = totalCourses > 0 ? (status.count / totalCourses) * 100 : 0;
                   return (
-                    <button 
-                      key={status.key} 
+                    <button
+                      key={status.key}
                       onClick={() => navigate(`/admin/courses?status=${status.code}`)}
                       className="text-left w-full flex flex-col justify-between p-2.5 bg-paper hover:bg-canvas/30 border border-hairline rounded-[6px] transition-all hover:border-mid-gray/30 group cursor-pointer"
                     >
@@ -1337,10 +1337,10 @@ export default function DashboardOverview() {
                   const percent = totalUsers > 0 ? (status.count / totalUsers) * 100 : 0;
                   if (percent === 0) return null;
                   return (
-                    <div 
-                      key={status.key} 
-                      className={cn(status.colorClass, "h-full")} 
-                      style={{ width: `${percent}%` }} 
+                    <div
+                      key={status.key}
+                      className={cn(status.colorClass, "h-full")}
+                      style={{ width: `${percent}%` }}
                       title={`${status.label}: ${formatNumber(status.count)} (${percent.toFixed(0)}%)`}
                     />
                   );
@@ -1353,8 +1353,8 @@ export default function DashboardOverview() {
                 {userStatuses.map(status => {
                   const percent = totalUsers > 0 ? (status.count / totalUsers) * 100 : 0;
                   return (
-                    <button 
-                      key={status.key} 
+                    <button
+                      key={status.key}
                       onClick={() => navigate(`/admin/users?status=${status.code}`)}
                       className="text-left w-full flex flex-col justify-between p-2.5 bg-paper hover:bg-canvas/30 border border-hairline rounded-[6px] transition-all hover:border-mid-gray/30 group cursor-pointer"
                     >
@@ -1409,8 +1409,8 @@ export default function DashboardOverview() {
 
               {/* Vùng vẽ biểu đồ */}
               <div className="mt-3.5 h-60 w-full relative">
-                <canvas 
-                  ref={canvasRef} 
+                <canvas
+                  ref={canvasRef}
                   id="revenue-chart-canvas"
                   className="w-full h-full"
                   style={{ cursor: isDragging ? 'grabbing' : (isZoomedOrPanned ? 'grab' : 'default') }}
@@ -1467,13 +1467,13 @@ export default function DashboardOverview() {
 
           {/* 5. Rankings & Timeline */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            
+
             {/* Cột 1: Xếp hạng khóa học */}
             <div className="rounded-[6px] border border-border-strong bg-paper p-4 shadow-sm flex flex-col">
               <div className="border-l-3 border-success pl-2.5 mb-2.5">
                 <h2 className="text-sm font-semibold text-ink leading-snug">Top khóa học tiêu biểu</h2>
-                <p className="text-[11px] text-mid-gray mt-0.5 leading-normal">
-                  Xếp hạng theo tổng doanh thu bán khóa học
+                <p className="text-xs text-mid-gray mt-1">
+                  Xếp hạng theo điểm chất lượng và độ thịnh hành (Trending)
                 </p>
               </div>
               <div className="mt-2.5 overflow-x-auto flex-1 max-h-80 custom-scrollbar pr-1">
@@ -1489,8 +1489,8 @@ export default function DashboardOverview() {
                   <tbody id="top-selling-courses-container" className="divide-y divide-hairline">
                     {(dashboardData?.top_courses?.data?.items || []).length > 0 ? (
                       (dashboardData?.top_courses?.data?.items || []).map((course: any, idx: number) => (
-                        <tr 
-                          key={idx} 
+                        <tr
+                          key={idx}
                           onClick={() => navigate(`/admin/courses?open_course_id=${course.course_id}`)}
                           className={cn("hover:bg-canvas/50 transition-colors cursor-pointer", idx === 0 ? "bg-success-soft/30 border-l-2 border-success" : "")}
                         >
@@ -1525,8 +1525,8 @@ export default function DashboardOverview() {
             <div className="rounded-[6px] border border-border-strong bg-paper p-4 shadow-sm flex flex-col">
               <div className="border-l-3 border-ink pl-2.5 mb-2.5">
                 <h2 className="text-sm font-semibold text-ink leading-snug">Giảng viên nổi bật</h2>
-                <p className="text-[11px] text-mid-gray mt-0.5 leading-normal">
-                  Xếp hạng theo doanh thu gộp nhận được
+                <p className="text-xs text-mid-gray mt-1">
+                  Xếp hạng theo tổng lượt đăng ký và tỷ lệ hoàn thành
                 </p>
               </div>
               <div className="mt-2.5 overflow-x-auto flex-1 max-h-80 custom-scrollbar pr-1">
@@ -1543,8 +1543,8 @@ export default function DashboardOverview() {
                       (dashboardData?.top_instructors?.data?.items || []).map((inst: any, idx: number) => {
                         const initials = inst.full_name.split(" ").pop()?.substring(0, 2).toUpperCase() || "GV";
                         return (
-                          <tr 
-                            key={idx} 
+                          <tr
+                            key={idx}
                             onClick={() => navigate(`/admin/users?role=instructor&open_user_id=${inst.instructor_id}`)}
                             className={cn("hover:bg-canvas/50 transition-colors cursor-pointer", idx === 0 ? "bg-canvas/30 border-l-2 border-ink" : "")}
                           >
@@ -1642,8 +1642,8 @@ export default function DashboardOverview() {
                       }
 
                       return (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           onClick={() => navigate(`/admin/orders?open_order_id=${order.id}`)}
                           className={cn("relative pl-3.5 pr-2 py-2 border border-hairline/40 rounded-[6px] hover:bg-canvas/40 transition-colors cursor-pointer", borderClass)}
                         >
@@ -1702,8 +1702,8 @@ export default function DashboardOverview() {
                       const dateFormatted = formatDateTime(dateToShow);
 
                       return (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           onClick={() => navigate(`/admin/courses?open_course_id=${course.id}`)}
                           className={cn("relative pl-3.5 pr-2 py-2 border border-hairline/40 rounded-[6px] hover:bg-canvas/40 transition-colors cursor-pointer", borderClass)}
                         >

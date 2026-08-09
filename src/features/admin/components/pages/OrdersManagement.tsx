@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { 
-  getOrders, 
-  getOrder, 
-  getOrderStatusMeta, 
-  getPaymentStatusMeta, 
-  isValidOrderPaymentPair 
+import {
+  getOrders,
+  getOrder,
+  getOrderStatusMeta,
+  getPaymentStatusMeta,
+  isValidOrderPaymentPair
 } from '@/assets/js/api/orders-api';
+import { ArrowUpDown, ExternalLink, ChevronDown, Search, X } from "lucide-react";
 import AdminPagination from "../shared/AdminPagination";
+import FilterSelect from "./FilterSelect";
 
 export default function OrdersManagement() {
+  const navigate = useNavigate();
   // --- States ---
   const [items, setItems] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>({
@@ -51,9 +55,6 @@ export default function OrdersManagement() {
   const [tempDateTo, setTempDateTo] = useState("");
 
   // UI Dropdown/Menus states
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const [paymentDropdownOpen, setPaymentDropdownOpen] = useState(false);
-  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
 
   // Loading States
@@ -66,21 +67,9 @@ export default function OrdersManagement() {
   const [activeTab, setActiveTab] = useState<'overview' | 'payment' | 'consistency' | 'timeline'>('overview');
 
   // Refs for closing menus on outside click
-  const statusRef = useRef<HTMLDivElement>(null);
-  const paymentRef = useRef<HTMLDivElement>(null);
-  const dateRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
-      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
-        setStatusDropdownOpen(false);
-      }
-      if (paymentRef.current && !paymentRef.current.contains(event.target as Node)) {
-        setPaymentDropdownOpen(false);
-      }
-      if (dateRef.current && !dateRef.current.contains(event.target as Node)) {
-        setDateDropdownOpen(false);
-      }
       // Close active row menu
       if (activeMenuId !== null && !(event.target as Element).closest('[data-no-row-click]')) {
         setActiveMenuId(null);
@@ -164,6 +153,9 @@ export default function OrdersManagement() {
     setDateTo(tempDateTo);
     setPage(1);
     toast.success("Đã áp dụng bộ lọc");
+    setTimeout(() => {
+      document.getElementById('orders-table-container')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const handleResetFilters = () => {
@@ -182,13 +174,19 @@ export default function OrdersManagement() {
     setDateTo("");
     setPage(1);
     toast.info("Đã đặt lại bộ lọc");
+    setTimeout(() => {
+      document.getElementById('orders-table-container')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   const handleQuickStatusTab = (statusTab: string) => {
     setStatus(statusTab);
     setTempStatus(statusTab);
     setPage(1);
-    toast.info(`Đang lọc theo đơn hàng: ${getOrderStatusMeta(statusTab).label || "Tất cả"}`);
+    toast.success(`Đã lọc đơn hàng theo: ${getOrderStatusMeta(statusTab).label || "Tất cả"}`);
+    setTimeout(() => {
+      document.getElementById('orders-table-container')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   // --- Helpers ---
@@ -292,7 +290,7 @@ export default function OrdersManagement() {
       {/* 1. SUMMARY CARDS (6 Cards) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         {/* Card 1: Tổng đơn hàng */}
-        <div 
+        <div
           onClick={() => handleQuickStatusTab("all")}
           className={`rounded-[6px] border bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/50 transition-all cursor-pointer group ${
             status === "all" ? "border-ink border-2" : "border-hairline"
@@ -314,7 +312,7 @@ export default function OrdersManagement() {
         </div>
 
         {/* Card 2: Đã thanh toán */}
-        <div 
+        <div
           onClick={() => handleQuickStatusTab("paid")}
           className={`rounded-[6px] border border-t-2 border-t-emerald-500 bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/50 transition-all cursor-pointer group ${
             status === "paid" ? "border-emerald-500 border-2" : "border-hairline"
@@ -335,7 +333,7 @@ export default function OrdersManagement() {
         </div>
 
         {/* Card 3: Chờ thanh toán */}
-        <div 
+        <div
           onClick={() => handleQuickStatusTab("pending")}
           className={`rounded-[6px] border border-t-2 border-t-amber-500 bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/50 transition-all cursor-pointer group ${
             status === "pending" ? "border-amber-500 border-2" : "border-hairline"
@@ -357,7 +355,7 @@ export default function OrdersManagement() {
         </div>
 
         {/* Card 4: Thất bại */}
-        <div 
+        <div
           onClick={() => handleQuickStatusTab("failed")}
           className={`rounded-[6px] border border-t-2 border-t-rose-500 bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/50 transition-all cursor-pointer group ${
             status === "failed" ? "border-rose-500 border-2" : "border-hairline"
@@ -380,7 +378,7 @@ export default function OrdersManagement() {
         </div>
 
         {/* Card 5: Đã hủy */}
-        <div 
+        <div
           onClick={() => handleQuickStatusTab("cancelled")}
           className={`rounded-[6px] border bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/50 transition-all cursor-pointer group ${
             status === "cancelled" ? "border-ink border-2" : "border-hairline"
@@ -401,7 +399,7 @@ export default function OrdersManagement() {
         </div>
 
         {/* Card 6: Đã hết hạn */}
-        <div 
+        <div
           onClick={() => handleQuickStatusTab("expired")}
           className={`rounded-[6px] border bg-paper p-4 shadow-subtle flex flex-col justify-between min-h-[96px] hover:border-mid-gray/50 transition-all cursor-pointer group ${
             status === "expired" ? "border-ink border-2" : "border-hairline"
@@ -564,11 +562,11 @@ export default function OrdersManagement() {
 
       {/* 4. DETAIL FILTERS ROW */}
       <div className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle space-y-3 mb-4 w-full min-w-0">
-        <form onSubmit={handleApplyFilters} className="flex flex-col gap-3 p-0">
-          <div className="flex flex-wrap lg:flex-nowrap items-end gap-2 w-full">
+        <form onSubmit={handleApplyFilters}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Unified Search */}
-            <div className="flex-1 lg:flex-[1.5] min-w-[120px] lg:min-w-0 flex flex-col gap-1.5 w-full">
-              <label htmlFor="filter-search" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray select-none">TÌM KIẾM</label>
+            <div className="sm:col-span-2 lg:col-span-2">
+              <label htmlFor="filter-search" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray select-none mb-1.5">TÌM KIẾM</label>
               <div className="relative">
                 <input
                   type="text"
@@ -576,144 +574,95 @@ export default function OrdersManagement() {
                   value={tempSearch}
                   onChange={(e) => setTempSearch(e.target.value)}
                   placeholder="Tìm theo mã đơn, người mua, khóa học..."
-                  className="w-full h-9 pl-3 pr-8 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink transition-colors placeholder:text-mid-gray/60"
+                  className="w-full h-10 pl-8 pr-8 text-xs bg-paper border border-hairline rounded-lg hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none shadow-subtle font-medium text-ink transition-all placeholder:text-mid-gray/60 placeholder:font-normal"
                 />
+                <Search className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" aria-hidden="true" />
                 {tempSearch && (
                   <button
                     type="button"
                     onClick={() => setTempSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mid-gray hover:text-ink cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mid-gray hover:text-ink cursor-pointer p-0.5"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
 
             {/* Trạng thái đơn */}
-            <div className="flex-1 lg:flex-1 min-w-[130px] lg:min-w-0 flex flex-col gap-1.5 w-full" ref={statusRef}>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray select-none">TRẠNG THÁI ĐƠN</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                  className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] flex items-center justify-between text-ink transition-colors cursor-pointer"
-                >
-                  <span className="truncate">
-                    {tempStatus === "all" ? "Tất cả trạng thái" : getOrderStatusMeta(tempStatus).label}
-                  </span>
-                  <svg className="w-3.5 h-3.5 text-mid-gray shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {statusDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-hairline rounded-[6px] shadow-lg z-50 py-1 text-xs">
-                    <div onClick={() => { setTempStatus("all"); setStatusDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer font-semibold text-mid-gray">Tất cả trạng thái</div>
-                    <div onClick={() => { setTempStatus("pending"); setStatusDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-amber-600 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0"></span>Chờ thanh toán
-                    </div>
-                    <div onClick={() => { setTempStatus("paid"); setStatusDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-emerald-600 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"></span>Đã thanh toán
-                    </div>
-                    <div onClick={() => { setTempStatus("failed"); setStatusDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-rose-600 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0"></span>Thất bại
-                    </div>
-                    <div onClick={() => { setTempStatus("cancelled"); setStatusDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-ink/80 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-ink/60 shrink-0"></span>Đã hủy
-                    </div>
-                    <div onClick={() => { setTempStatus("expired"); setStatusDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-mid-gray w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-mid-gray/40 shrink-0"></span>Đã hết hạn
-                    </div>
-                  </div>
-                )}
-              </div>
+            <div>
+              <FilterSelect
+                id="filter-status"
+                label="TRẠNG THÁI ĐƠN"
+                value={tempStatus}
+                onChange={(val) => setTempStatus(val)}
+                placeholder="Tất cả trạng thái"
+                options={[
+                  { value: "all", label: "Tất cả trạng thái" },
+                  { value: "pending", label: "Chờ thanh toán", colorClass: "text-amber-600" },
+                  { value: "paid", label: "Đã thanh toán", colorClass: "text-emerald-600" },
+                  { value: "failed", label: "Thất bại", colorClass: "text-rose-600" },
+                  { value: "cancelled", label: "Đã hủy", colorClass: "text-ink/80" },
+                  { value: "expired", label: "Đã hết hạn", colorClass: "text-mid-gray" },
+                ]}
+              />
             </div>
 
             {/* Thanh toán */}
-            <div className="flex-1 lg:flex-1 min-w-[130px] lg:min-w-0 flex flex-col gap-1.5 w-full" ref={paymentRef}>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray select-none">THANH TOÁN</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setPaymentDropdownOpen(!paymentDropdownOpen)}
-                  className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] flex items-center justify-between text-ink transition-colors cursor-pointer"
-                >
-                  <span className="truncate">
-                    {tempPaymentStatus === "all" ? "Tất cả trạng thái" : getPaymentStatusMeta(tempPaymentStatus).label}
-                  </span>
-                  <svg className="w-3.5 h-3.5 text-mid-gray shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {paymentDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-hairline rounded-[6px] shadow-lg z-50 py-1 text-xs">
-                    <div onClick={() => { setTempPaymentStatus("all"); setPaymentDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer font-semibold text-mid-gray">Tất cả trạng thái</div>
-                    <div onClick={() => { setTempPaymentStatus("unpaid"); setPaymentDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-mid-gray w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-mid-gray/40 shrink-0"></span>Chưa thanh toán
-                    </div>
-                    <div onClick={() => { setTempPaymentStatus("processing"); setPaymentDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-amber-600 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0"></span>Đang xử lý
-                    </div>
-                    <div onClick={() => { setTempPaymentStatus("paid"); setPaymentDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-emerald-600 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"></span>Thành công
-                    </div>
-                    <div onClick={() => { setTempPaymentStatus("failed"); setPaymentDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-rose-600 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0"></span>Thất bại
-                    </div>
-                    <div onClick={() => { setTempPaymentStatus("refunded"); setPaymentDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer inline-flex items-center gap-1.5 font-medium text-sky-600 w-full">
-                      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0"></span>Hoàn tiền
-                    </div>
-                  </div>
-                )}
-              </div>
+            <div>
+              <FilterSelect
+                id="filter-payment"
+                label="THANH TOÁN"
+                value={tempPaymentStatus}
+                onChange={(val) => setTempPaymentStatus(val)}
+                placeholder="Tất cả trạng thái"
+                options={[
+                  { value: "all", label: "Tất cả trạng thái" },
+                  { value: "unpaid", label: "Chưa thanh toán", colorClass: "text-mid-gray" },
+                  { value: "processing", label: "Đang xử lý", colorClass: "text-amber-600" },
+                  { value: "paid", label: "Thành công", colorClass: "text-emerald-600" },
+                  { value: "failed", label: "Thất bại", colorClass: "text-rose-600" },
+                  { value: "refunded", label: "Hoàn tiền", colorClass: "text-sky-600" },
+                ]}
+              />
             </div>
 
             {/* Khoảng thời gian */}
-            <div className="flex-1 lg:flex-1 min-w-[140px] lg:min-w-0 flex flex-col gap-1.5 w-full" ref={dateRef}>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray select-none">KHOẢNG THỜI GIAN</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setDateDropdownOpen(!dateDropdownOpen)}
-                  className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] flex items-center justify-between text-ink transition-colors cursor-pointer"
-                >
-                  <span className="truncate">
-                    {tempDatePreset === "all" ? "Tất cả thời gian" : tempDatePreset === "custom" ? "Tùy chọn thời gian" : tempDatePreset === "last_7_days" ? "7 ngày gần nhất" : tempDatePreset === "last_30_days" ? "30 ngày gần nhất" : "1 năm gần nhất"}
-                  </span>
-                  <svg className="w-3.5 h-3.5 text-mid-gray shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {dateDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-hairline rounded-[6px] shadow-lg z-50 py-1 text-xs">
-                    <div onClick={() => { setTempDatePreset("all"); setDateDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer font-semibold text-mid-gray">Tất cả thời gian</div>
-                    <div onClick={() => { setTempDatePreset("custom"); setDateDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer">Tùy chọn thời gian</div>
-                    <div onClick={() => { setTempDatePreset("last_7_days"); setDateDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer">7 ngày gần nhất</div>
-                    <div onClick={() => { setTempDatePreset("last_30_days"); setDateDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer">30 ngày gần nhất</div>
-                    <div onClick={() => { setTempDatePreset("last_1_year"); setDateDropdownOpen(false); }} className="px-3 py-2 hover:bg-canvas cursor-pointer">1 năm gần nhất</div>
-                  </div>
-                )}
-              </div>
+            <div>
+              <FilterSelect
+                id="filter-time-preset"
+                label="KHOẢNG THỜI GIAN"
+                value={tempDatePreset}
+                onChange={(val) => setTempDatePreset(val)}
+                placeholder="Tất cả thời gian"
+                options={[
+                  { value: "all", label: "Tất cả thời gian" },
+                  { value: "custom", label: "Tùy chọn thời gian" },
+                  { value: "last_7_days", label: "7 ngày gần nhất" },
+                  { value: "last_30_days", label: "30 ngày gần nhất" },
+                  { value: "last_1_year", label: "1 năm gần nhất" },
+                ]}
+              />
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 shrink-0 w-full">
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="h-9 px-3 text-xs font-medium rounded-[6px] border border-hairline bg-paper text-ink hover:bg-canvas transition-colors cursor-pointer"
-            >
-              Đặt lại
-            </button>
-            <button
-              type="submit"
-              className="h-9 px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:bg-ink/90 transition-colors shadow-sm cursor-pointer"
-            >
-              Áp dụng
-            </button>
+          <div className="flex items-center justify-between pt-3 mt-3 border-t border-hairline/60 gap-3">
+            <span className="text-[10px] text-mid-gray italic">* Bấm "Áp dụng" để tìm kiếm với bộ lọc.</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-ink text-white hover:bg-ink/90 transition-colors shadow-subtle cursor-pointer"
+              >
+                Áp dụng
+              </button>
+            </div>
           </div>
         </form>
 
@@ -727,7 +676,7 @@ export default function OrdersManagement() {
                 id="filter-date-from"
                 value={tempDateFrom}
                 onChange={(e) => setTempDateFrom(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink"
+                className="w-full h-8 px-2.5 text-xs bg-paper border border-hairline rounded-[6px] focus:outline-none focus:border-ink"
               />
             </div>
             <div className="w-36">
@@ -737,7 +686,7 @@ export default function OrdersManagement() {
                 id="filter-date-to"
                 value={tempDateTo}
                 onChange={(e) => setTempDateTo(e.target.value)}
-                className="w-full h-8 px-2.5 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink"
+                className="w-full h-8 px-2.5 text-xs bg-paper border border-hairline rounded-[6px] focus:outline-none focus:border-ink"
               />
             </div>
           </div>
@@ -745,9 +694,9 @@ export default function OrdersManagement() {
       </div>
 
       {/* 5. TABLE CONTAINER */}
-      <div className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden mb-4">
+      <div id="orders-table-container" className="scroll-mt-20 min-h-[600px] flex flex-col rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden mb-4">
         {loading ? (
-          <div className="p-12 text-center">
+          <div className="p-12 text-center flex-1 flex flex-col items-center justify-center">
             <div className="flex flex-col items-center justify-center space-y-3">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent"></div>
               <p className="text-sm font-medium text-mid-gray">Đang tải danh sách đơn hàng...</p>
@@ -771,7 +720,7 @@ export default function OrdersManagement() {
               </colgroup>
               <thead>
                 <tr className="border-b border-hairline bg-surface-alt text-[10px] font-bold uppercase tracking-wider text-mid-gray font-sans">
-                  <th className="py-3 px-3">Đơn hàng / Người mua</th>
+                  <th className="py-3 px-3">Người mua</th>
                   <th className="py-3 px-3">Khóa học</th>
                   <th className="py-3 px-3">Giá thanh toán</th>
                   <th className="py-3 px-3">Phương thức</th>
@@ -799,37 +748,45 @@ export default function OrdersManagement() {
                   const hasDiscount = Number(order.discount_amount) > 0 && Number(order.price_snapshot) !== Number(order.amount);
 
                   return (
-                    <tr 
+                    <tr
                       key={order.id}
                       onClick={() => handleOpenDrawer(order.id)}
                       className="border-b border-hairline hover:bg-canvas/80 transition-colors cursor-pointer group"
                     >
-                      {/* Column 1: Đơn hàng / Người mua */}
+                      {/* Column 1: Người mua */}
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-1 select-none">
-                          <span className="font-mono font-bold text-ink leading-tight">{order.order_code}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyCode(order.order_code);
-                            }}
-                            className="text-mid-gray hover:text-ink transition-colors p-0.5 rounded cursor-pointer shrink-0"
-                            title="Sao chép mã đơn"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                            </svg>
-                          </button>
-                        </div>
-                        {order.provider_transaction_id && (
-                          <div className="text-[9px] text-mid-gray font-mono mt-0.5 truncate" title={`Mã GD: ${order.provider_transaction_id}`}>
-                            {order.provider_transaction_id}
+                        <div className="flex items-start gap-2">
+                          {order.user?.avatar_url ? (
+                            <img src={order.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 bg-canvas border border-hairline" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-canvas border border-hairline flex items-center justify-center text-[10px] font-bold text-mid-gray shrink-0 uppercase">
+                              {order.user?.full_name ? order.user.full_name.charAt(0) : "?"}
+                            </div>
+                          )}
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <div className="font-medium text-ink truncate" title={order.user?.full_name}>{order.user?.full_name || "---"}</div>
+                              {order.user && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(`${order.user.full_name} - ${order.user.email}`);
+                                    toast.success("Đã sao chép thông tin người mua");
+                                  }}
+                                  className="text-mid-gray hover:text-ink transition-colors p-0.5 rounded cursor-pointer shrink-0"
+                                  title="Sao chép thông tin người mua"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-mid-gray truncate mt-0.5" title={order.user?.email}>{order.user?.email || "---"}</div>
                           </div>
-                        )}
-                        <div className="font-medium text-ink truncate mt-1.5" title={order.user?.full_name}>{order.user?.full_name || "---"}</div>
-                        <div className="text-[10px] text-mid-gray truncate" title={order.user?.email}>{order.user?.email || "---"}</div>
+                        </div>
                       </td>
 
                       {/* Column 2: Khóa học */}
@@ -883,15 +840,59 @@ export default function OrdersManagement() {
                       </td>
 
                       {/* Column 5: Trạng thái */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        <div className="flex flex-col gap-1 select-none text-[10px] whitespace-nowrap">
-                          <div className={`flex items-center gap-1.5 font-medium ${statusColor.text}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${statusColor.bg} shrink-0`}></span>
-                            Đơn: {statusMeta.label}
+                      <td className="py-2.5 px-3">
+                        <div className="flex flex-col gap-2 select-none text-[10px] min-w-0">
+                          <div className="flex flex-col gap-0.5">
+                            <div className={`flex items-center gap-1.5 font-medium whitespace-nowrap ${statusColor.text}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${statusColor.bg} shrink-0`}></span>
+                              Đơn: {statusMeta.label}
+                            </div>
+                            <div className="flex items-center gap-1 pl-3 group/order">
+                              <span className="font-mono font-bold text-ink leading-tight truncate">#{order.order_code}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyCode(order.order_code);
+                                }}
+                                className="text-mid-gray hover:text-ink transition-colors p-0.5 rounded cursor-pointer shrink-0 opacity-0 lg:opacity-100 group-hover/order:opacity-100"
+                                title="Sao chép mã đơn"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
-                          <div className={`flex items-center gap-1.5 font-medium ${paymentColor.text}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${paymentColor.bg} shrink-0`}></span>
-                            Thanh toán: {paymentMeta.label}
+
+                          <div className="flex flex-col gap-0.5">
+                            <div className={`flex items-center gap-1.5 font-medium whitespace-nowrap ${paymentColor.text}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${paymentColor.bg} shrink-0`}></span>
+                              Thanh toán: {paymentMeta.label}
+                            </div>
+                            {order.provider_transaction_id && (
+                              <div className="flex items-center gap-1 pl-3 group/txn">
+                                <span className="font-mono font-semibold text-mid-gray truncate" title={`Mã GD: ${order.provider_transaction_id}`}>
+                                  Mã GD: {order.provider_transaction_id}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(order.provider_transaction_id);
+                                    toast.success("Đã sao chép mã giao dịch");
+                                  }}
+                                  className="text-mid-gray hover:text-ink transition-colors p-0.5 rounded cursor-pointer shrink-0 opacity-0 lg:opacity-100 group-hover/txn:opacity-100"
+                                  title="Sao chép mã giao dịch"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -987,14 +988,14 @@ export default function OrdersManagement() {
       {/* Drawer Chi tiết đơn hàng */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
-          <div 
+          <div
             onClick={handleCloseDrawer}
             className="absolute inset-0 bg-ink/40 backdrop-blur-xs transition-opacity duration-300 opacity-100 cursor-pointer"
           />
 
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-[760px] bg-paper shadow-2xl flex flex-col h-full transform transition-transform duration-300 translate-x-0 border-l border-hairline">
-              
+            <div className="w-screen max-w-[650px] md:w-[60vw] lg:w-[43vw] bg-paper shadow-2xl flex flex-col h-full transform transition-transform duration-300 translate-x-0 border-l border-hairline">
+
               {/* Drawer Header */}
               <div className="px-5 py-4 border-b border-hairline flex items-center justify-between shrink-0 bg-paper sticky top-0 z-10">
                 <div>
@@ -1107,13 +1108,20 @@ export default function OrdersManagement() {
                             <h3 className="text-xs font-bold uppercase tracking-wider text-mid-gray">
                               Thông tin người mua
                             </h3>
+                            {selectedOrder.user && (
+                              <button onClick={() => navigate(`/admin/users?open_user_id=${selectedOrder.user.id}`)} className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                                Xem chi tiết &rarr;
+                              </button>
+                            )}
                           </div>
                           {selectedOrder.user ? (
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                              <div><span className="text-mid-gray mr-1">Họ và tên:</span> <span className="font-semibold text-ink">{selectedOrder.user.full_name}</span></div>
-                              <div><span className="text-mid-gray mr-1">Email:</span> <span className="font-mono text-ink">{selectedOrder.user.email}</span></div>
-                              <div><span className="text-mid-gray mr-1">Vai trò:</span> <span className="capitalize text-ink">{selectedOrder.user.role}</span></div>
-                              <div><span className="text-mid-gray mr-1">Trạng thái tài khoản:</span> <span className="capitalize font-semibold text-emerald-600">● {selectedOrder.user.status}</span></div>
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[11px]">
+                              <div><span className="text-mid-gray block mb-0.5">Họ và tên</span><span className="font-semibold text-ink text-xs">{selectedOrder.user.full_name}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Email</span><span className="font-mono text-ink text-xs">{selectedOrder.user.email}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Số điện thoại</span><span className="font-mono text-ink text-xs">{selectedOrder.user.phone || "---"}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">ID User</span><span className="font-mono text-ink text-xs">#{selectedOrder.user.id}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Ngày tham gia</span><span className="text-ink text-xs">{formatDateTime(selectedOrder.user.created_at)}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Trạng thái</span><span className="capitalize font-semibold text-emerald-600 text-xs">● {selectedOrder.user.status}</span></div>
                             </div>
                           ) : (
                             <p className="text-xs text-mid-gray">Không có dữ liệu người mua</p>
@@ -1125,14 +1133,26 @@ export default function OrdersManagement() {
                             <h3 className="text-xs font-bold uppercase tracking-wider text-mid-gray">
                               Khóa học mua
                             </h3>
+                            {selectedOrder.course && (
+                              <button onClick={() => navigate(`/admin/courses?open_course_id=${selectedOrder.course.id}`)} className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                                Xem chi tiết &rarr;
+                              </button>
+                            )}
                           </div>
                           {selectedOrder.course ? (
-                            <div className="space-y-1.5 text-xs">
-                              <div className="font-bold text-ink text-sm">{selectedOrder.course.title}</div>
-                              <div className="text-mid-gray font-mono text-[11px]">{selectedOrder.course.slug}</div>
-                              <div className="flex items-center gap-4 text-xs pt-1">
-                                <span>Giá niêm yết: <strong className="text-ink font-sans">{formatVND(selectedOrder.course.price)}</strong></span>
-                                <span>Trạng thái: <strong className="capitalize text-emerald-600">● {selectedOrder.course.status}</strong></span>
+                            <div className="flex items-start gap-3 text-xs">
+                              <img
+                                src={selectedOrder.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
+                                alt="Course"
+                                className="w-16 h-10 rounded object-cover border border-hairline bg-canvas shrink-0"
+                              />
+                              <div className="space-y-1 flex-1">
+                                <div className="font-bold text-ink text-sm line-clamp-2">{selectedOrder.course.title}</div>
+                                <div className="text-mid-gray text-[11px]">Giảng viên: <span className="font-semibold text-ink">{selectedOrder.course.instructor_name || selectedOrder.course.instructor?.full_name || "---"}</span></div>
+                                <div className="flex items-center gap-4 text-[11px] pt-1">
+                                  <span>Giá: <strong className="text-ink font-sans">{formatVND(selectedOrder.course.price)}</strong></span>
+                                  <span>Trạng thái: <strong className="capitalize text-emerald-600">● {selectedOrder.course.status}</strong></span>
+                                </div>
                               </div>
                             </div>
                           ) : (
@@ -1186,75 +1206,120 @@ export default function OrdersManagement() {
                     )}
 
                     {/* Tab 3: Đối chiếu dữ liệu */}
-                    {activeTab === 'consistency' && (
+                    {activeTab === 'consistency' && (() => {
+                      const isFullyPaid = selectedOrder.status === "paid" && selectedOrder.payment_status === "paid";
+                      const hasEnrollment = !!selectedOrder.enrollment;
+                      const hasRevenue = !!selectedOrder.revenue;
+
+                      return (
                       <div className="space-y-4">
-                        {!(selectedOrder.status === "paid" && selectedOrder.payment_status === "paid") && (
-                          <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-medium">
-                            ● Đơn chưa hoàn tất thanh toán chuẩn (Status = {selectedOrder.status}, Payment Status = {selectedOrder.payment_status}).
+                        {!isFullyPaid && (
+                          <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs">
+                            <strong className="block mb-1 font-bold">● Đơn chưa hoàn tất thanh toán</strong>
+                            <p className="opacity-90 leading-relaxed">
+                              (Trạng thái đơn: {getOrderStatusMeta(selectedOrder.status).label}, Thanh toán: {getPaymentStatusMeta(selectedOrder.payment_status).label})<br/>
+                              Đơn chưa thanh toán nên hệ thống chưa tạo Ghi danh (Enrollment) và chưa phân bổ Doanh thu (Revenue).
+                            </p>
                           </div>
                         )}
 
-                        <div className="rounded-2xl border border-hairline bg-paper p-4 space-y-2 text-xs">
+                        <div className="rounded-xl border border-hairline bg-paper p-4 text-xs">
                           <div className="flex items-center justify-between border-b border-hairline pb-2 mb-2">
-                            <h4 className="font-bold text-ink uppercase tracking-wider text-[11px]">1. Kiểm tra Ghi danh học tập (Enrollment)</h4>
-                            <span className={`font-semibold ${selectedOrder.consistency?.paid_has_enrollment ? "text-emerald-600" : "text-rose-600"}`}>
-                              ● {selectedOrder.consistency?.paid_has_enrollment ? "Có enrollment tương ứng" : "Thiếu enrollment"}
-                            </span>
+                            <h4 className="font-bold text-ink uppercase tracking-wider text-[11px]">1. Ghi danh học tập (Enrollment)</h4>
+                            <div className="flex items-center gap-3">
+                              <span className={`font-semibold ${isFullyPaid ? (hasEnrollment ? "text-emerald-600" : "text-rose-600") : (hasEnrollment ? "text-emerald-600" : "text-amber-600")}`}>
+                                ● {isFullyPaid ? (hasEnrollment ? "Khớp (Có dữ liệu)" : "Không khớp (Thiếu bất thường)") : (hasEnrollment ? "Đã phát sinh" : "Chưa phát sinh")}
+                              </span>
+                              {hasEnrollment && (
+                                <button onClick={() => navigate(`/admin/enrollments?open_enrollment_id=${selectedOrder.enrollment.id}`)} className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                                  Chi tiết &rarr;
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {selectedOrder.enrollment ? (
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              <div><span className="text-mid-gray mr-1">Enrollment ID:</span> <span className="font-mono text-ink">#{selectedOrder.enrollment.id}</span></div>
-                              <div><span className="text-mid-gray mr-1">Tiến độ học tập:</span> <span className="font-bold text-ink">{selectedOrder.enrollment.progress_percent}%</span></div>
+                          {hasEnrollment ? (
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 pt-1 text-[11px]">
+                              <div><span className="text-mid-gray block mb-0.5">Enrollment ID</span><span className="font-mono text-ink">#{selectedOrder.enrollment.id}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Tiến độ học tập</span><span className="font-bold text-ink">{selectedOrder.enrollment.progress_percent}%</span></div>
                             </div>
                           ) : (
-                            <p className="text-mid-gray pt-1">
-                              {selectedOrder.status === "paid" && selectedOrder.payment_status === "paid" 
-                                ? "Cảnh báo: Đơn đã thanh toán nhưng chưa tìm thấy dữ liệu Enrollment!" 
-                                : "Đơn chưa phát sinh ghi danh."}
+                            <p className={`pt-1 text-[11px] ${isFullyPaid ? "text-rose-600 font-medium" : "text-mid-gray"}`}>
+                              {isFullyPaid
+                                ? "Cảnh báo: Đơn đã thanh toán nhưng chưa tìm thấy dữ liệu Enrollment trong hệ thống. Cần kiểm tra lại luồng đồng bộ."
+                                : "Dữ liệu chưa phát sinh do đơn chưa hoàn tất."}
                             </p>
                           )}
                         </div>
 
-                        <div className="rounded-2xl border border-hairline bg-paper p-4 space-y-2 text-xs">
+                        <div className="rounded-xl border border-hairline bg-paper p-4 text-xs">
                           <div className="flex items-center justify-between border-b border-hairline pb-2 mb-2">
-                            <h4 className="font-bold text-ink uppercase tracking-wider text-[11px]">2. Kiểm tra Phân bổ doanh thu (Revenue Split)</h4>
-                            <span className={`font-semibold ${selectedOrder.consistency?.paid_has_revenue ? "text-emerald-600" : "text-rose-600"}`}>
-                              ● {selectedOrder.consistency?.paid_has_revenue ? "Có revenue tương ứng" : "Thiếu revenue"}
-                            </span>
+                            <h4 className="font-bold text-ink uppercase tracking-wider text-[11px]">2. Phân bổ doanh thu (Revenue Split)</h4>
+                            <div className="flex items-center gap-3">
+                              <span className={`font-semibold ${isFullyPaid ? (hasRevenue ? "text-emerald-600" : "text-rose-600") : (hasRevenue ? "text-emerald-600" : "text-amber-600")}`}>
+                                ● {isFullyPaid ? (hasRevenue ? "Khớp (Có dữ liệu)" : "Không khớp (Thiếu bất thường)") : (hasRevenue ? "Đã phát sinh" : "Chưa phát sinh")}
+                              </span>
+                              {hasRevenue && (
+                                <button onClick={() => navigate(`/admin/revenues?open_revenue_id=${selectedOrder.revenue.id}`)} className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+                                  Chi tiết &rarr;
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {selectedOrder.revenue ? (
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              <div><span className="text-mid-gray mr-1">Revenue ID:</span> <span className="font-mono text-ink font-sans">#{selectedOrder.revenue.id}</span></div>
-                              <div><span className="text-mid-gray mr-1">Gross Amount:</span> <span className="font-bold text-ink font-sans">{formatVND(selectedOrder.revenue.gross_amount)}</span></div>
-                              <div><span className="text-mid-gray mr-1">Instructor Share:</span> <span className="font-medium text-ink font-sans">{formatVND(selectedOrder.revenue.instructor_amount)}</span></div>
-                              <div><span className="text-mid-gray mr-1">Platform Fee:</span> <span className="font-medium text-ink font-sans">{formatVND(selectedOrder.revenue.platform_amount)}</span></div>
+                          {hasRevenue ? (
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 pt-1 text-[11px]">
+                              <div><span className="text-mid-gray block mb-0.5">Revenue ID</span><span className="font-mono text-ink font-sans">#{selectedOrder.revenue.id}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Gross Amount</span><span className="font-bold text-ink font-sans">{formatVND(selectedOrder.revenue.gross_amount)}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Instructor Share</span><span className="font-medium text-ink font-sans">{formatVND(selectedOrder.revenue.instructor_amount)}</span></div>
+                              <div><span className="text-mid-gray block mb-0.5">Platform Fee</span><span className="font-medium text-ink font-sans">{formatVND(selectedOrder.revenue.platform_amount)}</span></div>
                             </div>
                           ) : (
-                            <p className="text-mid-gray pt-1">
-                              {selectedOrder.status === "paid" && selectedOrder.payment_status === "paid" 
-                                ? "Cảnh báo: Đơn đã thanh toán nhưng chưa phân bổ doanh thu!" 
-                                : "Đơn chưa phát sinh phân bổ."}
+                            <p className={`pt-1 text-[11px] ${isFullyPaid ? "text-rose-600 font-medium" : "text-mid-gray"}`}>
+                              {isFullyPaid
+                                ? "Cảnh báo: Đơn đã thanh toán nhưng chưa phân bổ doanh thu. Cần kiểm tra lại luồng đối soát."
+                                : "Dữ liệu chưa phát sinh do đơn chưa hoàn tất."}
                             </p>
                           )}
                         </div>
                       </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Tab 4: Timeline */}
                     {activeTab === 'timeline' && (
                       <div className="space-y-4">
-                        <div className="rounded-2xl border border-hairline bg-paper p-4 text-xs space-y-4">
-                          <div className="relative pl-6 border-l border-hairline space-y-4">
+                        <div className="rounded-xl border border-hairline bg-paper p-4 text-xs">
+                          <div className="relative pl-4 border-l border-hairline/60 ml-2 space-y-3">
                             <div className="relative">
-                              <span className="absolute -left-[29px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200">✓</span>
-                              <div className="font-bold text-ink">Khởi tạo đơn hàng</div>
-                              <div className="text-[10px] text-mid-gray mt-0.5">{formatDateTime(selectedOrder.created_at)}</div>
+                              <span className="absolute -left-[21px] top-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-paper"></span>
+                              <div className="font-semibold text-ink leading-none">Khởi tạo đơn hàng</div>
+                              <div className="text-[10px] text-mid-gray mt-1.5 leading-none">{formatDateTime(selectedOrder.created_at)}</div>
                             </div>
                             {selectedOrder.paid_at && (
                               <div className="relative">
-                                <span className="absolute -left-[29px] top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 border border-emerald-200">✓</span>
-                                <div className="font-bold text-ink">Xác nhận thanh toán (Success)</div>
-                                <div className="text-[10px] text-mid-gray mt-0.5">{formatDateTime(selectedOrder.paid_at)}</div>
+                                <span className="absolute -left-[21px] top-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-paper"></span>
+                                <div className="font-semibold text-ink leading-none">Xác nhận thanh toán</div>
+                                <div className="text-[10px] text-mid-gray mt-1.5 leading-none">{formatDateTime(selectedOrder.paid_at)}</div>
+                              </div>
+                            )}
+                            {selectedOrder.enrollment?.created_at && (
+                              <div className="relative">
+                                <span className="absolute -left-[21px] top-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-blue-500 ring-4 ring-paper"></span>
+                                <div className="font-semibold text-ink leading-none">Ghi danh học tập</div>
+                                <div className="text-[10px] text-mid-gray mt-1.5 leading-none">{formatDateTime(selectedOrder.enrollment.created_at)}</div>
+                              </div>
+                            )}
+                            {selectedOrder.revenue?.created_at && (
+                              <div className="relative">
+                                <span className="absolute -left-[21px] top-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-purple-500 ring-4 ring-paper"></span>
+                                <div className="font-semibold text-ink leading-none">Phân bổ doanh thu</div>
+                                <div className="text-[10px] text-mid-gray mt-1.5 leading-none">{formatDateTime(selectedOrder.revenue.created_at)}</div>
+                              </div>
+                            )}
+                            {selectedOrder.refunded_at && (
+                              <div className="relative">
+                                <span className="absolute -left-[21px] top-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-rose-500 ring-4 ring-paper"></span>
+                                <div className="font-semibold text-ink leading-none">Hoàn tiền</div>
+                                <div className="text-[10px] text-mid-gray mt-1.5 leading-none">{formatDateTime(selectedOrder.refunded_at)}</div>
                               </div>
                             )}
                           </div>
@@ -1273,7 +1338,7 @@ export default function OrdersManagement() {
                 <button
                   type="button"
                   onClick={handleCloseDrawer}
-                  className="h-8 px-4 font-medium rounded-[6px] border border-hairline bg-paper text-ink hover:bg-canvas transition-colors cursor-pointer"
+                  className="h-8 px-4 font-semibold rounded-[6px] border border-rose-500/20 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:border-rose-500/30 transition-colors cursor-pointer text-xs"
                 >
                   Đóng
                 </button>

@@ -37,13 +37,116 @@ import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { CourseDetailSkeleton } from './components/CourseDetailSkeleton';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { toast } from 'sonner';
+import { apiFetch } from '@/shared/lib/api-client';
+// Mock chapters matching design
+const mockChapters = [
+  {
+    id: 'ch1',
+    title: 'Chương 1: Giới thiệu về Python',
+    lessonCount: 6,
+    duration: '45 phút',
+    lessons: [
+      { id: 'l1', title: '1.1 Python là gì?', duration: '05:30', isPreview: true },
+      { id: 'l2', title: '1.2 Cài đặt Python và môi trường lập trình', duration: '08:15', isPreview: true },
+      { id: 'l3', title: '1.3 Chạy chương trình đầu tiên', duration: '04:45', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch2',
+    title: 'Chương 2: Biến và kiểu dữ liệu',
+    lessonCount: 8,
+    duration: '1 giờ 10 phút',
+    lessons: [
+      { id: 'l4', title: '2.1 Khai báo biến và đặt tên chuẩn', duration: '09:20', isPreview: false },
+      { id: 'l5', title: '2.2 Kiểu dữ liệu số (Integer, Float)', duration: '12:10', isPreview: false },
+      { id: 'l6', title: '2.3 Chuỗi ký tự (String) & Xử lý chuỗi', duration: '15:40', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch3',
+    title: 'Chương 3: Toán tử và biểu thức',
+    lessonCount: 7,
+    duration: '1 giờ',
+    lessons: [
+      { id: 'l7', title: '3.1 Toán tử số học & gán giá trị', duration: '10:00', isPreview: false },
+      { id: 'l8', title: '3.2 Toán tử so sánh & logic', duration: '14:30', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch4',
+    title: 'Chương 4: Cấu trúc điều kiện',
+    lessonCount: 6,
+    duration: '50 phút',
+    lessons: [
+      { id: 'l9', title: '4.1 Câu lệnh If - Else cơ bản', duration: '11:15', isPreview: false },
+      { id: 'l10', title: '4.2 Điều kiện lồng nhau & Elif', duration: '13:50', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch5',
+    title: 'Chương 5: Vòng lặp',
+    lessonCount: 7,
+    duration: '1 giờ 5 phút',
+    lessons: [
+      { id: 'l11', title: '5.1 Vòng lặp For và hàm range()', duration: '12:00', isPreview: false },
+      { id: 'l12', title: '5.2 Vòng lặp While & xử lý điều kiện dừng', duration: '14:20', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch6',
+    title: 'Chương 6: Hàm (Function) và Module trong Python',
+    lessonCount: 8,
+    duration: '1 giờ 15 phút',
+    lessons: [
+      { id: 'l13', title: '6.1 Định nghĩa hàm def & Tham số truyền vào', duration: '11:30', isPreview: false },
+      { id: 'l14', title: '6.2 Giá trị trả về Return & Scope biến', duration: '14:10', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch7',
+    title: 'Chương 7: Cấu trúc dữ liệu nâng cao (List, Dictionary, Set)',
+    lessonCount: 10,
+    duration: '1 giờ 30 phút',
+    lessons: [
+      { id: 'l15', title: '7.1 Thao tác với List & Tuple', duration: '15:20', isPreview: false },
+      { id: 'l16', title: '7.2 Dictionary & Cấu trúc JSON trong Python', duration: '18:40', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch8',
+    title: 'Chương 8: Đọc & Ghi File (File I/O) và Xử lý ngoại lệ (Exception)',
+    lessonCount: 7,
+    duration: '55 phút',
+    lessons: [
+      { id: 'l17', title: '8.1 Thao tác đọc ghi tệp tin TXT / CSV', duration: '13:10', isPreview: false },
+      { id: 'l18', title: '8.2 Khối Try - Except xử lý lỗi ứng dụng', duration: '12:45', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch9',
+    title: 'Chương 9: Lập trình hướng đối tượng (OOP) & Dự án Thực tế',
+    lessonCount: 9,
+    duration: '1 giờ 40 phút',
+    lessons: [
+      { id: 'l19', title: '9.1 Class, Object & Kế thừa trong OOP', duration: '20:15', isPreview: false },
+      { id: 'l20', title: '9.2 Xây dựng phần mềm Quản lý Học viên Mini Project', duration: '25:30', isPreview: false },
+    ],
+  },
+];
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { course, isLoading, error } = useCourseDetail(courseId);
 
-  const { cart, setCart, enrolledCourseIds } = useApp();
+  // Auto-replace URL to course.slug if accessed via numeric ID or different slug
+  useEffect(() => {
+    if (course && course.slug && courseId !== course.slug) {
+      navigate(`/courses/${course.slug}`, { replace: true });
+    }
+  }, [course, courseId, navigate]);
+
+  const { cart, setCart, enrolledCourseIds, setEnrolledCourseIds } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'instructor' | 'reviews' | 'faq'>('overview');
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({
     ch1: true,
@@ -52,6 +155,57 @@ export default function CourseDetailPage() {
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [showAllChapters, setShowAllChapters] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [apiRelatedCourses, setApiRelatedCourses] = useState<HomeCourseItem[]>([]);
+  const [apiReviewsList, setApiReviewsList] = useState<any[]>([]);
+  const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!course?.id) return;
+
+    // Fetch related courses
+    apiFetch<any>(`/courses/${course.id}/related`)
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (list.length > 0) {
+          const mapped: HomeCourseItem[] = list.map((item: any) => ({
+            id: String(item.slug || item.id || item.course_id),
+            title: item.title || 'Khóa học liên quan',
+            level: item.level || 'Mọi trình độ',
+            thumbnail: item.thumbnail_url || item.image || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+            rating: Number(item.average_rating || item.rating || 4.8),
+            reviewCount: Number(item.reviews_count || item.reviewCount || 120),
+            enrolledCount: Number(item.enrollments_count || item.enrolledCount || 1000),
+            instructorName: item.instructor?.full_name || item.instructor_name || 'Giảng viên MindHub',
+            instructorAvatar: item.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+            price: item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : Number(item.price || 399000),
+            originalPrice: item.sale_price !== null && item.sale_price !== undefined ? Number(item.price) : undefined,
+          }));
+          setApiRelatedCourses(mapped);
+        }
+      })
+      .catch(() => {});
+
+    // Fetch course reviews
+    apiFetch<any>(`/courses/${course.id}/reviews?per_page=100`)
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (list.length > 0) {
+          const mappedReviews = list.map((rev: any) => ({
+            id: rev.id,
+            name: rev.reviewer?.full_name || rev.order?.user?.full_name || rev.user?.full_name || 'Học viên MindHub',
+            avatar: rev.reviewer?.avatar_url || rev.order?.user?.avatar_url || rev.user?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+            date: rev.created_at ? new Date(rev.created_at).toLocaleDateString('vi-VN') : 'vừa xong',
+            content: rev.comment || 'Khóa học tuyệt vời và mang lại nhiều giá trị.',
+            rating: Number(rev.rating || 5),
+            helpfulCount: rev.helpful_count || 12,
+          }));
+          setApiReviewsList(mappedReviews);
+          setTotalReviewsCount(res?.meta?.total || list.length);
+        }
+      })
+      .catch(() => {});
+  }, [course?.id]);
 
   // Live Countdown Timer state (02 Days, 15 Hours, 30 Mins, 45 Secs)
   const [timeLeft, setTimeLeft] = useState({
@@ -81,9 +235,15 @@ export default function CourseDetailPage() {
     }));
   };
 
+  const displayChapters = (course?.chapters && course.chapters.length > 0)
+    ? course.chapters
+    : mockChapters;
+
+  const totalLessonsCount = displayChapters.reduce((acc, ch) => acc + (ch.lessons?.length || 0), 0);
+
   const expandAllChapters = () => {
     const all: Record<string, boolean> = {};
-    mockChapters.forEach((ch) => {
+    displayChapters.forEach((ch) => {
       all[ch.id] = true;
     });
     setExpandedChapters(all);
@@ -100,10 +260,47 @@ export default function CourseDetailPage() {
 
   const handleEnrollNow = () => {
     if (!course) return;
+    const isFreeCourse = Boolean((course as any).isFree || Number(course.price || 0) === 0);
+    if (isFreeCourse) {
+      if (!enrolledCourseIds.includes(course.id)) {
+        setEnrolledCourseIds([...enrolledCourseIds, course.id]);
+      }
+      toast.success('Đăng ký tham gia khóa học miễn phí thành công! Bắt đầu học ngay.');
+      navigate(`/learn/${course.id}`);
+      return;
+    }
     if (!cart.includes(course.id)) {
       setCart([...cart, course.id]);
     }
     navigate(`/checkout?courseId=${course.id}`);
+  };
+
+  const handleToggleWishlist = async () => {
+    if (!course) return;
+    const nextState = !isWishlisted;
+    setIsWishlisted(nextState);
+    if (nextState) {
+      toast.success(`Đã thêm "${course.title}" vào danh sách yêu thích!`);
+      if (course.id && !isNaN(Number(course.id))) {
+        try {
+          await apiFetch('/wishlists', {
+            method: 'POST',
+            body: JSON.stringify({ course_id: Number(course.id) }),
+          });
+        } catch (err) {
+          console.warn('Could not add to wishlist on backend:', err);
+        }
+      }
+    } else {
+      toast.info(`Đã xóa khỏi danh sách yêu thích.`);
+      if (course.id && !isNaN(Number(course.id))) {
+        try {
+          await apiFetch(`/wishlists/${course.id}`, { method: 'DELETE' });
+        } catch (err) {
+          console.warn('Could not remove from wishlist on backend:', err);
+        }
+      }
+    }
   };
 
   const handleCopyShare = () => {
@@ -128,102 +325,6 @@ export default function CourseDetailPage() {
   }
 
   const isEnrolled = (enrolledCourseIds || []).includes(course.id);
-
-  // Mock chapters matching design
-  const mockChapters = [
-    {
-      id: 'ch1',
-      title: 'Chương 1: Giới thiệu về Python',
-      lessonCount: 6,
-      duration: '45 phút',
-      lessons: [
-        { id: 'l1', title: '1.1 Python là gì?', duration: '05:30', isPreview: true },
-        { id: 'l2', title: '1.2 Cài đặt Python và môi trường lập trình', duration: '08:15', isPreview: true },
-        { id: 'l3', title: '1.3 Chạy chương trình đầu tiên', duration: '04:45', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch2',
-      title: 'Chương 2: Biến và kiểu dữ liệu',
-      lessonCount: 8,
-      duration: '1 giờ 10 phút',
-      lessons: [
-        { id: 'l4', title: '2.1 Khai báo biến và đặt tên chuẩn', duration: '09:20', isPreview: false },
-        { id: 'l5', title: '2.2 Kiểu dữ liệu số (Integer, Float)', duration: '12:10', isPreview: false },
-        { id: 'l6', title: '2.3 Chuỗi ký tự (String) & Xử lý chuỗi', duration: '15:40', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch3',
-      title: 'Chương 3: Toán tử và biểu thức',
-      lessonCount: 7,
-      duration: '1 giờ',
-      lessons: [
-        { id: 'l7', title: '3.1 Toán tử số học & gán giá trị', duration: '10:00', isPreview: false },
-        { id: 'l8', title: '3.2 Toán tử so sánh & logic', duration: '14:30', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch4',
-      title: 'Chương 4: Cấu trúc điều kiện',
-      lessonCount: 6,
-      duration: '50 phút',
-      lessons: [
-        { id: 'l9', title: '4.1 Câu lệnh If - Else cơ bản', duration: '11:15', isPreview: false },
-        { id: 'l10', title: '4.2 Điều kiện lồng nhau & Elif', duration: '13:50', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch5',
-      title: 'Chương 5: Vòng lặp',
-      lessonCount: 7,
-      duration: '1 giờ 5 phút',
-      lessons: [
-        { id: 'l11', title: '5.1 Vòng lặp For và hàm range()', duration: '12:00', isPreview: false },
-        { id: 'l12', title: '5.2 Vòng lặp While & xử lý điều kiện dừng', duration: '14:20', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch6',
-      title: 'Chương 6: Hàm (Function) và Module trong Python',
-      lessonCount: 8,
-      duration: '1 giờ 15 phút',
-      lessons: [
-        { id: 'l13', title: '6.1 Định nghĩa hàm def & Tham số truyền vào', duration: '11:30', isPreview: false },
-        { id: 'l14', title: '6.2 Giá trị trả về Return & Scope biến', duration: '14:10', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch7',
-      title: 'Chương 7: Cấu trúc dữ liệu nâng cao (List, Dictionary, Set)',
-      lessonCount: 10,
-      duration: '1 giờ 30 phút',
-      lessons: [
-        { id: 'l15', title: '7.1 Thao tác với List & Tuple', duration: '15:20', isPreview: false },
-        { id: 'l16', title: '7.2 Dictionary & Cấu trúc JSON trong Python', duration: '18:40', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch8',
-      title: 'Chương 8: Đọc & Ghi File (File I/O) và Xử lý ngoại lệ (Exception)',
-      lessonCount: 7,
-      duration: '55 phút',
-      lessons: [
-        { id: 'l17', title: '8.1 Thao tác đọc ghi tệp tin TXT / CSV', duration: '13:10', isPreview: false },
-        { id: 'l18', title: '8.2 Khối Try - Except xử lý lỗi ứng dụng', duration: '12:45', isPreview: false },
-      ],
-    },
-    {
-      id: 'ch9',
-      title: 'Chương 9: Lập trình hướng đối tượng (OOP) & Dự án Thực tế',
-      lessonCount: 9,
-      duration: '1 giờ 40 phút',
-      lessons: [
-        { id: 'l19', title: '9.1 Class, Object & Kế thừa trong OOP', duration: '20:15', isPreview: false },
-        { id: 'l20', title: '9.2 Xây dựng phần mềm Quản lý Học viên Mini Project', duration: '25:30', isPreview: false },
-      ],
-    },
-  ];
 
   // Related courses mock data
   const relatedCoursesData: HomeCourseItem[] = [
@@ -399,27 +500,34 @@ export default function CourseDetailPage() {
                 
                 {/* Discount Tag */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black bg-rose-500 text-white px-2.5 py-1 rounded-md">
-                    -40%
-                  </span>
+                  {course.salePrice && course.price < (course.originalPrice || course.price * 1.5) ? (
+                    <span className="text-xs font-black bg-rose-500 text-white px-2.5 py-1 rounded-md">
+                      -{Math.round((((course.originalPrice || course.price * 1.4) - course.price) / (course.originalPrice || course.price * 1.4)) * 100)}%
+                    </span>
+                  ) : (
+                    <span className="text-xs font-black bg-emerald-600 text-white px-2.5 py-1 rounded-md">
+                      ƯU ĐÃI NỔI BẬT
+                    </span>
+                  )}
                   <button
-                    onClick={() => setIsWishlisted(!isWishlisted)}
-                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-rose-500 transition-colors"
+                    onClick={handleToggleWishlist}
+                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-rose-500 transition-colors cursor-pointer"
                   >
                     <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 stroke-rose-500' : ''}`} />
                     <span className="font-bold">Yêu thích</span>
-                    <span className="text-slate-400">(1.234)</span>
                   </button>
                 </div>
 
                 {/* Price Display */}
                 <div className="flex items-baseline gap-3">
                   <span className="text-3xl font-black text-slate-900">
-                    299.000đ
+                    {course.price === 0 ? 'Miễn phí' : new Intl.NumberFormat('vi-VN').format(course.price) + 'đ'}
                   </span>
-                  <span className="text-sm text-slate-400 line-through">
-                    499.000đ
-                  </span>
+                  {course.salePrice && (
+                    <span className="text-sm text-slate-400 line-through">
+                      {new Intl.NumberFormat('vi-VN').format(course.originalPrice || Math.round(course.price * 1.4))}đ
+                    </span>
+                  )}
                 </div>
 
                 {/* Live Countdown Timer */}
@@ -470,8 +578,8 @@ export default function CourseDetailPage() {
                       onClick={handleEnrollNow}
                       className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
                     >
-                      <ShoppingCart className="w-4 h-4" />
-                      <span>Mua ngay</span>
+                      {(course as any).isFree || Number(course.price || 0) === 0 ? <PlayCircle className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
+                      <span>{(course as any).isFree || Number(course.price || 0) === 0 ? 'Tham gia ngay' : 'Mua ngay'}</span>
                     </button>
                   )}
                 </div>
@@ -499,7 +607,7 @@ export default function CourseDetailPage() {
               <BarChart className="w-4 h-4 text-emerald-600 shrink-0" />
               <div>
                 <div className="text-[10px] text-slate-400 font-bold uppercase">Cấp độ</div>
-                <div className="font-extrabold text-slate-800">Cơ bản</div>
+                <div className="font-extrabold text-slate-800">{course.level || 'Mọi trình độ'}</div>
               </div>
             </div>
 
@@ -507,7 +615,7 @@ export default function CourseDetailPage() {
               <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
               <div>
                 <div className="text-[10px] text-slate-400 font-bold uppercase">Thời lượng</div>
-                <div className="font-extrabold text-slate-800">8 giờ 30 phút</div>
+                <div className="font-extrabold text-slate-800">Truy cập trọn đời</div>
               </div>
             </div>
 
@@ -515,7 +623,7 @@ export default function CourseDetailPage() {
               <BookOpen className="w-4 h-4 text-emerald-600 shrink-0" />
               <div>
                 <div className="text-[10px] text-slate-400 font-bold uppercase">Bài giảng</div>
-                <div className="font-extrabold text-slate-800">68 bài học</div>
+                <div className="font-extrabold text-slate-800">{totalLessonsCount} bài học</div>
               </div>
             </div>
 
@@ -614,21 +722,20 @@ export default function CourseDetailPage() {
                 <h2 className="text-xl font-extrabold text-slate-900">
                   Bạn sẽ học được gì
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm text-slate-700 font-medium">
-                  {[
-                    'Hiểu và sử dụng các khái niệm cơ bản của Python',
-                    'Xử lý file và ngoại lệ trong Python',
-                    'Làm việc với biến, kiểu dữ liệu, toán tử và điều kiện',
-                    'Xây dựng chương trình nhỏ và thực hành thực tế',
-                    'Sử dụng vòng lặp, hàm và cấu trúc dữ liệu cơ bản',
-                    'Tự tin viết code và tiếp tục học nâng cao',
-                  ].map((item, idx) => (
+                  {(course.willLearn && course.willLearn.length > 0
+                    ? course.willLearn
+                    : [
+                        'Hiểu và sử dụng các khái niệm cơ bản đến nâng cao',
+                        'Xử lý cấu trúc dữ liệu và giải quyết bài toán thực tế',
+                        'Làm việc với framework và công nghệ tiêu chuẩn doanh nghiệp',
+                        'Xây dựng ứng dụng hoàn chỉnh và tự tin ghi vào CV',
+                      ]
+                  ).map((item: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                       <span>{item}</span>
                     </div>
                   ))}
-                </div>
               </div>
 
               {/* Box 2: Mô tả khóa học */}
@@ -637,23 +744,12 @@ export default function CourseDetailPage() {
                   Mô tả khóa học
                 </h2>
                 <div className="text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2">
-                  <p>
-                    Python là một trong những ngôn ngữ lập trình phổ biến và dễ học nhất hiện nay. Khóa học này được thiết kế dành riêng cho người mới bắt đầu, giúp bạn nắm vững kiến thức nền tảng và ứng dụng vào thực tế.
-                  </p>
-                  {isDescExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="space-y-2 pt-2"
-                    >
-                      <p>
-                        Thông qua 68 bài học thực chiến, bạn sẽ được hướng dẫn chi tiết từ việc cài đặt môi trường Anaconda, PyCharm, viết những dòng lệnh Python đầu tiên cho tới việc xây dựng ứng dụng quản lý mini project thực tế.
-                      </p>
-                      <p>
-                        Khóa học cung cấp đầy đủ tài liệu PDF, bộ mã nguồn mẫu và hệ thống bài tập tự luyện có giải thích đáp án chi tiết.
-                      </p>
-                    </motion.div>
-                  )}
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: course.description || course.subtitle || 'Khóa học cung cấp đầy đủ bài giảng và bài tập thực hành sát thực tế.',
+                    }}
+                    className={!isDescExpanded ? 'line-clamp-4' : ''}
+                  />
                 </div>
                 <button
                   onClick={() => setIsDescExpanded(!isDescExpanded)}
@@ -671,7 +767,7 @@ export default function CourseDetailPage() {
                       Nội dung khóa học
                     </h2>
                     <p className="text-xs text-slate-500 mt-1">
-                      68 bài học • 8 giờ 30 phút tổng thời lượng
+                      {displayChapters.length} chương • {totalLessonsCount} bài học
                     </p>
                   </div>
                   <button
@@ -683,8 +779,9 @@ export default function CourseDetailPage() {
                 </div>
 
                 <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-200">
-                  {(showAllChapters ? mockChapters : mockChapters.slice(0, 5)).map((ch) => {
+                  {(showAllChapters ? displayChapters : displayChapters.slice(0, 5)).map((ch: any) => {
                     const isExpanded = !!expandedChapters[ch.id];
+                    const lessonList = ch.lessons || [];
                     return (
                       <div key={ch.id} className="bg-white">
                         <button
@@ -702,7 +799,7 @@ export default function CourseDetailPage() {
                             </span>
                           </div>
                           <span className="text-xs text-slate-500 font-medium">
-                            {ch.lessonCount} bài học • {ch.duration}
+                            {lessonList.length} bài học
                           </span>
                         </button>
 
@@ -714,7 +811,7 @@ export default function CourseDetailPage() {
                               exit={{ height: 0, opacity: 0 }}
                               className="overflow-hidden bg-white divide-y divide-slate-100"
                             >
-                              {ch.lessons.map((lesson) => (
+                              {lessonList.map((lesson: any) => (
                                 <div
                                   key={lesson.id}
                                   className="p-3.5 pl-10 flex items-center justify-between text-xs hover:bg-slate-50 transition-colors"
@@ -729,7 +826,7 @@ export default function CourseDetailPage() {
                                         Xem thử
                                       </span>
                                     )}
-                                    <span className="text-slate-400">{lesson.duration}</span>
+                                    <span className="text-slate-400">{lesson.duration || '10:00'}</span>
                                   </div>
                                 </div>
                               ))}
@@ -741,15 +838,17 @@ export default function CourseDetailPage() {
                   })}
                 </div>
 
-                <div className="text-center pt-2">
-                  <button
-                    onClick={() => setShowAllChapters(!showAllChapters)}
-                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-600 hover:text-emerald-700 hover:underline transition-all cursor-pointer py-1 px-3 rounded-lg hover:bg-emerald-50"
-                  >
-                    <span>{showAllChapters ? 'Thu gọn danh sách chương' : `Xem tất cả ${mockChapters.length} chương`}</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showAllChapters ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
+                {displayChapters.length > 5 && (
+                  <div className="text-center pt-2">
+                    <button
+                      onClick={() => setShowAllChapters(!showAllChapters)}
+                      className="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-600 hover:text-emerald-700 hover:underline transition-all cursor-pointer py-1 px-3 rounded-lg hover:bg-emerald-50"
+                    >
+                      <span>{showAllChapters ? 'Thu gọn danh sách chương' : `Xem tất cả ${displayChapters.length} chương`}</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showAllChapters ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -774,7 +873,7 @@ export default function CourseDetailPage() {
                       <CheckCircle2 className="w-4 h-4 text-blue-500 fill-blue-50" />
                     </div>
                     <div className="text-xs text-slate-500 font-medium">
-                      Senior Python Developer tại MindHub
+                      {course.instructorTitle || 'Giảng viên MindHub'}
                     </div>
                   </div>
                 </div>
@@ -782,17 +881,17 @@ export default function CourseDetailPage() {
                 <div className="flex items-center gap-4 text-xs font-bold text-slate-700 pt-1">
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span>4.9</span>
-                    <span className="text-slate-400 font-normal">(2.345 đánh giá)</span>
+                    <span>{course.rating ? course.rating.toFixed(1) : '4.8'}</span>
+                    <span className="text-slate-400 font-normal">({course.reviewCount.toLocaleString()} đánh giá)</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4 text-slate-400" />
-                    <span>25.6K Học viên</span>
+                    <span>{course.enrolledCount.toLocaleString()} Học viên</span>
                   </div>
                 </div>
 
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Hơn 8 năm kinh nghiệm trong lĩnh vực lập trình Python và giảng dạy online.
+                  {course.instructorBio || 'Giảng viên với nhiều năm kinh nghiệm thực chiến và giảng dạy online.'}
                 </p>
 
                 <button
@@ -811,11 +910,11 @@ export default function CourseDetailPage() {
                 <div className="space-y-3 text-xs text-slate-600 font-medium">
                   <div className="flex items-center gap-3">
                     <Video className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>68 bài học video chất lượng cao</span>
+                    <span>{totalLessonsCount} bài học video chất lượng cao</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>8 giờ 30 phút nội dung</span>
+                    <span>Truy cập bài giảng trọn đời</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -902,7 +1001,7 @@ export default function CourseDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* 4 Course Cards (9 cols) */}
             <div className="lg:col-span-9 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {relatedCoursesData.slice(0, 4).map((item) => (
+              {(apiRelatedCourses.length > 0 ? apiRelatedCourses : relatedCoursesData).slice(0, 4).map((item) => (
                 <HomeCourseCard key={item.id} course={item} />
               ))}
             </div>
@@ -914,20 +1013,20 @@ export default function CourseDetailPage() {
                   LỘ TRÌNH TOÀN DIỆN
                 </span>
                 <h3 className="text-lg font-black leading-snug mb-2">
-                  Học Python lộ trình toàn diện từ cơ bản đến nâng cao
+                  Lộ trình toàn diện từ cơ bản đến nâng cao
                 </h3>
                 <div className="space-y-1.5 text-xs text-emerald-100 mb-4 font-medium">
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
-                    <span>9 khóa học liên tiếp</span>
+                    <span>Lộ trình bài bản</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
-                    <span>45+ giờ học thực hành</span>
+                    <span>Thực hành dự án thực tế</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
-                    <span>Giảm 35% khi mua trọn bộ</span>
+                    <span>Ưu đãi trọn gói</span>
                   </div>
                 </div>
               </div>
@@ -955,112 +1054,147 @@ export default function CourseDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Ratings Summary (4 cols) */}
-            <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm text-left space-y-4">
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-slate-900">4.8</span>
-                <span className="text-base text-slate-400 font-bold">/5</span>
-              </div>
+            {(() => {
+              const reviewListForStats = apiReviewsList;
+              const hasReviews = reviewListForStats.length > 0;
+              const calcTotalCount = hasReviews ? reviewListForStats.length : (course.reviewCount || 0);
+              const calcAvgRating = hasReviews
+                ? (reviewListForStats.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) / reviewListForStats.length).toFixed(1)
+                : (course.rating ? course.rating.toFixed(1) : '5.0');
 
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
-                ))}
-              </div>
-              <div className="text-xs text-slate-500 font-medium">
-                (1.234 đánh giá từ học viên)
-              </div>
+              const starProgressRows = [5, 4, 3, 2, 1].map((starNum) => {
+                if (hasReviews) {
+                  const matchCount = reviewListForStats.filter((r) => Number(r.rating) === starNum).length;
+                  const pct = Math.round((matchCount / reviewListForStats.length) * 100);
+                  return { star: `${starNum} sao`, percent: pct };
+                }
+                // Default clean distribution if no reviews yet
+                const defaultPct = starNum === 5 ? 100 : 0;
+                return { star: `${starNum} sao`, percent: defaultPct };
+              });
 
-              {/* Progress Bars */}
-              <div className="space-y-2 pt-2 text-xs">
-                {[
-                  { star: '5 sao', percent: 76 },
-                  { star: '4 sao', percent: 20 },
-                  { star: '3 sao', percent: 3 },
-                  { star: '2 sao', percent: 1 },
-                  { star: '1 sao', percent: 0 },
-                ].map((row, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <span className="w-10 text-slate-600 font-medium shrink-0">
-                      {row.star}
-                    </span>
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full"
-                        style={{ width: `${row.percent}%` }}
-                      ></div>
-                    </div>
-                    <span className="w-8 text-right text-slate-400 font-medium shrink-0">
-                      {row.percent}%
-                    </span>
+              return (
+                <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm text-left space-y-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black text-slate-900">{calcAvgRating}</span>
+                    <span className="text-base text-slate-400 font-bold">/5</span>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 ${i < Math.round(Number(calcAvgRating)) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`}
+                      />
+                    ))}
+                  </div>
+                  <div className="text-xs text-slate-500 font-medium">
+                    ({calcTotalCount} đánh giá từ học viên)
+                  </div>
+
+                  {/* Progress Bars */}
+                  <div className="space-y-2 pt-2 text-xs">
+                    {starProgressRows.map((row, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <span className="w-10 text-slate-600 font-medium shrink-0">
+                          {row.star}
+                        </span>
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                            style={{ width: `${row.percent}%` }}
+                          ></div>
+                        </div>
+                        <span className="w-8 text-right text-slate-400 font-medium shrink-0">
+                          {row.percent}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Review Cards List (8 cols) */}
             <div className="lg:col-span-8 space-y-4 text-left">
-              {[
-                {
-                  name: 'Trần Minh Đức',
-                  date: '2 tuần trước',
-                  avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
-                  content:
-                    'Khóa học rất dễ hiểu, phù hợp cho người mới bắt đầu như mình. Giảng viên giải thích rõ ràng, ví dụ thực tế dễ áp dụng.',
-                  helpfulCount: 12,
-                },
-                {
-                  name: 'Lê Hoàng Anh',
-                  date: '1 tháng trước',
-                  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
-                  content:
-                    'Nội dung đầy đủ, bài tập thực hành sát với thực tế. Mình đã tự tin viết được các chương trình Python cơ bản.',
-                  helpfulCount: 8,
-                },
-              ].map((rev, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={rev.avatar}
-                        alt={rev.name}
-                        className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                      />
-                      <div>
-                        <div className="font-extrabold text-slate-900 text-sm">
-                          {rev.name}
+              {(() => {
+                const rawReviews = apiReviewsList.length > 0
+                  ? apiReviewsList
+                  : [
+                      {
+                        name: 'Trần Minh Đức',
+                        date: '2 tuần trước',
+                        avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
+                        content:
+                          'Khóa học rất dễ hiểu, phù hợp cho người mới bắt đầu như mình. Giảng viên giải thích rõ ràng, ví dụ thực tế dễ áp dụng.',
+                        helpfulCount: 12,
+                        rating: 5,
+                      },
+                      {
+                        name: 'Lê Hoàng Anh',
+                        date: '1 tháng trước',
+                        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+                        content:
+                          'Nội dung đầy đủ, bài tập thực hành sát với thực tế. Mình đã tự tin viết được các ứng dụng thực chiến.',
+                        helpfulCount: 8,
+                        rating: 5,
+                      },
+                    ];
+                const visibleReviews = showAllReviews ? rawReviews : rawReviews.slice(0, 4);
+
+                return (
+                  <>
+                    {visibleReviews.map((rev, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={rev.avatar}
+                              alt={rev.name}
+                              className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                            />
+                            <div>
+                              <div className="font-extrabold text-slate-900 text-sm">
+                                {rev.name}
+                              </div>
+                              <div className="text-[11px] text-slate-400">{rev.date}</div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} className={`w-3.5 h-3.5 ${i < (rev.rating || 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                            ))}
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-400">{rev.date}</div>
+
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                          {rev.content}
+                        </p>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-start">
+                          <button className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-600 font-bold transition-colors">
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                            <span>Hữu ích ({rev.helpfulCount})</span>
+                          </button>
+                        </div>
                       </div>
+                    ))}
+
+                    <div className="text-center pt-2">
+                      <button
+                        onClick={() => setShowAllReviews(!showAllReviews)}
+                        className="px-6 py-2.5 rounded-xl border border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 text-xs font-extrabold transition-colors cursor-pointer"
+                      >
+                        {showAllReviews ? 'Thu gọn danh sách đánh giá' : `Xem tất cả (${rawReviews.length}) đánh giá`}
+                      </button>
                     </div>
-
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                    {rev.content}
-                  </p>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-start">
-                    <button className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-600 font-bold transition-colors">
-                      <ThumbsUp className="w-3.5 h-3.5" />
-                      <span>Hữu ích ({rev.helpfulCount})</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <div className="text-center pt-2">
-                <button className="px-6 py-2.5 rounded-xl border border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 text-xs font-extrabold transition-colors">
-                  Xem tất cả đánh giá
-                </button>
-              </div>
+                  </>
+                );
+              })()}
             </div>
 
           </div>

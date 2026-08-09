@@ -162,6 +162,7 @@ export interface Course {
   instructorBio: string;
   price: number;
   salePrice?: number | null;
+  originalPrice?: number | null;
   discount_percent?: number | null;
   discountPercent?: number | null;
   has_discount?: boolean;

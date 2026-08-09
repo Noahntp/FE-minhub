@@ -8,6 +8,7 @@ import { Input } from '@/shared/components/ui/input';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { CourseCard } from '@/features/courses/components/CourseCard';
 import { CourseCardSkeleton } from '@/features/courses/components/CourseCardSkeleton';
+import { apiFetch } from '@/shared/lib/api-client';
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
@@ -19,38 +20,82 @@ export default function SearchPage() {
   const [sortOption, setSortOption] = useState('relevant');
   const [isLoading, setIsLoading] = useState(false);
   
-  const [filteredCourses, setFilteredCourses] = useState(INITIAL_COURSES);
+  const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
 
   useEffect(() => {
-    let result = INITIAL_COURSES;
-    if (query) {
-      const q = query.toLowerCase();
-      result = result.filter(c => 
-        c.title.toLowerCase().includes(q) || 
-        c.instructorName.toLowerCase().includes(q) ||
-        c.description.toLowerCase().includes(q)
-      );
-    }
-    
-    // Sort
-    if (sortOption === 'price_asc') {
-      result.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
-    } else if (sortOption === 'price_desc') {
-      result.sort((a, b) => (b.salePrice || b.price) - (a.salePrice || a.price));
-    } else if (sortOption === 'newest') {
-      result.sort((a, b) => (a.isNew ? -1 : 1));
-    } else {
-      // relevant (mock logic)
-      result.sort((a, b) => b.rating - a.rating);
-    }
-    
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setFilteredCourses([...result]);
-      setIsLoading(false);
-    }, 500);
+    setLocalQuery(query);
+  }, [query]);
 
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSearchResults = async () => {
+      try {
+        setIsLoading(true);
+        const res = await apiFetch<any>(`/courses?search=${encodeURIComponent(query)}`);
+        const rawList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        
+        let list = rawList.length > 0 ? rawList.map((c: any) => ({
+          id: String(c.id || c.slug),
+          title: c.title || 'Khóa học',
+          description: c.description || c.summary || 'Khóa học chất lượng cao',
+          instructorName: c.instructor?.full_name || 'Giảng viên MindHub',
+          instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+          price: Number(c.price || 0),
+          salePrice: c.sale_price !== null && c.sale_price !== undefined ? Number(c.sale_price) : undefined,
+          rating: Number(c.average_rating || 4.8),
+          reviewCount: Number(c.reviews_count || 120),
+          studentCount: Number(c.enrollments_count || 1200),
+          level: c.level || 'Cơ bản',
+          thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+          category: c.category?.name || 'Lập trình',
+          slug: c.slug || c.id,
+        })) : INITIAL_COURSES;
+
+        if (query) {
+          const q = query.toLowerCase();
+          list = list.filter((c: any) =>
+            (c.title || '').toLowerCase().includes(q) ||
+            (c.instructorName || '').toLowerCase().includes(q) ||
+            (c.description || '').toLowerCase().includes(q) ||
+            (c.category || '').toLowerCase().includes(q)
+          );
+        }
+
+        // Sort
+        if (sortOption === 'price_asc') {
+          list.sort((a: any, b: any) => (a.salePrice || a.price) - (b.salePrice || b.price));
+        } else if (sortOption === 'price_desc') {
+          list.sort((a: any, b: any) => (b.salePrice || b.price) - (a.salePrice || a.price));
+        } else if (sortOption === 'newest') {
+          list.sort((a: any, b: any) => (b.id - a.id));
+        } else {
+          list.sort((a: any, b: any) => b.rating - a.rating);
+        }
+
+        if (isMounted) {
+          setFilteredCourses(list);
+        }
+      } catch (err) {
+        console.warn('Search API error, fallback:', err);
+        let fallback = INITIAL_COURSES;
+        if (query) {
+          const q = query.toLowerCase();
+          fallback = fallback.filter(c =>
+            c.title.toLowerCase().includes(q) ||
+            c.instructorName.toLowerCase().includes(q) ||
+            c.description.toLowerCase().includes(q)
+          );
+        }
+        if (isMounted) setFilteredCourses(fallback);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchSearchResults();
+    return () => {
+      isMounted = false;
+    };
   }, [query, sortOption]);
 
   const handleSearch = (e: React.FormEvent) => {

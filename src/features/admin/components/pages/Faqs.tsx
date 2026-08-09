@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { 
-  getFaqs, 
-  getFaqDetail, 
-  createFaq, 
-  updateFaq, 
-  deleteFaq, 
-  syncFaqCourses 
+import {
+  getFaqs,
+  getFaqDetail,
+  createFaq,
+  updateFaq,
+  deleteFaq,
+  syncFaqCourses,
+  reorderFaqs
 } from '@/assets/js/api/faqs-api';
 import { getCourses } from '@/assets/js/api/courses-api';
+import { cn } from "@/shared/lib/utils";
+import FilterSelect from './FilterSelect';
 import AdminPagination from "../shared/AdminPagination";
 
 // Mapping Loại FAQ (raw value -> Tiếng Việt & CSS Class cho Chip)
@@ -32,6 +35,10 @@ const statusMap: Record<string, { label: string; dotClass: string; textClass: st
 export default function Faqs() {
   // --- States ---
   const [items, setItems] = useState<any[]>([]);
+  const [originalFaqsCache, setOriginalFaqsCache] = useState<any[] | null>(null);
+  const [isOrderChanged, setIsOrderChanged] = useState(false);
+  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [summary, setSummary] = useState<any>({
     total_faqs: 0,
     active_count: 0,
@@ -50,6 +57,7 @@ export default function Faqs() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   const [search, setSearch] = useState("");
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [type, setType] = useState("all");
   const [status, setStatus] = useState("all");
   const [scope, setScope] = useState("all");
@@ -104,7 +112,11 @@ export default function Faqs() {
       });
 
       if (res && res.success) {
-        setItems(res.data.items || []);
+        const faqs = res.data.items || [];
+        setItems(faqs);
+        if (!isOrderChanged) {
+          setOriginalFaqsCache(JSON.parse(JSON.stringify(faqs)));
+        }
         setSummary(res.data.summary || {});
         setMeta(res.meta || {});
       } else {
@@ -140,7 +152,155 @@ export default function Faqs() {
     loadAllCourses();
   }, []);
 
+  // --- Drag & Drop / Order Handlers ---
+  const handleDragStart = (e: React.DragEvent, id: number) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("select")) {
+      e.preventDefault();
+      return;
+    }
+
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id.toString());
+
+    setTimeout(() => {
+      setDraggedId(id);
+    }, 0);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (draggedId && draggedId !== id) {
+      setDragOverId(id);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverId(null);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIdParam: number) => {
+    e.preventDefault();
+    const draggedIdParam = Number(e.dataTransfer.getData("text/plain"));
+    if (!draggedIdParam || draggedIdParam === targetIdParam) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const newItems = [...items];
+    const draggedIdx = newItems.findIndex(i => i.id === draggedIdParam);
+    const targetIdx = newItems.findIndex(i => i.id === targetIdParam);
+
+    if (draggedIdx === -1 || targetIdx === -1) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    // Determine position: if dragging down, insert after; if dragging up, insert before.
+    // However, for simplicity, we insert at the exact target index.
+    const [draggedItem] = newItems.splice(draggedIdx, 1);
+    const newTargetIdx = newItems.findIndex(i => i.id === targetIdParam);
+    newItems.splice(newTargetIdx, 0, draggedItem);
+
+    // Re-assign sort_order sequentially
+    const updatedItems = newItems.map((item, idx) => ({
+      ...item,
+      sort_order: idx + 1
+    }));
+
+    setItems(updatedItems);
+    setIsOrderChanged(true);
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  const handleMovePosition = (id: number, direction: "up" | "down") => {
+    const idx = items.findIndex(i => i.id === id);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === items.length - 1) return;
+
+    const newItems = [...items];
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+
+    const temp = newItems[idx];
+    newItems[idx] = newItems[swapIdx];
+    newItems[swapIdx] = temp;
+
+    // Re-assign sort_order
+    const updatedItems = newItems.map((item, index) => ({
+      ...item,
+      sort_order: index + 1
+    }));
+
+    setItems(updatedItems);
+    setIsOrderChanged(true);
+  };
+
+  const handleCancelReorder = () => {
+    if (originalFaqsCache) {
+      setItems(JSON.parse(JSON.stringify(originalFaqsCache)));
+      setIsOrderChanged(false);
+      toast.info("Đã hủy bỏ thay đổi thứ tự hiển thị.");
+    }
+  };
+
+  const handleSaveReorder = async () => {
+    if (!originalFaqsCache) return;
+
+    const changedItems: Array<{ id: number; sort_order: number }> = [];
+    items.forEach((c) => {
+      const orig = originalFaqsCache.find((o) => o.id === c.id);
+      if (orig && orig.sort_order !== c.sort_order) {
+        changedItems.push({
+          id: c.id,
+          sort_order: c.sort_order,
+        });
+      }
+    });
+
+    if (changedItems.length === 0) {
+      setIsOrderChanged(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await reorderFaqs(changedItems);
+      if (res.success) {
+        toast.success(res.message || "Lưu thứ tự hiển thị thành công.");
+        setIsOrderChanged(false);
+        await loadData();
+      } else {
+        toast.error(res.message || "Lưu thứ tự thất bại.");
+      }
+    } catch (e: any) {
+      toast.error("Đã xảy ra sự cố kết nối khi lưu thứ tự.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // --- Form & Filter Handlers ---
+  const scrollToTable = (filterMsg?: string) => {
+    if (filterMsg) {
+      toast.success(filterMsg);
+    }
+    setTimeout(() => {
+      document.getElementById('faqs-table-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
   const handleResetFilters = () => {
     setSearch("");
     setType("all");
@@ -149,7 +309,7 @@ export default function Faqs() {
     setSortBy("sort_order");
     setSortDirection("asc");
     setPage(1);
-    toast.info("Đã đặt lại các bộ lọc.");
+    scrollToTable("Đã đặt lại các bộ lọc.");
   };
 
   const handleSort = (key: string) => {
@@ -349,8 +509,8 @@ export default function Faqs() {
             className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-hairline bg-paper text-ink hover:bg-canvas shadow-subtle transition-all duration-200 cursor-pointer"
             title="Làm mới dữ liệu"
           >
-            <svg className="w-4 h-4 text-ink" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+            <svg className="w-4 h-4 text-ink" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
             </svg>
           </button>
 
@@ -359,8 +519,8 @@ export default function Faqs() {
             onClick={() => openFormModal()}
             className="inline-flex items-center gap-2 px-4 h-10 rounded-full bg-ink text-white font-medium text-xs md:text-sm shadow-subtle hover:bg-ink/90 transition-all duration-200 cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
             </svg>
             <span>Tạo FAQ</span>
           </button>
@@ -377,7 +537,7 @@ export default function Faqs() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-mid-gray">Tổng FAQ</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-canvas text-ink">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                 <line x1="12" x2="12.01" y1="17" y2="17"/>
@@ -397,7 +557,7 @@ export default function Faqs() {
           onClick={() => {
             setStatus("active");
             setPage(1);
-            toast.info("Đang lọc FAQ: Đang hiển thị.");
+            scrollToTable("Đang lọc FAQ: Đang hiển thị.");
           }}
           className="group cursor-pointer rounded-2xl border border-hairline bg-paper p-4 shadow-subtle hover:border-emerald-500/30 transition-all duration-200"
         >
@@ -423,7 +583,7 @@ export default function Faqs() {
           onClick={() => {
             setStatus("inactive");
             setPage(1);
-            toast.info("Đang lọc FAQ: Đang ẩn.");
+            scrollToTable("Đang lọc FAQ: Đang ẩn.");
           }}
           className="group cursor-pointer rounded-2xl border border-hairline bg-paper p-4 shadow-subtle hover:border-zinc-400/40 transition-all duration-200"
         >
@@ -449,7 +609,7 @@ export default function Faqs() {
           onClick={() => {
             setScope("unlinked");
             setPage(1);
-            toast.info("Đang lọc FAQ: Chưa liên kết khóa học.");
+            scrollToTable("Đang lọc FAQ: Chưa liên kết khóa học.");
           }}
           className="group cursor-pointer rounded-2xl border border-hairline bg-paper p-4 shadow-subtle hover:border-amber-500/30 transition-all duration-200"
         >
@@ -476,14 +636,14 @@ export default function Faqs() {
             setSortBy("course_count");
             setSortDirection("desc");
             setPage(1);
-            toast.info("Đang sắp xếp: Nhiều khóa học liên kết nhất.");
+            scrollToTable("Đang sắp xếp: Nhiều khóa học liên kết nhất.");
           }}
           className="group cursor-pointer rounded-2xl border border-hairline bg-paper p-4 shadow-subtle hover:border-blue-500/30 transition-all duration-200"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-mid-gray">Khóa học có FAQ</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
               </svg>
@@ -505,8 +665,8 @@ export default function Faqs() {
             {/* Search Input */}
             <div className="relative min-w-[240px] flex-1">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <svg className="w-4 h-4 text-mid-gray" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                <svg className="w-4 h-4 text-mid-gray" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
                 </svg>
               </div>
               <input
@@ -516,72 +676,92 @@ export default function Faqs() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="w-full h-10 rounded-full border border-hairline bg-canvas pl-9 pr-4 text-sm text-ink placeholder:text-mid-gray/60 focus:border-ink focus:outline-none transition-colors"
+                className="w-full h-10 rounded-lg border border-hairline bg-canvas pl-9 pr-4 text-sm text-ink placeholder:text-mid-gray/60 focus:border-ink focus:outline-none transition-colors"
                 placeholder="Tìm câu hỏi, câu trả lời hoặc khóa học"
               />
             </div>
 
             {/* Type Select */}
             <div className="min-w-[150px]">
-              <select
+              <FilterSelect
+                label=""
+                placeholder="Tất cả loại FAQ"
                 value={type}
-                onChange={(e) => {
-                  setType(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full h-10 rounded-full border border-hairline bg-canvas px-3 text-sm text-ink cursor-pointer outline-none"
-              >
-                <option value="all">Tất cả loại FAQ</option>
-                <option value="general">Chung</option>
-                <option value="account">Tài khoản</option>
-                <option value="course">Khóa học</option>
-                <option value="payment">Thanh toán</option>
-                <option value="refund">Hoàn tiền</option>
-                <option value="certificate">Chứng chỉ</option>
-                <option value="technical">Kỹ thuật</option>
-                <option value="policy">Chính sách</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả loại FAQ' },
+                  { value: 'general', label: 'Chung' },
+                  { value: 'account', label: 'Tài khoản' },
+                  { value: 'course', label: 'Khóa học' },
+                  { value: 'payment', label: 'Thanh toán' },
+                  { value: 'refund', label: 'Hoàn tiền' },
+                  { value: 'certificate', label: 'Chứng chỉ' },
+                  { value: 'technical', label: 'Kỹ thuật' },
+                  { value: 'policy', label: 'Chính sách' }
+                ]}
+                onChange={(val) => { setType(val); setPage(1); }}
+                id="select-type"
+                activeId={activeDropdownId}
+                setActiveId={setActiveDropdownId}
+                className="w-full h-10 bg-canvas"
+              />
             </div>
 
             {/* Status Select */}
             <div className="min-w-[160px]">
-              <select
+              <FilterSelect
+                label=""
+                placeholder="Tất cả trạng thái"
                 value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full h-10 rounded-full border border-hairline bg-canvas px-3 text-sm text-ink cursor-pointer outline-none"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="active">● Đang hiển thị</option>
-                <option value="inactive">● Đang ẩn</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả trạng thái' },
+                  { value: 'active', label: '● Đang hiển thị', colorClass: 'text-emerald-600' },
+                  { value: 'inactive', label: '● Đang ẩn', colorClass: 'text-mid-gray' }
+                ]}
+                onChange={(val) => { setStatus(val); setPage(1); }}
+                id="select-status"
+                activeId={activeDropdownId}
+                setActiveId={setActiveDropdownId}
+                className="w-full h-10 bg-canvas"
+              />
             </div>
 
             {/* Scope Select */}
             <div className="min-w-[180px]">
-              <select
+              <FilterSelect
+                label=""
+                placeholder="Tất cả phạm vi"
                 value={scope}
-                onChange={(e) => {
-                  setScope(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full h-10 rounded-full border border-hairline bg-canvas px-3 text-sm text-ink cursor-pointer outline-none"
-              >
-                <option value="all">Tất cả phạm vi</option>
-                <option value="general">FAQ dùng chung</option>
-                <option value="linked">Đã liên kết khóa học</option>
-                <option value="unlinked">Chưa liên kết khóa học</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả phạm vi' },
+                  { value: 'general', label: 'FAQ dùng chung' },
+                  { value: 'linked', label: 'Đã liên kết khóa học' },
+                  { value: 'unlinked', label: 'Chưa liên kết khóa học' }
+                ]}
+                onChange={(val) => { setScope(val); setPage(1); }}
+                id="select-scope"
+                activeId={activeDropdownId}
+                setActiveId={setActiveDropdownId}
+                className="w-full h-10 bg-canvas"
+              />
             </div>
 
             {/* Sort Select */}
             <div className="min-w-[160px]">
-              <select
+              <FilterSelect
+                label=""
+                placeholder="Sắp xếp theo"
                 value={`${sortBy}_${sortDirection}`}
-                onChange={(e) => {
-                  const val = e.target.value;
+                options={[
+                  { value: 'sort_order_asc', label: 'Thứ tự ưu tiên (Tăng)' },
+                  { value: 'sort_order_desc', label: 'Thứ tự ưu tiên (Giảm)' },
+                  { value: 'updated_at_desc', label: 'Mới cập nhật' },
+                  { value: 'updated_at_asc', label: 'Cập nhật cũ nhất' },
+                  { value: 'question_asc', label: 'Câu hỏi (A-Z)' },
+                  { value: 'question_desc', label: 'Câu hỏi (Z-A)' },
+                  { value: 'course_count_desc', label: 'Nhiều khóa học nhất' },
+                  { value: 'course_count_asc', label: 'Ít khóa học nhất' }
+                ]}
+                onChange={(val) => {
                   if (val.startsWith("sort_order")) {
                     setSortBy("sort_order");
                     setSortDirection(val.endsWith("desc") ? "desc" : "asc");
@@ -597,17 +777,11 @@ export default function Faqs() {
                   }
                   setPage(1);
                 }}
-                className="w-full h-10 rounded-full border border-hairline bg-canvas px-3 text-sm text-ink cursor-pointer outline-none"
-              >
-                <option value="sort_order_asc">Sắp xếp: Thứ tự tăng dần</option>
-                <option value="sort_order_desc">Thứ tự giảm dần</option>
-                <option value="updated_at_desc">Mới cập nhật trước</option>
-                <option value="updated_at_asc">Cũ cập nhật trước</option>
-                <option value="question_asc">Câu hỏi A–Z</option>
-                <option value="question_desc">Câu hỏi Z–A</option>
-                <option value="course_count_desc">Nhiều khóa học nhất</option>
-                <option value="course_count_asc">Ít khóa học nhất</option>
-              </select>
+                id="select-sort"
+                activeId={activeDropdownId}
+                setActiveId={setActiveDropdownId}
+                className="w-full h-10 bg-canvas"
+              />
             </div>
           </div>
 
@@ -620,27 +794,59 @@ export default function Faqs() {
               className="h-9 w-9 rounded-full border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center transition-colors cursor-pointer"
               title="Xóa bộ lọc"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
           </div>
         </form>
-      </div>
+        </div>
 
-      {/* Table Container */}
-      <div className="rounded-2xl border border-hairline bg-paper shadow-subtle overflow-hidden relative mb-6">
+        {/* Batch Reorder Action Bar */}
+        {isOrderChanged && (
+          <div className="mb-4 p-3 bg-warning-surf border border-warning-brick/30 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="text-warning-brick bg-warning-brick/10 p-1.5 rounded-full">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </span>
+              <p className="text-sm text-ink font-medium">
+                Bạn đã thay đổi thứ tự hiển thị. Đừng quên lưu lại nhé!
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={handleCancelReorder}
+                className="px-3 py-1 rounded-[4px] hover:bg-canvas text-mid-gray hover:text-ink font-medium transition-colors cursor-pointer"
+              >
+                Hủy thay đổi
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveReorder}
+                className="px-3 py-1 rounded-[4px] bg-warning text-warning-brick hover:bg-warning/90 font-bold transition-all cursor-pointer shadow-sm"
+              >
+                Lưu thứ tự
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Table Container */}
+      <div id="faqs-table-container" className="scroll-mt-20 min-h-[600px] flex flex-col rounded-2xl border border-hairline bg-paper shadow-subtle overflow-hidden relative mb-6">
         {loading ? (
-          <div className="p-12 text-center">
+          <div className="p-12 text-center flex-1 flex flex-col items-center justify-center">
             <div className="flex flex-col items-center justify-center space-y-3">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent"></div>
               <p className="text-sm font-medium text-mid-gray">Đang tải dữ liệu FAQ...</p>
             </div>
           </div>
         ) : items.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-12 text-center flex-1 flex flex-col items-center justify-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-canvas text-mid-gray mb-4">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                 <line x1="12" x2="12.01" y1="17" y2="17"/>
@@ -655,8 +861,8 @@ export default function Faqs() {
                   onClick={handleResetFilters}
                   className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-hairline bg-paper text-ink font-medium text-xs md:text-sm hover:bg-canvas transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                   <span>Xóa bộ lọc</span>
                 </button>
@@ -670,8 +876,8 @@ export default function Faqs() {
                   onClick={() => openFormModal()}
                   className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ink text-white font-medium text-xs md:text-sm hover:bg-ink/90 transition-all cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                   </svg>
                   <span>Tạo FAQ đầu tiên</span>
                 </button>
@@ -679,11 +885,11 @@ export default function Faqs() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto custom-scrollbar">
+          <div className="overflow-x-auto custom-scrollbar flex-1 flex flex-col">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr class="border-b border-hairline bg-surface-alt/60 text-[11px] font-bold uppercase tracking-wider text-mid-gray">
-                  <th scope="col" className="py-3.5 px-4 min-w-[280px]">
+                <tr className="border-b border-hairline bg-surface-alt/60 text-[11px] font-bold uppercase tracking-wider text-mid-gray">
+                  <th scope="col" className="py-3.5 px-4 w-[40%] min-w-[300px]">
                     <button
                       type="button"
                       onClick={() => handleSort("question")}
@@ -748,10 +954,10 @@ export default function Faqs() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline text-sm text-ink">
-                {items.map((item) => {
+                {items.map((item, index) => {
                   const typeConfig = typeMap[item.type] || { label: "Chung", class: "bg-mid-gray/10 text-mid-gray border-mid-gray/20 font-semibold" };
                   const statusConfig = statusMap[item.status] || statusMap.inactive;
-                  
+
                   const dateObj = new Date(item.updated_at);
                   const dateFormatted = isNaN(dateObj.getTime()) ? "N/A" : dateObj.toLocaleDateString("vi-VN", {
                     day: "2-digit", month: "2-digit", year: "numeric"
@@ -761,15 +967,26 @@ export default function Faqs() {
                     <tr
                       key={item.id}
                       onClick={() => handleOpenDrawer(item.id)}
-                      className="hover:bg-canvas/80 transition-colors cursor-pointer group"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, item.id)}
+                      onDragOver={(e) => handleDragOver(e, item.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, item.id)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        "hover:bg-canvas/80 transition-colors cursor-grab active:cursor-grabbing group select-none",
+                        draggedId === item.id && "opacity-20 bg-canvas/40 border-y-2 border-dashed border-mid-gray/40 pointer-events-none scale-[0.99] transition-all",
+                        dragOverId === item.id && "border-b-2 border-ink bg-ink/5 scale-[0.99] transition-transform"
+                      )}
+                      style={{ WebkitUserDrag: "element" } as any}
                     >
                       {/* Question & Answer */}
                       <td className="py-3.5 px-4 align-top">
                         <div className="flex flex-col space-y-1">
-                          <span className="font-medium text-ink group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+                          <span className="font-medium text-ink group-hover:text-blue-600 transition-colors leading-snug break-words">
                             {item.question}
                           </span>
-                          <span className="text-xs text-mid-gray line-clamp-2 leading-normal">
+                          <span className="text-xs text-mid-gray leading-normal break-words">
                             {item.answer}
                           </span>
                         </div>
@@ -813,10 +1030,32 @@ export default function Faqs() {
                       </td>
 
                       {/* Sort Order */}
-                      <td className="py-3.5 px-4 align-top text-center whitespace-nowrap">
-                        <span className="text-xs font-semibold tabular-nums text-ink bg-canvas px-2.5 py-1 rounded-lg border border-hairline">
-                          {item.sort_order ?? 0}
-                        </span>
+                      <td className="py-3.5 px-4 align-top text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1 bg-surface rounded p-0.5 border border-hairline/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                          <button
+                            type="button"
+                            onClick={() => handleMovePosition(item.id, "up")}
+                            disabled={index === 0}
+                            className="h-6 w-6 flex items-center justify-center rounded-sm text-mid-gray hover:bg-canvas hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                            </svg>
+                          </button>
+                          <span className="w-8 text-center text-[11px] font-bold text-ink tabular-nums">
+                            {item.sort_order ?? 0}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleMovePosition(item.id, "down")}
+                            disabled={index === items.length - 1}
+                            className="h-6 w-6 flex items-center justify-center rounded-sm text-mid-gray hover:bg-canvas hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
 
                       {/* Status */}
@@ -882,8 +1121,8 @@ export default function Faqs() {
                   onClick={() => setDrawerOpen(false)}
                   className="rounded-full border border-hairline p-1.5 text-mid-gray hover:bg-canvas hover:text-ink transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                 </button>
               </div>
@@ -997,8 +1236,8 @@ export default function Faqs() {
                   onClick={() => setFormModalOpen(false)}
                   className="rounded-full border border-hairline p-1.5 text-mid-gray hover:bg-canvas hover:text-ink transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                 </button>
               </div>
@@ -1042,12 +1281,12 @@ export default function Faqs() {
                   {/* Type */}
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-mid-gray mb-1.5">
-                      Loại FAQ <span class="text-red-500">*</span>
+                      Loại FAQ <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formFaq.type}
                       onChange={(e) => setFormFaq(prev => ({ ...prev, type: e.target.value }))}
-                      className="w-full h-10 rounded-full border border-hairline bg-canvas px-3 text-sm text-ink outline-none cursor-pointer"
+                      className="w-full h-10 rounded-lg border border-hairline bg-canvas px-3 text-sm text-ink outline-none cursor-pointer"
                     >
                       <option value="general">Chung</option>
                       <option value="account">Tài khoản</option>
@@ -1070,7 +1309,7 @@ export default function Faqs() {
                       min={0}
                       value={formFaq.sort_order}
                       onChange={(e) => setFormFaq(prev => ({ ...prev, sort_order: Number(e.target.value) }))}
-                      className="w-full h-10 rounded-full border border-hairline bg-canvas px-4 text-sm text-ink focus:border-ink focus:outline-none transition-colors"
+                      className="w-full h-10 rounded-lg border border-hairline bg-canvas px-4 text-sm text-ink focus:border-ink focus:outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -1136,8 +1375,8 @@ export default function Faqs() {
                   onClick={() => setSyncModalOpen(false)}
                   className="rounded-full border border-hairline p-1.5 text-mid-gray hover:bg-canvas hover:text-ink transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
                   </svg>
                 </button>
               </div>
@@ -1147,8 +1386,8 @@ export default function Faqs() {
                 {/* Search Course Input */}
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg className="w-4 h-4 text-mid-gray" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                    <svg className="w-4 h-4 text-mid-gray" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
                     </svg>
                   </div>
                   <input
@@ -1249,8 +1488,8 @@ export default function Faqs() {
               {/* Modal Body */}
               <div className="p-6">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600 mb-4">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
                   </svg>
                 </div>
 

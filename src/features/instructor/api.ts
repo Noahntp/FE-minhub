@@ -291,15 +291,15 @@ async getInstructorRevenueStats(instructorId: string, params: any): Promise<{ to
 async getInstructorEnrollments(instructorId: string, params: any): Promise<{ data: any[], meta: any }> {
   devLog('Instructor', `Get enrollments for instructor ${instructorId} with params`, params);
   const query = new URLSearchParams();
-  if (params.courseId) query.append('courseId', params.courseId);
-  if (params.status) query.append('status', params.status);
-  if (params.search) query.append('search', params.search);
-  if (params.minProgress !== undefined) query.append('minProgress', params.minProgress);
-  if (params.maxProgress !== undefined) query.append('maxProgress', params.maxProgress);
-  if (params.startDate) query.append('startDate', params.startDate);
-  if (params.endDate) query.append('endDate', params.endDate);
-  if (params.page) query.append('page', params.page);
-  if (params.limit) query.append('limit', params.limit);
+  if (params?.courseId && params.courseId !== 'all') query.append('courseId', params.courseId);
+  if (params?.status && params.status !== 'all') query.append('status', params.status);
+  if (params?.search) query.append('search', params.search);
+  if (params?.minProgress !== undefined && params.minProgress !== 'all') query.append('minProgress', params.minProgress);
+  if (params?.maxProgress !== undefined && params.maxProgress !== 'all') query.append('maxProgress', params.maxProgress);
+  if (params?.startDate) query.append('startDate', params.startDate);
+  if (params?.endDate) query.append('endDate', params.endDate);
+  if (params?.page) query.append('page', params.page);
+  if (params?.limit) query.append('limit', params.limit);
   return apiFetch<{ data: any[], meta: any }>(`/instructor/${instructorId}/enrollments?${query.toString()}`);
   },
 
@@ -735,8 +735,8 @@ async deleteInstructorCoupon(id: number | string): Promise<{ success: boolean }>
     return apiFetch<{ success: boolean }>(`/instructor/discount-codes/${id}`, { method: 'DELETE' });
   },
 
-async getInstructorPromoCoupons(): Promise<any[]> {
-    return this.getInstructorCoupons();
+  async getInstructorPromoCoupons(): Promise<any[]> {
+    return instructorApi.getInstructorCoupons();
   },
 
 async sendBulkCourseAnnouncement(payload: any): Promise<any> {
@@ -916,6 +916,7 @@ async getInstructorWithdrawals(arg1?: any, arg2?: any): Promise<any> {
     if (params.page) query.set('page', String(params.page));
     if (params.limit) query.set('per_page', String(params.limit));
     if (params.per_page) query.set('per_page', String(params.per_page));
+    if (params.type && params.type !== 'all') query.set('type', String(params.type));
     if (params.status && params.status !== 'all') query.set('status', String(params.status));
     if (params.date_from) query.set('date_from', String(params.date_from));
     if (params.date_to) query.set('date_to', String(params.date_to));

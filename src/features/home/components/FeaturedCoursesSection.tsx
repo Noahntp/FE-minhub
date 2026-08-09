@@ -36,7 +36,7 @@ export function FeaturedCoursesSection({ courses }: { courses: HomeCourseItem[] 
 
         {/* Grid 5 Course Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
-          {courses.map((course) => (
+          {courses.slice(0, 5).map((course) => (
             <HomeCourseCard key={course.id} course={course} tagVariant="hot" />
           ))}
         </div>

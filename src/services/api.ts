@@ -111,8 +111,9 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   }
   headers.set('Accept', 'application/json');
   
-  if (config.authToken) {
-    headers.set('Authorization', `Bearer ${config.authToken}`);
+  const effectiveToken = config.authToken || localStorage.getItem('mindhub_api_token');
+  if (effectiveToken) {
+    headers.set('Authorization', `Bearer ${effectiveToken}`);
   }
 
   let response: Response;
@@ -458,7 +459,7 @@ export const ApiService = {
   /** POST /auth/forgot-password */
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     devLog('Auth', 'Send password reset link to', { email });
-    return this.requestPasswordReset(email);
+    return ApiService.requestPasswordReset(email);
   },
 
   /** POST /auth/verify-email/resend */
@@ -908,6 +909,12 @@ export const ApiService = {
   async getMyEnrolledCourses(): Promise<Course[]> {
   devLog('Learning', 'Get my bought/enrolled courses library');
   return apiFetch<Course[]>('/me/courses');
+  },
+
+  /** GET /me/streak */
+  async getLearningStreak(): Promise<any> {
+  devLog('Learning', 'Fetch live student streak and activity metrics');
+  return apiFetch<any>('/me/streak');
   },
 
   /** GET /me/learning-dashboard */
@@ -2108,23 +2115,23 @@ export const ApiService = {
 
   /** Legacy helper methods mapping */
   async getInstructorPromoCoupons(): Promise<any[]> {
-    return this.getInstructorCoupons();
+    return ApiService.getInstructorCoupons();
   },
 
   async createPromoCoupon(payload: any): Promise<any> {
-    return this.createInstructorCoupon(payload);
+    return ApiService.createInstructorCoupon(payload);
   },
 
   async getCouponDetails(id: string): Promise<any> {
-    return this.getInstructorCouponDetail(id);
+    return ApiService.getInstructorCouponDetail(id);
   },
 
   async updatePromoCouponDetails(id: string, payload: any): Promise<any> {
-    return this.updateInstructorCoupon(id, payload);
+    return ApiService.updateInstructorCoupon(id, payload);
   },
 
   async deletePromoCoupon(id: string): Promise<{ success: boolean }> {
-    return this.deleteInstructorCoupon(id);
+    return ApiService.deleteInstructorCoupon(id);
   },
 
   /** POST /instructor/course-announcements */
@@ -3231,15 +3238,15 @@ export const ApiService = {
 
   // --- ACCOUNT ALIASES & AVATAR PRESET MANAGEMENT ---
   async getAccountProfile(): Promise<any> {
-    return this.getInstructorProfile();
+    return ApiService.getInstructorProfile();
   },
 
   async updateAccountProfile(payload: any): Promise<any> {
-    return this.updateInstructorProfile(payload);
+    return ApiService.updateInstructorProfile(payload);
   },
 
   async uploadAccountAvatar(file: File): Promise<any> {
-    return this.uploadInstructorAvatar(file);
+    return ApiService.uploadInstructorAvatar(file);
   },
 
   async selectAccountAvatarPreset(presetId: string): Promise<any> {

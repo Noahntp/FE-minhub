@@ -42,6 +42,9 @@ const ClassroomPage = React.lazy(() => import('@/features/classroom/ClassroomPag
 const ProfilePage = React.lazy(() => import('@/features/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const LoginPage = React.lazy(() => import('@/features/auth/LoginPage').then(m => ({ default: m.default })));
 const RegisterPage = React.lazy(() => import('@/features/auth/RegisterPage').then(m => ({ default: m.default })));
+const ForgotPasswordPage = React.lazy(() => import('@/features/auth/ForgotPasswordPage').then(m => ({ default: m.default })));
+const ResetPasswordPage = React.lazy(() => import('@/features/auth/ResetPasswordPage').then(m => ({ default: m.default })));
+const GoogleCallbackPage = React.lazy(() => import('@/features/auth/GoogleCallbackPage').then(m => ({ default: m.default })));
 const CartAndCheckout = React.lazy(() => import('@/features/cart/CartAndCheckout').then(m => ({ default: m.default })));
 const VNPayReturnPage = React.lazy(() => import('@/features/cart/VNPayReturnPage').then(m => ({ default: m.default })));
 const InstructorDashboard = React.lazy(() => import('@/features/instructor/InstructorPage'));
@@ -167,6 +170,16 @@ function AppRoutes() {
     navigate(path.startsWith('/') ? path : `/${path}`);
   };
 
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    try {
+      localStorage.removeItem('mindhub_is_logged_in');
+      localStorage.removeItem('mindhub_current_user');
+      localStorage.removeItem('mindhub_api_token');
+    } catch (e) {}
+    navigate('/login', { replace: true });
+  };
+
   const handleLoginSuccess = (user: any) => {
     setIsLoggedIn(true);
     setCurrentUser(user);
@@ -185,9 +198,17 @@ function AppRoutes() {
     <AnimatePresence mode="wait">
       <Suspense fallback={<PageLoader />}>
         <Routes location={location} key={location.pathname}>
-          {/* Auth Routes */}
+          {/* Auth & Legacy Redirect Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/instructor/register" element={<RegisterPage />} />
+          <Route path="/instructors/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<RegisterPage />} />
+          <Route path="/auth/verify-email" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
           
           {/* Main Layout Routes (Navbar + Footer) */}
           <Route element={<MainLayout />}>
@@ -235,9 +256,9 @@ function AppRoutes() {
               isLoggedIn ? (
                 <ProfilePage 
                   currentUser={currentUser} 
-                  setCurrentUser={() => {}} 
+                  setCurrentUser={setCurrentUser} 
                   navigateTo={navigateTo} 
-                  onLogout={() => {}} 
+                  onLogout={handleLogout} 
                 />
               ) : (
                 <Navigate to="/login" replace />
@@ -249,9 +270,21 @@ function AppRoutes() {
           </Route>
 
           {/* Instructor Workspace (No Main Navbar/Footer) */}
+          <Route path="/instructor/*" element={
+            // @ts-ignore
+            isLoggedIn && (currentUser?.role === 'instructor' || currentUser?.role === 'admin') ? (
+              <InstructorDashboard />
+            ) : (
+              <Navigate to="/my-courses" replace />
+            )
+          } />
           <Route path="/instructor/:instructorId/*" element={
             // @ts-ignore
-            isLoggedIn ? <InstructorDashboard /> : <Navigate to="/login" replace />
+            isLoggedIn && (currentUser?.role === 'instructor' || currentUser?.role === 'admin') ? (
+              <InstructorDashboard />
+            ) : (
+              <Navigate to="/my-courses" replace />
+            )
           } />
 
           {/* Admin Workspace */}

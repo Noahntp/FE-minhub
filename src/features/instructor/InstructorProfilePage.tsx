@@ -1,148 +1,489 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
-import { INITIAL_COURSES } from '@/shared/data';
-import { CourseCard } from '@/features/courses/components/CourseCard';
-import { Star, Users, PlayCircle, Award, MessageCircle, MapPin, Globe } from 'lucide-react';
+import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
+import { Star, Users, PlayCircle, Award, MessageCircle, MapPin, Globe, CheckCircle2, BookOpen, ShieldCheck, Sparkles, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { ReviewList } from '@/features/reviews/ReviewList';
+import { apiFetch } from '@/shared/lib/api-client';
+import { resolveMediaUrl } from '@/shared/utils/format';
+import { mapApiCourseToHomeCourseItem } from '@/features/home/hooks/useHomepageData';
+import { toast } from 'sonner';
+
+// Sample fallback courses for instructor profile
+const FALLBACK_INSTRUCTOR_COURSES: HomeCourseItem[] = [
+  {
+    id: 'react-19-nextjs-15',
+    title: 'Chinh Phục React 19 & Next.js 15: Từ Cơ Bản Đến Nâng Cao',
+    level: 'Trung cấp',
+    thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+    rating: 4.9,
+    reviewCount: 320,
+    studentCount: '3.4K',
+    instructorName: 'Nguyễn Văn A',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 699000,
+    originalPrice: 1099000,
+    discountBadge: '-36%',
+    isHot: true,
+  },
+  {
+    id: 'system-design-microservices',
+    title: 'System Design & Kiến Trúc Microservices Cho Hệ Thống Lớn',
+    level: 'Nâng cao',
+    thumbnail: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80',
+    rating: 4.9,
+    reviewCount: 285,
+    studentCount: '2.1K',
+    instructorName: 'Nguyễn Văn A',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 799000,
+    originalPrice: 1200000,
+    discountBadge: '-33%',
+    isHot: true,
+  },
+  {
+    id: 'laravel-rest-api-expert',
+    title: 'Lập Trình Laravel RESTful API & Security Best Practices',
+    level: 'Trung cấp',
+    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+    rating: 4.8,
+    reviewCount: 198,
+    studentCount: '2.8K',
+    instructorName: 'Nguyễn Văn A',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 499000,
+    originalPrice: 799000,
+    discountBadge: '-38%',
+  },
+  {
+    id: 'node-express-typescript',
+    title: 'Node.js, Express & TypeScript: Xây Dựng Backend Chuẩn Chuyên Nghiệp',
+    level: 'Cơ bản',
+    thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80',
+    rating: 4.7,
+    reviewCount: 164,
+    studentCount: '1.9K',
+    instructorName: 'Nguyễn Văn A',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 399000,
+    originalPrice: 650000,
+    discountBadge: '-38%',
+  },
+  {
+    id: 'python-ai-data-science',
+    title: 'Python AI & Data Science: Phân Tích Dữ Liệu Thực Chiến',
+    level: 'Trung cấp',
+    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
+    rating: 4.9,
+    reviewCount: 142,
+    studentCount: '1.5K',
+    instructorName: 'Nguyễn Văn A',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 549000,
+    originalPrice: 850000,
+    discountBadge: '-35%',
+  },
+  {
+    id: 'fullstack-vue3-nuxt',
+    title: 'Fullstack Web Development với Vue 3 & Nuxt.js 3',
+    level: 'Mọi trình độ',
+    thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80',
+    rating: 4.8,
+    reviewCount: 115,
+    studentCount: '1.1K',
+    instructorName: 'Nguyễn Văn A',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 449000,
+    originalPrice: 699000,
+    discountBadge: '-35%',
+  },
+];
+
+const ITEMS_PER_PAGE = 4;
 
 export default function InstructorProfilePage() {
   const { instructorId } = useParams();
   const [activeTab, setActiveTab] = useState<'courses' | 'reviews'>('courses');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [instructorData, setInstructorData] = useState<any>(null);
+  const [coursesList, setCoursesList] = useState<HomeCourseItem[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [reviewsCount, setReviewsCount] = useState<number>(3);
 
-  // Mock instructor data
+  useEffect(() => {
+    let isMounted = true;
+    if (instructorId) {
+      apiFetch<any>(`/instructors/${instructorId}`)
+        .then((res) => {
+          if (!isMounted) return;
+          const raw = res?.data || res;
+          if (raw) {
+            setInstructorData(raw);
+            const courses = raw.published_courses || raw.publishedCourses || raw.courses;
+            if (Array.isArray(courses)) {
+              const mapped = courses.map((c: any) => mapApiCourseToHomeCourseItem(c));
+              setCoursesList(mapped);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not load instructor profile from API, using fallback data:', err);
+          if (isMounted) {
+            setCoursesList(FALLBACK_INSTRUCTOR_COURSES);
+          }
+        });
+    } else {
+      setCoursesList(FALLBACK_INSTRUCTOR_COURSES);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [instructorId]);
+
+  const rawAvatar = instructorData?.avatar_url || instructorData?.avatar;
+  const avatarUrl = rawAvatar ? resolveMediaUrl(rawAvatar) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=250&q=80';
+
+  const rawSkills = instructorData?.instructor_profile?.expertise || instructorData?.expertise;
+  const parsedSkills = rawSkills
+    ? String(rawSkills).split(/[,;/]+/).map((s) => s.trim()).filter(Boolean)
+    : ['React 19', 'Next.js 15', 'Node.js', 'Laravel Framework', 'System Design', 'Microservices', 'Docker & K8s'];
+
   const instructor = {
-    id: instructorId || '1',
-    name: 'Nguyễn Văn A',
-    title: 'Senior Fullstack Engineer & Tech Lead',
-    avatar: 'https://i.pravatar.cc/150?img=11',
-    bio: 'Với hơn 10 năm kinh nghiệm trong ngành phát triển phần mềm, tôi đã tham gia xây dựng nhiều hệ thống quy mô lớn tại các tập đoàn công nghệ hàng đầu. Đam mê của tôi là chia sẻ kiến thức và giúp đỡ các kỹ sư trẻ phát triển sự nghiệp.',
-    students: 15420,
-    coursesCount: 12,
-    rating: 4.8,
-    reviews: 3240,
-    location: 'Hà Nội, Việt Nam',
-    website: 'https://example.com'
+    id: String(instructorId || '1'),
+    name: instructorData?.full_name || instructorData?.name || 'Nguyễn Văn A',
+    title: instructorData?.instructor_profile?.headline || instructorData?.headline || (parsedSkills.length > 0 ? parsedSkills.join(' • ') : 'Giảng viên chuyên môn tại MindHub'),
+    avatar: avatarUrl,
+    bio: instructorData?.instructor_profile?.bio || instructorData?.description || instructorData?.bio || 'Với hơn 10 năm kinh nghiệm trong ngành phát triển phần mềm, tôi đã tham gia xây dựng nhiều hệ thống quy mô lớn tại các tập đoàn công nghệ hàng đầu.',
+    students: instructorData ? Number(instructorData.total_enrollments_count ?? instructorData.total_students ?? 0) : 15420,
+    coursesCount: coursesList.length,
+    rating: instructorData ? Number(instructorData.average_rating ?? 5.0) : 4.8,
+    reviews: reviewsCount,
+    location: instructorData?.instructor_profile?.location || instructorData?.location || 'Hà Nội, Việt Nam',
+    website: instructorData?.instructor_profile?.website || instructorData?.website || 'https://mindhub.vn',
+    companies: ['VNG Corporation', 'VinAI Research', 'FPT Software'],
+    skills: parsedSkills,
   };
 
-  const instructorCourses = INITIAL_COURSES.slice(0, 4); // Mock filtering
+  const handleFollowToggle = () => {
+    setIsFollowing((prev) => !prev);
+    if (!isFollowing) {
+      toast.success(`Đã theo dõi giảng viên ${instructor.name}`);
+    } else {
+      toast.info(`Đã hủy theo dõi ${instructor.name}`);
+    }
+  };
+
+  const handleSendMessage = () => {
+    toast.success(`Đã gửi yêu cầu kết nối tới giảng viên ${instructor.name}. Đội ngũ hỗ trợ sẽ liên hệ bạn sớm nhất!`);
+  };
+
+  // Pagination Logic
+  const totalPages = Math.ceil(coursesList.length / ITEMS_PER_PAGE) || 1;
+  const paginatedCourses = coursesList.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <PageTransition>
-      {/* Hero Section */}
-      <div className="bg-primary/5 py-12 md:py-20 border-b">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-col md:flex-row gap-8 items-center md:items-start text-center md:text-left">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-background shadow-xl shrink-0">
-              <img src={instructor.avatar} alt={instructor.name} className="w-full h-full object-cover" />
-            </div>
+      <div className="min-h-screen bg-slate-50/50 pb-20">
+        
+        {/* Cover Header Banner */}
+        <div className="relative bg-gradient-to-r from-[#004D3F] via-[#007A64] to-[#04342C] h-48 sm:h-64 text-white overflow-hidden">
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-teal-300/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
+        </div>
+
+        {/* Profile Header Info Card */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative z-10">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-lg flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
             
-            <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl font-black font-suisseintl mb-2">{instructor.name}</h1>
-              <p className="text-lg text-primary font-medium mb-4">{instructor.title}</p>
-              
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6 text-muted-foreground mb-6">
-                <div className="flex items-center gap-1.5">
-                  <Users className="w-5 h-5 text-blue-500" />
-                  <span className="font-bold">{instructor.students.toLocaleString()}</span> học viên
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <PlayCircle className="w-5 h-5 text-emerald-500" />
-                  <span className="font-bold">{instructor.coursesCount}</span> khóa học
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Star className="w-5 h-5 text-amber-500" />
-                  <span className="font-bold">{instructor.rating}</span> ({instructor.reviews.toLocaleString()} đánh giá)
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
-                <Button className="rounded-xl px-8">Theo dõi</Button>
-                <div className="flex gap-4 text-sm font-medium">
-                  <span className="flex items-center gap-1"><MapPin className="w-4 h-4 text-muted-foreground" /> {instructor.location}</span>
-                  <span className="flex items-center gap-1"><Globe className="w-4 h-4 text-muted-foreground" /> Website</span>
-                </div>
+            {/* Avatar with Verified Badge */}
+            <div className="relative shrink-0 -mt-16 sm:-mt-20">
+              <img
+                src={instructor.avatar}
+                alt={instructor.name}
+                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-white shadow-xl ring-4 ring-emerald-500/20 bg-slate-100"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=250&q=80';
+                }}
+              />
+              <div className="absolute bottom-2 right-2 bg-emerald-600 text-white rounded-full p-1.5 border-2 border-white shadow-md" title="Giảng viên đã xác minh">
+                <CheckCircle2 className="w-5 h-5" />
               </div>
             </div>
+
+            {/* Profile Info Details */}
+            <div className="flex-1 space-y-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-xs font-bold mb-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Giảng viên Tiêu biểu MindHub
+                </div>
+                <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                  {instructor.name}
+                </h1>
+                <p className="text-sm sm:text-base font-semibold text-emerald-700 mt-0.5">
+                  {instructor.title}
+                </p>
+              </div>
+
+              {/* Stats Bar */}
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 sm:gap-6 text-xs sm:text-sm font-semibold text-slate-600">
+                <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                  <Users className="w-4 h-4 text-emerald-600" />
+                  <span className="font-bold text-slate-900">{instructor.students.toLocaleString('vi-VN')}</span> học viên
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                  <PlayCircle className="w-4 h-4 text-cyan-600" />
+                  <span className="font-bold text-slate-900">{instructor.coursesCount}</span> khóa học
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                  <span className="font-bold text-slate-900">{instructor.rating.toFixed(1)}</span>
+                  <span className="text-slate-400">({instructor.reviews.toLocaleString('vi-VN')} đánh giá)</span>
+                </div>
+              </div>
+
+              {/* Actions & Links */}
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-2">
+                <Button
+                  onClick={handleFollowToggle}
+                  className={`rounded-2xl px-6 py-2.5 font-bold text-xs shadow-md transition-all cursor-pointer ${
+                    isFollowing
+                      ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                  }`}
+                >
+                  {isFollowing ? '✓ Đã theo dõi' : '+ Theo dõi'}
+                </Button>
+
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-500 md:pl-2 md:border-l border-slate-200">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-slate-400" /> {instructor.location}
+                  </span>
+                  <a
+                    href={instructor.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 hover:text-emerald-600 transition-colors"
+                  >
+                    <Globe className="w-4 h-4 text-slate-400" /> Website <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto py-12 px-4 grid md:grid-cols-[1fr_300px] gap-12">
-        <div className="space-y-12">
-          {/* Bio */}
-          <div>
-            <h2 className="text-2xl font-bold mb-4">Về giảng viên</h2>
-            <div className="prose prose-slate max-w-none text-muted-foreground">
-              <p className="leading-relaxed whitespace-pre-wrap">{instructor.bio}</p>
-              <p>Từng công tác tại: VNG, VinAI, FPT Software.</p>
-              <p>Chuyên môn: React, Node.js, System Design, Microservices.</p>
+        {/* Main Body Grid */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Left Column (8 cols): Bio, Experience & Courses */}
+          <div className="lg:col-span-8 space-y-8 text-left">
+            
+            {/* Bio Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-emerald-600" /> Về giảng viên
+              </h2>
+              <p className="text-sm text-slate-600 leading-relaxed font-normal whitespace-pre-wrap">
+                {instructor.bio}
+              </p>
+
+              <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-medium">
+                <div>
+                  <span className="block text-slate-400 font-bold uppercase text-[11px] mb-1">Từng công tác tại</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {instructor.companies.map((comp, idx) => (
+                      <span key={idx} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-semibold">
+                        🏢 {comp}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="block text-slate-400 font-bold uppercase text-[11px] mb-1">Chứng chỉ & Đóng góp</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold border border-emerald-100">
+                      🏆 Microsoft Certified Trainer
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-semibold border border-amber-100">
+                      ⭐ Top Author 2024
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* Courses & Reviews Tabs */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+              
+              {/* Tab Header */}
+              <div className="flex items-center gap-8 border-b border-slate-100 pb-2">
+                <button
+                  onClick={() => setActiveTab('courses')}
+                  className={`pb-3 font-extrabold text-base transition-colors relative cursor-pointer ${
+                    activeTab === 'courses' ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Khóa học giảng dạy ({instructor.coursesCount})
+                  {activeTab === 'courses' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-full" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('reviews')}
+                  className={`pb-3 font-extrabold text-base transition-colors relative cursor-pointer ${
+                    activeTab === 'reviews' ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  Đánh giá từ học viên ({instructor.reviews.toLocaleString('vi-VN')})
+                  {activeTab === 'reviews' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-600 rounded-full" />
+                  )}
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              {activeTab === 'courses' ? (
+                <div className="space-y-6 pt-2">
+                  {paginatedCourses.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-medium">
+                      Giảng viên chưa đăng khóa học nào.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {paginatedCourses.map((course, idx) => (
+                          <HomeCourseCard key={course.id || idx} course={course} />
+                        ))}
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold">
+                          <div className="text-slate-500">
+                            Hiển thị <span className="font-bold text-slate-900">{(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, coursesList.length)}</span> trong tổng số <span className="font-bold text-slate-900">{coursesList.length}</span> khóa học
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                              disabled={currentPage === 1}
+                              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer"
+                              title="Trang trước"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                              <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-8 h-8 rounded-xl font-bold transition-all cursor-pointer ${
+                                  currentPage === page
+                                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                                    : 'text-slate-600 hover:bg-slate-100 border border-slate-200'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
+
+                            <button
+                              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                              disabled={currentPage === totalPages}
+                              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all cursor-pointer"
+                              title="Trang sau"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <ReviewList
+                  targetId={instructor.id}
+                  type="instructor"
+                  onCountChange={(count) => setReviewsCount(count)}
+                />
+              )}
+
+            </div>
+
           </div>
 
-          {/* Tabs */}
-          <div>
-            <div className="flex gap-8 border-b mb-8">
-              <button 
-                className={`pb-4 font-bold text-lg transition-colors relative ${activeTab === 'courses' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                onClick={() => setActiveTab('courses')}
-              >
-                Khóa học ({instructor.coursesCount})
-                {activeTab === 'courses' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"></div>}
-              </button>
-              <button 
-                className={`pb-4 font-bold text-lg transition-colors relative ${activeTab === 'reviews' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                onClick={() => setActiveTab('reviews')}
-              >
-                Đánh giá ({instructor.reviews})
-                {activeTab === 'reviews' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"></div>}
-              </button>
+          {/* Right Sidebar Column (4 cols): Achievements, Skills, Work Contact */}
+          <div className="lg:col-span-4 space-y-6 text-left">
+            
+            {/* Card 1: Thành tựu */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <Award className="w-5 h-5 text-amber-500" /> Thành tựu nổi bật
+              </h3>
+              <ul className="space-y-3 text-xs font-semibold text-slate-700">
+                <li className="flex items-start gap-2.5 p-2.5 rounded-2xl bg-amber-50/60 border border-amber-100">
+                  <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>Giảng viên xuất sắc tiêu biểu năm 2023 & 2024</span>
+                </li>
+                <li className="flex items-start gap-2.5 p-2.5 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>Top 1% Chuyên gia React & Fullstack Architecture</span>
+                </li>
+                <li className="flex items-start gap-2.5 p-2.5 rounded-2xl bg-cyan-50/60 border border-cyan-100">
+                  <CheckCircle2 className="w-4 h-4 text-cyan-600 shrink-0 mt-0.5" />
+                  <span>Hơn {instructor.students.toLocaleString('vi-VN')} học viên đã đăng ký học</span>
+                </li>
+              </ul>
             </div>
 
-            {activeTab === 'courses' ? (
-              <div className="grid sm:grid-cols-2 gap-6">
-                {instructorCourses.map(course => (
-                  <CourseCard key={course.id} course={course as any} />
+            {/* Card 2: Chuyên môn & Kỹ năng */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" /> Kỹ năng & Chuyên môn
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {instructor.skills.map((skill, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                  >
+                    {skill}
+                  </span>
                 ))}
               </div>
-            ) : (
-              <ReviewList targetId={instructor.id} type="instructor" />
-            )}
+            </div>
+
+            {/* Card 3: Liên hệ công việc */}
+            <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 p-6 rounded-3xl text-white shadow-xl space-y-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
+                <MessageCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-white">Liên hệ hợp tác & Đào tạo</h3>
+                <p className="text-xs text-slate-300 font-normal mt-1 leading-relaxed">
+                  Bạn muốn mời giảng viên tham gia dự án tư vấn hoặc đào tạo doanh nghiệp?
+                </p>
+              </div>
+              <Button
+                onClick={handleSendMessage}
+                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/30 cursor-pointer active:scale-95 transition-all"
+              >
+                Gửi tin nhắn liên hệ
+              </Button>
+            </div>
+
           </div>
+
         </div>
 
-        {/* Sidebar Info */}
-        <div className="space-y-6">
-          <div className="bg-card border rounded-3xl p-6 shadow-sm">
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-              <Award className="w-5 h-5 text-amber-500" /> Thành tựu
-            </h3>
-            <ul className="space-y-3">
-              <li className="flex gap-3 text-sm">
-                <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                <span>Giảng viên tiêu biểu năm 2023</span>
-              </li>
-              <li className="flex gap-3 text-sm">
-                <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                <span>Top 1% React Developer</span>
-              </li>
-            </ul>
-          </div>
-          
-          <div className="bg-card border rounded-3xl p-6 shadow-sm text-center">
-            <MessageCircle className="w-8 h-8 text-blue-500 mx-auto mb-3" />
-            <h3 className="font-bold mb-2">Liên hệ công việc</h3>
-            <p className="text-sm text-muted-foreground mb-4">Bạn muốn mời giảng viên tham gia dự án hoặc đào tạo doanh nghiệp?</p>
-            <Button variant="outline" className="w-full rounded-xl">Gửi tin nhắn</Button>
-          </div>
-        </div>
       </div>
     </PageTransition>
   );
 }
-
-// Temporary inline CheckCircle2 component
-const CheckCircle2 = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-);

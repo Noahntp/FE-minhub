@@ -8,6 +8,58 @@ export interface HomepageData {
   newCourses: HomeCourseItem[];
   discountedCourses: HomeCourseItem[];
   topInstructors: any[];
+  faqs?: any[];
+  testimonials?: any[];
+  vouchers?: any[];
+  stats?: any;
+}
+
+function formatStudentCount(count: number): string {
+  if (!count) return '0';
+  if (count >= 1000) {
+    return (count / 1000).toFixed(1).replace('.0', '') + 'K';
+  }
+  return String(count);
+}
+
+function mapLevel(level?: string): 'Cơ bản' | 'Trung cấp' | 'Nâng cao' | 'Mọi trình độ' {
+  if (!level) return 'Mọi trình độ';
+  const l = level.toLowerCase();
+  if (l.includes('begin') || l.includes('co_ban') || l.includes('cơ bản')) return 'Cơ bản';
+  if (l.includes('interm') || l.includes('trung_cap') || l.includes('trung cấp')) return 'Trung cấp';
+  if (l.includes('advance') || l.includes('nang_cao') || l.includes('nâng cao')) return 'Nâng cao';
+  return 'Mọi trình độ';
+}
+
+export function mapApiCourseToHomeCourseItem(c: any): HomeCourseItem {
+  const price = c.sale_price !== null && c.sale_price !== undefined ? Number(c.sale_price) : Number(c.price || 0);
+  const originalPrice = c.sale_price !== null && c.sale_price !== undefined && Number(c.sale_price) < Number(c.price) ? Number(c.price) : undefined;
+  
+  let discountBadge: string | undefined = undefined;
+  if (originalPrice && originalPrice > price && price > 0) {
+    const pct = Math.round(((originalPrice - price) / originalPrice) * 100);
+    if (pct > 0) {
+      discountBadge = `-${pct}%`;
+    }
+  }
+
+  return {
+    id: String(c.id || c.slug),
+    realId: typeof c.id === 'number' ? c.id : (!isNaN(Number(c.id)) ? Number(c.id) : undefined),
+    title: c.title || 'Khóa học chưa có tên',
+    level: mapLevel(c.level),
+    thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+    rating: Number(c.average_rating || 5.0),
+    reviewCount: Number(c.reviews_count || 0),
+    studentCount: formatStudentCount(Number(c.enrollments_count || 0)),
+    instructorName: c.instructor?.full_name || 'Giảng viên MindHub',
+    instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price,
+    originalPrice,
+    discountBadge,
+    isFree: price === 0,
+    isHot: Boolean(c.is_featured),
+  };
 }
 
 export function useHomepageData() {
@@ -30,7 +82,7 @@ export function useHomepageData() {
         }
 
         if (isMounted) {
-          // Sample mock course catalog matching the MindHub design screenshot
+          // Sample mock course catalog matching the MindHub design screenshot (for fallback)
           const mockFeaturedCourses: HomeCourseItem[] = [
             {
               id: 'laravel-rest-api',
@@ -247,12 +299,28 @@ export function useHomepageData() {
             },
           ];
 
+          const apiFeatured = Array.isArray(res?.featured_courses) && res.featured_courses.length > 0
+            ? res.featured_courses.map(mapApiCourseToHomeCourseItem)
+            : mockFeaturedCourses;
+
+          const apiNew = Array.isArray(res?.latest_courses) && res.latest_courses.length > 0
+            ? res.latest_courses.map((c: any) => ({ ...mapApiCourseToHomeCourseItem(c), isNew: true }))
+            : mockNewCourses;
+
+          const apiDiscounted = Array.isArray(res?.discounted_courses) && res.discounted_courses.length > 0
+            ? res.discounted_courses.map((c: any) => ({ ...mapApiCourseToHomeCourseItem(c), isHot: true }))
+            : mockDiscountedCourses;
+
           setData({
-            featuredCategories: res?.featured_categories || [],
-            featuredCourses: mockFeaturedCourses,
-            newCourses: mockNewCourses,
-            discountedCourses: mockDiscountedCourses,
-            topInstructors: res?.featured_instructors || [],
+            featuredCategories: Array.isArray(res?.categories) ? res.categories : [],
+            featuredCourses: apiFeatured,
+            newCourses: apiNew,
+            discountedCourses: apiDiscounted,
+            topInstructors: Array.isArray(res?.featured_instructors) ? res.featured_instructors : [],
+            faqs: Array.isArray(res?.faqs) ? res.faqs : [],
+            testimonials: Array.isArray(res?.testimonials) ? res.testimonials : [],
+            vouchers: Array.isArray(res?.vouchers) ? res.vouchers : [],
+            stats: res?.stats || null,
           });
         }
       } catch (err: any) {

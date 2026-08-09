@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import StudentDetailDrawer from './StudentDetailDrawer';
 import { instructorApi } from '@/features/instructor/api';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 interface StudentManagementProps {
   instructorCourses?: any[];
@@ -907,14 +908,21 @@ export default function StudentManagement({ instructorCourses = [] }: StudentMan
                   const progress = Math.min(Math.max(enrollment.progress_percent || 0, 0), 100);
                   const isCompleted = enrollment.status === 'completed' || progress >= 100;
                   
+                  const avatarSrc = (enrollment.learner as any)?.avatar_url || (enrollment.learner as any)?.avatar
+                    ? resolveMediaUrl((enrollment.learner as any).avatar_url || (enrollment.learner as any).avatar)
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(enrollment.learner?.full_name || 'Student')}&background=007A64&color=fff&bold=true`;
+
                   return (
                     <tr key={enrollment.enrollment_id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
                           <img 
-                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(enrollment.learner.full_name || 'Student')}&background=007A64&color=fff&bold=true`} 
+                            src={avatarSrc} 
                             alt={enrollment.learner.full_name} 
                             className="w-8 h-8 rounded-full object-cover border border-[#dbdde4]" 
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(enrollment.learner?.full_name || 'Student')}&background=007A64&color=fff&bold=true`;
+                            }}
                           />
                           <span className="font-bold text-[#06091a]">{enrollment.learner.full_name}</span>
                         </div>
