@@ -725,9 +725,7 @@ export default function CategoriesPage() {
   const treeMetrics = useMemo(() => {
     if (viewMode !== "tree") return null;
     const matchedIds = new Set(allCategoriesCache.map((c) => c.id));
-    const backendSortedIds = isOrderChanged
-      ? undefined
-      : allCategoriesCache.map((c) => c.id);
+    const backendSortedIds = undefined; // Always use client-side sort_order for optimistic UI
     const data = processTreeViewData(
       allCategoriesBase,
       {
@@ -744,7 +742,6 @@ export default function CategoriesPage() {
     allCategoriesBase,
     filters,
     expandedCategoryIds,
-    isOrderChanged,
   ]);
 
   // Phân trang Metadata tính toán
