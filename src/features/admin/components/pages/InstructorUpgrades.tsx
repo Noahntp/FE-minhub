@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { RotateCcw, Filter, X } from "lucide-react";
 import * as upgradesApi from "@/assets/js/api/instructor-upgrades-api.js";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
@@ -211,6 +212,9 @@ export default function InstructorUpgrades() {
   const [activeFilterDropdown, setActiveFilterDropdown] = useState<
     string | null
   >(null);
+  
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
 
   // Sync Form States when query parameters change (e.g. Back/Forward button, Reset)
   useEffect(() => {
@@ -281,6 +285,9 @@ export default function InstructorUpgrades() {
       }
       if (!target.closest("[data-action-td]")) {
         setActiveActionMenu(null);
+      }
+      if (filterPopoverRef.current && !filterPopoverRef.current.contains(e.target as Node)) {
+        setFilterPopoverOpen(false);
       }
     };
     window.addEventListener("click", handleOutsideClick);
@@ -1067,8 +1074,195 @@ export default function InstructorUpgrades() {
         </button>
       </div>
 
+        {/* 3.2 Main Filter Form */}
+        <section className="rounded-[6px] border border-hairline bg-paper p-3.5 sm:p-4 shadow-subtle mb-4 sm:mb-5">
+          <form
+            onSubmit={handleApplyFilters}
+            id="filter-form"
+            className="flex flex-col gap-3 w-full min-w-0"
+          >
+            <div className="flex flex-wrap items-center gap-[10px] w-full min-w-0">
+              {/* TÌM KIẾM */}
+              <div className="relative w-full sm:w-[360px] max-w-full h-[33px] shrink-0">
+                <svg
+                  className="w-3.5 h-3.5 text-mid-gray absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  type="text"
+                  id="filter-search"
+                  value={formSearch}
+                  onChange={(e) => setFormSearch(e.target.value)}
+                  placeholder="Tên, email, số điện thoại..."
+                  className="w-full h-full pl-9 pr-3 text-xs bg-canvas border border-hairline rounded-full focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
+                />
+              </div>
+
+              {/* TRẠNG THÁI HỒ SƠ */}
+              <div className="w-full sm:w-[170px] max-w-full shrink-0">
+                <FilterSelect
+                  label=""
+                  value={formStatus}
+                  options={statusOptions}
+                  onChange={(val) => {
+                    setFormStatus(val);
+                    updateFilters({ status: val, page: 1 });
+                  }}
+                  placeholder="Tất cả trạng thái"
+                  id="upgrade-status"
+                  activeId={activeFilterDropdown}
+                  setActiveId={setActiveFilterDropdown}
+                  className="w-full h-[33px]"
+                />
+              </div>
+
+              {/* Action Group */}
+              <div className="flex items-center gap-2 xl:ml-auto w-full xl:w-auto justify-end shrink-0">
+                {/* Reset Button */}
+                {(searchParam || statusParam || datePresetParam || sortByParam !== "newest") && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="h-[33px] px-2.5 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-medium text-danger-brick hover:text-red-700 hover:bg-red-50/50 transition-colors"
+                    title="Đặt lại bộ lọc"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Đặt lại</span>
+                  </button>
+                )}
+
+                {/* Filter Popover Button */}
+                <div className="relative shrink-0" ref={filterPopoverRef}>
+                  <button
+                    type="button"
+                    onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
+                    aria-label="Bộ lọc"
+                    className={`relative flex items-center justify-center w-[33px] h-[33px] rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-ink ${
+                      filterPopoverOpen || (datePresetParam || sortByParam !== "newest")
+                        ? "bg-canvas border-ink text-ink shadow-sm"
+                        : "bg-paper border-hairline text-mid-gray hover:bg-canvas hover:text-ink"
+                    }`}
+                  >
+                    <Filter className="w-3.5 h-3.5 text-ink" />
+                    {((datePresetParam ? 1 : 0) + (sortByParam !== "newest" ? 1 : 0)) > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                        {(datePresetParam ? 1 : 0) + (sortByParam !== "newest" ? 1 : 0)}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Popover Content */}
+                  {filterPopoverOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-[260px] z-50 bg-paper border border-hairline rounded-[12px] shadow-lg p-4 animate-in fade-in zoom-in-95 duration-100 text-left">
+                      <div className="space-y-4">
+                        {/* THỜI GIAN */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                            Thời gian
+                          </label>
+                          <FilterSelect
+                            label=""
+                            value={formDatePreset}
+                            options={timeOptions}
+                            onChange={(val) => {
+                              setFormDatePreset(val);
+                              if (val !== "custom") {
+                                setFormDateFrom("");
+                                setFormDateTo("");
+                                updateFilters({ date_preset: val, date_from: "", date_to: "", page: 1 });
+                              }
+                            }}
+                            placeholder="Tất cả thời gian"
+                            id="upgrade-time"
+                            activeId={activeFilterDropdown}
+                            setActiveId={setActiveFilterDropdown}
+                            className="w-full h-[33px]"
+                          />
+                        </div>
+
+                        {/* SẮP XẾP THEO */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                            Sắp xếp theo
+                          </label>
+                          <FilterSelect
+                            label=""
+                            value={formSortBy}
+                            options={sortOptions}
+                            onChange={(val) => {
+                              setFormSortBy(val);
+                              updateFilters({ sort_by: val, page: 1 });
+                            }}
+                            placeholder="Mới nhất"
+                            id="upgrade-sort"
+                            activeId={activeFilterDropdown}
+                            setActiveId={setActiveFilterDropdown}
+                            className="w-full h-[33px]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Date Picker Row (only when formDatePreset === 'custom') */}
+            {formDatePreset === "custom" && (
+              <div
+                id="custom-date-group"
+                className="flex flex-wrap items-center gap-3 pt-3 border-t border-hairline/60"
+              >
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="filter-date-from"
+                    className="text-xs text-mid-gray font-medium"
+                  >
+                    Từ ngày:
+                  </label>
+                  <input
+                    type="date"
+                    id="filter-date-from"
+                    value={formDateFrom}
+                    onChange={(e) => setFormDateFrom(e.target.value)}
+                    className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="filter-date-to"
+                    className="text-xs text-mid-gray font-medium"
+                  >
+                    Đến ngày:
+                  </label>
+                  <input
+                    type="date"
+                    id="filter-date-to"
+                    value={formDateTo}
+                    onChange={(e) => setFormDateTo(e.target.value)}
+                    className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => handleApplyFilters(e as any)}
+                  className="px-4 h-[33px] text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                >
+                  Áp dụng
+                </button>
+              </div>
+            )}
+          </form>
+        </section>
+
       {/* 3. Main Board Section */}
-      <div
+      <section
         id="upgrade-list-section"
         style={{ scrollMarginTop: "16px" }}
         className="rounded-[6px] border border-hairline bg-paper shadow-subtle flex flex-col"
@@ -1127,143 +1321,6 @@ export default function InstructorUpgrades() {
             Đã từ chối (<span className="tab-count">{summary.rejected}</span>)
           </button>
         </div>
-
-        {/* 3.2 Main Filter Form (Aligned properly on one row on desktop) */}
-        <form
-          onSubmit={handleApplyFilters}
-          id="filter-form"
-          className="p-4 border-b border-hairline bg-paper flex flex-col gap-3.5"
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-[minmax(0,1fr)_190px_190px_190px_160px] xl:items-end w-full">
-            {/* TÌM KIẾM */}
-            <div className="flex flex-col gap-1.5 w-full">
-              <label
-                htmlFor="filter-search"
-                className="text-[10px] font-bold uppercase tracking-wider text-mid-gray"
-              >
-                TÌM KIẾM
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="filter-search"
-                  value={formSearch}
-                  onChange={(e) => setFormSearch(e.target.value)}
-                  placeholder="Tên, email, số điện thoại..."
-                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-semibold"
-                />
-                <svg
-                  className="w-3.5 h-3.5 text-mid-gray/60 absolute left-3 top-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-              </div>
-            </div>
-
-            {/* TRẠNG THÁI HỒ SƠ */}
-            <FilterSelect
-              label="Trạng thái hồ sơ"
-              value={formStatus}
-              options={statusOptions}
-              onChange={(val) => setFormStatus(val)}
-              placeholder="Tất cả trạng thái"
-              id="upgrade-status"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-            />
-
-            {/* THỜI GIAN */}
-            <FilterSelect
-              label="Thời gian"
-              value={formDatePreset}
-              options={timeOptions}
-              onChange={(val) => {
-                setFormDatePreset(val);
-                if (val !== "custom") {
-                  setFormDateFrom("");
-                  setFormDateTo("");
-                }
-              }}
-              placeholder="Tất cả thời gian"
-              id="upgrade-time"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-            />
-
-            {/* SẮP XẾP THEO */}
-            <FilterSelect
-              label="Sắp xếp theo"
-              value={formSortBy}
-              options={sortOptions}
-              onChange={(val) => setFormSortBy(val)}
-              placeholder="Mới nhất"
-              id="upgrade-sort"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-            />
-
-            {/* Actions Buttons Group */}
-            <div className="flex gap-2 items-center h-10 shrink-0 justify-end w-full sm:w-auto xl:col-span-1 md:col-span-full">
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="px-3.5 py-2 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer shrink-0"
-              >
-                Đặt lại
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 h-10 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer shrink-0 border-none"
-              >
-                Áp dụng
-              </button>
-            </div>
-          </div>
-
-          {/* Date Picker Row (only when formDatePreset === 'custom') */}
-          {formDatePreset === "custom" && (
-            <div
-              id="custom-date-group"
-              className="flex flex-wrap items-center gap-3 pt-3 border-t border-hairline/60"
-            >
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="filter-date-from"
-                  className="text-xs text-mid-gray font-medium"
-                >
-                  Từ ngày:
-                </label>
-                <input
-                  type="date"
-                  id="filter-date-from"
-                  value={formDateFrom}
-                  onChange={(e) => setFormDateFrom(e.target.value)}
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="filter-date-to"
-                  className="text-xs text-mid-gray font-medium"
-                >
-                  Đến ngày:
-                </label>
-                <input
-                  type="date"
-                  id="filter-date-to"
-                  value={formDateTo}
-                  onChange={(e) => setFormDateTo(e.target.value)}
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
-                />
-              </div>
-            </div>
-          )}
-        </form>
 
         {/* 3.3 Active Filter Chips */}
         {(searchParam ||
@@ -1414,7 +1471,16 @@ export default function InstructorUpgrades() {
 
         {/* 3.4 Data Table */}
         <div className="overflow-x-auto relative flex-1 custom-scrollbar min-h-[450px]">
-          <table className="w-full text-left border-collapse text-xs table-auto min-w-[900px]">
+          <table className="w-full text-left border-collapse text-xs table-auto min-w-[1210px]">
+            <colgroup>
+              <col className="w-[220px]" />
+              <col className="w-[170px]" />
+              <col className="w-[260px]" />
+              <col className="w-[120px]" />
+              <col className="w-[190px]" />
+              <col className="w-[130px]" />
+              <col className="w-[120px]" />
+            </colgroup>
             <thead className="bg-surface-alt text-mid-gray border-b border-hairline uppercase tracking-wider font-semibold sticky top-0 z-10 text-[10px] select-none h-10">
               <tr>
                 {/* Column header: Người đăng ký */}
@@ -2126,11 +2192,7 @@ export default function InstructorUpgrades() {
                   )}
                 </th>
 
-                {/* Column header: Thao tác (No filter/sort) */}
-                <th className="p-3.5 pr-5 text-right font-bold w-20">
-                  Thao tác
-                </th>
-              </tr>
+                </tr>
             </thead>
             <tbody
               id="upgrades-table-body"
@@ -2298,19 +2360,6 @@ export default function InstructorUpgrades() {
                           <div className="min-w-0">
                             <div className="font-bold text-ink text-sm sm:text-xs leading-tight flex items-center">
                               {item.user?.full_name}
-                              {item.user?.role === "admin" ? (
-                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold bg-ink text-white ml-1.5 rounded select-none">
-                                  Admin
-                                </span>
-                              ) : item.user?.role === "instructor" ? (
-                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-medium text-success border border-success/20 bg-success-soft/20 ml-1.5 rounded select-none">
-                                  Giảng viên
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-medium text-mid-gray border border-hairline bg-canvas ml-1.5 rounded select-none">
-                                  Học viên
-                                </span>
-                              )}
                             </div>
                             <div className="text-[10px] text-mid-gray mt-0.5 truncate">
                               {item.user?.email}
@@ -2420,85 +2469,6 @@ export default function InstructorUpgrades() {
                       </td>
 
                       {/* Actions */}
-                      <td
-                        className="p-3.5 pr-5 text-right relative"
-                        data-action-td
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveActionMenu(
-                              activeActionMenu === item.user?.id
-                                ? null
-                                : item.user?.id,
-                            )
-                          }
-                          className="btn-action-menu p-1.5 rounded-full hover:bg-canvas text-mid-gray hover:text-ink transition-colors inline-block select-none cursor-pointer bg-transparent border-none"
-                          aria-label="Xem menu thao tác"
-                        >
-                          <svg
-                            className="w-4.5 h-4.5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle cx="12" cy="5" r="1.5" />
-                            <circle cx="12" cy="12" r="1.5" />
-                            <circle cx="12" cy="19" r="1.5" />
-                          </svg>
-                        </button>
-                        {activeActionMenu === item.user?.id && (
-                          <div className="action-dropdown absolute right-5 top-10 z-20 w-40 bg-paper border border-hairline rounded-[6px] p-1.5 shadow-subtle flex flex-col text-left font-normal normal-case animate-in fade-in duration-100">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                openDetailDrawer(item.user.id);
-                                setActiveActionMenu(null);
-                              }}
-                              className="w-full text-left px-3 py-1.5 text-xs hover:bg-canvas rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent"
-                            >
-                              Xem chi tiết
-                            </button>
-                            {isPending && (
-                              <>
-                                <div className="h-[1px] bg-hairline my-1 mx-1.5"></div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setConfirmModal({
-                                      open: true,
-                                      type: "approve",
-                                      user: item,
-                                      error: "",
-                                    });
-                                    setActiveActionMenu(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-canvas rounded-[4px] transition-colors font-semibold text-success cursor-pointer border-none bg-transparent"
-                                >
-                                  Duyệt yêu cầu
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setConfirmModal({
-                                      open: true,
-                                      type: "reject",
-                                      user: item,
-                                      error: "",
-                                    });
-                                    setActiveActionMenu(null);
-                                  }}
-                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-red-50/50 hover:text-danger-brick rounded-[4px] transition-colors font-semibold text-danger-brick cursor-pointer border-none bg-transparent"
-                                >
-                                  Từ chối yêu cầu
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </td>
                     </tr>
                   );
                 })
@@ -2518,7 +2488,7 @@ export default function InstructorUpgrades() {
             itemLabel="yêu cầu"
           />
         )}
-      </div>
+      </section>
 
       {/* DRAWER: DETAILS INFO VIEW */}
       {isDrawerOpen && activeDetailUser && (
