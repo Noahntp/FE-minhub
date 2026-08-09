@@ -1249,13 +1249,7 @@ export default function InstructorUpgrades() {
                     className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => handleApplyFilters(e as any)}
-                  className="px-4 h-[33px] text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
-                >
-                  Áp dụng
-                </button>
+
               </div>
             )}
           </form>

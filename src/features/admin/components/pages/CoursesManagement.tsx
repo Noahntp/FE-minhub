@@ -1291,13 +1291,7 @@ export default function CoursesManagement() {
                   className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => handleCustomDateSubmit()}
-                className="h-[33px] px-4 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
-              >
-                Áp dụng
-              </button>
+
             </div>
           )}
         </form>
