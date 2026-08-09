@@ -20,7 +20,7 @@ import {
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, isLoggedIn, setIsLoggedIn } = useApp();
+  const { currentUser, isLoggedIn, setIsLoggedIn, enrolledCourseIds = [] } = useApp();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
