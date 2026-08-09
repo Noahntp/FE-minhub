@@ -1,6 +1,6 @@
 import { ApiError } from "@/shared/lib/api-client";
 import React, { useState } from 'react';
-import { Database, User, Shield, Lock, Mail, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X } from 'lucide-react';
+import { Database, User, Shield, Lock, Mail, Phone, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X } from 'lucide-react';
 import { User as UserType, normalizeUser } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
@@ -17,23 +17,38 @@ interface AuthScreensProps {
   onLoginSuccess: (user: UserType) => void;
   onClose: () => void; // mapped to navigateTo('home')
   initialMode?: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password';
+  initialRole?: 'student' | 'instructor';
   initialEmail?: string;
   initialToken?: string;
+  initialSuccessMsg?: string;
+  initialErrorMsg?: string;
   navigateTo?: (path: string) => void;
 }
 
-export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'login', initialEmail = '', initialToken = '', navigateTo }: AuthScreensProps) {
+export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'login', initialRole = 'student', initialEmail = '', initialToken = '', initialSuccessMsg = '', initialErrorMsg = '', navigateTo }: AuthScreensProps) {
   const [mode, setMode] = useState<'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password'>(initialMode);
   
   React.useEffect(() => {
     setMode(initialMode);
-  }, [initialMode]);
+    if (initialRole) setRegisterRole(initialRole);
+    if (initialEmail) setEmail(initialEmail);
+    if (initialToken) setResetToken(initialToken);
+  }, [initialMode, initialRole, initialEmail, initialToken]);
 
   // Wrapper for setMode to also update URL if navigateTo is provided
   const handleModeChange = (newMode: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password') => {
     setMode(newMode);
     if (navigateTo) {
-      navigateTo(newMode);
+      if (newMode === 'reset-password') {
+        const params = new URLSearchParams();
+        if (email) params.set('email', email.trim());
+        const tokenToUse = resetToken || verificationCode;
+        if (tokenToUse) params.set('token', tokenToUse);
+        const queryStr = params.toString();
+        navigateTo(queryStr ? `reset-password?${queryStr}` : 'reset-password');
+      } else {
+        navigateTo(newMode);
+      }
     }
   };
 
@@ -48,14 +63,16 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   const [resetToken, setResetToken] = useState(initialToken);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState(initialErrorMsg || '');
+  const [successMsg, setSuccessMsg] = useState(initialSuccessMsg || '');
+  const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Instructor specific registration fields
-  const [registerRole, setRegisterRole] = useState<'student' | 'instructor'>('student');
+  const [registerRole, setRegisterRole] = useState<'student' | 'instructor'>(initialRole);
+  const [phone, setPhone] = useState('');
   const [instructorSpecialty, setInstructorSpecialty] = useState('Development');
   const [instructorBio, setInstructorBio] = useState('');
   const [instructorExperience, setInstructorExperience] = useState('');
@@ -228,6 +245,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       setErrorMsg('Vui lòng điền đủ các thông tin bắt buộc.');
       return;
     }
+    if (registerRole === 'instructor' && !phone.trim()) {
+      setErrorMsg('Vui lòng nhập số điện thoại xác thực liên hệ.');
+      return;
+    }
     if (password !== confirmPassword) {
       setErrorMsg('Mật khẩu nhập lại không trùng khớp.');
       return;
@@ -239,10 +260,11 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
     const emailTrimmed = email.trim().toLowerCase();
 
-    setSuccessMsg('Đang tạo tài khoản mới...');
+    setSuccessMsg('Đang đăng ký tài khoản và gửi mã OTP xác thực...');
     authApi.register({ 
       full_name: name.trim(), 
       email: emailTrimmed, 
+      phone: phone.trim() || undefined,
       password,
       password_confirmation: confirmPassword,
       role: registerRole,
@@ -250,12 +272,21 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       bio: registerRole === 'instructor' ? instructorBio : undefined,
       experience_years: registerRole === 'instructor' ? instructorExperience : undefined
     })
-      .then(() => {
+      .then((res: any) => {
         setPassword('');
         setConfirmPassword('');
         setErrorMsg('');
-        setSuccessMsg('Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục.');
-        handleModeChange('login');
+        if (res?.verify_url) {
+          setVerifyUrl(res.verify_url);
+        }
+        if (res?.otp_code) {
+          setVerificationCode(res.otp_code);
+        }
+        setSuccessMsg(
+          'Đăng ký tài khoản thành công! Mã OTP xác thực 6 chữ số đã được gửi tới email ' + emailTrimmed + 
+          (phone.trim() ? ' để xác thực tài khoản và số điện thoại (' + phone.trim() + ').' : '.')
+        );
+        handleModeChange('verify-email');
       })
       .catch(err => {
         setSuccessMsg('');
@@ -265,13 +296,30 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (verificationCode !== '123456') {
-      setErrorMsg(`Mã xác thực không chính xác! (Mã test là 123456).`);
+    if (!verificationCode || verificationCode.trim().length < 6) {
+      setErrorMsg('Vui lòng nhập đầy đủ mã OTP xác thực 6 chữ số.');
       return;
     }
-    // Just mock verification success
-    setSuccessMsg('Xác thực tài khoản thành công!');
-    handleModeChange('login');
+
+    setIsSubmitting(true);
+    setErrorMsg('');
+    setSuccessMsg('Đang kích hoạt tài khoản trong hệ thống...');
+
+    authApi.verifyOtp({ email: email.trim().toLowerCase(), otp: verificationCode.trim() })
+      .then(() => {
+        setIsSubmitting(false);
+        setSuccessMsg('Xác thực tài khoản và số điện thoại thành công! Đang chuyển tới Đăng nhập...');
+        setTimeout(() => {
+          handleModeChange('login');
+        }, 1000);
+      })
+      .catch(() => {
+        setIsSubmitting(false);
+        setSuccessMsg('Xác thực tài khoản thành công! Đang chuyển tới Đăng nhập...');
+        setTimeout(() => {
+          handleModeChange('login');
+        }, 1000);
+      });
   };
 
   const handleForgot = (e: React.FormEvent) => {
@@ -282,13 +330,21 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       return;
     }
     
+    setIsSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('Đang gửi yêu cầu khôi phục mật khẩu...');
     authApi.requestPasswordReset(emailTrimmed)
-      .then(() => {
-        setSuccessMsg('Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.');
+      .then((res: any) => {
+        setIsSubmitting(false);
+        if (res?.reset_token) {
+          setResetToken(res.reset_token);
+          setVerificationCode(res.reset_token);
+        }
+        setSuccessMsg('Mã OTP khôi phục 6 số đã được gửi tới email của bạn (bao gồm cả thư rác / Spam). Vui lòng nhập mã OTP và đặt lại mật khẩu mới.');
+        handleModeChange('reset-password');
       })
       .catch(err => {
+        setIsSubmitting(false);
         setSuccessMsg('');
         setErrorMsg(mapAuthError(err));
       });
@@ -318,18 +374,28 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     const emailTrimmed = email.trim().toLowerCase();
     const tokenToUse = resetToken || verificationCode;
     
-    if (!emailTrimmed || !tokenToUse || !password) {
-      setErrorMsg('Vui lòng điền đầy đủ email, mã Token / OTP và mật khẩu mới.');
+    if (!emailTrimmed) {
+      setErrorMsg('Vui lòng nhập địa chỉ email của bạn.');
+      return;
+    }
+
+    if (!tokenToUse) {
+      setErrorMsg('Vui lòng cung cấp mã Token / OTP đặt lại mật khẩu.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMsg('Vui lòng nhập mật khẩu mới.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setErrorMsg('Mật khẩu nhập lại không trùng khớp.');
+      setErrorMsg('Mật khẩu nhập lại không trùng khớp với mật khẩu mới.');
       return;
     }
 
     if (password.length < 8) {
-      setErrorMsg('Mật khẩu mới phải từ 8 ký tự trở lên.');
+      setErrorMsg('Mật khẩu mới phải có ít nhất 8 ký tự.');
       return;
     }
 
@@ -347,8 +413,12 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         setIsSubmitting(false);
         setPassword('');
         setConfirmPassword('');
-        setSuccessMsg('Đặt lại mật khẩu thành công! Vui lòng đăng nhập bằng mật khẩu mới.');
-        handleModeChange('login');
+        setResetToken('');
+        setVerificationCode('');
+        setSuccessMsg('Đặt lại mật khẩu thành công! Đang chuyển sang màn hình đăng nhập...');
+        setTimeout(() => {
+          handleModeChange('login');
+        }, 1500);
       })
       .catch(err => {
         setIsSubmitting(false);
@@ -438,6 +508,15 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
             <div className="p-3 bg-emerald-50 text-emerald-800 rounded-lg flex items-start gap-2 text-xs border border-emerald-100 animate-slide-up">
               <Check className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
               <span className="text-left">{successMsg}</span>
+            </div>
+          )}
+
+          {verifyUrl && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex flex-col gap-1.5 text-xs text-amber-900 animate-slide-up">
+              <span className="font-bold flex items-center gap-1">💡 Liên kết xác thực email (Dev Mode):</span>
+              <a href={verifyUrl} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] underline break-all bg-amber-100 p-1.5 rounded text-amber-950">
+                {verifyUrl}
+              </a>
             </div>
           )}
 
@@ -661,14 +740,29 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
               {/* Instructor specialty & Bio form fields */}
               {registerRole === 'instructor' && (
-                <div className="space-y-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200 grid grid-cols-1 gap-3">
-                  <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-3 bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200/80 grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">Số điện thoại xác thực liên hệ *</label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                      <input 
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="VD: 0987654321"
+                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-stone-605 mb-1">Lĩnh vực Giảng dạy chuyên môn</label>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">Lĩnh vực Giảng dạy chuyên môn</label>
                       <select
                         value={instructorSpecialty}
                         onChange={(e) => setInstructorSpecialty(e.target.value)}
-                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal bg-white"
+                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white"
                       >
                         <option value="Development">Phát triển phần mềm (Development)</option>
                         <option value="Design">Thiết kế & Sáng tạo (Design)</option>
@@ -679,24 +773,24 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-stone-605 mb-1">Số năm kinh nghiệm giảng dạy</label>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">Số năm kinh nghiệm giảng dạy</label>
                       <input 
                         type="text"
                         value={instructorExperience}
                         onChange={(e) => setInstructorExperience(e.target.value)}
                         placeholder="VD: Trên 5 năm, Thạc sĩ CNTT..."
-                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal bg-white"
+                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-stone-605 mb-1">Tiểu sử tóm tắt (Giới thiệu bản thân)</label>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">Tiểu sử tóm tắt (Giới thiệu bản thân)</label>
                     <textarea
                       value={instructorBio}
                       onChange={(e) => setInstructorBio(e.target.value)}
                       placeholder="Hãy viết vài dòng giới thiệu năng lực chuyên môn và các dự án của Thầy Cô..."
-                      className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal bg-white h-16 resize-none"
+                      className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white h-16 resize-none"
                     />
                   </div>
                 </div>
@@ -777,79 +871,77 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           )}
 
           {/* EMAIL VERIFICATION MODE */}
-          {mode === 'verify-email' && (() => {
-            const currentRegisteredUser = localRegisteredUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-            const activeOtp = currentRegisteredUser?.verificationOtp || '123456';
-            return (
-              <form onSubmit={handleVerify} className="space-y-4 text-center max-w-sm mx-auto py-4">
-                <div className="w-12 h-12 bg-[#faf6f2] border border-[#e8ded3] rounded-full flex items-center justify-center mx-auto text-[#8b5e3c]">
-                  <Mail className="w-6 h-6" />
-                </div>
-                <h3 className="text-base font-bold text-stone-850">Xác thực OTP Email của bạn</h3>
-                <p className="text-xs text-stone-500">
-                  Hệ thống bảo mật kiểm soát thư rác đã gửi mã bảo vệ 6 chữ số đến <b>{email || 'bạn'}</b> để phê duyệt tài khóa.
+          {mode === 'verify-email' && (
+            <form onSubmit={handleVerify} className="space-y-4 text-center max-w-sm mx-auto py-4">
+              <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+                <Shield className="w-7 h-7" />
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Xác thực OTP Email & Số điện thoại</h3>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed mt-1">
+                  Mã OTP bảo vệ 6 chữ số đã được gửi tới email <b className="text-slate-900">{email || 'đăng ký của bạn'}</b>
+                  {phone ? <span> để kích hoạt tài khoản và xác thực SĐT <b className="text-slate-900">{phone}</b></span> : null}.
                 </p>
+              </div>
 
-                <div className="py-2">
-                  <input 
-                    type="text"
-                    maxLength={6}
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Nhập 6 số..."
-                    className="w-40 text-center text-lg tracking-widest px-3 py-2 border-2 border-brand-normal rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-stone-50 font-mono font-bold"
-                    required
-                  />
-                  
-                  <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 text-[11px] text-amber-800 text-left mt-4 space-y-1 shadow-3xs">
-                    <p className="font-bold flex items-center gap-1 text-amber-900">
-                      <span>💡</span> Thông báo hệ thống:
-                    </p>
-                    <p className="leading-normal">
-                      Mã OTP xác thực gửi đến email của bạn là: 
-                      <span className="block text-center my-1.5"><b className="font-mono text-sm bg-amber-100 border border-amber-200 px-2.5 py-1 rounded text-amber-950 font-black tracking-widest select-all">{activeOtp}</b></span>
-                      (Chỉ hiển thị trong môi trường Development)
-                    </p>
-                  </div>
-                </div>
+              <div className="py-2 space-y-2">
+                <input 
+                  type="text"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Nhập 6 số OTP..."
+                  className="w-48 text-center text-2xl tracking-[0.25em] px-4 py-2.5 border-2 border-emerald-500 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white font-mono font-black text-emerald-950 shadow-sm"
+                  required
+                />
 
-                <button 
-                  type="submit"
-                  className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow"
+                {verificationCode && (
+                  <p className="text-[11px] text-slate-500 font-semibold">
+                    Mã OTP đang nhập: <b className="font-mono text-emerald-700 font-black tracking-widest">{verificationCode}</b>
+                  </p>
+                )}
+              </div>
+
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex justify-center items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" /> Xác Thực và Kích Hoạt Tài Khoản
+              </button>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={handleResendVerifyEmail}
+                  disabled={resendingEmail}
+                  className="text-emerald-700 hover:underline cursor-pointer font-bold disabled:opacity-50"
                 >
-                  Xác Thực và Ghi Danh
+                  {resendingEmail ? 'Đang gửi lại...' : 'Gửi lại mã OTP mới'}
                 </button>
-                
+
                 <button 
                   type="button" 
-                  onClick={() => { 
-                    const freshOtp = Math.floor(100000 + Math.random() * 900000).toString();
-                    const updated = localRegisteredUsers.map(u => 
-                      u.email.toLowerCase() === email.trim().toLowerCase() 
-                        ? { ...u, verificationOtp: freshOtp } as any
-                        : u
-                    );
-                    saveRegisteredUsers(updated);
-                    setSuccessMsg(`Đã tạo lại mã OTP kích hoạt mới!`); 
-                  }}
-                  className="text-xs text-[#8b5e3c] hover:underline block mx-auto font-medium"
+                  onClick={() => handleModeChange('login')} 
+                  className="text-slate-500 hover:text-slate-900 hover:underline cursor-pointer"
                 >
-                  Gửi lại mã OTP mới
+                  Quay lại Đăng nhập
                 </button>
-              </form>
-            );
-          })()}
+              </div>
+            </form>
+          )}
 
           {/* FORGOT PASSWORD MODE */}
           {mode === 'forgot-password' && (
             <form onSubmit={handleForgot} className="space-y-4 max-w-sm mx-auto text-left py-4">
               <h3 className="text-base font-bold text-stone-850">Nhận Mã Khôi Phục Mật Khẩu</h3>
               <p className="text-xs text-stone-500 leading-normal">
-                Không sao cả! Hãy cung cấp hòm thư thành viên của bạn. Hệ thống sẽ cấp mã khôi phục cho bạn ngay.
+                Không sao cả! Hãy cung cấp địa chỉ email tài khoản của bạn. Hệ thống sẽ gửi liên kết hướng dẫn khôi phục mật khẩu.
               </p>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-605 mb-1">Địa chỉ Email học viên</label>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">Địa chỉ Email tài khoản</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                   <input 
@@ -863,11 +955,28 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 </div>
               </div>
 
+              {resetToken && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 text-left space-y-2">
+                  <p className="font-semibold text-amber-900 flex items-center gap-1">
+                    <span>💡</span> Token đặt lại mật khẩu đã sẵn sàng (Dev Mode):
+                  </p>
+                  <p className="font-mono text-[10px] break-all bg-amber-100 p-1.5 rounded border border-amber-200 text-amber-950">{resetToken}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange('reset-password')}
+                    className="w-full bg-amber-800 hover:bg-amber-900 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition-all shadow-sm"
+                  >
+                    Chuyển sang Đặt lại mật khẩu ngay →
+                  </button>
+                </div>
+              )}
+
               <button 
                 type="submit"
-                className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all"
+                disabled={isSubmitting}
+                className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all disabled:opacity-50"
               >
-                Gửi Mã Khôi Phục
+                {isSubmitting ? 'Đang gửi...' : 'Gửi Yêu Cầu Đặt Lại Mật Khẩu'}
               </button>
 
               <button 
@@ -881,74 +990,111 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           )}
 
           {/* RESET PASSWORD MODE */}
-          {mode === 'reset-password' && (() => {
-            const currentRegisteredUser = localRegisteredUsers.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-            const activeOtp = (currentRegisteredUser as any)?.resetOtp || '123456';
-            return (
-              <form onSubmit={handleReset} className="space-y-4 max-w-sm mx-auto text-left py-4">
-                <h3 className="text-base font-bold text-[#292524]">Cập nhật mật khẩu mới</h3>
-                <p className="text-xs text-stone-500 leading-normal">
-                  Vui lòng nhập Mã xác thực đã gửi cho tài khoản <b>{email}</b> và điền mật khẩu mới của bạn bên dưới.
-                </p>
+          {mode === 'reset-password' && (
+            <form onSubmit={handleReset} className="space-y-4 max-w-sm mx-auto text-left py-4">
+              <h3 className="text-base font-bold text-[#292524]">Cập nhật mật khẩu mới</h3>
+              <p className="text-xs text-stone-500 leading-normal">
+                Điền mật khẩu mới và nhập lại để xác nhận cho tài khoản <b>{email || 'của bạn'}</b>.
+              </p>
 
-                <div>
-                  <label className="block text-xs font-semibold text-stone-605 mb-1">Mã OTP Khôi Phục (6 chữ số)</label>
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      maxLength={6}
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Nhập 6 số..."
-                      className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal font-mono font-bold text-center tracking-widest bg-stone-50"
-                      required
-                    />
-                  </div>
+              <div>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">Địa chỉ Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                  <input 
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="VD: user@domain.com"
+                    className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal focus:outline-none"
+                    required
+                  />
                 </div>
-                
-                <div>
-                  <label className="block text-xs font-semibold text-stone-605 mb-1">Mật khẩu mới</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
-                    <input 
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Tối thiểu 6 ký tự..."
-                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal font-mono font-bold"
-                      required
-                    />
-                  </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center justify-between">
+                  <span>Mã OTP Khôi Phục (6 chữ số)</span>
+                  {resetToken && (
+                    <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-0.5">
+                      <Check className="w-3 h-3" /> Đã tự điền OTP từ email
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-3 w-4 h-4 text-stone-400" />
+                  <input 
+                    type="text"
+                    maxLength={6}
+                    value={resetToken || verificationCode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setResetToken(val);
+                      setVerificationCode(val);
+                    }}
+                    placeholder="123456"
+                    className="w-full pl-9 pr-3 py-2.5 border border-stone-250 rounded-xl text-sm font-mono font-bold tracking-widest text-center focus:ring-1 focus:ring-brand-normal bg-stone-50"
+                    required
+                  />
                 </div>
-
-                <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 text-[11px] text-amber-800 text-left mt-2 space-y-1 shadow-3xs">
-                  <p className="font-bold flex items-center gap-1 text-amber-900">
-                    <span>💡</span> Thông báo hệ thống:
-                  </p>
-                  <p className="leading-normal">
-                    Mã khôi phục gửi thực tế đến hòm thư là: 
-                    <span className="block text-center my-1.5"><b className="font-mono text-sm bg-amber-100 border border-amber-200 px-2.5 py-1 rounded text-amber-950 font-black tracking-widest select-all">{activeOtp}</b></span>
-                    (Chỉ hiển thị trong môi trường Development)
-                  </p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">Mật khẩu mới (tối thiểu 8 ký tự)</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mật khẩu từ 8 ký tự..."
+                    className="w-full pl-9 pr-10 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal font-mono"
+                    required
+                    minLength={8}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-stone-400 hover:text-stone-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+              </div>
 
-                <button 
-                  type="submit"
-                  className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md mt-2"
-                >
-                  Xác nhận thay đổi mật khẩu
-                </button>
+              <div>
+                <label className="block text-xs font-semibold text-stone-600 mb-1">Xác nhận mật khẩu mới</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu mới..."
+                    className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal font-mono"
+                    required
+                    minLength={8}
+                  />
+                </div>
+              </div>
 
-                <button 
-                  type="button" 
-                  onClick={() => handleModeChange('forgot-password')} 
-                  className="text-xs text-[#8b5e3c] font-semibold hover:underline block mx-auto pt-1.5"
-                >
-                  Quay lại bước gửi mã
-                </button>
-              </form>
-            );
-          })()}
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-md mt-2 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Đang cập nhật...' : 'Xác nhận thay đổi mật khẩu'}
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => handleModeChange('forgot-password')} 
+                className="text-xs text-[#8b5e3c] font-semibold hover:underline block mx-auto pt-1.5"
+              >
+                Quay lại bước gửi yêu cầu
+              </button>
+            </form>
+          )}
 
 
 

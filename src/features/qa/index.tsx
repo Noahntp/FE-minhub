@@ -369,21 +369,21 @@ export const InstructorQAModule: React.FC = () => {
       />
 
       {/* Split Main Content Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 items-stretch">
-        {/* Left column: List of Questions */}
-        <div className="w-full lg:w-[48%] shrink-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch min-h-[760px] h-[calc(100vh-210px)]">
+        {/* Left column: List of Questions (5 cols) */}
+        <div className="lg:col-span-5 h-full flex flex-col min-h-0">
           {isLoadingList ? (
-            <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 p-8 h-[750px] flex flex-col items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-3xs border border-slate-200/80 p-8 h-full flex flex-col items-center justify-center">
               <Loader2 className="w-8 h-8 text-brand-normal animate-spin mb-2" />
               <p className="text-xs font-bold text-slate-500">Đang tải danh sách câu hỏi...</p>
             </div>
           ) : listError ? (
-            <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 p-8 h-[750px] flex flex-col items-center justify-center text-center">
+            <div className="bg-white rounded-2xl shadow-3xs border border-slate-200/80 p-8 h-full flex flex-col items-center justify-center text-center">
               <AlertCircle className="w-10 h-10 text-rose-500 mb-2" />
               <p className="text-xs font-bold text-slate-700">{listError}</p>
               <button 
                 onClick={loadQuestions}
-                className="mt-3 px-4 py-2 text-xs font-bold bg-brand-normal text-white rounded-xl hover:bg-brand-hover cursor-pointer"
+                className="mt-3 px-4 py-2 text-xs font-bold bg-brand-normal text-white rounded-xl hover:bg-brand-hover cursor-pointer shadow-sm transition-all"
               >
                 Thử lại
               </button>
@@ -405,10 +405,10 @@ export const InstructorQAModule: React.FC = () => {
           )}
         </div>
 
-        {/* Right column: Conversation detail & reply form */}
-        <div className="w-full lg:w-[52%] shrink-0">
+        {/* Right column: Conversation detail & reply form (7 cols) */}
+        <div className="lg:col-span-7 h-full flex flex-col min-h-0">
           {isLoadingDetail ? (
-            <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 p-8 h-[750px] flex flex-col items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-3xs border border-slate-200/80 p-8 h-full flex flex-col items-center justify-center">
               <Loader2 className="w-8 h-8 text-brand-normal animate-spin mb-2" />
               <p className="text-xs font-bold text-slate-500">Đang tải chi tiết câu hỏi...</p>
             </div>

@@ -128,20 +128,32 @@ async getQuizAttemptDetails(attemptId: string): Promise<any> {
   return apiFetch<any>(`/quiz-attempts/${attemptId}`);
   },
 
-async createPromoCoupon(payload: any): Promise<any> {
-    return this.createInstructorCoupon(payload);
+  async createPromoCoupon(payload: any): Promise<any> {
+    devLog('Coupon', 'Create promo coupon', payload);
+    return apiFetch<any>('/instructor/discount-codes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
-async getCouponDetails(id: string): Promise<any> {
-    return this.getInstructorCouponDetail(id);
+  async getCouponDetails(id: string): Promise<any> {
+    devLog('Coupon', `Get coupon detail: ${id}`);
+    return apiFetch<any>(`/instructor/discount-codes/${id}`);
   },
 
-async updatePromoCouponDetails(id: string, payload: any): Promise<any> {
-    return this.updateInstructorCoupon(id, payload);
+  async updatePromoCouponDetails(id: string, payload: any): Promise<any> {
+    devLog('Coupon', `Update promo coupon: ${id}`, payload);
+    return apiFetch<any>(`/instructor/discount-codes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   },
 
-async deletePromoCoupon(id: string): Promise<{ success: boolean }> {
-    return this.deleteInstructorCoupon(id);
+  async deletePromoCoupon(id: string): Promise<{ success: boolean }> {
+    devLog('Coupon', `Delete promo coupon: ${id}`);
+    return apiFetch<{ success: boolean }>(`/instructor/discount-codes/${id}`, {
+      method: 'DELETE',
+    });
   },
 
 async sendContactMessage(payload: { name: string; email: string; subject: string; message: string }): Promise<{ success: boolean; message?: string }> {

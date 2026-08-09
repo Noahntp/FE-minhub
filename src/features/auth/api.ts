@@ -40,11 +40,19 @@ async getGoogleRedirectUrl(): Promise<string> {
     return res.url;
   },
 
-async requestPasswordReset(email: string): Promise<any> {
+  async requestPasswordReset(email: string): Promise<any> {
     devLog('Auth', 'Request password reset', { email });
     return apiFetch<any>('/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    });
+  },
+
+  async verifyOtp(payload: { email: string; otp: string }): Promise<any> {
+    devLog('Auth', 'Verify OTP email/phone code', payload);
+    return apiFetch<any>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 
@@ -103,16 +111,16 @@ async revokeSession(sessionId: string): Promise<{ success: boolean }> {
     return apiFetch<{ success: boolean }>(`/auth/sessions/${sessionId}`, { method: 'DELETE' });
   },
 
-async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     devLog('Auth', 'Send password reset link to', { email });
-    return this.requestPasswordReset(email);
+    return authApi.requestPasswordReset(email);
   },
 
-  async resendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
-    devLog('Auth', 'Resend email verification notification mail', { email });
+  async resendVerificationEmail(email: string, purpose: string = 'verify_email'): Promise<{ success: boolean; message: string }> {
+    devLog('Auth', 'Resend email verification notification mail', { email, purpose });
     const res = await apiFetch<any>('/auth/verify-email/resend', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, purpose }),
     });
     return {
       success: true,

@@ -32,6 +32,17 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
 
   const [sortReplies, setSortReplies] = useState<'newest' | 'oldest'>('newest');
 
+  // Auto focus editor when a question is selected
+  useEffect(() => {
+    if (question?.id) {
+      setTimeout(() => {
+        if (editorRef.current) {
+          editorRef.current.focus();
+        }
+      }, 150);
+    }
+  }, [question?.id]);
+
   // Helper: Strip HTML tags to check if empty
   const isContentEmpty = (html: string): boolean => {
     if (!html) return true;
@@ -228,9 +239,9 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
   const isHidden = question.status === 'hidden';
 
   return (
-    <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 flex flex-col h-[750px] overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-3xs border border-slate-200/80 flex flex-col h-full overflow-hidden">
       {/* Detail Header */}
-      <div className="p-5 border-b border-slate-50 shrink-0 text-left bg-slate-50/20">
+      <div className="p-5 border-b border-slate-100 shrink-0 text-left bg-slate-50/50">
         <div className="flex justify-between items-start gap-4">
           <div className="flex items-center gap-3">
             <img 
@@ -277,7 +288,7 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
       </div>
 
       {/* Detail Content (Scrollable Thread) */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-6 text-left">
+      <div className="flex-1 overflow-y-auto p-5 space-y-6 text-left custom-scrollbar">
         {/* Original Question Content */}
         <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5">
           {renderFormattedContent(question.content)}
@@ -287,7 +298,7 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
         <div className="space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-2">
             <h4 className="text-xs font-black text-slate-850 uppercase tracking-wider">
-              {question.replies?.length ?? question.reply_count} câu trả lời
+              {(question.replies && question.replies.length > 0) ? question.replies.length : (question.reply_count ?? (question as any).replies_count ?? 0)} câu trả lời
             </h4>
             
             <select
@@ -348,7 +359,7 @@ export const QADetailView: React.FC<QADetailViewProps> = ({
       {/* Reply Editor (Footer Form) */}
       <form 
         onSubmit={handleReplySubmit}
-        className="p-4 lg:p-5 lg:pr-20 border-t border-slate-100 bg-slate-50/40 shrink-0 text-left relative z-10"
+        className="p-4 lg:p-5 border-t border-slate-100 bg-slate-50/40 shrink-0 text-left relative z-10"
       >
         <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2">Trả lời học viên</h4>
         

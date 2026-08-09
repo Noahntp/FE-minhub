@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { homeApi } from '@/features/home/api';
+import { CountUpNumber } from '@/shared/components/ui/CountUpNumber';
+import { resolveMediaUrl } from '@/shared/utils/format';
 import {
   ChevronRight,
   ArrowRight,
@@ -195,9 +197,7 @@ export default function ServicesPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 text-center divide-x divide-slate-800">
             <div className="px-2 space-y-1">
               <div className="text-2xl sm:text-3xl font-black text-emerald-400">
-                {stats?.total_students
-                  ? `${Number(stats.total_students).toLocaleString('vi-VN')}+`
-                  : '10.000+'}
+                <CountUpNumber target={stats?.total_students || 10000} suffix="+" />
               </div>
               <div className="text-xs font-bold text-white">Học viên</div>
               <div className="text-[11px] text-slate-400 font-medium">Đang theo học và tin tưởng</div>
@@ -205,9 +205,7 @@ export default function ServicesPage() {
 
             <div className="px-2 space-y-1">
               <div className="text-2xl sm:text-3xl font-black text-cyan-400">
-                {stats?.total_courses
-                  ? `${Number(stats.total_courses).toLocaleString('vi-VN')}+`
-                  : '1.200+'}
+                <CountUpNumber target={stats?.total_courses || 1200} suffix="+" />
               </div>
               <div className="text-xs font-bold text-white">Khóa học</div>
               <div className="text-[11px] text-slate-400 font-medium">Đa dạng chủ đề, cập nhật liên tục</div>
@@ -215,9 +213,7 @@ export default function ServicesPage() {
 
             <div className="px-2 space-y-1">
               <div className="text-2xl sm:text-3xl font-black text-teal-300">
-                {stats?.total_instructors
-                  ? `${Number(stats.total_instructors).toLocaleString('vi-VN')}+`
-                  : '300+'}
+                <CountUpNumber target={stats?.total_instructors || 300} suffix="+" />
               </div>
               <div className="text-xs font-bold text-white">Giảng viên</div>
               <div className="text-[11px] text-slate-400 font-medium">Chuyên gia hàng đầu trong lĩnh vực</div>
@@ -225,9 +221,7 @@ export default function ServicesPage() {
 
             <div className="px-2 space-y-1">
               <div className="text-2xl sm:text-3xl font-black text-amber-400">
-                {stats?.completion_rate || stats?.satisfaction_rate
-                  ? `${stats.completion_rate || stats.satisfaction_rate}%`
-                  : '98%'}
+                <CountUpNumber target={stats?.completion_rate || stats?.satisfaction_rate || 98} suffix="%" />
               </div>
               <div className="text-xs font-bold text-white">Học viên hài lòng</div>
               <div className="text-[11px] text-slate-400 font-medium">Với chất lượng khóa học</div>
@@ -553,23 +547,31 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      {/* 7. Giảng viên nói gì về MindHub (Testimonials) */}
+      {/* 7. Giảng viên & Học viên nói gì về MindHub (Testimonials) */}
       <section className="py-14 bg-slate-50/50 border-b border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
 
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900">
-              Giảng viên nói gì về MindHub
+              Đánh giá & Cảm nhận về MindHub
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Hàng nghìn giảng viên đã và đang đồng hành cùng chúng tôi.
+              Hàng nghìn giảng viên và học viên đã và đang đồng hành phát triển cùng chúng tôi.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
             {displayTestimonials.map((item: any, index: number) => {
-              const text = item.comment || item.content || '';
-              const formattedComment = text.startsWith('"') ? text : `"${text}"`;
+              const text = (item.comment || item.content || '').trim();
+              const formattedComment = text ? (text.startsWith('"') ? text : `"${text}"`) : '"Nội dung khóa học rất sát thực tế, hệ thống ổn định và hỗ trợ nhiệt tình."';
+              
+              const rawAvatar = item.user_avatar || item.avatar || item.user?.avatar_url;
+              const resolvedAvatar = rawAvatar ? resolveMediaUrl(rawAvatar) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
+              
+              const nameText = item.user_name || item.user?.full_name || item.name || 'Người dùng MindHub';
+              const roleText = item.user_role === 'Học viên' ? 'Thành viên MindHub' : (item.user_role || 'Giảng viên chuyên môn');
+              const ratingVal = Number(item.rating) || 5.0;
+
               return (
                 <div
                   key={item.id || index}
@@ -581,20 +583,23 @@ export default function ServicesPage() {
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-3">
                       <img
-                        src={item.user_avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80'}
-                        alt={item.user_name || 'Giảng viên MindHub'}
-                        className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0"
+                        src={resolvedAvatar}
+                        alt={nameText}
+                        className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0 bg-slate-100"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
+                        }}
                       />
                       <div>
-                        <div className="font-extrabold text-slate-900 text-xs">{item.user_name || 'Giảng viên MindHub'}</div>
-                        <div className="text-[11px] text-slate-400 font-medium">{item.user_role || 'Giảng viên chuyên môn'}</div>
+                        <div className="font-extrabold text-slate-900 text-xs">{nameText}</div>
+                        <div className="text-[11px] text-slate-400 font-medium">{roleText}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-amber-400 text-xs font-bold shrink-0">
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} className={`w-3 h-3 ${i < Math.floor(Number(item.rating || 5)) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+                        <Star key={i} className={`w-3 h-3 ${i < Math.floor(ratingVal) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
                       ))}
-                      <span className="text-slate-700 ml-1">{(Number(item.rating) || 5.0).toFixed(1)}</span>
+                      <span className="text-slate-700 ml-1">{ratingVal.toFixed(1)}</span>
                     </div>
                   </div>
                 </div>

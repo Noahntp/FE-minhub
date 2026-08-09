@@ -8,6 +8,7 @@ import { FeaturedCoursesSection } from './components/FeaturedCoursesSection';
 import { NewCoursesSection } from './components/NewCoursesSection';
 import { DiscountedCoursesSection } from './components/DiscountedCoursesSection';
 import { PromoVoucherSection } from './components/PromoVoucherSection';
+import { FeaturedInstructorsSection } from './components/FeaturedInstructorsSection';
 import { WhyChooseUsSection } from './components/WhyChooseUsSection';
 import { StudentTestimonialsSection } from './components/StudentTestimonialsSection';
 import { HomeFaqSection } from './components/HomeFaqSection';
@@ -45,6 +46,12 @@ export default function HomePage() {
 
         {/* Section [YÊU CẦU BỔ SUNG 2]: Khóa học giảm giá */}
         <DiscountedCoursesSection courses={data.discountedCourses} />
+
+        {/* Section [YÊU CẦU BỔ SUNG 3]: Giảng viên tiêu biểu & Khóa học tương ứng */}
+        <FeaturedInstructorsSection 
+          instructors={data.topInstructors} 
+          allCourses={[...(data.featuredCourses || []), ...(data.newCourses || []), ...(data.discountedCourses || [])]} 
+        />
 
         {/* Voucher Promo Banner */}
         <PromoVoucherSection vouchers={data.vouchers} />

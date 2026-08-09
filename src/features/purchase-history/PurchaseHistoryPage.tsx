@@ -4,6 +4,7 @@ import { Receipt, Search, Download, CreditCard, ChevronRight } from 'lucide-reac
 import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { Input } from '@/shared/components/ui/input';
+import { apiFetch } from '@/shared/lib/api-client';
 import { toast } from 'sonner';
 
 // Mock Data for Orders
@@ -43,10 +44,42 @@ const MOCK_ORDERS = [
 
 export default function PurchaseHistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const filteredOrders = MOCK_ORDERS.filter(order => 
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    async function fetchOrders() {
+      setLoading(true);
+      try {
+        const res = await apiFetch<any>('/payment/orders/my');
+        const rawList = Array.isArray(res) ? res : (res?.data || []);
+        if (Array.isArray(rawList)) {
+          const mapped = rawList.map((o: any) => ({
+            id: o.order_code || `ORD-${o.id}`,
+            date: o.created_at || o.paid_at || new Date().toISOString(),
+            items: [
+              { id: String(o.course_id || 'course'), title: o.course?.title || 'Khóa học MindHub', price: Number(o.amount || 0) }
+            ],
+            total: Number(o.amount || 0),
+            status: o.status === 'paid' ? 'success' : o.status === 'cancelled' ? 'failed' : 'pending',
+            paymentMethod: o.payment_method || 'Online'
+          }));
+          setOrders(mapped);
+        } else {
+          setOrders([]);
+        }
+      } catch (e) {
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchOrders();
+  }, []);
+
+  const filteredOrders = orders.filter(order => 
     order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.items.some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    order.items.some((item: any) => item.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleDownloadInvoice = (orderId: string) => {
@@ -74,7 +107,7 @@ export default function PurchaseHistoryPage() {
           </div>
         </div>
 
-        {MOCK_ORDERS.length === 0 ? (
+        {orders.length === 0 ? (
           <EmptyState
             icon={Receipt}
             title="Chưa có giao dịch nào"

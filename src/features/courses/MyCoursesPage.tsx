@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { apiFetch } from '@/shared/lib/api-client';
+import { useApp } from '@/app/AppContext';
 import {
   BookOpen,
   Trophy,
@@ -98,19 +99,23 @@ export default function MyCoursesPage() {
   const [sortBy, setSortBy] = useState('updated');
   const [showGoalBanner, setShowGoalBanner] = useState(true);
 
-  const [coursesData, setCoursesData] = useState<any[]>(INITIAL_COURSES_DATA);
-  const [isLoadingApi, setIsLoadingApi] = useState(false);
+  const [coursesData, setCoursesData] = useState<any[]>([]);
+  const [isLoadingApi, setIsLoadingApi] = useState(true);
 
-  // Fetch real enrolled courses from Backend API (/api/me/courses & /api/wishlists)
+  const { enrolledCourseIds = [], courses: globalCourses = [] } = useApp();
+
+  // Fetch real enrolled courses from Backend API (/api/me/courses) & merge with local enrolled courses
   useEffect(() => {
     const fetchCourses = async () => {
       setIsLoadingApi(true);
+      let apiCourses: any[] = [];
+
       try {
         const res = await apiFetch<any>('/me/courses');
         const rawList = Array.isArray(res) ? res : (res?.data || []);
 
-        if (Array.isArray(rawList) && rawList.length > 0) {
-          const apiCourses = rawList.map((item: any) => {
+        if (Array.isArray(rawList)) {
+          apiCourses = rawList.map((item: any) => {
             const c = item.course || item;
             const progress = item.progress_percent !== null && item.progress_percent !== undefined
               ? Math.round(Number(item.progress_percent))
@@ -138,20 +143,76 @@ export default function MyCoursesPage() {
               hasPlayIcon: !isCompleted,
             };
           });
-
-          // Keep saved courses from initial mock/saved list
-          const savedCourses = INITIAL_COURSES_DATA.filter((c) => c.status === 'saved');
-          setCoursesData([...apiCourses, ...savedCourses]);
         }
       } catch (e) {
-        console.warn('Backend courses API not reached, using fallback list:', e);
-      } finally {
-        setIsLoadingApi(false);
+        console.warn('Backend courses API error:', e);
       }
+
+      // Read local storage enrolled courses & full course objects
+      let localPurchasedCourses: any[] = [];
+      try {
+        const stored = localStorage.getItem('mindhub_purchased_courses_data');
+        if (stored) localPurchasedCourses = JSON.parse(stored);
+      } catch (err) {}
+
+      let localEnrolledIds: string[] = [];
+      try {
+        const stored = localStorage.getItem('mindhub_enrolled_courses');
+        if (stored) localEnrolledIds = JSON.parse(stored);
+      } catch (err) {}
+
+      const existingIds = new Set(apiCourses.map((c) => String(c.id)));
+      const fallbackList: any[] = [];
+
+      // 1. Add locally saved full course objects first
+      localPurchasedCourses.forEach((c) => {
+        if (c && c.id && !existingIds.has(String(c.id))) {
+          existingIds.add(String(c.id));
+          fallbackList.push(c);
+        }
+      });
+
+      // 2. Add remaining course IDs
+      const allEnrolledIds = Array.from(new Set([...enrolledCourseIds, ...localEnrolledIds]));
+      allEnrolledIds.forEach((id) => {
+        const strId = String(id);
+        if (!existingIds.has(strId)) {
+          existingIds.add(strId);
+          const foundMock = INITIAL_COURSES_DATA.find((c) => String(c.id) === strId);
+          if (foundMock) {
+            fallbackList.push(foundMock);
+          } else {
+            const foundGlobal: any = globalCourses.find((c: any) => String(c.id) === strId || String(c.slug) === strId);
+            if (foundGlobal) {
+              fallbackList.push({
+                id: String(foundGlobal.id),
+                title: foundGlobal.title,
+                category: foundGlobal.category || 'Khóa học',
+                status: 'learning',
+                badgeText: 'Đang học',
+                badgeType: 'learning',
+                instructorName: foundGlobal.instructorName || foundGlobal.instructor?.full_name || 'Giảng viên MindHub',
+                instructorAvatar: foundGlobal.instructorAvatar || foundGlobal.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+                thumbnail: foundGlobal.thumbnail || foundGlobal.thumbnail_url || foundGlobal.image || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+                progress: 0,
+                lessonsCount: 30,
+                duration: '10h 00m',
+                buttonText: 'Tiếp tục học',
+                buttonBg: 'bg-[#0f172a] text-white hover:bg-slate-800',
+                hasPlayIcon: true,
+              });
+            }
+          }
+        }
+      });
+
+      const combined = [...apiCourses, ...fallbackList];
+      setCoursesData(combined);
+      setIsLoadingApi(false);
     };
 
     fetchCourses();
-  }, []);
+  }, [enrolledCourseIds, globalCourses]);
 
   // Compute metrics
   const learningCount = useMemo(() => coursesData.filter((c) => c.status === 'learning').length, [coursesData]);
@@ -301,12 +362,44 @@ export default function MyCoursesPage() {
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
-
           </div>
 
+          {/* Loading Indicator */}
+          {isLoadingApi && (
+            <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+              <p className="text-xs text-slate-500 font-medium">Đang tải danh sách khóa học của bạn...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoadingApi && displayedCourses.length === 0 && (
+            <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-10 text-center flex flex-col items-center justify-center max-w-md mx-auto my-6">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 border border-emerald-100">
+                <BookOpen className="w-8 h-8" />
+              </div>
+              <h3 className="font-extrabold text-slate-900 text-lg">Chưa có khóa học nào</h3>
+              <p className="text-xs text-slate-500 mt-1 mb-6 leading-relaxed">
+                {activeTab === 'learning'
+                  ? 'Bạn chưa đăng ký khóa học nào. Hãy khám phá các khóa học chất lượng trên MindHub để nâng cao kỹ năng ngay hôm nay!'
+                  : activeTab === 'completed'
+                  ? 'Bạn chưa hoàn thành khóa học nào.'
+                  : 'Bạn chưa lưu khóa học nào vào danh sách yêu thích.'}
+              </p>
+              <Link
+                to="/courses"
+                className="px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs inline-flex items-center gap-2 shadow-md transition-all active:scale-95"
+              >
+                <Sparkles className="w-4 h-4" />
+                Khám phá khóa học ngay
+              </Link>
+            </div>
+          )}
+
           {/* 4. Course Cards Grid (4 Columns Layout) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {displayedCourses.map((course) => (
+          {!isLoadingApi && displayedCourses.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+              {displayedCourses.map((course) => (
               <div
                 key={course.id}
                 className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group text-left"
@@ -425,6 +518,7 @@ export default function MyCoursesPage() {
               </div>
             ))}
           </div>
+          )}
 
           {/* 5. Bottom Goal Setting Rocket Banner */}
           {showGoalBanner && (

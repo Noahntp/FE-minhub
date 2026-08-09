@@ -118,17 +118,17 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
   ];
 
   const icons = [
-    <Code className="w-5 h-5 text-emerald-600" />,
-    <Globe className="w-5 h-5 text-blue-600" />,
-    <Server className="w-5 h-5 text-amber-600" />,
-    <Monitor className="w-5 h-5 text-indigo-600" />,
-    <Cpu className="w-5 h-5 text-teal-600" />,
-    <Cloud className="w-5 h-5 text-sky-600" />,
-    <Smartphone className="w-5 h-5 text-purple-600" />,
-    <ShieldCheck className="w-5 h-5 text-rose-600" />,
-    <Database className="w-5 h-5 text-cyan-600" />,
-    <Palette className="w-5 h-5 text-pink-600" />,
-    <Gamepad2 className="w-5 h-5 text-orange-600" />
+    <Code className="w-5 h-5 transition-colors" />,
+    <Globe className="w-5 h-5 transition-colors" />,
+    <Server className="w-5 h-5 transition-colors" />,
+    <Monitor className="w-5 h-5 transition-colors" />,
+    <Cpu className="w-5 h-5 transition-colors" />,
+    <Cloud className="w-5 h-5 transition-colors" />,
+    <Smartphone className="w-5 h-5 transition-colors" />,
+    <ShieldCheck className="w-5 h-5 transition-colors" />,
+    <Database className="w-5 h-5 transition-colors" />,
+    <Palette className="w-5 h-5 transition-colors" />,
+    <Gamepad2 className="w-5 h-5 transition-colors" />
   ];
 
   const bgColors = [
@@ -251,29 +251,29 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
               <Link
                 key={cat.id}
                 to={`/category/${cat.slug}`}
-                className="group flex-none w-[170px] sm:w-[195px] lg:w-[210px] snap-start bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-200 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between"
+                className="group flex-none w-[185px] sm:w-[210px] lg:w-[225px] snap-start bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-200 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <div className={`p-3 rounded-2xl border ${cat.bgColor} transition-all duration-300 shadow-sm`}>
+                    <div className={`p-3 rounded-2xl border ${cat.bgColor} transition-all duration-300 shadow-sm flex items-center justify-center shrink-0`}>
                       {cat.icon}
                     </div>
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors shrink-0">
                       {cat.coursesCount}
                     </span>
                   </div>
 
-                  <h3 className="font-extrabold text-slate-900 text-sm sm:text-base group-hover:text-emerald-600 transition-colors line-clamp-1">
+                  <h3 className="font-extrabold text-slate-900 text-sm sm:text-base group-hover:text-emerald-600 transition-colors line-clamp-1 truncate" title={cat.title}>
                     {cat.title}
                   </h3>
-                  <p className="text-[11px] text-slate-500 font-medium mt-1 line-clamp-1">
+                  <p className="text-[11px] text-slate-500 font-medium mt-1 line-clamp-1 truncate" title={cat.subtitle}>
                     {cat.subtitle}
                   </p>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">
-                  <span>Khám phá ngay</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  <span className="truncate">Khám phá ngay</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform shrink-0" />
                 </div>
               </Link>
             ))}
