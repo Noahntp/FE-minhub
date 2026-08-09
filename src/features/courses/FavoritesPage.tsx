@@ -172,6 +172,7 @@ export default function FavoritesPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
   const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
+  const [apiCategories, setApiCategories] = useState<{ id: string; label: string; count: number }[]>([]);
 
   // Accordion open states
   const [isCategoryOpen, setIsCategoryOpen] = useState(true);
@@ -179,6 +180,23 @@ export default function FavoritesPage() {
   const [isPriceOpen, setIsPriceOpen] = useState(true);
 
   const { favorites, setFavorites } = useApp();
+
+  // Fetch categories from API /api/categories
+  useEffect(() => {
+    apiFetch<any>('/categories')
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (list.length > 0) {
+          const mapped = list.map((cat: any) => ({
+            id: cat.name,
+            label: cat.name,
+            count: Number(cat.courses_count || 0),
+          }));
+          setApiCategories(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Load wishlist from API backend
   useEffect(() => {
@@ -488,26 +506,29 @@ export default function FavoritesPage() {
 
                 {isCategoryOpen && (
                   <div className="space-y-2 pt-1 text-xs font-semibold text-slate-700">
-                    {[
-                      { name: 'Lập trình', count: 18 },
-                      { name: 'Thiết kế', count: 6 },
-                      { name: 'Kinh doanh', count: 3 },
-                      { name: 'Marketing', count: 2 },
-                      { name: 'Công nghệ thông tin', count: 2 },
-                    ].map((cat) => (
-                      <label key={cat.name} className="flex items-center justify-between cursor-pointer group hover:text-blue-600 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedCategories.includes(cat.name)}
-                            onChange={() => toggleSelection(selectedCategories, setSelectedCategories, cat.name)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                          <span>{cat.name}</span>
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-400">{cat.count}</span>
-                      </label>
-                    ))}
+                    {(apiCategories.length > 0 ? apiCategories : [
+                      { id: 'Lập trình', label: 'Lập trình', count: 18 },
+                      { id: 'Thiết kế', label: 'Thiết kế', count: 6 },
+                      { id: 'Kinh doanh', label: 'Kinh doanh', count: 3 },
+                      { id: 'Marketing', label: 'Marketing', count: 2 },
+                      { id: 'Công nghệ thông tin', label: 'Công nghệ thông tin', count: 2 },
+                    ]).map((cat) => {
+                      const isChecked = selectedCategories.includes(cat.label || cat.id);
+                      return (
+                        <label key={cat.id} className="flex items-center justify-between cursor-pointer group hover:text-blue-600 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleSelection(selectedCategories, setSelectedCategories, cat.label || cat.id)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className={isChecked ? 'font-bold text-blue-600' : ''}>{cat.label || cat.id}</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-400">{cat.count}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -528,20 +549,23 @@ export default function FavoritesPage() {
                       { name: 'Beginner', count: 12 },
                       { name: 'Intermediate', count: 11 },
                       { name: 'Advanced', count: 5 },
-                    ].map((lvl) => (
-                      <label key={lvl.name} className="flex items-center justify-between cursor-pointer group hover:text-blue-600 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedLevels.includes(lvl.name)}
-                            onChange={() => toggleSelection(selectedLevels, setSelectedLevels, lvl.name)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                          <span>{lvl.name}</span>
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-400">{lvl.count}</span>
-                      </label>
-                    ))}
+                    ].map((lvl) => {
+                      const isChecked = selectedLevels.includes(lvl.name);
+                      return (
+                        <label key={lvl.name} className="flex items-center justify-between cursor-pointer group hover:text-blue-600 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleSelection(selectedLevels, setSelectedLevels, lvl.name)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className={isChecked ? 'font-bold text-blue-600' : ''}>{lvl.name}</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-400">{lvl.count}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -563,28 +587,31 @@ export default function FavoritesPage() {
                       { key: 'under500', label: 'Dưới 500.000đ', count: 11 },
                       { key: '500to1000', label: '500.000đ - 1.000.000đ', count: 6 },
                       { key: 'above1000', label: 'Trên 1.000.000đ', count: 3 },
-                    ].map((p) => (
-                      <label key={p.key} className="flex items-center justify-between cursor-pointer group hover:text-blue-600 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedPrices.includes(p.key)}
-                            onChange={() => toggleSelection(selectedPrices, setSelectedPrices, p.key)}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                          <span>{p.label}</span>
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-400">{p.count}</span>
-                      </label>
-                    ))}
+                    ].map((p) => {
+                      const isChecked = selectedPrices.includes(p.key);
+                      return (
+                        <label key={p.key} className="flex items-center justify-between cursor-pointer group hover:text-blue-600 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleSelection(selectedPrices, setSelectedPrices, p.key)}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className={isChecked ? 'font-bold text-blue-600' : ''}>{p.label}</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-400">{p.count}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              {/* Clear Filters Button */}
+              {/* Nút Xóa bộ lọc */}
               <button
                 onClick={handleClearFilters}
-                className="w-full py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="w-full py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                 <span>Xóa bộ lọc</span>
@@ -592,93 +619,62 @@ export default function FavoritesPage() {
 
             </div>
 
-            {/* RIGHT CONTENT: COURSES GRID (9 Cols) */}
+            {/* RIGHT COLUMN: COURSES GRID / EMPTY STATE */}
             <div className="lg:col-span-9 space-y-6">
               
               {isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="bg-white rounded-2xl border border-slate-200 p-4 h-64 animate-pulse space-y-3">
-                      <div className="w-full h-32 bg-slate-100 rounded-xl" />
-                      <div className="w-3/4 h-4 bg-slate-100 rounded" />
-                      <div className="w-1/2 h-3 bg-slate-100 rounded" />
-                    </div>
-                  ))}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-400 text-xs font-semibold">
+                  Đang tải danh sách yêu thích...
                 </div>
               ) : filteredCourses.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mx-auto">
-                    <Heart className="w-6 h-6" />
+                <div className="bg-white rounded-3xl border border-slate-200/80 p-12 sm:p-16 text-center space-y-4 shadow-xs">
+                  <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center mx-auto shadow-xs">
+                    <Heart className="w-7 h-7" />
                   </div>
-                  <h3 className="text-base font-extrabold text-slate-900">Danh sách yêu thích trống</h3>
-                  <p className="text-xs text-slate-500 font-medium">Bạn chưa có khóa học nào trong danh sách yêu thích.</p>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-extrabold text-slate-900">Danh sách yêu thích trống</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      {favoriteList.length === 0 
+                        ? 'Bạn chưa có khóa học nào trong danh sách yêu thích.' 
+                        : 'Không có khóa học nào khớp với các bộ lọc bạn đã chọn.'}
+                    </p>
+                  </div>
                   <button
                     onClick={() => navigate('/courses')}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer inline-block"
                   >
                     Khám phá khóa học ngay
                   </button>
                 </div>
               ) : (
-                <div
-                  className={`
-                    grid gap-5
-                    ${
-                      viewMode === 'grid'
-                        ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                        : 'grid-cols-1'
-                    }
-                  `}
-                >
+                <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" : "space-y-4"}>
                   {filteredCourses.map((course) => (
                     <div
                       key={course.id}
                       onClick={() => navigate(`/courses/${course.id}`)}
-                      className={`
-                        group bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex
-                        ${viewMode === 'grid' ? 'flex-col' : 'flex-col sm:flex-row sm:items-center'}
-                      `}
+                      className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all cursor-pointer overflow-hidden group flex flex-col justify-between"
                     >
-                      {/* Image Thumbnail Container */}
-                      <div className={`relative overflow-hidden shrink-0 ${viewMode === 'grid' ? 'w-full aspect-[16/10]' : 'w-full sm:w-60 aspect-[16/10]'}`}>
+                      <div className="relative aspect-video overflow-hidden bg-slate-100">
                         <img
                           src={course.thumbnail}
                           alt={course.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-
-                        {/* Pink/Red Discount Badge on Top-Left */}
-                        {course.discountPercent && (
-                          <span className="absolute top-3 left-3 bg-[#f4115e] text-white text-xs font-black px-2.5 py-1 rounded-xl shadow-md z-10 tracking-tight">
-                            -{course.discountPercent}%
-                          </span>
-                        )}
-
-                        {/* Red Heart Favorite Button on Top-Right */}
                         <button
-                          type="button"
                           onClick={(e) => handleRemoveFavorite(e, course.id, course.title, course.realId)}
-                          className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-white/90 backdrop-blur-md text-rose-500 hover:scale-110 shadow-md transition-all flex items-center justify-center cursor-pointer z-10"
-                          title="Bỏ khỏi danh sách yêu thích"
+                          className="absolute top-2.5 right-2.5 p-2 rounded-full bg-white/90 hover:bg-rose-50 text-rose-500 shadow-sm transition-all cursor-pointer"
+                          title="Bỏ yêu thích"
                         >
                           <Heart className="w-4 h-4 fill-rose-500" />
                         </button>
                       </div>
 
-                      {/* Content Card Info */}
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                      <div className="p-4 space-y-3 flex-1 flex flex-col justify-between text-left">
                         <div className="space-y-2">
-                          {/* Tech Badge */}
-                          <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${course.badgeBg}`}>
-                            {course.techBadge}
-                          </span>
-
-                          {/* Title */}
                           <h3 className="font-black text-slate-900 text-xs sm:text-sm line-clamp-2 group-hover:text-emerald-600 transition-colors leading-snug">
                             {course.title}
                           </h3>
 
-                          {/* Instructor Info */}
                           <div className="flex items-center gap-2 pt-1">
                             <img
                               src={course.instructorAvatar}
@@ -691,10 +687,7 @@ export default function FavoritesPage() {
                           </div>
                         </div>
 
-                        {/* Rating & Price Footer */}
                         <div className="pt-2 border-t border-slate-100 flex flex-col space-y-2">
-                          
-                          {/* Rating & Students */}
                           <div className="flex items-center justify-between text-[11px]">
                             <div className="flex items-center gap-1 font-bold text-amber-500">
                               <Star className="w-3.5 h-3.5 fill-amber-400" />
@@ -708,7 +701,6 @@ export default function FavoritesPage() {
                             </div>
                           </div>
 
-                          {/* Price Display */}
                           <div className="pt-1 flex items-baseline gap-2 flex-wrap">
                             {course.price === 0 ? (
                               <span className="text-base font-black text-emerald-600">Miễn phí</span>
@@ -726,7 +718,6 @@ export default function FavoritesPage() {
                             )}
                           </div>
 
-                          {/* Action Button Row (Full-width CTA) */}
                           <div className="pt-1">
                             {course.isEnrolled ? (
                               <button
@@ -760,11 +751,8 @@ export default function FavoritesPage() {
                               </button>
                             )}
                           </div>
-
                         </div>
-
                       </div>
-
                     </div>
                   ))}
                 </div>

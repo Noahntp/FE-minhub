@@ -42,14 +42,8 @@ export default function Sidebar({
       {/* Sidebar Header (Logo) */}
       <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-hairline sidebar-logo-container">
         <button onClick={() => window.location.href = '/'} className="flex items-center gap-2 group cursor-pointer bg-transparent border-none">
-          {/* MindHub Logo SVG */}
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink text-white font-semibold text-lg shadow-sm group-hover:scale-105 transition-transform duration-200 shrink-0">
-            M
-          </div>
-          <div className="flex flex-col sidebar-logo-text text-left">
-            <span className="text-sm font-semibold tracking-tight leading-none text-ink">MindHub</span>
-            <span className="text-[10px] font-medium tracking-wider uppercase text-mid-gray mt-0.5">Admin Panel</span>
-          </div>
+          <img src="/mindhub-logo.png" alt="MindHub Admin Logo" className="h-10 w-auto object-contain shrink-0" />
+          <span className="text-[10px] font-extrabold tracking-wider uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 sidebar-logo-text">Admin</span>
         </button>
         {/* Close Mobile Sidebar (Mobile Only) */}
         <button onClick={onCloseMobile} type="button" className="rounded-full border border-hairline p-1.5 hover:bg-paper lg:hidden transition-colors" aria-label="Đóng Menu">

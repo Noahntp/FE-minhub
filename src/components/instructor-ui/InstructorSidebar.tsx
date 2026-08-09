@@ -46,17 +46,9 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       <div className="space-y-6">
         {/* LOGO BRANDING */}
         <div className="flex items-center justify-between px-2 pb-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-                <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
-              </svg>
-            </div>
-            <div className="text-left">
-              <h1 className="text-sm font-black tracking-wide text-stone-900 leading-none">MindHub</h1>
-              <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider block mt-0.5">Instructor</span>
-            </div>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
+            <img src="/mindhub-logo.png" alt="MindHub Instructor Logo" className="h-10 w-auto object-contain shrink-0" />
+            <span className="text-[10px] text-emerald-700 font-extrabold uppercase tracking-wider block px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded-md">Instructor</span>
           </div>
 
           {/* Close button for mobile drawer */}

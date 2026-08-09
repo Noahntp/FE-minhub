@@ -419,6 +419,28 @@ export default function CartAndCheckout({
         storedCourses.unshift(courseObj);
         localStorage.setItem('mindhub_purchased_courses_data', JSON.stringify(storedCourses));
       }
+
+      // Dispatch purchase notification for Navbar bell icon & Notifications page
+      const notifItem = {
+        id: 'notif-purchase-' + (courseItem.id || Date.now()),
+        type: 'payment',
+        category: 'course',
+        title: '🎉 Thanh toán & Đăng ký thành công',
+        message: `Chào mừng bạn đến với khóa học "${courseItem.title || 'Khóa học đã đăng ký'}". Chúng tôi đã mở khóa toàn bộ bài học và gửi email hướng dẫn cho bạn.`,
+        time_ago: 'Vừa xong',
+        created_at: new Date().toISOString(),
+        is_read: false,
+        read_at: null,
+        action_url: `/learn/${courseItem.id}`
+      };
+
+      const storedNotifs = JSON.parse(localStorage.getItem('mindhub_user_notifications') || '[]');
+      const notifExists = storedNotifs.some((n: any) => n.id === notifItem.id);
+      if (!notifExists) {
+        storedNotifs.unshift(notifItem);
+        localStorage.setItem('mindhub_user_notifications', JSON.stringify(storedNotifs));
+        window.dispatchEvent(new CustomEvent('mindhub_notification_updated', { detail: notifItem }));
+      }
     } catch (e) {
       console.warn('Failed to save purchased course locally:', e);
     }

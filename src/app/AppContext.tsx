@@ -5,6 +5,16 @@ import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { ApiService } from '@/services/api';
 import { apiFetch } from '@/shared/lib/api-client';
 
+export interface TrialLessonItem {
+  id: string | number;
+  title: string;
+  duration?: string;
+  videoUrl?: string;
+  courseTitle?: string;
+  courseId?: string | number;
+  instructorName?: string;
+}
+
 interface AppContextType {
   currentUser: UserType;
   setCurrentUser: React.Dispatch<React.SetStateAction<UserType>>;
@@ -30,6 +40,20 @@ interface AppContextType {
   setIsPlayingMusic: React.Dispatch<React.SetStateAction<boolean>>;
   musicVolume: number;
   setMusicVolume: React.Dispatch<React.SetStateAction<number>>;
+
+  // Trial Preview Modal State
+  trialModalOpen: boolean;
+  setTrialModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  activeTrialLesson: TrialLessonItem | null;
+  setActiveTrialLesson: React.Dispatch<React.SetStateAction<TrialLessonItem | null>>;
+  openTrialModal: (lesson?: Partial<TrialLessonItem>) => void;
+  closeTrialModal: () => void;
+
+  // AI Roadmap Modal State
+  aiModalOpen: boolean;
+  setAiModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  openAiModal: () => void;
+  closeAiModal: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -119,6 +143,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isPlayingMusic, setIsPlayingMusic] = useState<boolean>(false);
   const [musicVolume, setMusicVolume] = useState<number>(0.25);
 
+  // Trial Preview Modal State
+  const [trialModalOpen, setTrialModalOpen] = useState<boolean>(false);
+  const [activeTrialLesson, setActiveTrialLesson] = useState<TrialLessonItem | null>(null);
+
+  const openTrialModal = (lesson?: Partial<TrialLessonItem>) => {
+    if (lesson && lesson.title) {
+      setActiveTrialLesson({
+        id: lesson.id || 'trial-custom',
+        title: lesson.title,
+        duration: lesson.duration || '12:00',
+        videoUrl: lesson.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        courseTitle: lesson.courseTitle || 'Khóa học xem thử',
+        courseId: lesson.courseId,
+        instructorName: lesson.instructorName,
+      });
+    } else {
+      setActiveTrialLesson(null);
+    }
+    setTrialModalOpen(true);
+  };
+
+  const closeTrialModal = () => {
+    setTrialModalOpen(false);
+  };
+
+  // AI Roadmap Modal State
+  const [aiModalOpen, setAiModalOpen] = useState<boolean>(false);
+
+  const openAiModal = () => {
+    setAiModalOpen(true);
+  };
+
+  const closeAiModal = () => {
+    setAiModalOpen(false);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -143,7 +203,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isPlayingMusic,
         setIsPlayingMusic,
         musicVolume,
-        setMusicVolume
+        setMusicVolume,
+        trialModalOpen,
+        setTrialModalOpen,
+        activeTrialLesson,
+        setActiveTrialLesson,
+        openTrialModal,
+        closeTrialModal,
+        aiModalOpen,
+        setAiModalOpen,
+        openAiModal,
+        closeAiModal
       }}
     >
       {children}
