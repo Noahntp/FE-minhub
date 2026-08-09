@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
 import FilterSelect, { SelectOption } from "./FilterSelect";
 import AdminPagination from "../shared/AdminPagination";
+import { Filter, RotateCcw, X } from "lucide-react";
 
 const CURRENT_ADMIN_ID = 1;
 
@@ -238,6 +239,40 @@ export default function UsersManagement() {
   >(null);
   const [activeColumnMenu, setActiveColumnMenu] = useState<string | null>(null);
   const [activeActionMenu, setActiveActionMenu] = useState<number | null>(null);
+
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        filterPopoverRef.current &&
+        !filterPopoverRef.current.contains(event.target as Node)
+      ) {
+        setFilterPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const hasFilter =
+    search !== "" ||
+    role !== "" ||
+    status !== "" ||
+    email_verified !== "" ||
+    sort_by !== "newest" ||
+    time_preset !== "all" ||
+    date_from !== "" ||
+    date_to !== "" ||
+    no_login !== "";
+
+  const activeSecondaryFiltersCount =
+    (email_verified !== "" ? 1 : 0) +
+    (sort_by !== "newest" ? 1 : 0) +
+    (time_preset !== "all" ? 1 : 0);
+
+  const hasSecondaryFilters = activeSecondaryFiltersCount > 0;
 
   // Drawer / Modals State
   const [activeDetailUser, setActiveDetailUser] = useState<any | null>(null);
@@ -1170,144 +1205,170 @@ export default function UsersManagement() {
       </div>
 
       {/* Filter panel */}
-      <section className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-3 p-0">
-          <div className="flex flex-wrap lg:flex-nowrap items-end gap-2 w-full">
-            {/* Search filter */}
-            <div className="flex-1 lg:flex-[1.5] min-w-[120px] lg:min-w-0 flex flex-col gap-1.5">
-              <label
-                htmlFor="filter-search"
-                className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5 select-none"
+      <section className="rounded-[6px] border border-hairline bg-paper p-3.5 sm:p-4 shadow-subtle">
+        <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-3 w-full min-w-0">
+          <div className="flex flex-wrap items-center gap-[10px] w-full min-w-0">
+            {/* 1. Search box */}
+            <div className="relative w-full sm:w-[360px] max-w-full h-[33px] shrink-0">
+              <svg
+                className="w-3.5 h-3.5 text-mid-gray absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
               >
-                Tìm kiếm
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="filter-search"
-                  value={search}
-                  onChange={(e) =>
-                    updateFilters({ search: e.target.value, page: 1 })
-                  }
-                  placeholder="Tìm theo tên, email, SĐT..."
-                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] outline-none text-ink placeholder-mid-gray/70 transition-all font-medium"
-                />
-                <svg
-                  className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-              </div>
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) =>
+                  updateFilters({ search: e.target.value, page: 1 })
+                }
+                placeholder="Tìm theo tên, email, SĐT..."
+                className="w-full h-full pl-9 pr-3 text-xs bg-canvas border border-hairline rounded-full focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
+              />
             </div>
 
             {/* Custom Dropdown: Role */}
-            <FilterSelect
-              label="Vai trò"
-              value={role}
-              options={roleOptions}
-              onChange={(val) => updateFilters({ role: val, page: 1 })}
-              placeholder="Tất cả vai trò"
-              id="role"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-              className="w-[calc(50%-4px)] sm:w-[130px] lg:w-auto lg:flex-1 lg:min-w-0"
-            />
+            <div className="w-full sm:w-[170px] max-w-full shrink-0">
+              <FilterSelect
+                label=""
+                placeholder="Tất cả vai trò"
+                value={role}
+                options={roleOptions}
+                onChange={(val) => updateFilters({ role: val, page: 1 })}
+                id="role"
+                activeId={activeFilterDropdown}
+                setActiveId={setActiveFilterDropdown}
+                className="w-full h-[33px]"
+              />
+            </div>
 
             {/* Custom Dropdown: Status */}
-            <FilterSelect
-              label="Trạng thái"
-              value={status}
-              options={statusOptions}
-              onChange={(val) => updateFilters({ status: val, page: 1 })}
-              placeholder="Tất cả trạng thái"
-              id="status"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-              className="w-[calc(50%-4px)] sm:w-[130px] lg:w-auto lg:flex-1 lg:min-w-0"
-            />
+            <div className="w-full sm:w-[170px] max-w-full shrink-0">
+              <FilterSelect
+                label=""
+                placeholder="Tất cả trạng thái"
+                value={status}
+                options={statusOptions}
+                onChange={(val) => updateFilters({ status: val, page: 1 })}
+                id="status"
+                activeId={activeFilterDropdown}
+                setActiveId={setActiveFilterDropdown}
+                className="w-full h-[33px]"
+              />
+            </div>
 
-            {/* Custom Dropdown: Email Verified */}
-            <FilterSelect
-              label="Xác minh email"
-              value={email_verified}
-              options={verifiedOptions}
-              onChange={(val) =>
-                updateFilters({ email_verified: val, page: 1 })
-              }
-              placeholder="Tất cả"
-              id="verified"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-              className="w-[calc(50%-4px)] sm:w-[130px] lg:w-auto lg:flex-1 lg:min-w-0"
-            />
-
-            {/* Custom Dropdown: Sort */}
-            <FilterSelect
-              label="Sắp xếp"
-              value={sort_by}
-              options={sortOptions}
-              onChange={(val) => updateFilters({ sort_by: val, page: 1 })}
-              placeholder="Mới nhất"
-              id="sort"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-              className="w-[calc(50%-4px)] sm:w-[130px] lg:w-auto lg:flex-1 lg:min-w-0"
-            />
-
-            {/* Custom Dropdown: Time Preset */}
-            <FilterSelect
-              label="Thời gian"
-              value={time_preset}
-              options={timeOptions}
-              onChange={(val) => {
-                const updates: Record<string, any> = {
-                  time_preset: val,
-                  page: 1,
-                };
-                if (val !== "custom") {
-                  updates.date_from = "";
-                  updates.date_to = "";
-                }
-                updateFilters(updates);
-              }}
-              placeholder="Tất cả thời gian"
-              id="time"
-              activeId={activeFilterDropdown}
-              setActiveId={setActiveFilterDropdown}
-              className="w-full sm:w-[140px] lg:w-auto lg:flex-1 lg:min-w-0"
-            />
-
-            {/* Red reset X button - Locked in row, aligned vertically */}
-            <div className="flex flex-col gap-1.5 w-8 shrink-0">
-              <span className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5 invisible select-none">
-                Reset
-              </span>
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                title="Đặt lại bộ lọc"
-                className="h-10 w-8 flex items-center justify-center text-danger-brick hover:bg-red-50/50 border border-hairline rounded-[6px] transition-colors cursor-pointer bg-paper shrink-0"
-                aria-label="Đặt lại bộ lọc"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
+            {/* Action Group */}
+            <div className="flex items-center gap-2 xl:ml-auto w-full xl:w-auto justify-end shrink-0">
+              {/* Reset All Button */}
+              {hasFilter && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="h-[33px] px-2.5 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-medium text-danger-brick hover:text-red-700 hover:bg-red-50/50 transition-colors"
+                  title="Đặt lại bộ lọc"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Đặt lại</span>
+                </button>
+              )}
+
+              {/* Filter Popover Button */}
+              <div className="relative shrink-0" ref={filterPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
+                  aria-label="Bộ lọc"
+                  className={`relative flex items-center justify-center w-[33px] h-[33px] rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-ink ${
+                    filterPopoverOpen || hasSecondaryFilters
+                      ? "bg-canvas border-ink text-ink shadow-sm"
+                      : "bg-paper border-hairline text-mid-gray hover:bg-canvas hover:text-ink"
+                  }`}
+                >
+                  <Filter className="w-3.5 h-3.5 text-ink" />
+                  {activeSecondaryFiltersCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                      {activeSecondaryFiltersCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Popover Content */}
+                {filterPopoverOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[260px] z-50 bg-paper border border-hairline rounded-[12px] shadow-lg p-4 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="space-y-4">
+                      {/* Email Verified */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                          Xác minh email
+                        </label>
+                        <FilterSelect
+                          label=""
+                          placeholder="Tất cả"
+                          value={email_verified}
+                          options={verifiedOptions}
+                          onChange={(val) =>
+                            updateFilters({ email_verified: val, page: 1 })
+                          }
+                          id="verified"
+                          activeId={activeFilterDropdown}
+                          setActiveId={setActiveFilterDropdown}
+                          className="w-full h-[33px]"
+                        />
+                      </div>
+
+                      {/* Sort */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                          Sắp xếp
+                        </label>
+                        <FilterSelect
+                          label=""
+                          placeholder="Mới nhất"
+                          value={sort_by}
+                          options={sortOptions}
+                          onChange={(val) => updateFilters({ sort_by: val, page: 1 })}
+                          id="sort"
+                          activeId={activeFilterDropdown}
+                          setActiveId={setActiveFilterDropdown}
+                          className="w-full h-[33px]"
+                        />
+                      </div>
+
+                      {/* Time Preset */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                          Thời gian
+                        </label>
+                        <FilterSelect
+                          label=""
+                          placeholder="Tất cả thời gian"
+                          value={time_preset}
+                          options={timeOptions}
+                          onChange={(val) => {
+                            const updates: Record<string, any> = {
+                              time_preset: val,
+                              page: 1,
+                            };
+                            if (val !== "custom") {
+                              updates.date_from = "";
+                              updates.date_to = "";
+                            }
+                            updateFilters(updates);
+                          }}
+                          id="time"
+                          activeId={activeFilterDropdown}
+                          setActiveId={setActiveFilterDropdown}
+                          className="w-full h-[33px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1330,7 +1391,7 @@ export default function UsersManagement() {
                   value={formDateFrom}
                   onChange={(e) => setFormDateFrom(e.target.value)}
                   aria-label="Từ ngày"
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                  className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -1346,7 +1407,7 @@ export default function UsersManagement() {
                   value={formDateTo}
                   onChange={(e) => setFormDateTo(e.target.value)}
                   aria-label="Đến ngày"
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                  className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                 />
               </div>
               <button
@@ -1366,9 +1427,99 @@ export default function UsersManagement() {
                     page: 1,
                   });
                 }}
-                className="h-10 px-4 text-xs font-semibold rounded-[6px] bg-ink hover:opacity-90 text-white transition-opacity cursor-pointer border-none"
+                className="h-[33px] px-4 text-xs font-semibold rounded-[6px] bg-ink hover:opacity-90 text-white transition-opacity cursor-pointer border-none"
               >
                 Áp dụng
+              </button>
+            </div>
+          )}
+
+          {/* Chips Bar for Advanced Filters */}
+          {hasSecondaryFilters && (
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-hairline/60">
+              <span className="text-[11px] font-medium text-mid-gray mr-1">
+                Đang lọc theo:
+              </span>
+
+              {email_verified !== "" && (
+                <div className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-canvas border border-hairline text-[11px] font-medium text-ink shadow-subtle">
+                  <span>
+                    Xác minh:{" "}
+                    <span className="font-semibold text-rose-600">
+                      {
+                        verifiedOptions.find(
+                          (o) => o.value === email_verified
+                        )?.label
+                      }
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateFilters({ email_verified: "", page: 1 })}
+                    className="p-0.5 rounded-full hover:bg-paper hover:text-rose-500 transition-colors cursor-pointer border-none"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              {sort_by !== "newest" && (
+                <div className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-canvas border border-hairline text-[11px] font-medium text-ink shadow-subtle">
+                  <span>
+                    Sắp xếp:{" "}
+                    <span className="font-semibold text-rose-600">
+                      {sortOptions.find((o) => o.value === sort_by)?.label}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => updateFilters({ sort_by: "newest", page: 1 })}
+                    className="p-0.5 rounded-full hover:bg-paper hover:text-rose-500 transition-colors cursor-pointer border-none"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              {time_preset !== "all" && (
+                <div className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-canvas border border-hairline text-[11px] font-medium text-ink shadow-subtle">
+                  <span>
+                    Thời gian:{" "}
+                    <span className="font-semibold text-rose-600">
+                      {timeOptions.find((o) => o.value === time_preset)?.label}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateFilters({ time_preset: "all", date_from: "", date_to: "", page: 1 });
+                      setFormDateFrom("");
+                      setFormDateTo("");
+                    }}
+                    className="p-0.5 rounded-full hover:bg-paper hover:text-rose-500 transition-colors cursor-pointer border-none"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  updateFilters({
+                    email_verified: "",
+                    sort_by: "newest",
+                    time_preset: "all",
+                    date_from: "",
+                    date_to: "",
+                    page: 1,
+                  });
+                  setFormDateFrom("");
+                  setFormDateTo("");
+                }}
+                className="text-[11px] font-medium text-rose-600 hover:text-rose-700 hover:underline ml-1 cursor-pointer bg-transparent border-none"
+              >
+                Xóa bộ lọc
               </button>
             </div>
           )}
@@ -1455,6 +1606,32 @@ export default function UsersManagement() {
               Giảng viên (
               <span className="tab-count">
                 {data?.summary?.total_instructors || 0}
+              </span>
+              )
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleQuickFilter(
+                  {
+                    role: "admin",
+                    status: "",
+                    email_verified: "",
+                    no_login: "",
+                  },
+                  "Đang lọc: Quản trị viên",
+                )
+              }
+              className={cn(
+                "px-5 py-3 text-xs select-none whitespace-nowrap cursor-pointer transition-all border-b-2 border-none bg-transparent",
+                role === "admin" && !status && !email_verified && !no_login
+                  ? "font-semibold border-ink text-ink border-b-2"
+                  : "font-medium border-transparent text-mid-gray hover:text-ink",
+              )}
+            >
+              Quản trị viên (
+              <span className="tab-count">
+                {data?.summary?.total_admins || 0}
               </span>
               )
             </button>

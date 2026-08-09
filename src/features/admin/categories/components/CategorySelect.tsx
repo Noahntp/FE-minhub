@@ -114,7 +114,7 @@ export default function CategorySelect({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         className={cn(
-          "w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] flex items-center justify-between text-ink transition-all focus:outline-none focus:ring-1 focus:ring-mid-gray/40 select-none text-left",
+          "w-full h-full min-h-[33px] px-3 text-xs bg-paper border border-hairline rounded-[6px] flex items-center justify-between text-ink transition-all focus:outline-none focus:ring-1 focus:ring-mid-gray/40 select-none text-left",
           disabled && "opacity-50 cursor-not-allowed",
           !disabled && "cursor-pointer"
         )}

@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Filter,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
@@ -51,6 +53,26 @@ const STORAGE_KEY = "mindhub_admin_categories_expanded";
 export default function CategoriesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const resultsSectionRef = useRef<HTMLDivElement>(null);
+  
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterPopoverRef.current &&
+        !filterPopoverRef.current.contains(event.target as Node)
+      ) {
+        setFilterPopoverOpen(false);
+      }
+    };
+    if (filterPopoverOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [filterPopoverOpen]);
 
   // 1. Lấy bộ lọc từ URL
   const filters: CategoryFilters = useMemo(() => {
@@ -805,6 +827,7 @@ export default function CategoriesPage() {
     safeFilterAction(() => {
       setSearchParams(new URLSearchParams());
     });
+    setFilterPopoverOpen(false);
   };
 
   const handleKpiClick = (newFilters: Partial<CategoryFilters>) => {
@@ -1050,38 +1073,34 @@ export default function CategoriesPage() {
       {/* Search & Filter Bar */}
       <section
         ref={resultsSectionRef}
-        className="scroll-mt-24 rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle"
+        className="scroll-mt-24 rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col gap-3"
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {/* Search */}
-          <div className="sm:col-span-2 lg:col-span-1">
-            <label
-              htmlFor="filter-search"
-              className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5"
+        <div className="flex flex-wrap items-center gap-[10px] w-full min-w-0">
+          {/* TÌM KIẾM */}
+          <div className="relative w-full sm:w-[360px] max-w-full h-[33px] shrink-0">
+            <svg
+              className="w-3.5 h-3.5 text-mid-gray absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              viewBox="0 0 24 24"
             >
-              Tìm kiếm
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                id="filter-search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tên hoặc slug danh mục..."
-                disabled={isLoading}
-                className="w-full h-10 pl-8 pr-3 text-xs bg-paper border border-hairline rounded-lg hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none shadow-subtle font-medium text-ink transition-all placeholder:text-mid-gray/60 placeholder:font-normal"
-              />
-              <Search className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" />
-            </div>
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="text"
+              id="filter-search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm tên hoặc slug danh mục..."
+              disabled={isLoading}
+              className="w-full h-full pl-9 pr-3 text-xs bg-canvas border border-hairline rounded-full hover:border-mid-gray/40 focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
+            />
           </div>
-          {/* Status */}
-          <div>
-            <label
-              htmlFor="filter-status"
-              className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5"
-            >
-              Trạng thái
-            </label>
+
+          {/* TRẠNG THÁI */}
+          <div className="w-full sm:w-[170px] max-w-full shrink-0">
             <CategorySelect
               id="filter-status"
               value={filters.status}
@@ -1097,109 +1116,129 @@ export default function CategoriesPage() {
                 { value: "inactive", label: "Ngừng hoạt động" },
                 { value: "deleted", label: "Đã xóa (Thùng rác)" },
               ]}
+              className="w-full h-[33px]"
             />
           </div>
-          {/* Type */}
-          <div>
-            <label
-              htmlFor="filter-type"
-              className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5"
-            >
-              Loại danh mục
-            </label>
-            <CategorySelect
-              id="filter-type"
-              value={filters.type}
-              onChange={(val) =>
-                safeFilterAction(() =>
-                  updateUrlParams({ type: val as any, page: 1 }),
-                )
-              }
-              disabled={isLoading}
-              options={[
-                { value: "", label: "Tất cả loại" },
-                { value: "root", label: "Danh mục gốc" },
-                { value: "child", label: "Danh mục con" },
-              ]}
-            />
-          </div>
-          {/* Parent Category */}
-          <div>
-            <label
-              htmlFor="filter-parent"
-              className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5"
-            >
-              Danh mục cha
-            </label>
-            <CategorySelect
-              id="filter-parent"
-              value={filters.parent_id}
-              onChange={(val) =>
-                safeFilterAction(() =>
-                  updateUrlParams({ parent_id: val, page: 1 }),
-                )
-              }
-              disabled={isLoading}
-              options={[
-                { value: "", label: "Tất cả cha" },
-                ...allCategoriesBase
-                  .filter((c) => c.parent_id === null && c.deleted_at === null && c.status === "active")
-                  .sort(
-                    (a, b) =>
-                      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),
-                  )
-                  .map((c) => {
-                    const childCount = allCategoriesBase.filter(
-                      (ch) => ch.parent_id === c.id && ch.deleted_at === null,
-                    ).length;
-                    return {
-                      value: String(c.id),
-                      label: `${c.name} (${childCount})`,
-                    };
-                  }),
-              ]}
-            />
-          </div>
-          {/* Sort By */}
-          <div>
-            <label
-              htmlFor="filter-sort"
-              className="block text-[10px] font-semibold text-mid-gray uppercase tracking-wider mb-1.5"
-            >
-              Sắp xếp
-            </label>
-            <CategorySelect
-              id="filter-sort"
-              value={filters.sort_by}
-              onChange={(val) =>
-                safeFilterAction(() => updateUrlParams({ sort_by: val as any }))
-              }
-              disabled={isLoading}
-              options={[
-                { value: "newest", label: "Mới nhất" },
-                { value: "oldest", label: "Cũ nhất" },
-                { value: "name_asc", label: "Tên A-Z" },
-                { value: "name_desc", label: "Tên Z-A" },
-                { value: "sort_order_asc", label: "Thứ tự tăng dần" },
-                { value: "sort_order_desc", label: "Thứ tự giảm dần" },
-                { value: "courses_desc", label: "Nhiều khóa học nhất" },
-              ]}
-            />
-          </div>
-        </div>
 
-        {/* Reset Filter Row */}
-        <div className="flex items-center justify-between pt-3 mt-3 border-t border-hairline/60 gap-3">
-          <span className="text-[10px] text-mid-gray italic">
-            * Giao diện tự động lọc dựa trên các tiêu chí bạn chọn.
-          </span>
-          <button
-            type="button"
-            onClick={handleResetAllFilters}
-            className="px-4 py-2 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
-          >
-            Đặt lại bộ lọc
-          </button>
+          {/* Action Group */}
+          <div className="flex items-center gap-2 xl:ml-auto w-full xl:w-auto justify-end shrink-0">
+            {/* Reset Button */}
+            {(filters.search || filters.status || filters.type || filters.parent_id || filters.empty || filters.sort_by !== "sort_order_asc") && (
+              <button
+                type="button"
+                onClick={handleResetAllFilters}
+                className="h-[33px] px-2.5 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-medium text-danger-brick hover:text-red-700 hover:bg-red-50/50 transition-colors border-none cursor-pointer"
+                title="Đặt lại bộ lọc"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Đặt lại</span>
+              </button>
+            )}
+
+            {/* Filter Popover Button */}
+            <div className="relative shrink-0" ref={filterPopoverRef}>
+              <button
+                type="button"
+                onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
+                aria-label="Bộ lọc"
+                className={`relative flex items-center justify-center w-[33px] h-[33px] rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-ink cursor-pointer ${
+                  filterPopoverOpen || (filters.type || filters.parent_id || filters.sort_by !== "sort_order_asc")
+                    ? "bg-canvas border-ink text-ink shadow-sm"
+                    : "bg-paper border-hairline text-mid-gray hover:bg-canvas hover:text-ink"
+                }`}
+              >
+                <Filter className="w-3.5 h-3.5 text-ink" />
+                {((filters.type ? 1 : 0) + (filters.parent_id ? 1 : 0) + (filters.sort_by !== "sort_order_asc" ? 1 : 0)) > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                    {(filters.type ? 1 : 0) + (filters.parent_id ? 1 : 0) + (filters.sort_by !== "sort_order_asc" ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+
+              {/* Popover Content */}
+              {filterPopoverOpen && (
+                <div className="absolute right-0 top-full mt-2 w-[280px] z-50 bg-paper border border-hairline rounded-[12px] shadow-lg p-4 animate-in fade-in zoom-in-95 duration-100 text-left">
+                  <div className="space-y-4">
+                    {/* TYPE */}
+                    <div>
+                      <label htmlFor="filter-type" className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">Loại danh mục</label>
+                      <CategorySelect
+                        id="filter-type"
+                        value={filters.type}
+                        onChange={(val) =>
+                          safeFilterAction(() =>
+                            updateUrlParams({ type: val as any, page: 1 }),
+                          )
+                        }
+                        disabled={isLoading}
+                        options={[
+                          { value: "", label: "Tất cả loại" },
+                          { value: "root", label: "Danh mục gốc" },
+                          { value: "child", label: "Danh mục con" },
+                        ]}
+                        className="w-full h-[33px]"
+                      />
+                    </div>
+                    {/* PARENT */}
+                    <div>
+                      <label htmlFor="filter-parent" className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">Danh mục cha</label>
+                      <CategorySelect
+                        id="filter-parent"
+                        value={filters.parent_id}
+                        onChange={(val) =>
+                          safeFilterAction(() =>
+                            updateUrlParams({ parent_id: val, page: 1 }),
+                          )
+                        }
+                        disabled={isLoading}
+                        options={[
+                          { value: "", label: "Tất cả cha" },
+                          ...allCategoriesBase
+                            .filter((c) => c.parent_id === null && c.deleted_at === null && c.status === "active")
+                            .sort(
+                              (a, b) =>
+                                (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),
+                            )
+                            .map((c) => {
+                              const childCount = allCategoriesBase.filter(
+                                (ch) => ch.parent_id === c.id && ch.deleted_at === null,
+                              ).length;
+                              return {
+                                value: String(c.id),
+                                label: `${c.name} (${childCount})`,
+                              };
+                            }),
+                        ]}
+                        className="w-full h-[33px]"
+                      />
+                    </div>
+                    {/* SORT */}
+                    <div>
+                      <label htmlFor="filter-sort" className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">Sắp xếp</label>
+                      <CategorySelect
+                        id="filter-sort"
+                        value={filters.sort_by}
+                        onChange={(val) =>
+                          safeFilterAction(() => updateUrlParams({ sort_by: val as any }))
+                        }
+                        disabled={isLoading}
+                        options={[
+                          { value: "newest", label: "Mới nhất" },
+                          { value: "oldest", label: "Cũ nhất" },
+                          { value: "name_asc", label: "Tên A-Z" },
+                          { value: "name_desc", label: "Tên Z-A" },
+                          { value: "sort_order_asc", label: "Thứ tự tăng dần" },
+                          { value: "sort_order_desc", label: "Thứ tự giảm dần" },
+                          { value: "courses_desc", label: "Nhiều khóa học nhất" },
+                        ]}
+                        className="w-full h-[33px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 

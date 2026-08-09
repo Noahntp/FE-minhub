@@ -87,7 +87,7 @@ export default function FilterSelect({
       <button
         type="button"
         onClick={handleToggle}
-        className="w-full h-10 px-3 text-xs bg-paper border border-hairline rounded-[6px] hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none flex items-center justify-between transition-all cursor-pointer text-left shadow-subtle font-medium text-ink"
+        className="w-full h-full min-h-[33px] px-3 text-xs bg-paper border border-hairline rounded-[6px] hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none flex items-center justify-between transition-all cursor-pointer text-left shadow-subtle font-medium text-ink"
       >
         <span className={cn("truncate", displayColor, !selectedOption && "text-mid-gray/70")}>
           {displayLabel}
@@ -97,7 +97,7 @@ export default function FilterSelect({
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute left-0 right-0 top-[62px] z-40 bg-paper border border-hairline rounded-[6px] shadow-lg py-1 flex flex-col max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in duration-100">
+        <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-paper border border-hairline rounded-[6px] shadow-lg py-1 flex flex-col max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in duration-100">
           {options.map((opt) => {
             const isSelected = opt.value === value;
             return (
