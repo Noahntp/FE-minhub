@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { toast } from 'sonner';
+import React, { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
   getFaqs,
   getFaqDetail,
@@ -7,35 +7,72 @@ import {
   updateFaq,
   deleteFaq,
   syncFaqCourses,
-  reorderFaqs
-} from '@/assets/js/api/faqs-api';
-import { getCourses } from '@/assets/js/api/courses-api';
+  reorderFaqs,
+} from "@/assets/js/api/faqs-api";
+import { getCourses } from "@/assets/js/api/courses-api";
 import { cn } from "@/shared/lib/utils";
-import FilterSelect from './FilterSelect';
+import FilterSelect from "./FilterSelect";
 import AdminPagination from "../shared/AdminPagination";
 
 // Mapping Loại FAQ (raw value -> Tiếng Việt & CSS Class cho Chip)
 const typeMap: Record<string, { label: string; class: string }> = {
-  general: { label: "Chung", class: "bg-mid-gray/10 text-mid-gray border-mid-gray/20 font-semibold" },
-  account: { label: "Tài khoản", class: "bg-blue-50 text-blue-700 border-blue-200/60 font-semibold" },
-  course: { label: "Khóa học", class: "bg-indigo-50 text-indigo-700 border-indigo-200/60 font-semibold" },
-  payment: { label: "Thanh toán", class: "bg-emerald-50 text-emerald-700 border-emerald-200/60 font-semibold" },
-  refund: { label: "Hoàn tiền", class: "bg-amber-50 text-amber-700 border-amber-200/60 font-semibold" },
-  certificate: { label: "Chứng chỉ", class: "bg-violet-50 text-violet-700 border-violet-200/60 font-semibold" },
-  technical: { label: "Kỹ thuật", class: "bg-cyan-50 text-cyan-700 border-cyan-200/60 font-semibold" },
-  policy: { label: "Chính sách", class: "bg-rose-50 text-rose-700 border-rose-200/60 font-semibold" }
+  general: {
+    label: "Chung",
+    class: "bg-mid-gray/10 text-mid-gray border-mid-gray/20 font-semibold",
+  },
+  account: {
+    label: "Tài khoản",
+    class: "bg-blue-50 text-blue-700 border-blue-200/60 font-semibold",
+  },
+  course: {
+    label: "Khóa học",
+    class: "bg-indigo-50 text-indigo-700 border-indigo-200/60 font-semibold",
+  },
+  payment: {
+    label: "Thanh toán",
+    class: "bg-emerald-50 text-emerald-700 border-emerald-200/60 font-semibold",
+  },
+  refund: {
+    label: "Hoàn tiền",
+    class: "bg-amber-50 text-amber-700 border-amber-200/60 font-semibold",
+  },
+  certificate: {
+    label: "Chứng chỉ",
+    class: "bg-violet-50 text-violet-700 border-violet-200/60 font-semibold",
+  },
+  technical: {
+    label: "Kỹ thuật",
+    class: "bg-cyan-50 text-cyan-700 border-cyan-200/60 font-semibold",
+  },
+  policy: {
+    label: "Chính sách",
+    class: "bg-rose-50 text-rose-700 border-rose-200/60 font-semibold",
+  },
 };
 
 // Mapping Trạng thái FAQ
-const statusMap: Record<string, { label: string; dotClass: string; textClass: string }> = {
-  active: { label: "Đang hiển thị", dotClass: "bg-emerald-500", textClass: "text-emerald-600" },
-  inactive: { label: "Đang ẩn", dotClass: "bg-mid-gray", textClass: "text-mid-gray" }
+const statusMap: Record<
+  string,
+  { label: string; dotClass: string; textClass: string }
+> = {
+  active: {
+    label: "Đang hiển thị",
+    dotClass: "bg-emerald-500",
+    textClass: "text-emerald-600",
+  },
+  inactive: {
+    label: "Đang ẩn",
+    dotClass: "bg-mid-gray",
+    textClass: "text-mid-gray",
+  },
 };
 
 export default function Faqs() {
   // --- States ---
   const [items, setItems] = useState<any[]>([]);
-  const [originalFaqsCache, setOriginalFaqsCache] = useState<any[] | null>(null);
+  const [originalFaqsCache, setOriginalFaqsCache] = useState<any[] | null>(
+    null,
+  );
   const [isOrderChanged, setIsOrderChanged] = useState(false);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
@@ -44,13 +81,13 @@ export default function Faqs() {
     active_count: 0,
     inactive_count: 0,
     unlinked_count: 0,
-    linked_course_count: 0
+    linked_course_count: 0,
   });
   const [meta, setMeta] = useState<any>({
     current_page: 1,
     last_page: 1,
     per_page: 20,
-    total: 0
+    total: 0,
   });
 
   // Filters State
@@ -74,14 +111,14 @@ export default function Faqs() {
   const [selectedFaq, setSelectedFaq] = useState<any>(null);
 
   const [formModalOpen, setFormModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [formFaq, setFormFaq] = useState({
     id: null as number | null,
     question: "",
     answer: "",
     type: "general",
     status: "active",
-    sort_order: 0
+    sort_order: 0,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -108,7 +145,7 @@ export default function Faqs() {
         status,
         scope,
         sort_by: sortBy,
-        sort_direction: sortDirection
+        sort_direction: sortDirection,
       });
 
       if (res && res.success) {
@@ -155,7 +192,12 @@ export default function Faqs() {
   // --- Drag & Drop / Order Handlers ---
   const handleDragStart = (e: React.DragEvent, id: number) => {
     const target = e.target as HTMLElement;
-    if (target.closest("button") || target.closest("a") || target.closest("input") || target.closest("select")) {
+    if (
+      target.closest("button") ||
+      target.closest("a") ||
+      target.closest("input") ||
+      target.closest("select")
+    ) {
       e.preventDefault();
       return;
     }
@@ -197,8 +239,8 @@ export default function Faqs() {
     }
 
     const newItems = [...items];
-    const draggedIdx = newItems.findIndex(i => i.id === draggedIdParam);
-    const targetIdx = newItems.findIndex(i => i.id === targetIdParam);
+    const draggedIdx = newItems.findIndex((i) => i.id === draggedIdParam);
+    const targetIdx = newItems.findIndex((i) => i.id === targetIdParam);
 
     if (draggedIdx === -1 || targetIdx === -1) {
       setDraggedId(null);
@@ -209,13 +251,13 @@ export default function Faqs() {
     // Determine position: if dragging down, insert after; if dragging up, insert before.
     // However, for simplicity, we insert at the exact target index.
     const [draggedItem] = newItems.splice(draggedIdx, 1);
-    const newTargetIdx = newItems.findIndex(i => i.id === targetIdParam);
+    const newTargetIdx = newItems.findIndex((i) => i.id === targetIdParam);
     newItems.splice(newTargetIdx, 0, draggedItem);
 
     // Re-assign sort_order sequentially
     const updatedItems = newItems.map((item, idx) => ({
       ...item,
-      sort_order: idx + 1
+      sort_order: idx + 1,
     }));
 
     setItems(updatedItems);
@@ -225,7 +267,7 @@ export default function Faqs() {
   };
 
   const handleMovePosition = (id: number, direction: "up" | "down") => {
-    const idx = items.findIndex(i => i.id === id);
+    const idx = items.findIndex((i) => i.id === id);
     if (idx === -1) return;
     if (direction === "up" && idx === 0) return;
     if (direction === "down" && idx === items.length - 1) return;
@@ -240,7 +282,7 @@ export default function Faqs() {
     // Re-assign sort_order
     const updatedItems = newItems.map((item, index) => ({
       ...item,
-      sort_order: index + 1
+      sort_order: index + 1,
     }));
 
     setItems(updatedItems);
@@ -297,7 +339,9 @@ export default function Faqs() {
       toast.success(filterMsg);
     }
     setTimeout(() => {
-      document.getElementById('faqs-table-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document
+        .getElementById("faqs-table-container")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
 
@@ -314,7 +358,7 @@ export default function Faqs() {
 
   const handleSort = (key: string) => {
     if (sortBy === key) {
-      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(key);
       setSortDirection("asc");
@@ -326,24 +370,24 @@ export default function Faqs() {
   const openFormModal = (faq: any = null) => {
     setErrors({});
     if (faq) {
-      setModalMode('edit');
+      setModalMode("edit");
       setFormFaq({
         id: faq.id,
         question: faq.question || "",
         answer: faq.answer || "",
         type: faq.type || "general",
         status: faq.status || "active",
-        sort_order: faq.sort_order || 0
+        sort_order: faq.sort_order || 0,
       });
     } else {
-      setModalMode('create');
+      setModalMode("create");
       setFormFaq({
         id: null,
         question: "",
         answer: "",
         type: "general",
         status: "active",
-        sort_order: 0
+        sort_order: 0,
       });
     }
     setFormModalOpen(true);
@@ -354,8 +398,10 @@ export default function Faqs() {
     setErrors({});
 
     const newErrors: Record<string, string> = {};
-    if (!formFaq.question.trim()) newErrors.question = "Câu hỏi không được để trống.";
-    if (!formFaq.answer.trim()) newErrors.answer = "Câu trả lời không được để trống.";
+    if (!formFaq.question.trim())
+      newErrors.question = "Câu hỏi không được để trống.";
+    if (!formFaq.answer.trim())
+      newErrors.answer = "Câu trả lời không được để trống.";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -365,14 +411,18 @@ export default function Faqs() {
     setSubmitting(true);
     try {
       let res;
-      if (modalMode === 'edit' && formFaq.id) {
+      if (modalMode === "edit" && formFaq.id) {
         res = await updateFaq(formFaq.id, formFaq);
       } else {
         res = await createFaq(formFaq);
       }
 
       if (res && res.success) {
-        toast.success(modalMode === 'edit' ? "Cập nhật FAQ thành công." : "Tạo FAQ mới thành công.");
+        toast.success(
+          modalMode === "edit"
+            ? "Cập nhật FAQ thành công."
+            : "Tạo FAQ mới thành công.",
+        );
         setFormModalOpen(false);
         loadData();
         // If drawer is currently open showing the edited FAQ, update it
@@ -393,7 +443,9 @@ export default function Faqs() {
   // Sync courses modal
   const openSyncModal = (faq: any) => {
     setSelectedFaq(faq);
-    setSelectedCourseIds(faq.linked_courses ? faq.linked_courses.map((c: any) => c.id) : []);
+    setSelectedCourseIds(
+      faq.linked_courses ? faq.linked_courses.map((c: any) => c.id) : [],
+    );
     setCourseSearch("");
     setSyncModalOpen(true);
   };
@@ -469,17 +521,34 @@ export default function Faqs() {
   };
 
   // Filter courses for checkboxes inside sync modal
-  const filteredCourses = allCourses.filter(c => {
+  const filteredCourses = allCourses.filter((c) => {
     const keyword = courseSearch.toLowerCase();
-    return c.title?.toLowerCase().includes(keyword) || String(c.id).includes(keyword);
+    return (
+      c.title?.toLowerCase().includes(keyword) || String(c.id).includes(keyword)
+    );
   });
 
-  const isFiltered = search !== "" || type !== "all" || status !== "all" || scope !== "all" || sortBy !== "sort_order" || sortDirection !== "asc";
+  const isFiltered =
+    search !== "" ||
+    type !== "all" ||
+    status !== "all" ||
+    scope !== "all" ||
+    sortBy !== "sort_order" ||
+    sortDirection !== "asc";
 
   // Calculations for summary card stats
-  const activePct = summary.total_faqs > 0 ? Math.round((summary.active_count / summary.total_faqs) * 100) : 0;
-  const inactivePct = summary.total_faqs > 0 ? Math.round((summary.inactive_count / summary.total_faqs) * 100) : 0;
-  const unlinkedPct = summary.total_faqs > 0 ? Math.round((summary.unlinked_count / summary.total_faqs) * 100) : 0;
+  const activePct =
+    summary.total_faqs > 0
+      ? Math.round((summary.active_count / summary.total_faqs) * 100)
+      : 0;
+  const inactivePct =
+    summary.total_faqs > 0
+      ? Math.round((summary.inactive_count / summary.total_faqs) * 100)
+      : 0;
+  const unlinkedPct =
+    summary.total_faqs > 0
+      ? Math.round((summary.unlinked_count / summary.total_faqs) * 100)
+      : 0;
 
   return (
     <>
@@ -495,7 +564,8 @@ export default function Faqs() {
             Quản lý FAQ
           </h1>
           <p className="mt-1 text-xs md:text-sm text-mid-gray">
-            Quản lý câu hỏi thường gặp, thứ tự hiển thị và liên kết với khóa học.
+            Quản lý câu hỏi thường gặp, thứ tự hiển thị và liên kết với khóa
+            học.
           </p>
         </div>
 
@@ -509,8 +579,18 @@ export default function Faqs() {
             className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-hairline bg-paper text-ink hover:bg-canvas shadow-subtle transition-all duration-200 cursor-pointer"
             title="Làm mới dữ liệu"
           >
-            <svg className="w-4 h-4 text-ink" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+            <svg
+              className="w-4 h-4 text-ink"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+              />
             </svg>
           </button>
 
@@ -519,8 +599,18 @@ export default function Faqs() {
             onClick={() => openFormModal()}
             className="inline-flex items-center gap-2 px-4 h-10 rounded-full bg-ink text-white font-medium text-xs md:text-sm shadow-subtle hover:bg-ink/90 transition-all duration-200 cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 4.5v15m7.5-7.5h-15"
+              />
             </svg>
             <span>Tạo FAQ</span>
           </button>
@@ -537,10 +627,16 @@ export default function Faqs() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-mid-gray">Tổng FAQ</span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-canvas text-ink">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <line x1="12" x2="12.01" y1="17" y2="17"/>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" x2="12.01" y1="17" y2="17" />
               </svg>
             </div>
           </div>
@@ -562,7 +658,9 @@ export default function Faqs() {
           className="group cursor-pointer rounded-2xl border border-hairline bg-paper p-4 shadow-subtle hover:border-emerald-500/30 transition-all duration-200"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-mid-gray">Đang hiển thị</span>
+            <span className="text-xs font-medium text-mid-gray">
+              Đang hiển thị
+            </span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
             </div>
@@ -571,10 +669,15 @@ export default function Faqs() {
             <span className="text-2xl font-semibold tracking-tight text-emerald-600">
               {summary.active_count.toLocaleString("vi-VN")}
             </span>
-            <span className="text-[11px] font-medium text-emerald-600">{activePct}%</span>
+            <span className="text-[11px] font-medium text-emerald-600">
+              {activePct}%
+            </span>
           </div>
           <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-canvas">
-            <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${activePct}%` }}></div>
+            <div
+              className="h-full bg-emerald-500 transition-all duration-300"
+              style={{ width: `${activePct}%` }}
+            ></div>
           </div>
         </div>
 
@@ -597,10 +700,15 @@ export default function Faqs() {
             <span className="text-2xl font-semibold tracking-tight text-mid-gray">
               {summary.inactive_count.toLocaleString("vi-VN")}
             </span>
-            <span className="text-[11px] font-medium text-mid-gray">{inactivePct}%</span>
+            <span className="text-[11px] font-medium text-mid-gray">
+              {inactivePct}%
+            </span>
           </div>
           <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-canvas">
-            <div className="h-full bg-mid-gray transition-all duration-300" style={{ width: `${inactivePct}%` }}></div>
+            <div
+              className="h-full bg-mid-gray transition-all duration-300"
+              style={{ width: `${inactivePct}%` }}
+            ></div>
           </div>
         </div>
 
@@ -614,7 +722,9 @@ export default function Faqs() {
           className="group cursor-pointer rounded-2xl border border-hairline bg-paper p-4 shadow-subtle hover:border-amber-500/30 transition-all duration-200"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-mid-gray">Chưa liên kết</span>
+            <span className="text-xs font-medium text-mid-gray">
+              Chưa liên kết
+            </span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
               <span className="h-2 w-2 rounded-full bg-amber-500"></span>
             </div>
@@ -623,10 +733,15 @@ export default function Faqs() {
             <span className="text-2xl font-semibold tracking-tight text-amber-600">
               {summary.unlinked_count.toLocaleString("vi-VN")}
             </span>
-            <span className="text-[11px] font-medium text-amber-600">{unlinkedPct}%</span>
+            <span className="text-[11px] font-medium text-amber-600">
+              {unlinkedPct}%
+            </span>
           </div>
           <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-canvas">
-            <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${unlinkedPct}%` }}></div>
+            <div
+              className="h-full bg-amber-500 transition-all duration-300"
+              style={{ width: `${unlinkedPct}%` }}
+            ></div>
           </div>
         </div>
 
@@ -641,11 +756,19 @@ export default function Faqs() {
           className="group cursor-pointer rounded-2xl border border-hairline bg-paper p-4 shadow-subtle hover:border-blue-500/30 transition-all duration-200"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-mid-gray">Khóa học có FAQ</span>
+            <span className="text-xs font-medium text-mid-gray">
+              Khóa học có FAQ
+            </span>
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
+              >
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
               </svg>
             </div>
           </div>
@@ -653,20 +776,35 @@ export default function Faqs() {
             <span className="text-2xl font-semibold tracking-tight text-blue-600">
               {summary.linked_course_count.toLocaleString("vi-VN")}
             </span>
-            <span className="text-[11px] font-medium text-mid-gray">Khóa học</span>
+            <span className="text-[11px] font-medium text-mid-gray">
+              Khóa học
+            </span>
           </div>
         </div>
       </div>
 
       {/* Filter Bar Section */}
       <div className="rounded-2xl border border-hairline bg-paper p-4 shadow-subtle mb-6">
-        <form onSubmit={(e) => e.preventDefault()} className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3"
+        >
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 flex-wrap">
             {/* Search Input */}
             <div className="relative min-w-[240px] flex-1">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <svg className="w-4 h-4 text-mid-gray" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                <svg
+                  className="w-4 h-4 text-mid-gray"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                  />
                 </svg>
               </div>
               <input
@@ -688,17 +826,20 @@ export default function Faqs() {
                 placeholder="Tất cả loại FAQ"
                 value={type}
                 options={[
-                  { value: 'all', label: 'Tất cả loại FAQ' },
-                  { value: 'general', label: 'Chung' },
-                  { value: 'account', label: 'Tài khoản' },
-                  { value: 'course', label: 'Khóa học' },
-                  { value: 'payment', label: 'Thanh toán' },
-                  { value: 'refund', label: 'Hoàn tiền' },
-                  { value: 'certificate', label: 'Chứng chỉ' },
-                  { value: 'technical', label: 'Kỹ thuật' },
-                  { value: 'policy', label: 'Chính sách' }
+                  { value: "all", label: "Tất cả loại FAQ" },
+                  { value: "general", label: "Chung" },
+                  { value: "account", label: "Tài khoản" },
+                  { value: "course", label: "Khóa học" },
+                  { value: "payment", label: "Thanh toán" },
+                  { value: "refund", label: "Hoàn tiền" },
+                  { value: "certificate", label: "Chứng chỉ" },
+                  { value: "technical", label: "Kỹ thuật" },
+                  { value: "policy", label: "Chính sách" },
                 ]}
-                onChange={(val) => { setType(val); setPage(1); }}
+                onChange={(val) => {
+                  setType(val);
+                  setPage(1);
+                }}
                 id="select-type"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
@@ -713,11 +854,22 @@ export default function Faqs() {
                 placeholder="Tất cả trạng thái"
                 value={status}
                 options={[
-                  { value: 'all', label: 'Tất cả trạng thái' },
-                  { value: 'active', label: '● Đang hiển thị', colorClass: 'text-emerald-600' },
-                  { value: 'inactive', label: '● Đang ẩn', colorClass: 'text-mid-gray' }
+                  { value: "all", label: "Tất cả trạng thái" },
+                  {
+                    value: "active",
+                    label: "● Đang hiển thị",
+                    colorClass: "text-emerald-600",
+                  },
+                  {
+                    value: "inactive",
+                    label: "● Đang ẩn",
+                    colorClass: "text-mid-gray",
+                  },
                 ]}
-                onChange={(val) => { setStatus(val); setPage(1); }}
+                onChange={(val) => {
+                  setStatus(val);
+                  setPage(1);
+                }}
                 id="select-status"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
@@ -732,12 +884,15 @@ export default function Faqs() {
                 placeholder="Tất cả phạm vi"
                 value={scope}
                 options={[
-                  { value: 'all', label: 'Tất cả phạm vi' },
-                  { value: 'general', label: 'FAQ dùng chung' },
-                  { value: 'linked', label: 'Đã liên kết khóa học' },
-                  { value: 'unlinked', label: 'Chưa liên kết khóa học' }
+                  { value: "all", label: "Tất cả phạm vi" },
+                  { value: "general", label: "FAQ dùng chung" },
+                  { value: "linked", label: "Đã liên kết khóa học" },
+                  { value: "unlinked", label: "Chưa liên kết khóa học" },
                 ]}
-                onChange={(val) => { setScope(val); setPage(1); }}
+                onChange={(val) => {
+                  setScope(val);
+                  setPage(1);
+                }}
                 id="select-scope"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
@@ -752,14 +907,14 @@ export default function Faqs() {
                 placeholder="Sắp xếp theo"
                 value={`${sortBy}_${sortDirection}`}
                 options={[
-                  { value: 'sort_order_asc', label: 'Thứ tự ưu tiên (Tăng)' },
-                  { value: 'sort_order_desc', label: 'Thứ tự ưu tiên (Giảm)' },
-                  { value: 'updated_at_desc', label: 'Mới cập nhật' },
-                  { value: 'updated_at_asc', label: 'Cập nhật cũ nhất' },
-                  { value: 'question_asc', label: 'Câu hỏi (A-Z)' },
-                  { value: 'question_desc', label: 'Câu hỏi (Z-A)' },
-                  { value: 'course_count_desc', label: 'Nhiều khóa học nhất' },
-                  { value: 'course_count_asc', label: 'Ít khóa học nhất' }
+                  { value: "sort_order_asc", label: "Thứ tự ưu tiên (Tăng)" },
+                  { value: "sort_order_desc", label: "Thứ tự ưu tiên (Giảm)" },
+                  { value: "updated_at_desc", label: "Mới cập nhật" },
+                  { value: "updated_at_asc", label: "Cập nhật cũ nhất" },
+                  { value: "question_asc", label: "Câu hỏi (A-Z)" },
+                  { value: "question_desc", label: "Câu hỏi (Z-A)" },
+                  { value: "course_count_desc", label: "Nhiều khóa học nhất" },
+                  { value: "course_count_asc", label: "Ít khóa học nhất" },
                 ]}
                 onChange={(val) => {
                   if (val.startsWith("sort_order")) {
@@ -794,90 +949,151 @@ export default function Faqs() {
               className="h-9 w-9 rounded-full border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center transition-colors cursor-pointer"
               title="Xóa bộ lọc"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
         </form>
-        </div>
+      </div>
 
-        {/* Batch Reorder Action Bar */}
-        {isOrderChanged && (
-          <div className="mb-4 p-3 bg-warning-surf border border-warning-brick/30 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
-            <div className="flex items-center gap-2">
-              <span className="text-warning-brick bg-warning-brick/10 p-1.5 rounded-full">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </span>
-              <p className="text-sm text-ink font-medium">
-                Bạn đã thay đổi thứ tự hiển thị. Đừng quên lưu lại nhé!
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={handleCancelReorder}
-                className="px-3 py-1 rounded-[4px] hover:bg-canvas text-mid-gray hover:text-ink font-medium transition-colors cursor-pointer"
+      {/* Batch Reorder Action Bar */}
+      {isOrderChanged && (
+        <div className="mb-4 p-3 bg-warning-surf border border-warning-brick/30 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-warning-brick bg-warning-brick/10 p-1.5 rounded-full">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
               >
-                Hủy thay đổi
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveReorder}
-                className="px-3 py-1 rounded-[4px] bg-warning text-warning-brick hover:bg-warning/90 font-bold transition-all cursor-pointer shadow-sm"
-              >
-                Lưu thứ tự
-              </button>
-            </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </span>
+            <p className="text-sm text-ink font-medium">
+              Bạn đã thay đổi thứ tự hiển thị. Đừng quên lưu lại nhé!
+            </p>
           </div>
-        )}
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={handleCancelReorder}
+              className="px-3 py-1 rounded-[4px] hover:bg-canvas text-mid-gray hover:text-ink font-medium transition-colors cursor-pointer"
+            >
+              Hủy thay đổi
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveReorder}
+              className="px-3 py-1 rounded-[4px] bg-warning text-warning-brick hover:bg-warning/90 font-bold transition-all cursor-pointer shadow-sm"
+            >
+              Lưu thứ tự
+            </button>
+          </div>
+        </div>
+      )}
 
-        {/* Table Container */}
-      <div id="faqs-table-container" className="scroll-mt-20 min-h-[600px] flex flex-col rounded-2xl border border-hairline bg-paper shadow-subtle overflow-hidden relative mb-6">
+      {/* Table Container */}
+      <div
+        id="faqs-table-container"
+        className="scroll-mt-20 min-h-[600px] flex flex-col rounded-2xl border border-hairline bg-paper shadow-subtle overflow-hidden relative mb-6"
+      >
         {loading ? (
           <div className="p-12 text-center flex-1 flex flex-col items-center justify-center">
             <div className="flex flex-col items-center justify-center space-y-3">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink border-t-transparent"></div>
-              <p className="text-sm font-medium text-mid-gray">Đang tải dữ liệu FAQ...</p>
+              <p className="text-sm font-medium text-mid-gray">
+                Đang tải dữ liệu FAQ...
+              </p>
             </div>
           </div>
         ) : items.length === 0 ? (
           <div className="p-12 text-center flex-1 flex flex-col items-center justify-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-canvas text-mid-gray mb-4">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <line x1="12" x2="12.01" y1="17" y2="17"/>
+              <svg
+                className="w-8 h-8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" x2="12.01" y1="17" y2="17" />
               </svg>
             </div>
             {isFiltered ? (
               <>
-                <h3 className="text-base font-semibold text-ink">Không tìm thấy FAQ phù hợp với bộ lọc.</h3>
-                <p className="mt-1 text-sm text-mid-gray max-w-sm mx-auto">Hãy thử điều chỉnh hoặc xóa bớt tiêu chí tìm kiếm để hiển thị kết quả.</p>
+                <h3 className="text-base font-semibold text-ink">
+                  Không tìm thấy FAQ phù hợp với bộ lọc.
+                </h3>
+                <p className="mt-1 text-sm text-mid-gray max-w-sm mx-auto">
+                  Hãy thử điều chỉnh hoặc xóa bớt tiêu chí tìm kiếm để hiển thị
+                  kết quả.
+                </p>
                 <button
                   type="button"
                   onClick={handleResetFilters}
                   className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-hairline bg-paper text-ink font-medium text-xs md:text-sm hover:bg-canvas transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg
+                    className="w-4 h-4 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                   <span>Xóa bộ lọc</span>
                 </button>
               </>
             ) : (
               <>
-                <h3 className="text-base font-semibold text-ink">Chưa có FAQ nào.</h3>
-                <p className="mt-1 text-sm text-mid-gray max-w-sm mx-auto">Hệ thống chưa ghi nhận câu hỏi thường gặp nào. Bạn có thể bắt đầu tạo câu hỏi mới ngay bây giờ.</p>
+                <h3 className="text-base font-semibold text-ink">
+                  Chưa có FAQ nào.
+                </h3>
+                <p className="mt-1 text-sm text-mid-gray max-w-sm mx-auto">
+                  Hệ thống chưa ghi nhận câu hỏi thường gặp nào. Bạn có thể bắt
+                  đầu tạo câu hỏi mới ngay bây giờ.
+                </p>
                 <button
                   type="button"
                   onClick={() => openFormModal()}
                   className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ink text-white font-medium text-xs md:text-sm hover:bg-ink/90 transition-all cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 4.5v15m7.5-7.5h-15"
+                    />
                   </svg>
                   <span>Tạo FAQ đầu tiên</span>
                 </button>
@@ -920,7 +1136,10 @@ export default function Faqs() {
                   <th scope="col" className="py-3.5 px-4 min-w-[220px]">
                     <span>Khóa học liên kết</span>
                   </th>
-                  <th scope="col" className="py-3.5 px-4 text-center min-w-[90px]">
+                  <th
+                    scope="col"
+                    className="py-3.5 px-4 text-center min-w-[90px]"
+                  >
                     <button
                       type="button"
                       onClick={() => handleSort("sort_order")}
@@ -955,13 +1174,27 @@ export default function Faqs() {
               </thead>
               <tbody className="divide-y divide-hairline text-sm text-ink">
                 {items.map((item, index) => {
-                  const typeConfig = typeMap[item.type] || { label: "Chung", class: "bg-mid-gray/10 text-mid-gray border-mid-gray/20 font-semibold" };
-                  const statusConfig = statusMap[item.status] || statusMap.inactive;
+                  const typeConfig = typeMap[item.type] || {
+                    label: "Chung",
+                    class:
+                      "bg-mid-gray/10 text-mid-gray border-mid-gray/20 font-semibold",
+                  };
+                  const statusConfig =
+                    statusMap[item.status] || statusMap.inactive;
 
                   const dateObj = new Date(item.updated_at);
-                  const dateFormatted = isNaN(dateObj.getTime()) ? "N/A" : dateObj.toLocaleDateString("vi-VN", {
-                    day: "2-digit", month: "2-digit", year: "numeric"
-                  }) + " " + dateObj.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                  const dateFormatted = isNaN(dateObj.getTime())
+                    ? "N/A"
+                    : dateObj.toLocaleDateString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      }) +
+                      " " +
+                      dateObj.toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
 
                   return (
                     <tr
@@ -975,8 +1208,10 @@ export default function Faqs() {
                       onDragEnd={handleDragEnd}
                       className={cn(
                         "hover:bg-canvas/80 transition-colors cursor-grab active:cursor-grabbing group select-none",
-                        draggedId === item.id && "opacity-20 bg-canvas/40 border-y-2 border-dashed border-mid-gray/40 pointer-events-none scale-[0.99] transition-all",
-                        dragOverId === item.id && "border-b-2 border-ink bg-ink/5 scale-[0.99] transition-transform"
+                        draggedId === item.id &&
+                          "opacity-20 bg-canvas/40 border-y-2 border-dashed border-mid-gray/40 pointer-events-none scale-[0.99] transition-all",
+                        dragOverId === item.id &&
+                          "border-b-2 border-ink bg-ink/5 scale-[0.99] transition-transform",
                       )}
                       style={{ WebkitUserDrag: "element" } as any}
                     >
@@ -994,14 +1229,18 @@ export default function Faqs() {
 
                       {/* Type */}
                       <td className="py-3.5 px-4 align-top whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-[6px] text-xs font-semibold border ${typeConfig.class} whitespace-nowrap`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-[6px] text-xs font-semibold border ${typeConfig.class} whitespace-nowrap`}
+                        >
                           {typeConfig.label}
                         </span>
                       </td>
 
                       {/* Linked Courses */}
                       <td className="py-3.5 px-4 align-top">
-                        {item.course_count === 0 || !item.linked_courses || item.linked_courses.length === 0 ? (
+                        {item.course_count === 0 ||
+                        !item.linked_courses ||
+                        item.linked_courses.length === 0 ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/80">
                             FAQ dùng chung
                           </span>
@@ -1030,7 +1269,10 @@ export default function Faqs() {
                       </td>
 
                       {/* Sort Order */}
-                      <td className="py-3.5 px-4 align-top text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <td
+                        className="py-3.5 px-4 align-top text-center whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="inline-flex items-center gap-1 bg-surface rounded p-0.5 border border-hairline/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                           <button
                             type="button"
@@ -1038,8 +1280,18 @@ export default function Faqs() {
                             disabled={index === 0}
                             className="h-6 w-6 flex items-center justify-center rounded-sm text-mid-gray hover:bg-canvas hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M4.5 15.75l7.5-7.5 7.5 7.5"
+                              />
                             </svg>
                           </button>
                           <span className="w-8 text-center text-[11px] font-bold text-ink tabular-nums">
@@ -1051,8 +1303,18 @@ export default function Faqs() {
                             disabled={index === items.length - 1}
                             className="h-6 w-6 flex items-center justify-center rounded-sm text-mid-gray hover:bg-canvas hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+                              />
                             </svg>
                           </button>
                         </div>
@@ -1060,8 +1322,12 @@ export default function Faqs() {
 
                       {/* Status */}
                       <td className="py-3.5 px-4 align-top whitespace-nowrap">
-                        <div className={`inline-flex items-center gap-1.5 text-xs font-medium ${statusConfig.textClass}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dotClass}`}></span>
+                        <div
+                          className={`inline-flex items-center gap-1.5 text-xs font-medium ${statusConfig.textClass}`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${statusConfig.dotClass}`}
+                          ></span>
                           <span>{statusConfig.label}</span>
                         </div>
                       </td>
@@ -1098,7 +1364,11 @@ export default function Faqs() {
 
       {/* Drawer Chi tiết FAQ */}
       {drawerOpen && selectedFaq && (
-        <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 overflow-hidden"
+          role="dialog"
+          aria-modal="true"
+        >
           <div
             onClick={() => setDrawerOpen(false)}
             className="fixed inset-0 bg-ink/40 backdrop-blur-xs transition-opacity duration-300 opacity-100 cursor-pointer"
@@ -1112,7 +1382,9 @@ export default function Faqs() {
                   <span className="text-xs font-bold uppercase tracking-wider text-mid-gray">
                     FAQ #{selectedFaq.id}
                   </span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${typeMap[selectedFaq.type]?.class || ''}`}>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${typeMap[selectedFaq.type]?.class || ""}`}
+                  >
                     {typeMap[selectedFaq.type]?.label || selectedFaq.type}
                   </span>
                 </div>
@@ -1121,8 +1393,18 @@ export default function Faqs() {
                   onClick={() => setDrawerOpen(false)}
                   className="rounded-full border border-hairline p-1.5 text-mid-gray hover:bg-canvas hover:text-ink transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -1131,22 +1413,37 @@ export default function Faqs() {
               <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                 {/* Trạng thái hiển thị */}
                 <div className="rounded-2xl bg-canvas p-4 border border-hairline flex items-center justify-between">
-                  <div className="text-xs font-medium text-mid-gray">Trạng thái hiển thị:</div>
-                  <div className={`inline-flex items-center gap-1.5 text-xs font-semibold ${statusMap[selectedFaq.status]?.textClass || ''}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${statusMap[selectedFaq.status]?.dotClass || ''}`}></span>
-                    <span>{statusMap[selectedFaq.status]?.label || selectedFaq.status}</span>
+                  <div className="text-xs font-medium text-mid-gray">
+                    Trạng thái hiển thị:
+                  </div>
+                  <div
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold ${statusMap[selectedFaq.status]?.textClass || ""}`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${statusMap[selectedFaq.status]?.dotClass || ""}`}
+                    ></span>
+                    <span>
+                      {statusMap[selectedFaq.status]?.label ||
+                        selectedFaq.status}
+                    </span>
                   </div>
                 </div>
 
                 {/* Thứ tự */}
                 <div className="flex items-center justify-between text-sm px-1 border-b border-hairline pb-4">
-                  <span className="font-semibold text-mid-gray">Thứ tự hiển thị:</span>
-                  <span className="font-semibold text-ink">{selectedFaq.sort_order ?? 0}</span>
+                  <span className="font-semibold text-mid-gray">
+                    Thứ tự hiển thị:
+                  </span>
+                  <span className="font-semibold text-ink">
+                    {selectedFaq.sort_order ?? 0}
+                  </span>
                 </div>
 
                 {/* Câu hỏi */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-mid-gray uppercase tracking-wider">Câu hỏi</h4>
+                  <h4 className="text-xs font-bold text-mid-gray uppercase tracking-wider">
+                    Câu hỏi
+                  </h4>
                   <p className="text-base font-semibold text-ink leading-relaxed bg-canvas/30 p-4 rounded-2xl border border-hairline">
                     {selectedFaq.question}
                   </p>
@@ -1154,7 +1451,9 @@ export default function Faqs() {
 
                 {/* Câu trả lời */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-mid-gray uppercase tracking-wider">Câu trả lời</h4>
+                  <h4 className="text-xs font-bold text-mid-gray uppercase tracking-wider">
+                    Câu trả lời
+                  </h4>
                   <div className="text-sm text-ink leading-relaxed bg-canvas/30 p-4 rounded-2xl border border-hairline whitespace-pre-wrap">
                     {selectedFaq.answer}
                   </div>
@@ -1163,7 +1462,9 @@ export default function Faqs() {
                 {/* Khóa học liên kết */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-mid-gray uppercase tracking-wider">Khóa học liên kết</h4>
+                    <h4 className="text-xs font-bold text-mid-gray uppercase tracking-wider">
+                      Khóa học liên kết
+                    </h4>
                     <button
                       type="button"
                       onClick={() => openSyncModal(selectedFaq)}
@@ -1172,15 +1473,23 @@ export default function Faqs() {
                       Quản lý liên kết
                     </button>
                   </div>
-                  {selectedFaq.course_count === 0 || !selectedFaq.linked_courses || selectedFaq.linked_courses.length === 0 ? (
+                  {selectedFaq.course_count === 0 ||
+                  !selectedFaq.linked_courses ||
+                  selectedFaq.linked_courses.length === 0 ? (
                     <div className="p-6 border border-dashed border-hairline rounded-2xl bg-canvas/20 text-center text-xs text-mid-gray">
-                      Đây là FAQ chung toàn hệ thống, hiện chưa liên kết riêng với khóa học nào.
+                      Đây là FAQ chung toàn hệ thống, hiện chưa liên kết riêng
+                      với khóa học nào.
                     </div>
                   ) : (
                     <div className="border border-hairline rounded-2xl bg-canvas/20 overflow-hidden divide-y divide-hairline">
                       {selectedFaq.linked_courses.map((course: any) => (
-                        <div key={course.id} className="p-3.5 flex items-center justify-between text-xs hover:bg-canvas/50 transition-colors">
-                          <span className="font-medium text-ink max-w-sm truncate">{course.title}</span>
+                        <div
+                          key={course.id}
+                          className="p-3.5 flex items-center justify-between text-xs hover:bg-canvas/50 transition-colors"
+                        >
+                          <span className="font-medium text-ink max-w-sm truncate">
+                            {course.title}
+                          </span>
                           <a
                             href={`/admin/courses?open_course_id=${course.id}`}
                             className="text-blue-600 hover:underline font-semibold shrink-0"
@@ -1218,7 +1527,11 @@ export default function Faqs() {
 
       {/* Modal Tạo / Chỉnh sửa FAQ */}
       {formModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
             <div
               onClick={() => setFormModalOpen(false)}
@@ -1229,15 +1542,25 @@ export default function Faqs() {
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-hairline px-6 py-4 bg-surface-alt/50">
                 <h3 className="text-lg font-semibold text-ink">
-                  {modalMode === 'edit' ? "Chỉnh sửa FAQ" : "Tạo FAQ mới"}
+                  {modalMode === "edit" ? "Chỉnh sửa FAQ" : "Tạo FAQ mới"}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setFormModalOpen(false)}
                   className="rounded-full border border-hairline p-1.5 text-mid-gray hover:bg-canvas hover:text-ink transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -1253,11 +1576,20 @@ export default function Faqs() {
                     type="text"
                     required
                     value={formFaq.question}
-                    onChange={(e) => setFormFaq(prev => ({ ...prev, question: e.target.value }))}
+                    onChange={(e) =>
+                      setFormFaq((prev) => ({
+                        ...prev,
+                        question: e.target.value,
+                      }))
+                    }
                     className="w-full rounded-2xl border border-hairline bg-canvas px-4 py-2.5 text-sm text-ink placeholder:text-mid-gray/50 focus:border-ink focus:outline-none transition-colors"
                     placeholder="Nhập nội dung câu hỏi thường gặp..."
                   />
-                  {errors.question && <p className="mt-1 text-xs text-red-500">{errors.question}</p>}
+                  {errors.question && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.question}
+                    </p>
+                  )}
                 </div>
 
                 {/* Answer */}
@@ -1269,11 +1601,18 @@ export default function Faqs() {
                     required
                     rows={5}
                     value={formFaq.answer}
-                    onChange={(e) => setFormFaq(prev => ({ ...prev, answer: e.target.value }))}
+                    onChange={(e) =>
+                      setFormFaq((prev) => ({
+                        ...prev,
+                        answer: e.target.value,
+                      }))
+                    }
                     className="w-full rounded-2xl border border-hairline bg-canvas p-4 text-sm text-ink placeholder:text-mid-gray/50 focus:border-ink focus:outline-none transition-colors custom-scrollbar"
                     placeholder="Nhập câu trả lời chi tiết..."
                   />
-                  {errors.answer && <p className="mt-1 text-xs text-red-500">{errors.answer}</p>}
+                  {errors.answer && (
+                    <p className="mt-1 text-xs text-red-500">{errors.answer}</p>
+                  )}
                 </div>
 
                 {/* Type & Sort Order Grid */}
@@ -1285,7 +1624,12 @@ export default function Faqs() {
                     </label>
                     <select
                       value={formFaq.type}
-                      onChange={(e) => setFormFaq(prev => ({ ...prev, type: e.target.value }))}
+                      onChange={(e) =>
+                        setFormFaq((prev) => ({
+                          ...prev,
+                          type: e.target.value,
+                        }))
+                      }
                       className="w-full h-10 rounded-lg border border-hairline bg-canvas px-3 text-sm text-ink outline-none cursor-pointer"
                     >
                       <option value="general">Chung</option>
@@ -1308,7 +1652,12 @@ export default function Faqs() {
                       type="number"
                       min={0}
                       value={formFaq.sort_order}
-                      onChange={(e) => setFormFaq(prev => ({ ...prev, sort_order: Number(e.target.value) }))}
+                      onChange={(e) =>
+                        setFormFaq((prev) => ({
+                          ...prev,
+                          sort_order: Number(e.target.value),
+                        }))
+                      }
                       className="w-full h-10 rounded-lg border border-hairline bg-canvas px-4 text-sm text-ink focus:border-ink focus:outline-none transition-colors"
                     />
                   </div>
@@ -1321,7 +1670,12 @@ export default function Faqs() {
                   </label>
                   <select
                     value={formFaq.status}
-                    onChange={(e) => setFormFaq(prev => ({ ...prev, status: e.target.value }))}
+                    onChange={(e) =>
+                      setFormFaq((prev) => ({
+                        ...prev,
+                        status: e.target.value,
+                      }))
+                    }
                     className="w-full h-10 rounded-full border border-hairline bg-canvas px-3 text-sm text-ink outline-none cursor-pointer"
                   >
                     <option value="active">● Đang hiển thị</option>
@@ -1354,7 +1708,11 @@ export default function Faqs() {
 
       {/* Modal Quản lý liên kết khóa học */}
       {syncModalOpen && selectedFaq && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
             <div
               onClick={() => setSyncModalOpen(false)}
@@ -1365,7 +1723,9 @@ export default function Faqs() {
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-hairline px-6 py-4 bg-surface-alt/50">
                 <div>
-                  <h3 className="text-lg font-semibold text-ink">Quản lý liên kết khóa học</h3>
+                  <h3 className="text-lg font-semibold text-ink">
+                    Quản lý liên kết khóa học
+                  </h3>
                   <p className="text-xs text-mid-gray truncate max-w-md mt-0.5">
                     Đang chọn cho FAQ: "{selectedFaq.question}"
                   </p>
@@ -1375,8 +1735,18 @@ export default function Faqs() {
                   onClick={() => setSyncModalOpen(false)}
                   className="rounded-full border border-hairline p-1.5 text-mid-gray hover:bg-canvas hover:text-ink transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -1386,8 +1756,18 @@ export default function Faqs() {
                 {/* Search Course Input */}
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg className="w-4 h-4 text-mid-gray" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                    <svg
+                      className="w-4 h-4 text-mid-gray"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                      />
                     </svg>
                   </div>
                   <input
@@ -1416,9 +1796,13 @@ export default function Faqs() {
                 {/* Course Checkbox List */}
                 <div className="border border-hairline rounded-2xl bg-canvas/40 max-h-80 overflow-y-auto custom-scrollbar divide-y divide-hairline">
                   {coursesLoading ? (
-                    <div className="p-6 text-center text-xs text-mid-gray">Đang tải danh sách khóa học...</div>
+                    <div className="p-6 text-center text-xs text-mid-gray">
+                      Đang tải danh sách khóa học...
+                    </div>
                   ) : filteredCourses.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-mid-gray">Không tìm thấy khóa học nào phù hợp.</div>
+                    <div className="p-6 text-center text-xs text-mid-gray">
+                      Không tìm thấy khóa học nào phù hợp.
+                    </div>
                   ) : (
                     filteredCourses.map((c) => {
                       const isChecked = selectedCourseIds.includes(c.id);
@@ -1432,17 +1816,22 @@ export default function Faqs() {
                             checked={isChecked}
                             onChange={() => {
                               if (isChecked) {
-                                setSelectedCourseIds(prev => prev.filter(id => id !== c.id));
+                                setSelectedCourseIds((prev) =>
+                                  prev.filter((id) => id !== c.id),
+                                );
                               } else {
-                                setSelectedCourseIds(prev => [...prev, c.id]);
+                                setSelectedCourseIds((prev) => [...prev, c.id]);
                               }
                             }}
                             className="h-4.5 w-4.5 rounded border-hairline text-ink focus:ring-ink"
                           />
                           <div className="flex flex-col min-w-0">
-                            <span className="font-semibold text-ink truncate max-w-lg">{c.title}</span>
+                            <span className="font-semibold text-ink truncate max-w-lg">
+                              {c.title}
+                            </span>
                             <span className="text-[10px] text-mid-gray mt-0.5">
-                              ID: #{c.id} • Giảng viên: {c.instructor?.full_name || "Chưa rõ"}
+                              ID: #{c.id} • Giảng viên:{" "}
+                              {c.instructor?.full_name || "Chưa rõ"}
                             </span>
                           </div>
                         </label>
@@ -1477,7 +1866,11 @@ export default function Faqs() {
 
       {/* Modal Xác nhận Xóa FAQ */}
       {deleteModalOpen && faqToDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
             <div
               onClick={() => setDeleteModalOpen(false)}
@@ -1488,22 +1881,42 @@ export default function Faqs() {
               {/* Modal Body */}
               <div className="p-6">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600 mb-4">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                    />
                   </svg>
                 </div>
 
-                <h3 className="text-center text-lg font-semibold text-ink">Xác nhận xóa FAQ</h3>
+                <h3 className="text-center text-lg font-semibold text-ink">
+                  Xác nhận xóa FAQ
+                </h3>
                 <p className="mt-2 text-center text-sm text-mid-gray">
-                  Bạn có chắc chắn muốn xóa FAQ này? Hành động này sẽ chuyển FAQ vào trạng thái đã xóa mềm.
+                  Bạn có chắc chắn muốn xóa FAQ này? Hành động này sẽ chuyển FAQ
+                  vào trạng thái đã xóa mềm.
                 </p>
 
                 {/* Target FAQ Info Box */}
                 <div className="mt-4 rounded-2xl border border-hairline bg-canvas p-3.5 space-y-1.5 text-xs">
-                  <div className="font-medium text-ink line-clamp-2">{faqToDelete.question}</div>
+                  <div className="font-medium text-ink line-clamp-2">
+                    {faqToDelete.question}
+                  </div>
                   <div className="flex items-center justify-between text-mid-gray pt-1">
-                    <span>Loại: {typeMap[faqToDelete.type]?.label || faqToDelete.type}</span>
-                    <span>Đang liên kết: {faqToDelete.course_count ?? 0} khóa học</span>
+                    <span>
+                      Loại:{" "}
+                      {typeMap[faqToDelete.type]?.label || faqToDelete.type}
+                    </span>
+                    <span>
+                      Đang liên kết: {faqToDelete.course_count ?? 0} khóa học
+                    </span>
                   </div>
                 </div>
               </div>
