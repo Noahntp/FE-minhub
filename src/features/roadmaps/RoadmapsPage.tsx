@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
+import { CountUpNumber } from '@/shared/components/ui/CountUpNumber';
 import { roadmapsApi } from './api';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import {
@@ -262,9 +263,7 @@ export default function RoadmapsPage() {
                     </div>
                     <div>
                       <div className="text-base sm:text-lg font-black text-emerald-400">
-                        {stats?.total_students
-                          ? `${Number(stats.total_students).toLocaleString('vi-VN')}+`
-                          : '25.000+'}
+                        <CountUpNumber target={stats?.total_students || 25000} suffix="+" />
                       </div>
                       <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Học viên tham gia</div>
                     </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Course, User } from '@/shared/types';
 import { Users } from 'lucide-react';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 export interface InstructorStudentManagementProps {
   currentUser: User;
@@ -205,34 +206,47 @@ export function InstructorStudentManagement({ currentUser, coursesTaught }: Inst
                           <td colSpan={6} className="py-8 text-center text-stone-400">Không tìm thấy bản ghi danh nào thỏa mãn bộ lọc.</td>
                         </tr>
                       ) : (
-                        studentsList.map((enrollment) => (
-                          <tr key={enrollment.id} onClick={() => setSelectedStudentDetail(enrollment)} className="border-b last:border-b-0 hover:bg-slate-50 cursor-pointer transition-colors">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <img src={enrollment.user.avatar || 'https://via.placeholder.com/150'} alt="avt" className="w-8 h-8 rounded-full object-cover" />
-                                <span className="font-bold text-stone-800">{enrollment.user.name}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-stone-600">{enrollment.user.email}</td>
-                            <td className="py-3 px-4 text-stone-800 font-semibold max-w-[150px] truncate" title={enrollment.course.title}>{enrollment.course.title}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <span className="w-6 text-right font-mono font-bold text-brand-normal">{enrollment.progress}%</span>
-                                <div className="w-16 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                                  <div style={{ width: `${enrollment.progress}%` }} className="h-full bg-brand-normal rounded-full"></div>
+                        studentsList.map((enrollment) => {
+                          const avatarSrc = (enrollment.user?.avatar || enrollment.user?.avatar_url)
+                            ? resolveMediaUrl(enrollment.user.avatar || enrollment.user.avatar_url)
+                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(enrollment.user?.name || enrollment.user?.full_name || 'Student')}&background=007A64&color=fff&bold=true`;
+
+                          return (
+                            <tr key={enrollment.id || enrollment.enrollment_id} onClick={() => setSelectedStudentDetail(enrollment)} className="border-b last:border-b-0 hover:bg-slate-50 cursor-pointer transition-colors">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <img 
+                                    src={avatarSrc} 
+                                    alt="avt" 
+                                    className="w-8 h-8 rounded-full object-cover border border-slate-200" 
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(enrollment.user?.name || enrollment.user?.full_name || 'Student')}&background=007A64&color=fff&bold=true`;
+                                    }}
+                                  />
+                                  <span className="font-bold text-stone-800">{enrollment.user?.name || enrollment.user?.full_name}</span>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`text-[9px] font-bold px-2 py-1 rounded-md whitespace-nowrap ${enrollment.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : enrollment.status === 'suspended' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-                                {enrollment.status === 'completed' ? 'Hoàn thành' : enrollment.status === 'suspended' ? 'Tạm khóa' : 'Đang học'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-stone-500 font-mono">
-                              {new Date(enrollment.createdAt).toLocaleDateString('vi-VN')}
-                            </td>
-                          </tr>
-                        ))
+                              </td>
+                              <td className="py-3 px-4 text-stone-600">{enrollment.user?.email}</td>
+                              <td className="py-3 px-4 text-stone-800 font-semibold max-w-[150px] truncate" title={enrollment.course?.title}>{enrollment.course?.title}</td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-6 text-right font-mono font-bold text-brand-normal">{enrollment.progress ?? enrollment.progress_percent}%</span>
+                                  <div className="w-16 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                                    <div style={{ width: `${enrollment.progress ?? enrollment.progress_percent}%` }} className="h-full bg-brand-normal rounded-full"></div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`text-[9px] font-bold px-2 py-1 rounded-md whitespace-nowrap ${enrollment.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : enrollment.status === 'suspended' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
+                                  {enrollment.status === 'completed' ? 'Hoàn thành' : enrollment.status === 'suspended' ? 'Tạm khóa' : 'Đang học'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-stone-500 font-mono">
+                                {new Date(enrollment.createdAt || enrollment.enrolled_at || Date.now()).toLocaleDateString('vi-VN')}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

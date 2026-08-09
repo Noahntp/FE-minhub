@@ -74,7 +74,7 @@ export function getDashboardRouteByRole(role?: string): string {
     case 'student':
     case 'learner':
     default:
-      return '/dashboard';
+      return '/';
   }
 }
 

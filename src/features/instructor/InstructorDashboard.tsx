@@ -569,11 +569,7 @@ export default function InstructorDashboard({
     }
 
     if (window.location.pathname + window.location.search !== targetUrl) {
-      if (replace) {
-        window.history.replaceState({}, '', targetUrl);
-      } else {
-        window.history.pushState({}, '', targetUrl);
-      }
+      window.history.replaceState({}, '', targetUrl);
     }
   };
 

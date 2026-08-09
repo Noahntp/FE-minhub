@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import AuthScreens from './components/AuthScreens';
 import { User } from '@/shared/types';
 import { useApp } from '@/app/AppContext';
@@ -7,7 +7,21 @@ import { getDashboardRouteByRole } from '@/router/routes';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { setCurrentUser, setIsLoggedIn } = useApp();
+
+  const isInstructorRole = 
+    searchParams.get('role') === 'instructor' || 
+    location.pathname.includes('/instructor');
+
+  const initialRole = isInstructorRole ? 'instructor' : 'student';
+
+  const isVerifyEmail = 
+    location.pathname.includes('/verify-email') || 
+    searchParams.get('mode') === 'verify-email';
+
+  const initialMode = isVerifyEmail ? 'verify-email' : 'register';
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
@@ -23,7 +37,8 @@ export default function RegisterPage() {
       <AuthScreens 
         onLoginSuccess={handleLoginSuccess}
         onClose={() => navigate('/')}
-        initialMode="register"
+        initialMode={initialMode}
+        initialRole={initialRole}
         navigateTo={(path) => {
           const target = path.startsWith('/') ? path : `/${path}`;
           navigate(target, { replace: true });

@@ -118,7 +118,7 @@ export const CouponFilter: React.FC<Props> = ({
               e.stopPropagation();
               onCreateClick();
             }}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-normal hover:bg-brand-hover text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer h-10"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#0B1536] hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer h-10"
           >
             <Plus className="w-4 h-4" />
             Tạo mã giảm giá

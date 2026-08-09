@@ -68,13 +68,19 @@ export const StudentPersonalInfoCard: React.FC<StudentPersonalInfoCardProps> = (
         bio: form.bio.trim() || null
       });
 
-      onProfileUpdated({
+      const updated = {
         ...currentUser,
         name: form.fullName.trim(),
         full_name: form.fullName.trim(),
         phone: form.phone.trim() || null,
         bio: form.bio.trim() || null
-      });
+      };
+
+      try {
+        localStorage.setItem('mindhub_current_user', JSON.stringify(updated));
+      } catch (e) {}
+
+      onProfileUpdated(updated);
 
       showToast('Cập nhật thông tin cá nhân thành công!');
     } catch (err: any) {

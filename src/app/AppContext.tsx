@@ -3,6 +3,7 @@ import { User as UserType, Course, Notification, Order, Banner } from '@/shared/
 import { INITIAL_USER, INITIAL_BANNERS, INITIAL_COURSES } from '@/shared/data';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { ApiService } from '@/services/api';
+import { apiFetch } from '@/shared/lib/api-client';
 
 interface AppContextType {
   currentUser: UserType;
@@ -56,8 +57,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Fetch fresh profile from Backend database on app mount/reload if token exists
   useEffect(() => {
     const token = localStorage.getItem('mindhub_api_token');
-    if (token && currentUser?.role === 'instructor') {
-      ApiService.getInstructorProfile()
+    if (token) {
+      apiFetch<any>('/users/me')
         .then(res => {
           const profileData = res?.data || res;
           if (profileData) {
@@ -73,9 +74,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 expertise: profileData.expertise ?? prev?.expertise,
                 avatar: profileData.avatar_url || profileData.avatar || prev?.avatar,
                 avatar_url: profileData.avatar_url || profileData.avatar || prev?.avatar_url,
-                role: profileData.role || prev?.role || 'instructor'
+                role: profileData.role || prev?.role
               };
-              localStorage.setItem('mindhub_current_user', JSON.stringify(updated));
+              if (JSON.stringify(updated) === JSON.stringify(prev)) {
+                return prev;
+              }
+              try {
+                localStorage.setItem('mindhub_current_user', JSON.stringify(updated));
+              } catch (e) {}
               return updated;
             });
           }
@@ -90,8 +96,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [favorites, setFavorites] = useState<string[]>([]);
   const [cart, setCart] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('mindhub_enrolled_courses');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('mindhub_enrolled_courses', JSON.stringify(enrolledCourseIds));
+    } catch (e) {}
+  }, [enrolledCourseIds]);
   const [banners, setBanners] = useState<Banner[]>(INITIAL_BANNERS);
 
   // Audio State

@@ -52,17 +52,17 @@ export const CouponTable: React.FC<Props> = ({
     const status = coupon.effective_status || coupon.status;
     switch (status) {
       case 'active':
-        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-emerald-150">Đang hoạt động</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-200/60">ĐANG HOẠT ĐỘNG</span>;
       case 'inactive':
-        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-slate-200">Tạm tắt</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-slate-200">TẠM TẮT</span>;
       case 'expired':
-        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-rose-50 text-rose-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-rose-150">Đã hết hạn</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-rose-200/60">ĐÃ HẾT HẠN</span>;
       case 'used_up':
-        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-amber-150">Đã dùng hết</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-amber-200/60">ĐÃ DÙNG HẾT</span>;
       case 'scheduled':
-        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-150">Sắp diễn ra</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-blue-200/60">SẮP DIỄN RA</span>;
       default:
-        return <span className="inline-flex items-center whitespace-nowrap px-3 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider border border-slate-200">{coupon.status_label || status}</span>;
+        return <span className="inline-flex items-center whitespace-nowrap px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-wider border border-slate-200">{coupon.status_label || status}</span>;
     }
   };
 

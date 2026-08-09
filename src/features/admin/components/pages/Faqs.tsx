@@ -682,7 +682,7 @@ export default function Faqs() {
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr class="border-b border-hairline bg-surface-alt/60 text-[11px] font-bold uppercase tracking-wider text-mid-gray">
+                <tr className="border-b border-hairline bg-surface-alt/60 text-[11px] font-bold uppercase tracking-wider text-mid-gray">
                   <th scope="col" className="py-3.5 px-4 min-w-[280px]">
                     <button
                       type="button"
@@ -1042,7 +1042,7 @@ export default function Faqs() {
                   {/* Type */}
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-mid-gray mb-1.5">
-                      Loại FAQ <span class="text-red-500">*</span>
+                      Loại FAQ <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formFaq.type}

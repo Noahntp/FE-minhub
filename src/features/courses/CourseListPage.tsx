@@ -9,6 +9,9 @@ import {
   ChevronDown,
   RotateCcw,
   SlidersHorizontal,
+  Sparkles,
+  BookOpen,
+  Tag,
 } from 'lucide-react';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { toast } from 'sonner';
@@ -253,7 +256,9 @@ export default function CourseListPage() {
           const mapped = list.map((cat: any) => ({
             id: cat.slug || String(cat.id),
             label: cat.name,
-            count: cat.courses_count || 10,
+            count: cat.courses_count !== undefined && cat.courses_count !== null 
+              ? Number(cat.courses_count) 
+              : (Array.isArray(cat.courses) ? cat.courses.length : 0),
             slug: cat.slug,
           }));
           setApiCategories(mapped);
@@ -422,33 +427,71 @@ export default function CourseListPage() {
     <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans pb-20 pt-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
-        {/* 1. Hero Header Banner with Search Bar */}
-        <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-left space-y-2 max-w-xl">
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Khám phá khóa học
-            </h1>
-            <p className="text-sm sm:text-base text-slate-500 font-medium">
-              Học kỹ năng mới từ chuyên gia và nâng tầm sự nghiệp của bạn.
-            </p>
-          </div>
+        {/* 1. Hero Header Banner with Brand Emerald Theme & Integrated Search */}
+        <div className="relative bg-gradient-to-br from-[#004D3F] via-[#007A64] to-[#04342C] text-white p-6 sm:p-10 rounded-3xl shadow-xl overflow-hidden">
+          {/* Subtle Decorative Mesh Glows */}
+          <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-teal-300/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
 
-          <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full md:w-[480px]">
-            <input
-              type="text"
-              placeholder="Tìm khóa học, chủ đề hoặc kỹ năng..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-28 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400"
-            />
-            <Search className="w-5 h-5 text-slate-400 absolute left-4" />
-            <button
-              type="submit"
-              className="absolute right-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
-            >
-              Tìm kiếm
-            </button>
-          </form>
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="text-left space-y-3 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-300/30 text-emerald-200 text-xs font-bold tracking-wide backdrop-blur-md">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Thư viện 1,000+ Khóa học Đỉnh cao
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                Khám phá khóa học MindHub
+              </h1>
+              <p className="text-xs sm:text-sm text-emerald-100/90 font-normal leading-relaxed">
+                Học kỹ năng mới từ chuyên gia hàng đầu và nâng tầm sự nghiệp phát triển của bạn.
+              </p>
+            </div>
+
+            <div className="w-full lg:w-[460px] shrink-0 space-y-2">
+              <form onSubmit={handleSearchSubmit} className="relative flex items-center shadow-2xl rounded-2xl p-1 bg-white border border-white/30 backdrop-blur-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Tìm khóa học, chủ đề hoặc kỹ năng..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-24 py-2.5 bg-transparent text-slate-900 text-xs sm:text-sm focus:outline-none placeholder:text-slate-400 font-medium"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); setActiveSearch(''); }}
+                    className="absolute right-24 p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                ) : null}
+                <button
+                  type="submit"
+                  className="absolute right-1 px-4 py-2 rounded-xl bg-[#007A64] hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all shrink-0"
+                >
+                  Tìm kiếm
+                </button>
+              </form>
+
+              {/* Quick Tags */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
+                <span className="text-emerald-200 font-medium flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-amber-300" /> Gợi ý:
+                </span>
+                {['Laravel', 'React', 'Python AI', 'Figma UI'].map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => { setSearchQuery(tag); setActiveSearch(tag); }}
+                    className="px-2 py-0.5 rounded-full bg-emerald-950/40 hover:bg-white hover:text-emerald-800 text-emerald-100 border border-emerald-400/30 text-[10px] font-semibold transition-all cursor-pointer"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 2. Main Layout (Left: Sidebar Filters | Right: Results Grid) */}

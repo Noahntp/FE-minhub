@@ -389,6 +389,41 @@ export default function CartAndCheckout({
     }
   };
 
+  const saveCourseToEnrolledList = (courseItem: any) => {
+    try {
+      const courseId = String(courseItem.id);
+      const storedIds = JSON.parse(localStorage.getItem('mindhub_enrolled_courses') || '[]');
+      const updatedIds = Array.from(new Set([...storedIds, courseId]));
+      localStorage.setItem('mindhub_enrolled_courses', JSON.stringify(updatedIds));
+
+      const storedCourses = JSON.parse(localStorage.getItem('mindhub_purchased_courses_data') || '[]');
+      const exists = storedCourses.some((c: any) => String(c.id) === courseId);
+      if (!exists) {
+        const courseObj = {
+          id: courseId,
+          title: courseItem.title || 'Khóa học đã đăng ký',
+          category: courseItem.category || 'Lập trình',
+          status: 'learning',
+          badgeText: 'Đang học',
+          badgeType: 'learning',
+          instructorName: courseItem.instructorName || courseItem.instructor?.full_name || 'Giảng viên MindHub',
+          instructorAvatar: courseItem.instructorAvatar || courseItem.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+          thumbnail: courseItem.thumbnail || courseItem.thumbnail_url || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+          progress: 0,
+          lessonsCount: 40,
+          duration: '12h 30m',
+          buttonText: 'Tiếp tục học',
+          buttonBg: 'bg-[#0f172a] text-white hover:bg-slate-800',
+          hasPlayIcon: true,
+        };
+        storedCourses.unshift(courseObj);
+        localStorage.setItem('mindhub_purchased_courses_data', JSON.stringify(storedCourses));
+      }
+    } catch (e) {
+      console.warn('Failed to save purchased course locally:', e);
+    }
+  };
+
   const handleStartPayment = async () => {
     if (!buyerName.trim() || !buyerEmail.trim() || !buyerPhone.trim()) {
       toast.error('Vui lòng điền đầy đủ thông tin người mua.');
@@ -396,6 +431,7 @@ export default function CartAndCheckout({
     }
 
     setIsProcessing(true);
+    saveCourseToEnrolledList(checkoutCourse);
 
     try {
       const numericCourseId = Number(checkoutCourse.id) || 1;

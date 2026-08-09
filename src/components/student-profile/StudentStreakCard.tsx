@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Flame, Trophy, Calendar, Sparkles, CheckCircle2, Zap } from 'lucide-react';
 import { ApiService } from '../../services/api';
+import { apiFetch } from '@/shared/lib/api-client';
 
 export interface WeekDayItem {
   day: string;
@@ -45,47 +46,66 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    ApiService.getLearningStreak()
-      .then((res: any) => {
+    const fetchStreak = async () => {
+      try {
+        const res = await apiFetch<any>('/me/streak');
         if (isMounted && res) {
-          setData(res);
+          const payload = res.data || res;
+          setData(payload);
         }
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch streak metrics, using default fallback:', err);
-      })
-      .finally(() => {
+      } catch (err) {
+        try {
+          const fallbackRes = await ApiService.getLearningStreak();
+          if (isMounted && fallbackRes) {
+            const payload = fallbackRes.data || fallbackRes;
+            setData(payload);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch streak metrics:', e);
+        }
+      } finally {
         if (isMounted) setLoading(false);
-      });
+      }
+    };
+
+    fetchStreak();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const currentStreak = data?.current_streak ?? propCurrentStreak ?? 5;
-  const longestStreak = data?.longest_streak ?? propLongestStreak ?? 12;
-  const totalActiveDays = data?.total_active_days ?? propTotalActiveDays ?? 28;
+  const currentStreak = data?.current_streak ?? (propCurrentStreak && propCurrentStreak > 0 ? propCurrentStreak : 1);
+  const longestStreak = data?.longest_streak ?? (propLongestStreak && propLongestStreak > 0 ? propLongestStreak : currentStreak);
+  const totalActiveDays = data?.total_active_days ?? (propTotalActiveDays && propTotalActiveDays > 0 ? propTotalActiveDays : currentStreak);
   const isMaintaining = data?.is_maintaining ?? true;
-  const statusLabel = data?.status_label ?? (isMaintaining ? 'Đang duy trì' : 'Chưa duy trì');
+  const statusLabel = data?.status_label ?? (isMaintaining ? 'Đang duy trì' : 'Chưa bắt đầu');
   
-  const completedDaysInWeek = data?.completed_days_in_week ?? 4;
+  const completedDaysInWeek = data?.completed_days_in_week ?? Math.max(1, currentStreak);
   const totalDaysInWeek = data?.total_days_in_week ?? 7;
 
-  const defaultWeekDays: WeekDayItem[] = [
-    { day: 'T2', active: true, isToday: false },
-    { day: 'T3', active: true, isToday: false },
-    { day: 'T4', active: true, isToday: false },
-    { day: 'T5', active: true, isToday: true },
-    { day: 'T6', active: false, isToday: false },
-    { day: 'T7', active: false, isToday: false },
-    { day: 'CN', active: false, isToday: false },
-  ];
+  const jsDay = new Date().getDay();
+  const todayIdx = jsDay === 0 ? 6 : jsDay - 1;
+  const dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+  const defaultWeekDays: WeekDayItem[] = dayLabels.map((day, idx) => ({
+    day,
+    active: idx === todayIdx,
+    isToday: idx === todayIdx,
+    is_today: idx === todayIdx,
+  }));
 
   const weekDays = data?.week_days && data.week_days.length > 0 ? data.week_days : defaultWeekDays;
 
-  const encouragementMessage = data?.encouragement?.message || 
-    `Học thêm ${data?.encouragement?.days_needed ?? 2} ngày nữa để đạt mốc ${data?.encouragement?.next_milestone ?? 7} ngày liên tiếp và mở khóa huy hiệu ${data?.encouragement?.badge_name ?? 'Chiến binh Chăm chỉ'}!`;
+  const daysNeeded = data?.encouragement?.days_needed ?? Math.max(0, 7 - currentStreak);
+  const nextMilestone = data?.encouragement?.next_milestone ?? 7;
+  const badgeName = data?.encouragement?.badge_name ?? 'Chiến binh Chăm chỉ';
+
+  const encouragementMessage = data?.encouragement?.message || (
+    daysNeeded > 0
+      ? `Học thêm ${daysNeeded} ngày nữa để đạt mốc ${nextMilestone} ngày liên tiếp và mở khóa huy hiệu ${badgeName}!`
+      : `Chúc mừng bạn đã hoàn thành xuất sắc chuỗi ${nextMilestone} ngày học liên tiếp trong tuần!`
+  );
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-sm hover:shadow-md transition-all mb-6 relative">
