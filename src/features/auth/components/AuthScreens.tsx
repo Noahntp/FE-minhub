@@ -463,14 +463,14 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-brand-light-active overflow-hidden flex flex-col text-main-darker animate-fade-in"
       >
         {/* Banner with Brand Theme */}
-        <div className="bg-deep-indigo p-5 text-brand-light flex items-center justify-between border-b-4 border-emerald-500 shrink-0">
+        <div className="bg-gradient-to-r from-[#061913] via-[#082a20] to-[#04120d] p-4 sm:p-5 text-white flex items-center justify-between border-b-4 border-emerald-500 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-pale-cyan rounded-xl flex items-center justify-center">
-              <Globe className="w-5 h-5 text-forest-teal" />
+            <div className="p-2 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
+              <Globe className="w-5 h-5 text-emerald-400" />
             </div>
             <div className="text-left">
-              <h2 className="text-base sm:text-lg font-suisseintl font-bold tracking-tight text-[#f5ece3] leading-tight">MindHub Academic Portal</h2>
-              <p className="text-[10px] text-brand-light/80 font-suisseintlmono uppercase tracking-wider">Học thuật và Quản trị tri thức</p>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">MindHub Academic Portal</h2>
+              <p className="text-[10px] text-emerald-400/90 font-semibold uppercase tracking-wider">Học thuật và Quản trị tri thức</p>
             </div>
           </div>
           <button 
@@ -885,16 +885,44 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 </p>
               </div>
 
-              <div className="py-2 space-y-2">
-                <input 
-                  type="text"
-                  maxLength={6}
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Nhập 6 số OTP..."
-                  className="w-48 text-center text-2xl tracking-[0.25em] px-4 py-2.5 border-2 border-emerald-500 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white font-mono font-black text-emerald-950 shadow-sm"
-                  required
-                />
+              <div className="py-2 space-y-3">
+                <div className="flex justify-center items-center gap-2 sm:gap-2.5 relative my-2">
+                  {Array.from({ length: 6 }).map((_, idx) => {
+                    const digit = verificationCode[idx] || '';
+                    const isCurrent = verificationCode.length === idx;
+                    const isFilled = Boolean(digit);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          const inputEl = document.getElementById('otp-real-input');
+                          if (inputEl) inputEl.focus();
+                        }}
+                        className={`w-11 h-13 sm:w-12 sm:h-14 rounded-xl border-2 flex items-center justify-center text-xl sm:text-2xl font-mono font-black transition-all cursor-pointer select-none shadow-sm ${
+                          isCurrent
+                            ? 'border-emerald-600 ring-4 ring-emerald-500/20 bg-emerald-50/50 text-emerald-950 scale-105'
+                            : isFilled
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                            : 'border-slate-200 bg-slate-50/50 text-slate-300 hover:border-emerald-300'
+                        }`}
+                      >
+                        {digit || <span className="text-slate-300 font-light text-sm">•</span>}
+                      </div>
+                    );
+                  })}
+                  <input 
+                    id="otp-real-input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    autoFocus
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    required
+                  />
+                </div>
 
                 {verificationCode && (
                   <p className="text-[11px] text-slate-500 font-semibold">
