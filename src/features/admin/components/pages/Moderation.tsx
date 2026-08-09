@@ -8,7 +8,7 @@ import { showToast } from "@/assets/js/toast";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
-import { Filter, X } from "lucide-react";
+import { Filter, X, RotateCcw } from "lucide-react";
 
 interface UserInfo {
   id: number;
@@ -839,11 +839,11 @@ export default function Moderation() {
           className="flex flex-col gap-3 w-full min-w-0"
         >
           {/* Main Bar */}
-          <div className="flex flex-wrap items-center gap-2.5 w-full min-w-0">
+          <div className="flex flex-wrap items-center gap-[10px] w-full min-w-0">
             {/* 1. Search box */}
-            <div className="relative flex-1 min-w-[200px] max-w-full xl:max-w-[340px] h-[44px] shrink-0">
+            <div className="relative w-full sm:w-[360px] max-w-full h-[33px] shrink-0">
               <svg
-                className="w-4 h-4 text-mid-gray absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                className="w-3.5 h-3.5 text-mid-gray absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
@@ -857,12 +857,12 @@ export default function Moderation() {
                 value={tempSearch}
                 onChange={(e) => setTempSearch(e.target.value)}
                 placeholder="Nội dung, người dùng, khóa học..."
-                className="w-full h-full pl-10 pr-3 text-xs md:text-sm bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
+                className="w-full h-full pl-9 pr-3 text-xs bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
               />
             </div>
 
             {/* Target Type select */}
-            <div className="min-w-[130px] shrink-0">
+            <div className="w-full sm:w-[170px] max-w-full shrink-0">
               <FilterSelect
                 label=""
                 placeholder="Tất cả nội dung"
@@ -887,12 +887,12 @@ export default function Moderation() {
                 id="select-target-type"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
-                className="w-full h-[44px]"
+                className="w-full h-[33px]"
               />
             </div>
 
             {/* Status select */}
-            <div className="min-w-[140px] shrink-0">
+            <div className="w-full sm:w-[170px] max-w-full shrink-0">
               <FilterSelect
                 label=""
                 placeholder="Tất cả trạng thái"
@@ -923,12 +923,12 @@ export default function Moderation() {
                 id="select-status"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
-                className="w-full h-[44px]"
+                className="w-full h-[33px]"
               />
             </div>
 
             {/* Time Preset select */}
-            <div className="min-w-[140px] shrink-0">
+            <div className="w-full sm:w-[170px] max-w-full shrink-0">
               <FilterSelect
                 label=""
                 placeholder="Tất cả thời gian"
@@ -945,121 +945,125 @@ export default function Moderation() {
                 id="select-time-preset"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
-                className="w-full h-[44px]"
+                className="w-full h-[33px]"
               />
             </div>
 
-            {/* Filter Popover Button */}
-            <div className="relative shrink-0 ml-auto xl:ml-0" ref={filterPopoverRef}>
-              <button
-                type="button"
-                onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
-                className={`h-[44px] px-3.5 flex items-center justify-center gap-2 rounded-lg border text-[13px] font-medium transition-all ${
-                  filterPopoverOpen || hasSecondaryFilters
-                    ? "bg-canvas border-ink text-ink shadow-sm"
-                    : "bg-paper border-hairline text-mid-gray hover:bg-canvas hover:text-ink"
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span>Bộ lọc</span>
-                {activeSecondaryFiltersCount > 0 && (
-                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-                    {activeSecondaryFiltersCount}
-                  </span>
-                )}
-              </button>
+            {/* Action Group */}
+            <div className="flex items-center gap-2 xl:ml-auto w-full xl:w-auto justify-end shrink-0">
+              {/* Reset All Button */}
+              {hasFilter && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="h-[33px] px-2.5 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-medium text-mid-gray hover:text-ink hover:bg-canvas transition-colors"
+                  title="Đặt lại bộ lọc"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Đặt lại</span>
+                </button>
+              )}
 
-              {/* Popover Content */}
-              {filterPopoverOpen && (
-                <div className="absolute right-0 top-full mt-2 w-[260px] z-50 bg-paper border border-hairline rounded-[12px] shadow-lg p-4 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="space-y-4">
-                    {/* Reply Status */}
-                    <div>
-                      <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
-                        Phản hồi
-                      </label>
-                      <FilterSelect
-                        label=""
-                        placeholder="Tất cả phản hồi"
-                        value={replyStatus}
-                        options={[
-                          { value: "all", label: "Tất cả phản hồi" },
-                          {
-                            value: "violation",
-                            label: "● Phản hồi vi phạm",
-                            colorClass: "text-rose-600 font-bold",
-                          },
-                          {
-                            value: "unanswered",
-                            label: "● Chưa phản hồi",
-                            colorClass: "text-rose-500",
-                          },
-                          {
-                            value: "answered",
-                            label: "● Đã phản hồi",
-                            colorClass: "text-emerald-600",
-                          },
-                          {
-                            value: "multiple_replies",
-                            label: "● Nhiều phản hồi",
-                            colorClass: "text-blue-500",
-                          },
-                        ]}
-                        onChange={(val) => setReplyStatus(val)}
-                        id="select-reply-status"
-                        activeId={activeDropdownId}
-                        setActiveId={setActiveDropdownId}
-                        className="w-full h-[40px]"
-                      />
-                    </div>
+              {/* Filter Popover Button */}
+              <div className="relative shrink-0" ref={filterPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
+                  aria-label="Bộ lọc"
+                  className={`relative flex items-center justify-center w-[33px] h-[33px] rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-ink ${
+                    filterPopoverOpen || hasSecondaryFilters
+                      ? "bg-canvas border-ink text-ink shadow-sm"
+                      : "bg-paper border-hairline text-mid-gray hover:bg-canvas hover:text-ink"
+                  }`}
+                >
+                  <Filter className="w-3.5 h-3.5 text-ink" />
+                  {activeSecondaryFiltersCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                      {activeSecondaryFiltersCount}
+                    </span>
+                  )}
+                </button>
 
-                    {/* Rating */}
-                    {targetType === "review" && (
+                {/* Popover Content */}
+                {filterPopoverOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[260px] z-50 bg-paper border border-hairline rounded-[12px] shadow-lg p-4 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="space-y-4">
+                      {/* Reply Status */}
                       <div>
                         <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
-                          Số sao
+                          Phản hồi
                         </label>
                         <FilterSelect
                           label=""
-                          placeholder="Tất cả số sao"
-                          value={rating}
+                          placeholder="Tất cả phản hồi"
+                          value={replyStatus}
                           options={[
-                            { value: "all", label: "Tất cả số sao" },
-                            { value: "5", label: "⭐⭐⭐⭐⭐ (5 sao)" },
-                            { value: "4", label: "⭐⭐⭐⭐ (4 sao)" },
-                            { value: "3", label: "⭐⭐⭐ (3 sao)" },
-                            { value: "2", label: "⭐⭐ (2 sao)" },
-                            { value: "1", label: "⭐ (1 sao)" },
+                            { value: "all", label: "Tất cả phản hồi" },
+                            {
+                              value: "violation",
+                              label: "● Phản hồi vi phạm",
+                              colorClass: "text-rose-600 font-bold",
+                            },
+                            {
+                              value: "unanswered",
+                              label: "● Chưa phản hồi",
+                              colorClass: "text-rose-500",
+                            },
+                            {
+                              value: "answered",
+                              label: "● Đã phản hồi",
+                              colorClass: "text-emerald-600",
+                            },
+                            {
+                              value: "multiple_replies",
+                              label: "● Nhiều phản hồi",
+                              colorClass: "text-blue-500",
+                            },
                           ]}
-                          onChange={(val) => setRating(val)}
-                          id="select-rating"
+                          onChange={(val) => setReplyStatus(val)}
+                          id="select-reply-status"
                           activeId={activeDropdownId}
                           setActiveId={setActiveDropdownId}
-                          className="w-full h-[40px]"
+                          className="w-full h-[33px]"
                         />
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Reset All Button */}
-            {hasFilter && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="h-[44px] px-3 flex items-center justify-center text-[13px] font-medium text-rose-500 hover:text-rose-700 transition-colors shrink-0 xl:ml-auto"
-                title="Đặt lại tất cả bộ lọc về mặc định"
-              >
-                Đặt lại tất cả
-              </button>
-            )}
+                      {/* Rating */}
+                      {targetType === "review" && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                            Số sao
+                          </label>
+                          <FilterSelect
+                            label=""
+                            placeholder="Tất cả số sao"
+                            value={rating}
+                            options={[
+                              { value: "all", label: "Tất cả số sao" },
+                              { value: "5", label: "⭐⭐⭐⭐⭐ (5 sao)" },
+                              { value: "4", label: "⭐⭐⭐⭐ (4 sao)" },
+                              { value: "3", label: "⭐⭐⭐ (3 sao)" },
+                              { value: "2", label: "⭐⭐ (2 sao)" },
+                              { value: "1", label: "⭐ (1 sao)" },
+                            ]}
+                            onChange={(val) => setRating(val)}
+                            id="select-rating"
+                            activeId={activeDropdownId}
+                            setActiveId={setActiveDropdownId}
+                            className="w-full h-[33px]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Chips Bar */}
           {hasSecondaryFilters && (
-            <div className="flex flex-wrap items-center gap-2 pt-3 mt-1 border-t border-hairline/50 animate-in fade-in duration-200">
+            <div className="flex flex-wrap items-center gap-2 pt-1 animate-in fade-in duration-200">
               {/* Reply Status Chip */}
               {replyStatus !== "all" && (
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-canvas rounded-full border border-hairline text-xs font-medium text-ink shadow-subtle">
@@ -1098,15 +1102,6 @@ export default function Moderation() {
                   </button>
                 </div>
               )}
-
-              {/* Clear Secondary Filters */}
-              <button
-                type="button"
-                onClick={handleResetSecondaryFilters}
-                className="text-[11px] font-semibold text-rose-500 hover:text-rose-700 hover:underline px-2 ml-1"
-              >
-                Xóa bộ lọc
-              </button>
             </div>
           )}
         </form>

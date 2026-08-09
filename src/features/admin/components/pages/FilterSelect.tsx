@@ -87,7 +87,7 @@ export default function FilterSelect({
       <button
         type="button"
         onClick={handleToggle}
-        className="w-full h-10 px-3 text-xs bg-paper border border-hairline rounded-[6px] hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none flex items-center justify-between transition-all cursor-pointer text-left shadow-subtle font-medium text-ink"
+        className="w-full h-full min-h-[33px] px-3 text-xs bg-paper border border-hairline rounded-[6px] hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none flex items-center justify-between transition-all cursor-pointer text-left shadow-subtle font-medium text-ink"
       >
         <span className={cn("truncate", displayColor, !selectedOption && "text-mid-gray/70")}>
           {displayLabel}
