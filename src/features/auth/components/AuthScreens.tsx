@@ -273,6 +273,11 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       experience_years: registerRole === 'instructor' ? instructorExperience : undefined
     })
       .then((res: any) => {
+        try {
+          localStorage.removeItem('mindhub_user_notifications');
+          localStorage.removeItem('mindhub_purchased_courses_data');
+          localStorage.removeItem('mindhub_enrolled_courses');
+        } catch (e) {}
         setPassword('');
         setConfirmPassword('');
         setErrorMsg('');

@@ -32,26 +32,28 @@ export default function Navbar() {
   const [navUnreadCount, setNavUnreadCount] = useState<number>(0);
 
   const fetchNavNotifications = async () => {
+    const token = localStorage.getItem('mindhub_api_token');
+
+    if (token) {
+      try {
+        const res = await apiFetch<any>('/notifications');
+        const apiList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setNavNotifications(apiList);
+        setNavUnreadCount(apiList.filter((n: any) => !n.is_read && !n.read_at).length);
+        return;
+      } catch (e) {
+        console.warn('Navbar notification API fetch error:', e);
+      }
+    }
+
     let localList: any[] = [];
     try {
       const saved = localStorage.getItem('mindhub_user_notifications');
       if (saved) localList = JSON.parse(saved);
     } catch (e) {}
 
-    try {
-      const res = await apiFetch<any>('/notifications');
-      const apiList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-      const mergedMap = new Map();
-      [...localList, ...apiList].forEach((n) => {
-        if (n && n.id) mergedMap.set(String(n.id), n);
-      });
-      const combined = Array.from(mergedMap.values());
-      setNavNotifications(combined);
-      setNavUnreadCount(combined.filter((n: any) => !n.is_read && !n.read_at).length);
-    } catch (e) {
-      setNavNotifications(localList);
-      setNavUnreadCount(localList.filter((n: any) => !n.is_read && !n.read_at).length);
-    }
+    setNavNotifications(localList);
+    setNavUnreadCount(localList.filter((n: any) => !n.is_read && !n.read_at).length);
   };
 
   useEffect(() => {
