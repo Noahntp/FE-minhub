@@ -2,6 +2,8 @@ import React from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "@/layouts/Navbar";
 import Footer from "@/layouts/Footer";
+import { TrialPreviewModal } from "@/components/common/TrialPreviewModal";
+import { AiRoadmapModal } from "@/components/common/AiRoadmapModal";
 
 export default function MainLayout() {
   return (
@@ -11,6 +13,8 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <Footer />
+      <TrialPreviewModal />
+      <AiRoadmapModal />
     </div>
   );
 }

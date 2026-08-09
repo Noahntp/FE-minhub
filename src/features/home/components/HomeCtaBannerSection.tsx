@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { PlayCircle, Rocket } from 'lucide-react';
+import { useApp } from '@/app/AppContext';
 
 export function HomeCtaBannerSection() {
+  const { openTrialModal } = useApp();
+
   return (
     <section className="py-10 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -21,13 +24,14 @@ export function HomeCtaBannerSection() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 relative z-10 w-full md:w-auto">
-            <Link
-              to="/courses?free=true"
-              className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/30 font-bold text-sm flex items-center justify-center gap-2 backdrop-blur-md transition-all active:scale-95 w-full sm:w-auto"
+            <button
+              type="button"
+              onClick={() => openTrialModal()}
+              className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/30 font-bold text-sm flex items-center justify-center gap-2 backdrop-blur-md transition-all active:scale-95 w-full sm:w-auto cursor-pointer"
             >
               <PlayCircle className="w-4 h-4 text-emerald-300" />
-              Học thử miễn phí
-            </Link>
+              <span>Học thử miễn phí</span>
+            </button>
 
             <Link
               to="/courses"

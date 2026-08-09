@@ -217,6 +217,10 @@ function AppRoutes() {
             {/* Course Discovery & Learning */}
             <Route path="/courses/:courseId" element={<CourseDetailPage />} />
             <Route path="/courses" element={<CourseListPage />} />
+            <Route path="/learn/:courseId" element={<ClassroomPage />} />
+            <Route path="/learning/:courseId" element={<ClassroomPage />} />
+            <Route path="/lessons/:courseId" element={<ClassroomPage />} />
+            <Route path="/learn/lessons/:courseId" element={<ClassroomPage />} />
             <Route path="/category/:slug" element={<CategoryDetailPage />} />
             <Route path="/roadmaps" element={<RoadmapsPage />} />
             <Route path="/roadmaps/:roadmapId" element={<RoadmapDetailPage />} />

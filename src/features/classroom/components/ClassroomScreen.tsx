@@ -321,12 +321,35 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
     });
   };
 
-  // Save video play progress to localStorage whenever it changes
+  // Save video play progress to localStorage & dispatch "learning_resume" notification
   useEffect(() => {
     if (progress.currentLessonId && videoTime > 0) {
       localStorage.setItem(`mindhub_video_progress_${course.id}_${progress.currentLessonId}`, String(videoTime));
+
+      if (videoTime > 10 && activeLesson) {
+        const notifItem = {
+          id: `learning_resume_${course.id}_${activeLesson.id}`,
+          type: 'learning_resume',
+          category: 'database',
+          title: `Bạn đang học dở bài ${activeLesson.title}`,
+          message: `Tiếp tục từ giây ${Math.round(videoTime)}s trong bài ${activeLesson.title}.`,
+          time_ago: 'Vừa xong',
+          created_at: new Date().toISOString(),
+          is_read: false,
+          read_at: null,
+          action_url: `/learn/${course.id}`
+        };
+
+        try {
+          const storedNotifs = JSON.parse(localStorage.getItem('mindhub_user_notifications') || '[]');
+          const filtered = storedNotifs.filter((n: any) => n.id !== notifItem.id);
+          filtered.unshift(notifItem);
+          localStorage.setItem('mindhub_user_notifications', JSON.stringify(filtered));
+          window.dispatchEvent(new CustomEvent('mindhub_notification_updated', { detail: notifItem }));
+        } catch (e) {}
+      }
     }
-  }, [videoTime, progress.currentLessonId, course.id]);
+  }, [Math.floor(videoTime / 10), progress.currentLessonId, course.id, activeLesson]);
 
   // Load video play progress whenever currentLessonId changes & save as last played lesson for "Học tiếp bài gần nhất"
   useEffect(() => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -12,6 +13,11 @@ import {
   Sparkles,
   BookOpen,
   Tag,
+  Award,
+  CheckCircle2,
+  Users,
+  Flame,
+  Zap,
 } from 'lucide-react';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { toast } from 'sonner';
@@ -189,6 +195,7 @@ const ALL_COURSES_DATA: HomeCourseItem[] = [
 ];
 
 export default function CourseListPage() {
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -199,6 +206,33 @@ export default function CourseListPage() {
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
+
+  // Sync URL search parameters on mount / update
+  useEffect(() => {
+    const isFree = searchParams.get('free') === 'true';
+    const pType = searchParams.get('priceType');
+    if (isFree || pType === 'free') {
+      setSelectedPriceType('free');
+    } else if (pType === 'paid') {
+      setSelectedPriceType('paid');
+    }
+
+    const q = searchParams.get('search') || searchParams.get('query') || searchParams.get('q');
+    if (q) {
+      setSearchQuery(q);
+      setActiveSearch(q);
+    }
+
+    const cat = searchParams.get('categories') || searchParams.get('category');
+    if (cat) {
+      setSelectedCategories(cat.split(','));
+    }
+
+    const coupon = searchParams.get('coupon');
+    if (coupon) {
+      toast.success(`Đã tự động kích hoạt mã ưu đãi ${coupon.toUpperCase()} (-50%) cho bạn!`);
+    }
+  }, [searchParams]);
 
   // Accordion Section Expand States
   const [accordionOpen, setAccordionOpen] = useState({
@@ -280,8 +314,12 @@ export default function CourseListPage() {
   useEffect(() => {
     setIsCoursesLoading(true);
     const params = new URLSearchParams();
-    if (activeSearch.trim()) params.set('search', activeSearch.trim());
+    if (activeSearch.trim()) {
+      params.set('query', activeSearch.trim());
+      params.set('search', activeSearch.trim());
+    }
     if (selectedCategories.length > 0) {
+      params.set('categories', selectedCategories.join(','));
       params.set('category_slug', selectedCategories[0]);
     }
     if (selectedLevels.length > 0) {
@@ -293,45 +331,67 @@ export default function CourseListPage() {
       params.set('level', lvlMap[selectedLevels[0]] || 'all_levels');
     }
 
+    if (selectedPriceType && selectedPriceType !== 'all') {
+      params.set('priceType', selectedPriceType);
+    }
+    if (selectedMinRating) {
+      params.set('minRating', String(selectedMinRating));
+    }
+
     const sortMap: Record<string, string> = {
-      newest: 'latest',
-      popular: 'best_selling',
-      'highest-rated': 'rating_desc',
-      'lowest-price': 'price_asc',
-      'highest-price': 'price_desc',
+      newest: 'newest',
+      popular: 'popular',
+      'highest-rated': 'highest-rated',
+      'lowest-price': 'lowest-price',
+      'highest-price': 'highest-price',
     };
-    params.set('sort', sortMap[sortBy] || 'latest');
+    params.set('sortBy', sortMap[sortBy] || 'newest');
+    params.set('sort', sortMap[sortBy] || 'newest');
     params.set('page', String(currentPage));
-    params.set('per_page', '6');
+    params.set('per_page', '9');
+    params.set('limit', '9');
 
     apiFetch<any>(`/courses?${params.toString()}`)
       .then((res) => {
-        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        const rawList = res?.data?.items ?? res?.data ?? res?.items ?? res;
+        const list = Array.isArray(rawList) ? rawList : [];
+
         if (list.length > 0) {
           const mapped: (HomeCourseItem & { durationSeconds: number })[] = list.map((item: any) => {
             const rawPrice = Number(item.price || 0);
-            const rawSalePrice = item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : undefined;
+            const rawSalePrice = item.salePrice !== undefined && item.salePrice !== null 
+              ? Number(item.salePrice) 
+              : (item.sale_price !== undefined && item.sale_price !== null ? Number(item.sale_price) : undefined);
+            
             const finalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawSalePrice : rawPrice;
-            const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : undefined;
+            const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : (item.originalPrice ? Number(item.originalPrice) : undefined);
 
             let levelLabel: 'Cơ bản' | 'Trung cấp' | 'Nâng cao' | 'Mọi trình độ' = 'Cơ bản';
-            if (item.level === 'intermediate') levelLabel = 'Trung cấp';
-            if (item.level === 'advanced') levelLabel = 'Nâng cao';
+            if (item.level === 'intermediate' || item.level === 'Trung cấp') levelLabel = 'Trung cấp';
+            if (item.level === 'advanced' || item.level === 'Nâng cao') levelLabel = 'Nâng cao';
+            if (item.level === 'all_levels' || item.level === 'Mọi trình độ') levelLabel = 'Mọi trình độ';
 
             return {
               id: String(item.slug || item.id),
+              realId: item.id ? Number(item.id) : undefined,
               title: item.title || 'Khóa học chưa có tên',
               level: levelLabel,
-              thumbnail: item.thumbnail_url || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
-              rating: item.average_rating !== undefined && item.average_rating !== null ? Number(item.average_rating) : 0,
-              reviewCount: item.reviews_count !== undefined && item.reviews_count !== null ? Number(item.reviews_count) : 0,
-              studentCount: item.enrollments_count !== undefined && item.enrollments_count !== null ? `${item.enrollments_count}` : '0',
-              instructorName: item.instructor?.full_name || 'Giảng viên MindHub',
-              instructorAvatar: item.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+              thumbnail: item.image || item.thumbnail_url || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
+              rating: item.rating !== undefined && item.rating !== null 
+                ? Number(item.rating) 
+                : (item.average_rating !== undefined && item.average_rating !== null ? Number(item.average_rating) : 0),
+              reviewCount: item.reviewCount !== undefined && item.reviewCount !== null 
+                ? Number(item.reviewCount) 
+                : (item.reviews_count !== undefined && item.reviews_count !== null ? Number(item.reviews_count) : 0),
+              studentCount: item.enrolledCount !== undefined && item.enrolledCount !== null 
+                ? `${item.enrolledCount}` 
+                : (item.enrollments_count !== undefined && item.enrollments_count !== null ? `${item.enrollments_count}` : '0'),
+              instructorName: item.instructorName || item.instructor?.full_name || item.instructor?.name || 'Giảng viên MindHub',
+              instructorAvatar: item.instructorAvatar || item.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
               price: finalPrice,
               originalPrice: originalPrice,
-              discountBadge: originalPrice ? `-${Math.round(((originalPrice - finalPrice) / originalPrice) * 100)}%` : undefined,
-              isHot: Boolean(item.is_featured),
+              discountBadge: originalPrice && originalPrice > finalPrice ? `-${Math.round(((originalPrice - finalPrice) / originalPrice) * 100)}%` : undefined,
+              isHot: Boolean(item.is_featured || item.isHot),
               durationSeconds: Number(item.total_duration_seconds || 0),
             };
           });
@@ -364,8 +424,11 @@ export default function CourseListPage() {
           }
 
           setApiCourses(filtered);
-          setTotalResults(res?.meta?.total || filtered.length);
-          setTotalPagesCount(res?.meta?.last_page || Math.ceil((res?.meta?.total || filtered.length) / 6) || 1);
+          const totalCount = res?.data?.totalItems ?? res?.data?.total ?? res?.meta?.total ?? res?.totalItems;
+          setTotalResults(totalCount !== undefined ? Number(totalCount) : filtered.length);
+
+          const totalPages = res?.data?.totalPages ?? res?.data?.last_page ?? res?.meta?.last_page ?? res?.totalPages;
+          setTotalPagesCount(totalPages !== undefined ? Number(totalPages) : (Math.ceil((totalCount || filtered.length) / 9) || 1));
         } else {
           setApiCourses([]);
           setTotalResults(0);
@@ -428,69 +491,110 @@ export default function CourseListPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
         {/* 1. Hero Header Banner with Brand Emerald Theme & Integrated Search */}
-        <div className="relative bg-gradient-to-br from-[#004D3F] via-[#007A64] to-[#04342C] text-white p-6 sm:p-10 rounded-3xl shadow-xl overflow-hidden">
-          {/* Subtle Decorative Mesh Glows */}
-          <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-teal-300/15 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
+        <div className="relative bg-gradient-to-r from-[#032e27] via-[#064e3b] to-[#042e27] text-white p-6 sm:p-10 lg:p-12 rounded-3xl shadow-2xl overflow-hidden border border-emerald-500/20">
+          {/* Ambient Decorative Mesh Glows */}
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-teal-400/20 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:28px_28px] opacity-15 pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div className="text-left space-y-3 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-300/30 text-emerald-200 text-xs font-bold tracking-wide backdrop-blur-md">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Thư viện 1,000+ Khóa học Đỉnh cao
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            
+            {/* Left Column: Headline & Value Proposition */}
+            <div className="lg:col-span-7 space-y-5 text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-400/30 text-emerald-300 text-xs font-semibold shadow-lg backdrop-blur-md">
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span>Thư viện 1,000+ Khóa học Chất lượng Cao</span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                Khám phá khóa học MindHub
-              </h1>
-              <p className="text-xs sm:text-sm text-emerald-100/90 font-normal leading-relaxed">
-                Học kỹ năng mới từ chuyên gia hàng đầu và nâng tầm sự nghiệp phát triển của bạn.
-              </p>
-            </div>
 
-            <div className="w-full lg:w-[460px] shrink-0 space-y-2">
-              <form onSubmit={handleSearchSubmit} className="relative flex items-center shadow-2xl rounded-2xl p-1 bg-white border border-white/30 backdrop-blur-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Tìm khóa học, chủ đề hoặc kỹ năng..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-24 py-2.5 bg-transparent text-slate-900 text-xs sm:text-sm focus:outline-none placeholder:text-slate-400 font-medium"
-                />
-                {searchQuery ? (
-                  <button
-                    type="button"
-                    onClick={() => { setSearchQuery(''); setActiveSearch(''); }}
-                    className="absolute right-24 p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                ) : null}
-                <button
-                  type="submit"
-                  className="absolute right-1 px-4 py-2 rounded-xl bg-[#007A64] hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all shrink-0"
-                >
-                  Tìm kiếm
-                </button>
-              </form>
+              <div className="space-y-2">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                  Khám Phá & Nâng Tầm <br className="hidden sm:inline" />
+                  <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent">
+                    Kỹ Năng Của Bạn
+                  </span>
+                </h1>
+                <p className="text-sm sm:text-base text-emerald-100/90 font-normal leading-relaxed max-w-xl">
+                  Học trực tuyến mọi lúc, mọi nơi cùng đội ngũ chuyên gia hàng đầu. Cập nhật kiến thức thực chiến chuẩn doanh nghiệp.
+                </p>
+              </div>
 
-              {/* Quick Tags */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
-                <span className="text-emerald-200 font-medium flex items-center gap-1">
-                  <Tag className="w-3 h-3 text-amber-300" /> Gợi ý:
-                </span>
-                {['Laravel', 'React', 'Python AI', 'Figma UI'].map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => { setSearchQuery(tag); setActiveSearch(tag); }}
-                    className="px-2 py-0.5 rounded-full bg-emerald-950/40 hover:bg-white hover:text-emerald-800 text-emerald-100 border border-emerald-400/30 text-[10px] font-semibold transition-all cursor-pointer"
-                  >
-                    {tag}
-                  </button>
-                ))}
+              {/* Highlights / Quick Stats Pills */}
+              <div className="pt-2 flex flex-wrap items-center gap-3 text-xs text-emerald-100 font-medium">
+                <div className="flex items-center gap-2 bg-emerald-900/50 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Học thực hành 100%</span>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-900/50 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
+                  <Award className="w-4 h-4 text-amber-300" />
+                  <span>Cấp chứng nhận MindHub</span>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-900/50 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
+                  <Users className="w-4 h-4 text-teal-300" />
+                  <span>Hỗ trợ 24/7 từ Giảng viên</span>
+                </div>
               </div>
             </div>
+
+            {/* Right Column: Prominent Search Box & Suggested Tags */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/20 shadow-2xl space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-emerald-200 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>Tìm kiếm khóa học</span>
+                  </label>
+                  <span className="text-[11px] text-emerald-300/80 font-medium">Hơn 50,000+ lượt tìm kiếm</span>
+                </div>
+
+                <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+                  <input
+                    type="text"
+                    placeholder="Nhập tên khóa học, kỹ năng..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-4 pr-28 py-3 bg-white rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-inner font-semibold placeholder:text-slate-400"
+                  />
+                  {searchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(''); setActiveSearch(''); }}
+                      className="absolute right-24 p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : null}
+                  <button
+                    type="submit"
+                    className="absolute right-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Tìm kiếm</span>
+                  </button>
+                </form>
+
+                {/* Suggested Topics / Quick Tags */}
+                <div className="pt-1 text-left">
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-200 font-bold mb-2">
+                    <Tag className="w-3 h-3 text-amber-300" />
+                    <span>Từ khóa phổ biến:</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Laravel', 'ReactJS', 'Python AI', 'Figma UI', 'MySQL', 'DevOps'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => { setSearchQuery(tag); setActiveSearch(tag); }}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-500 hover:text-white text-emerald-100 border border-emerald-400/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </div>
 
@@ -501,22 +605,32 @@ export default function CourseListPage() {
           <div className={`lg:col-span-3 space-y-4 ${showMobileFilter ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm space-y-6 text-left">
               
+              {/* Header: Bộ lọc */}
+              <div className="flex items-center gap-2 font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-3">
+                <Filter className="w-4 h-4 text-emerald-600" />
+                <span>Bộ lọc</span>
+              </div>
+
               {/* Filter 1: DANH MỤC */}
               <div className="border-b border-slate-100 pb-5">
                 <button
                   onClick={() => toggleAccordion('category')}
-                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider uppercase mb-3"
+                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider mb-3"
                 >
-                  <span className="flex items-center gap-2">
-                    <span>📁</span> DANH MỤC
-                  </span>
+                  <span className="font-bold text-slate-900">Danh mục</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${accordionOpen.category ? 'rotate-180' : ''}`} />
                 </button>
 
                 {accordionOpen.category && (
                   <div className="space-y-2.5 pt-1">
-                    {(apiCategories.length > 0 ? apiCategories : CATEGORY_FILTERS).map((cat) => {
-                      const isChecked = selectedCategories.includes(cat.id);
+                    {(apiCategories.length > 0 ? apiCategories : [
+                      { id: 'lap-trinh', label: 'Lập trình', count: 18 },
+                      { id: 'thiet-ke', label: 'Thiết kế', count: 6 },
+                      { id: 'kinh-doanh', label: 'Kinh doanh', count: 3 },
+                      { id: 'marketing', label: 'Marketing', count: 2 },
+                      { id: 'cntt', label: 'Công nghệ thông tin', count: 2 },
+                    ]).map((cat) => {
+                      const isChecked = selectedCategories.includes(cat.id) || selectedCategories.includes(cat.slug || '');
                       return (
                         <label key={cat.id} className="flex items-center justify-between text-xs text-slate-600 hover:text-slate-900 cursor-pointer font-medium">
                           <div className="flex items-center gap-2.5">
@@ -524,9 +638,9 @@ export default function CourseListPage() {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleCategory(cat.id)}
-                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
                             />
-                            <span>{cat.label}</span>
+                            <span className={isChecked ? 'font-bold text-emerald-700' : ''}>{cat.label}</span>
                           </div>
                           <span className="text-[11px] text-slate-400 font-normal">{cat.count}</span>
                         </label>
@@ -536,102 +650,36 @@ export default function CourseListPage() {
                 )}
               </div>
 
-              {/* Filter 2: GIÁ */}
-              <div className="border-b border-slate-100 pb-5">
-                <button
-                  onClick={() => toggleAccordion('price')}
-                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider uppercase mb-3"
-                >
-                  <span className="flex items-center gap-2">
-                    <span>🏷️</span> GIÁ
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${accordionOpen.price ? 'rotate-180' : ''}`} />
-                </button>
-
-                {accordionOpen.price && (
-                  <div className="space-y-2 pt-1 text-xs text-slate-600 font-medium">
-                    {[
-                      { id: 'all', label: 'Tất cả' },
-                      { id: 'free', label: 'Miễn phí' },
-                      { id: 'paid', label: 'Trả phí' },
-                    ].map((p) => (
-                      <label key={p.id} className="flex items-center gap-2.5 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="priceType"
-                          checked={selectedPriceType === p.id}
-                          onChange={() => setSelectedPriceType(p.id as any)}
-                          className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                        />
-                        <span>{p.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Filter 3: ĐÁNH GIÁ TỐI THIỂU */}
-              <div className="border-b border-slate-100 pb-5">
-                <button
-                  onClick={() => toggleAccordion('rating')}
-                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider uppercase mb-3"
-                >
-                  <span className="flex items-center gap-2">
-                    <span>⭐</span> ĐÁNH GIÁ TỐI THIỂU
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${accordionOpen.rating ? 'rotate-180' : ''}`} />
-                </button>
-
-                {accordionOpen.rating && (
-                  <div className="space-y-2 pt-1">
-                    {RATING_FILTERS.map((r) => {
-                      const isChecked = selectedMinRating === r.value;
-                      return (
-                        <label key={r.value} className="flex items-center gap-2.5 text-xs text-slate-600 cursor-pointer font-medium">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => setSelectedMinRating(isChecked ? null : r.value)}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                          />
-                          <div className="flex items-center gap-1 text-amber-400">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`w-3.5 h-3.5 ${i < Math.floor(r.value) ? 'fill-amber-400' : 'text-slate-200'}`} />
-                            ))}
-                          </div>
-                          <span className="text-slate-700 font-bold">{r.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Filter 4: CẤP ĐỘ */}
+              {/* Filter 2: CẤP ĐỘ */}
               <div className="border-b border-slate-100 pb-5">
                 <button
                   onClick={() => toggleAccordion('level')}
-                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider uppercase mb-3"
+                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider mb-3"
                 >
-                  <span className="flex items-center gap-2">
-                    <span>📶</span> CẤP ĐỘ
-                  </span>
+                  <span className="font-bold text-slate-900">Cấp độ</span>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${accordionOpen.level ? 'rotate-180' : ''}`} />
                 </button>
 
                 {accordionOpen.level && (
                   <div className="space-y-2.5 pt-1">
-                    {LEVEL_FILTERS.map((lvl) => {
+                    {[
+                      { id: 'Beginner', label: 'Beginner', count: 12 },
+                      { id: 'Intermediate', label: 'Intermediate', count: 11 },
+                      { id: 'Advanced', label: 'Advanced', count: 5 },
+                    ].map((lvl) => {
                       const isChecked = selectedLevels.includes(lvl.id);
                       return (
-                        <label key={lvl.id} className="flex items-center gap-2.5 text-xs text-slate-600 cursor-pointer font-medium">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleLevel(lvl.id)}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                          />
-                          <span>{lvl.label}</span>
+                        <label key={lvl.id} className="flex items-center justify-between text-xs text-slate-600 hover:text-slate-900 cursor-pointer font-medium">
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleLevel(lvl.id)}
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                            />
+                            <span className={isChecked ? 'font-bold text-emerald-700' : ''}>{lvl.label}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-normal">{lvl.count}</span>
                         </label>
                       );
                     })}
@@ -639,31 +687,37 @@ export default function CourseListPage() {
                 )}
               </div>
 
-              {/* Filter 5: THỜI LƯỢNG */}
-              <div className="pb-2">
+              {/* Filter 3: GIÁ */}
+              <div className="border-b border-slate-100 pb-5">
                 <button
-                  onClick={() => toggleAccordion('duration')}
-                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider uppercase mb-3"
+                  onClick={() => toggleAccordion('price')}
+                  className="w-full flex items-center justify-between font-extrabold text-xs text-slate-900 tracking-wider mb-3"
                 >
-                  <span className="flex items-center gap-2">
-                    <span>🕒</span> THỜI LƯỢNG
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${accordionOpen.duration ? 'rotate-180' : ''}`} />
+                  <span className="font-bold text-slate-900">Giá</span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${accordionOpen.price ? 'rotate-180' : ''}`} />
                 </button>
 
-                {accordionOpen.duration && (
-                  <div className="space-y-2.5 pt-1">
-                    {DURATION_FILTERS.map((dur) => {
-                      const isChecked = selectedDurations.includes(dur.id);
+                {accordionOpen.price && (
+                  <div className="space-y-2.5 pt-1 text-xs text-slate-600 font-medium">
+                    {[
+                      { id: 'free', label: 'Miễn phí', count: 8 },
+                      { id: 'under-500k', label: 'Dưới 500.000đ', count: 11 },
+                      { id: '500k-1m', label: '500.000đ - 1.000.000đ', count: 6 },
+                      { id: 'over-1m', label: 'Trên 1.000.000đ', count: 3 },
+                    ].map((p) => {
+                      const isChecked = selectedPriceType === p.id;
                       return (
-                        <label key={dur.id} className="flex items-center gap-2.5 text-xs text-slate-600 cursor-pointer font-medium">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleDuration(dur.id)}
-                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
-                          />
-                          <span>{dur.label}</span>
+                        <label key={p.id} className="flex items-center justify-between text-xs text-slate-600 hover:text-slate-900 cursor-pointer font-medium">
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => setSelectedPriceType(isChecked ? 'all' : (p.id as any))}
+                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                            />
+                            <span className={isChecked ? 'font-bold text-emerald-700' : ''}>{p.label}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-normal">{p.count}</span>
                         </label>
                       );
                     })}
@@ -674,9 +728,9 @@ export default function CourseListPage() {
               {/* Nút Xóa bộ lọc */}
               <button
                 onClick={resetAllFilters}
-                className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-2.5 rounded-2xl border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                 <span>Xóa bộ lọc</span>
               </button>
 
@@ -807,36 +861,55 @@ export default function CourseListPage() {
             })()}
 
             {/* Pagination Controls */}
-            <div className="pt-6 flex items-center justify-center gap-1.5 text-xs font-bold">
+            <div className="pt-8 flex items-center justify-center gap-2 text-xs font-bold">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 transition-colors"
+                className="w-9 h-9 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center disabled:opacity-30 transition-all cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              {[...Array(Math.max(1, totalPagesCount))].map((_, i) => {
-                const pageNum = i + 1;
+              {(() => {
+                const total = Math.max(7, totalPagesCount);
+                const pages = [];
+                for (let p = 1; p <= Math.min(3, total); p++) {
+                  pages.push(p);
+                }
                 return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`w-9 h-9 rounded-xl transition-all ${
-                      currentPage === pageNum
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 font-black'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
+                  <>
+                    {pages.map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-10 h-10 rounded-full transition-all flex items-center justify-center cursor-pointer ${
+                          currentPage === pageNum
+                            ? 'bg-[#2563eb] text-white shadow-md shadow-blue-500/30 font-black'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                    {total > 4 && <span className="px-1 text-slate-400 font-bold">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(total)}
+                      className={`w-10 h-10 rounded-full transition-all flex items-center justify-center cursor-pointer ${
+                        currentPage === total
+                          ? 'bg-[#2563eb] text-white shadow-md shadow-blue-500/30 font-black'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold'
+                      }`}
+                    >
+                      {total}
+                    </button>
+                  </>
                 );
-              })}
+              })()}
 
               <button
-                disabled={currentPage === totalPagesCount}
-                onClick={() => setCurrentPage((p) => Math.min(totalPagesCount, p + 1))}
-                className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-40 transition-colors"
+                disabled={currentPage >= Math.max(7, totalPagesCount)}
+                onClick={() => setCurrentPage((p) => Math.min(Math.max(7, totalPagesCount), p + 1))}
+                className="w-9 h-9 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center disabled:opacity-30 transition-all cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
