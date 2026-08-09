@@ -132,3 +132,27 @@ export async function syncFaqCourses(id, courseIds = []) {
 
   return { success: false, message: "Lỗi kết nối", data: null };
 }
+
+/**
+ * Cập nhật thứ tự hiển thị hàng loạt
+ * @param {Array<{id: number, sort_order: number}>} items
+ */
+export async function reorderFaqs(items = []) {
+  try {
+    const res = await apiFetchEnvelope(`/admin/faqs/reorder`, {
+      method: "PATCH",
+      body: JSON.stringify({ items })
+    });
+
+    if (res && res.data && res.data.success) {
+      return {
+        success: true,
+        message: res.data.message || "Lưu thứ tự thành công.",
+      };
+    }
+
+    return { success: false, message: res?.data?.message || "Lỗi lưu dữ liệu", data: null };
+  } catch (error) {
+    return { success: false, message: error?.message || "Có lỗi xảy ra", data: null };
+  }
+}

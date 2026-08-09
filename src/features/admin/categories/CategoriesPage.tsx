@@ -1143,7 +1143,7 @@ export default function CategoriesPage() {
               options={[
                 { value: "", label: "Tất cả cha" },
                 ...allCategoriesBase
-                  .filter((c) => c.parent_id === null && c.deleted_at === null)
+                  .filter((c) => c.parent_id === null && c.deleted_at === null && c.status === "active")
                   .sort(
                     (a, b) =>
                       (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),

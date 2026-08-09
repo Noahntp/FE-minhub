@@ -31,10 +31,10 @@ export default function Topbar({
       {/* Left Section */}
       <div className="flex items-center gap-3">
         {/* Toggle Mobile Sidebar */}
-        <button 
+        <button
           onClick={onToggleSidebarMobile}
-          type="button" 
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:bg-canvas lg:hidden transition-colors" 
+          type="button"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:bg-canvas lg:hidden transition-colors"
           aria-label="Mở Sidebar"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -43,10 +43,10 @@ export default function Topbar({
         </button>
 
         {/* Toggle Desktop Sidebar */}
-        <button 
+        <button
           onClick={onToggleSidebarDesktop}
-          type="button" 
-          className="hidden lg:flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:bg-canvas transition-colors" 
+          type="button"
+          className="hidden lg:flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink hover:bg-canvas transition-colors"
           aria-label="Thu gọn Sidebar"
         >
           <svg className="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -86,9 +86,9 @@ export default function Topbar({
 
         {/* Profile */}
         <div className="relative" ref={profileRef}>
-          <button 
+          <button
             onClick={() => setProfileOpen(!profileOpen)}
-            type="button" 
+            type="button"
             className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-full border border-hairline hover:bg-canvas transition-colors shrink-0"
           >
             <div className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-ink text-white font-semibold text-xs shrink-0 select-none">
@@ -120,7 +120,14 @@ export default function Topbar({
                 <span>Trung tâm trợ giúp</span>
               </a>
               <div className="h-[1px] bg-hairline my-1 mx-2"></div>
-              <button onClick={() => window.location.href = '/'} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-ember hover:bg-red-50 hover:text-ember rounded-full transition-colors cursor-pointer">
+              <button
+                onClick={() => {
+                  localStorage.removeItem('mindhub_api_token');
+                  localStorage.removeItem('mindhub_user'); localStorage.removeItem('mindhub_current_user'); localStorage.removeItem('mindhub_is_logged_in');
+                  window.location.href = '/';
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-ember hover:bg-red-50 hover:text-ember rounded-full transition-colors cursor-pointer"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
                 </svg>

@@ -450,18 +450,10 @@ export default function UsersManagement() {
   // Handle open drawer from query parameters (dashboard deep linking)
   useEffect(() => {
     const openId = Number(searchParams.get("open_user_id"));
-    if (openId && openId > 0 && data?.items) {
-      const target = data.items.find((u: any) => u.id === openId);
-      if (target) {
-        setActiveDetailUser(target);
-        setIsDrawerOpen(true);
-        // clean parameter to avoid repeatedly opening
-        const nextParams = new URLSearchParams(searchParams);
-        nextParams.delete("open_user_id");
-        setSearchParams(nextParams, { replace: true });
-      }
+    if (openId && openId > 0 && activeDetailUser?.id !== openId) {
+      openDetailDrawer(openId);
     }
-  }, [searchParams, data]);
+  }, [searchParams]);
 
   // Date Formatter helper
   const formatDateTime = (isoString: string) => {
@@ -499,6 +491,12 @@ export default function UsersManagement() {
 
   // Action drawer triggers
   const openDetailDrawer = async (userId: number) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("open_user_id", String(userId));
+      return next;
+    }, { replace: true });
+
     try {
       const res = await usersApi.getUser(userId);
       if (res && res.success) {
@@ -510,6 +508,16 @@ export default function UsersManagement() {
     } catch (e) {
       toast.error("Lỗi khi tải chi tiết người dùng.");
     }
+  };
+
+  const closeDetailDrawer = () => {
+    setIsDrawerOpen(false);
+    setActiveDetailUser(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("open_user_id");
+      return next;
+    }, { replace: true });
   };
 
   const handleOpenEditModal = (user: any) => {
@@ -2550,7 +2558,7 @@ export default function UsersManagement() {
       {isDrawerOpen && activeDetailUser && (
         <>
           <div
-            onClick={() => setIsDrawerOpen(false)}
+            onClick={closeDetailDrawer}
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
           />
           <div
@@ -2564,7 +2572,7 @@ export default function UsersManagement() {
               </h2>
               <button
                 type="button"
-                onClick={() => setIsDrawerOpen(false)}
+                onClick={closeDetailDrawer}
                 className="p-1.5 hover:bg-canvas rounded-full text-mid-gray hover:text-ink transition-colors cursor-pointer bg-transparent border-none"
                 aria-label="Đóng chi tiết"
               >

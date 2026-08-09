@@ -24,3 +24,4 @@ Categories là trang mẫu đầu tiên. Chỉ chuyển các trang tiếp theo s
 - Không làm mất code chưa commit.
 - Không chạy terminal hoặc build dư thừa.
 - Không tuyên bố hoàn tất nếu chưa kiểm tra hành vi.
+- Không tự động tạo commit khi chưa có yêu cầu từ người dùng.
