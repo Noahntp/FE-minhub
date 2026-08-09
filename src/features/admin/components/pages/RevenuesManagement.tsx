@@ -9,6 +9,8 @@ import {
   getRevenueById
 } from '@/assets/js/api/revenues-api';
 import AdminPagination from "../shared/AdminPagination";
+import FilterSelect from "./FilterSelect";
+import { Search, X } from "lucide-react";
 
 // Register zoom plugin
 Chart.register(zoomPlugin);
@@ -544,21 +546,23 @@ export default function RevenuesManagement() {
 
           {/* Chart range controls */}
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
-            <div className="w-[120px]">
-              <label className="block text-[9px] uppercase tracking-wider text-mid-gray mb-1 font-semibold">Phạm vi xem</label>
-              <select
+            <div className="w-[150px]">
+              <FilterSelect
+                id="chart-range"
+                label="PHẠM VI XEM"
                 value={chartRangePreset}
-                onChange={(e) => setChartRangePreset(e.target.value)}
-                className="w-full h-8 px-2 text-xs bg-paper border border-hairline rounded-[6px] focus:outline-none focus:border-ink text-ink cursor-pointer"
-              >
-                <option value="1_day">1 ngày</option>
-                <option value="3_days">3 ngày</option>
-                <option value="7_days">7 ngày</option>
-                <option value="1_month">1 tháng</option>
-                <option value="3_months">3 tháng</option>
-                <option value="6_months">6 tháng</option>
-                <option value="custom">Tùy chọn</option>
-              </select>
+                onChange={(val) => setChartRangePreset(val)}
+                placeholder="Chọn phạm vi"
+                options={[
+                  { value: "1_day", label: "1 ngày" },
+                  { value: "3_days", label: "3 ngày" },
+                  { value: "7_days", label: "7 ngày" },
+                  { value: "1_month", label: "1 tháng" },
+                  { value: "3_months", label: "3 tháng" },
+                  { value: "6_months", label: "6 tháng" },
+                  { value: "custom", label: "Tùy chọn" },
+                ]}
+              />
             </div>
 
             {chartRangePreset === "custom" && (
@@ -609,11 +613,11 @@ export default function RevenuesManagement() {
 
       {/* FILTERS & LIST SECTION */}
       <section className="rounded-[6px] border border-hairline bg-paper shadow-subtle space-y-3 p-4 mb-4">
-        <form onSubmit={handleApplyFilters} className="flex flex-wrap items-end justify-between gap-3 w-full">
-          <div className="flex flex-wrap items-end gap-[10px] min-w-0 flex-1">
+        <form onSubmit={handleApplyFilters}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Unified Search */}
-            <div className="relative w-full sm:w-[380px] max-w-full shrink-0">
-              <label htmlFor="filter-search" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1">TÌM KIẾM</label>
+            <div className="sm:col-span-2 lg:col-span-2">
+              <label htmlFor="filter-search" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1.5 select-none">TÌM KIẾM</label>
               <div className="relative">
                 <input
                   type="text"
@@ -623,74 +627,75 @@ export default function RevenuesManagement() {
                   placeholder="Nhập tên khóa học, giảng viên hoặc mã đơn..."
                   className="w-full h-10 pl-8 pr-8 text-xs bg-paper border border-hairline rounded-lg hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none shadow-subtle font-medium text-ink transition-all placeholder:text-mid-gray/60 placeholder:font-normal"
                 />
-                <svg className="w-3.5 h-3.5 text-mid-gray/80 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                </svg>
+                <Search className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" aria-hidden="true" />
                 {tempSearch && (
                   <button
                     type="button"
                     onClick={() => setTempSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mid-gray hover:text-ink cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mid-gray hover:text-ink cursor-pointer p-0.5"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
 
             {/* Trạng thái */}
-            <div className="w-full sm:w-[170px] max-w-full shrink-0">
-              <label htmlFor="filter-status" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1">TRẠNG THÁI</label>
-              <select
+            <div>
+              <FilterSelect
                 id="filter-status"
+                label="TRẠNG THÁI"
                 value={tempStatus}
-                onChange={(e) => setTempStatus(e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-paper border border-hairline rounded-lg hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none shadow-subtle font-medium text-ink transition-all cursor-pointer"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="available">Khả dụng</option>
-                <option value="withdrawn">Đã rút</option>
-                <option value="pending">Đang chờ</option>
-                <option value="cancelled">Đã hủy</option>
-              </select>
+                onChange={(val) => setTempStatus(val)}
+                placeholder="Tất cả trạng thái"
+                options={[
+                  { value: "all", label: "Tất cả trạng thái" },
+                  { value: "available", label: "Khả dụng", colorClass: "text-emerald-600" },
+                  { value: "withdrawn", label: "Đã rút", colorClass: "text-blue-600" },
+                  { value: "pending", label: "Đang chờ", colorClass: "text-amber-600" },
+                  { value: "cancelled", label: "Đã hủy", colorClass: "text-mid-gray" },
+                ]}
+              />
             </div>
 
             {/* Sắp xếp */}
-            <div className="w-full sm:w-[170px] max-w-full shrink-0">
-              <label htmlFor="filter-sort" className="block text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1">SẮP XẾP DOANH THU</label>
-              <select
+            <div>
+              <FilterSelect
                 id="filter-sort"
+                label="SẮP XẾP DOANH THU"
                 value={tempSortBy}
-                onChange={(e) => setTempSortBy(e.target.value)}
-                className="w-full h-10 px-3 text-xs bg-paper border border-hairline rounded-lg hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none shadow-subtle font-medium text-ink transition-all cursor-pointer"
-              >
-                <option value="latest">Mới ghi nhận</option>
-                <option value="oldest">Cũ nhất</option>
-                <option value="gross_desc">Doanh thu cao nhất</option>
-                <option value="gross_asc">Doanh thu thấp nhất</option>
-                <option value="instructor_desc">Phần giảng viên cao nhất</option>
-                <option value="platform_desc">Phí nền tảng cao nhất</option>
-              </select>
+                onChange={(val) => setTempSortBy(val)}
+                placeholder="Mới ghi nhận"
+                options={[
+                  { value: "latest", label: "Mới ghi nhận" },
+                  { value: "oldest", label: "Cũ nhất" },
+                  { value: "gross_desc", label: "Doanh thu cao nhất" },
+                  { value: "gross_asc", label: "Doanh thu thấp nhất" },
+                  { value: "instructor_desc", label: "Phần GV cao nhất" },
+                  { value: "platform_desc", label: "Phí nền tảng cao nhất" },
+                ]}
+              />
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2 h-10 shrink-0 w-full lg:w-auto self-end">
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="h-10 px-4 text-xs font-semibold rounded-lg border border-hairline bg-paper text-ink hover:bg-canvas transition-colors cursor-pointer shadow-subtle hover:border-mid-gray/40 focus:ring-1 focus:ring-mid-gray/40 outline-none"
-            >
-              Đặt lại
-            </button>
-            <button
-              type="submit"
-              className="h-10 px-4 text-xs font-semibold rounded-lg bg-ink text-white hover:bg-ink/90 transition-colors shadow-subtle cursor-pointer"
-            >
-              Áp dụng
-            </button>
+          <div className="flex items-center justify-between pt-3 mt-3 border-t border-hairline/60 gap-3">
+            <span className="text-[10px] text-mid-gray italic">* Bấm "Áp dụng" để tìm kiếm với bộ lọc.</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+              >
+                Đặt lại
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-ink text-white hover:bg-ink/90 transition-colors shadow-subtle cursor-pointer"
+              >
+                Áp dụng
+              </button>
+            </div>
           </div>
         </form>
 
