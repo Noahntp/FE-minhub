@@ -8,6 +8,7 @@ import { showToast } from "@/assets/js/toast";
 import { Link, useSearchParams } from "react-router-dom";
 import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
+import { Filter, X } from "lucide-react";
 
 interface UserInfo {
   id: number;
@@ -94,7 +95,7 @@ export default function Moderation() {
     showToast(`Đã áp dụng bộ lọc: ${filterName}`, "success");
     setTimeout(() => {
       if (tableRef.current) {
-        tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        tableRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }, 100);
   };
@@ -171,6 +172,20 @@ export default function Moderation() {
   const sortDirection = searchParams.get("sort_direction") || "desc";
   const setSortDirection = (val: string) => updateFilter("sort_direction", val);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+
+  // Filter Popover state
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterPopoverRef.current && !filterPopoverRef.current.contains(event.target as Node)) {
+        setFilterPopoverOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Course Filter Context (if active)
   const [courseFilter, setCourseFilter] = useState<{
@@ -346,10 +361,19 @@ export default function Moderation() {
     }
   };
 
+  const activeSecondaryFiltersCount = (replyStatus !== "all" ? 1 : 0) + (rating !== "all" ? 1 : 0);
+  const hasSecondaryFilters = activeSecondaryFiltersCount > 0;
+
   // Handle Reset Filters
   const handleResetFilters = () => {
     setSearchParams(new URLSearchParams());
+    setTempSearch("");
     setCourseFilter(null);
+  };
+
+  const handleResetSecondaryFilters = () => {
+    setReplyStatus("all");
+    setRating("all");
   };
 
   // Handle Detail Drawer Open
@@ -488,9 +512,18 @@ export default function Moderation() {
     };
   };
 
-  const renderSortHeader = (field: string, label: string, ascLabel = "Từ A–Z", descLabel = "Từ Z–A") => {
+  const renderSortHeader = (
+    field: string,
+    label: string,
+    ascLabel = "Từ A–Z",
+    descLabel = "Từ Z–A",
+  ) => {
     return (
-      <th scope="col" className="p-3 relative whitespace-nowrap" data-column-menu>
+      <th
+        scope="col"
+        className="p-3 relative whitespace-nowrap"
+        data-column-menu
+      >
         <button
           type="button"
           onClick={() =>
@@ -501,8 +534,18 @@ export default function Moderation() {
           }`}
         >
           {label}
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m19.5 8.25-7.5 7.5-7.5-7.5"
+            />
           </svg>
         </button>
         {activeColumnMenu === field && (
@@ -516,7 +559,9 @@ export default function Moderation() {
                 setActiveColumnMenu(null);
               }}
               className={`w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent ${
-                sortBy === field && sortDirection === "asc" ? "bg-neutral-50 font-bold text-blue-600" : "text-ink"
+                sortBy === field && sortDirection === "asc"
+                  ? "bg-neutral-50 font-bold text-blue-600"
+                  : "text-ink"
               }`}
             >
               {ascLabel}
@@ -530,7 +575,9 @@ export default function Moderation() {
                 setActiveColumnMenu(null);
               }}
               className={`w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-50 rounded-[4px] transition-colors font-medium cursor-pointer border-none bg-transparent ${
-                sortBy === field && sortDirection === "desc" ? "bg-neutral-50 font-bold text-blue-600" : "text-ink"
+                sortBy === field && sortDirection === "desc"
+                  ? "bg-neutral-50 font-bold text-blue-600"
+                  : "text-ink"
               }`}
             >
               {descLabel}
@@ -540,9 +587,8 @@ export default function Moderation() {
               type="button"
               onClick={() => {
                 if (sortBy === field) {
-                   setSortBy("created_at");
-                   setSortDirection("desc");
-
+                  setSortBy("created_at");
+                  setSortDirection("desc");
                 }
                 setActiveColumnMenu(null);
               }}
@@ -599,7 +645,11 @@ export default function Moderation() {
         <button
           type="button"
           onClick={() => {
-            updateFilters({ target_type: "all", status: "all", reply_status: "all" });
+            updateFilters({
+              target_type: "all",
+              status: "all",
+              reply_status: "all",
+            });
 
             scrollToTable("Tổng nội dung");
           }}
@@ -641,7 +691,11 @@ export default function Moderation() {
         <button
           type="button"
           onClick={() => {
-            updateFilters({ target_type: "comment", status: "all", reply_status: "all" });
+            updateFilters({
+              target_type: "comment",
+              status: "all",
+              reply_status: "all",
+            });
 
             scrollToTable("Bình luận");
           }}
@@ -685,7 +739,11 @@ export default function Moderation() {
         <button
           type="button"
           onClick={() => {
-            updateFilters({ target_type: "review", status: "all", reply_status: "all" });
+            updateFilters({
+              target_type: "review",
+              status: "all",
+              reply_status: "all",
+            });
 
             scrollToTable("Đánh giá");
           }}
@@ -728,7 +786,11 @@ export default function Moderation() {
         <button
           type="button"
           onClick={() => {
-            updateFilters({ target_type: "comment", status: "all", reply_status: "violation" });
+            updateFilters({
+              target_type: "comment",
+              status: "all",
+              reply_status: "violation",
+            });
 
             scrollToTable("Bình luận vi phạm");
           }}
@@ -774,31 +836,31 @@ export default function Moderation() {
       <section className="rounded-2xl border border-hairline bg-paper p-3.5 sm:p-4 shadow-xs mb-6">
         <form
           onSubmit={handleSearchSubmit}
-          className="flex flex-col xl:flex-row xl:items-center gap-2.5 w-full min-w-0"
+          className="flex flex-col gap-3 w-full min-w-0"
         >
-          {/* 1. Search box */}
-          <div className="relative flex-1 min-w-[200px] max-w-full xl:max-w-[340px] h-[44px] shrink-0">
-            <svg
-              className="w-4 h-4 text-mid-gray absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              viewBox="0 0 24 24"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <input
-              type="text"
-              value={tempSearch}
-              onChange={(e) => setTempSearch(e.target.value)}
-              placeholder="Nội dung, người dùng, khóa học..."
-              className="w-full h-full pl-10 pr-3 text-xs md:text-sm bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
-            />
-          </div>
+          {/* Main Bar */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full min-w-0">
+            {/* 1. Search box */}
+            <div className="relative flex-1 min-w-[200px] max-w-full xl:max-w-[340px] h-[44px] shrink-0">
+              <svg
+                className="w-4 h-4 text-mid-gray absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                value={tempSearch}
+                onChange={(e) => setTempSearch(e.target.value)}
+                placeholder="Nội dung, người dùng, khóa học..."
+                className="w-full h-full pl-10 pr-3 text-xs md:text-sm bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
+              />
+            </div>
 
-          {/* Controls Select grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:flex xl:items-center gap-2.5 flex-1 min-w-0">
             {/* Target Type select */}
             <div className="min-w-[130px] shrink-0">
               <FilterSelect
@@ -820,13 +882,12 @@ export default function Moderation() {
                 ]}
                 onChange={(val) => {
                   setTargetType(val);
-
+                  if (val !== "review") setRating("all");
                 }}
                 id="select-target-type"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
                 className="w-full h-[44px]"
-                searchable
               />
             </div>
 
@@ -858,86 +919,13 @@ export default function Moderation() {
                     colorClass: "text-red-500",
                   },
                 ]}
-                onChange={(val) => {
-                  setStatus(val);
-
-                }}
+                onChange={(val) => setStatus(val)}
                 id="select-status"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
                 className="w-full h-[44px]"
-                searchable
               />
             </div>
-
-            {/* Reply Status select */}
-            <div className="min-w-[145px] shrink-0">
-              <FilterSelect
-                label=""
-                placeholder="Tất cả phản hồi"
-                value={replyStatus}
-                options={[
-                  { value: "all", label: "Tất cả phản hồi" },
-                  {
-                    value: "violation",
-                    label: "● Phản hồi vi phạm",
-                    colorClass: "text-rose-600 font-bold",
-                  },
-                  {
-                    value: "unanswered",
-                    label: "● Chưa phản hồi",
-                    colorClass: "text-rose-500",
-                  },
-                  {
-                    value: "answered",
-                    label: "● Đã phản hồi",
-                    colorClass: "text-emerald-600",
-                  },
-                  {
-                    value: "multiple_replies",
-                    label: "● Nhiều phản hồi",
-                    colorClass: "text-blue-500",
-                  },
-                ]}
-                onChange={(val) => {
-                  setReplyStatus(val);
-
-                }}
-                id="select-reply-status"
-                activeId={activeDropdownId}
-                setActiveId={setActiveDropdownId}
-                className="w-full h-[44px]"
-                searchable
-              />
-            </div>
-
-            {/* Rating select */}
-            {targetType !== "comment" && (
-              <div className="min-w-[140px] shrink-0">
-                <FilterSelect
-                  label=""
-                  placeholder="Tất cả số sao"
-                  value={rating}
-                  options={[
-                    { value: "all", label: "Tất cả số sao" },
-                    { value: "5", label: "⭐⭐⭐⭐⭐ (5 sao)" },
-                    { value: "4", label: "⭐⭐⭐⭐ (4 sao)" },
-                    { value: "3", label: "⭐⭐⭐ (3 sao)" },
-                    { value: "2", label: "⭐⭐ (2 sao)" },
-                    { value: "1", label: "⭐ (1 sao)" },
-                  ]}
-                  onChange={(val) => {
-                    setRating(val);
-
-                  }}
-                  id="select-rating"
-                  activeId={activeDropdownId}
-                  setActiveId={setActiveDropdownId}
-                  className="w-full h-[44px]"
-                  searchable
-                />
-              </div>
-            )}
 
             {/* Time Preset select */}
             <div className="min-w-[140px] shrink-0">
@@ -953,40 +941,173 @@ export default function Moderation() {
                   { value: "3months", label: "3 tháng qua" },
                   { value: "custom", label: "Tùy chọn ngày" },
                 ]}
-                onChange={(val) => {
-                  setTimePreset(val);
-
-                }}
+                onChange={(val) => setTimePreset(val)}
                 id="select-time-preset"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
                 className="w-full h-[44px]"
-                searchable
               />
             </div>
+
+            {/* Filter Popover Button */}
+            <div className="relative shrink-0 ml-auto xl:ml-0" ref={filterPopoverRef}>
+              <button
+                type="button"
+                onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
+                className={`h-[44px] px-3.5 flex items-center justify-center gap-2 rounded-lg border text-[13px] font-medium transition-all ${
+                  filterPopoverOpen || hasSecondaryFilters
+                    ? "bg-canvas border-ink text-ink shadow-sm"
+                    : "bg-paper border-hairline text-mid-gray hover:bg-canvas hover:text-ink"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span>Bộ lọc</span>
+                {activeSecondaryFiltersCount > 0 && (
+                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {activeSecondaryFiltersCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Popover Content */}
+              {filterPopoverOpen && (
+                <div className="absolute right-0 top-full mt-2 w-[260px] z-50 bg-paper border border-hairline rounded-[12px] shadow-lg p-4 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="space-y-4">
+                    {/* Reply Status */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                        Phản hồi
+                      </label>
+                      <FilterSelect
+                        label=""
+                        placeholder="Tất cả phản hồi"
+                        value={replyStatus}
+                        options={[
+                          { value: "all", label: "Tất cả phản hồi" },
+                          {
+                            value: "violation",
+                            label: "● Phản hồi vi phạm",
+                            colorClass: "text-rose-600 font-bold",
+                          },
+                          {
+                            value: "unanswered",
+                            label: "● Chưa phản hồi",
+                            colorClass: "text-rose-500",
+                          },
+                          {
+                            value: "answered",
+                            label: "● Đã phản hồi",
+                            colorClass: "text-emerald-600",
+                          },
+                          {
+                            value: "multiple_replies",
+                            label: "● Nhiều phản hồi",
+                            colorClass: "text-blue-500",
+                          },
+                        ]}
+                        onChange={(val) => setReplyStatus(val)}
+                        id="select-reply-status"
+                        activeId={activeDropdownId}
+                        setActiveId={setActiveDropdownId}
+                        className="w-full h-[40px]"
+                      />
+                    </div>
+
+                    {/* Rating */}
+                    {targetType === "review" && (
+                      <div>
+                        <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">
+                          Số sao
+                        </label>
+                        <FilterSelect
+                          label=""
+                          placeholder="Tất cả số sao"
+                          value={rating}
+                          options={[
+                            { value: "all", label: "Tất cả số sao" },
+                            { value: "5", label: "⭐⭐⭐⭐⭐ (5 sao)" },
+                            { value: "4", label: "⭐⭐⭐⭐ (4 sao)" },
+                            { value: "3", label: "⭐⭐⭐ (3 sao)" },
+                            { value: "2", label: "⭐⭐ (2 sao)" },
+                            { value: "1", label: "⭐ (1 sao)" },
+                          ]}
+                          onChange={(val) => setRating(val)}
+                          id="select-rating"
+                          activeId={activeDropdownId}
+                          setActiveId={setActiveDropdownId}
+                          className="w-full h-[40px]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Reset All Button */}
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="h-[44px] px-3 flex items-center justify-center text-[13px] font-medium text-rose-500 hover:text-rose-700 transition-colors shrink-0 xl:ml-auto"
+                title="Đặt lại tất cả bộ lọc về mặc định"
+              >
+                Đặt lại tất cả
+              </button>
+            )}
           </div>
 
-          {/* Reset button */}
-          {hasFilter && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="flex h-[44px] w-[44px] items-center justify-center rounded-full text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-all shrink-0 cursor-pointer"
-              title="Xóa bộ lọc"
-            >
-              <svg
-                className="w-4 h-4 stroke-[2.5]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          {/* Chips Bar */}
+          {hasSecondaryFilters && (
+            <div className="flex flex-wrap items-center gap-2 pt-3 mt-1 border-t border-hairline/50 animate-in fade-in duration-200">
+              {/* Reply Status Chip */}
+              {replyStatus !== "all" && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-canvas rounded-full border border-hairline text-xs font-medium text-ink shadow-subtle">
+                  <span className="text-mid-gray">Phản hồi:</span>
+                  <span>
+                    {{
+                      violation: "Vi phạm",
+                      unanswered: "Chưa phản hồi",
+                      answered: "Đã phản hồi",
+                      multiple_replies: "Nhiều phản hồi",
+                    }[replyStatus] || replyStatus}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setReplyStatus("all")}
+                    className="text-mid-gray hover:text-rose-500 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Rating Chip */}
+              {rating !== "all" && targetType === "review" && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-canvas rounded-full border border-hairline text-xs font-medium text-ink shadow-subtle">
+                  <span className="text-mid-gray">Số sao:</span>
+                  <span className="text-amber-500 tracking-wider">
+                    {"⭐".repeat(Number(rating))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setRating("all")}
+                    className="text-mid-gray hover:text-rose-500 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Clear Secondary Filters */}
+              <button
+                type="button"
+                onClick={handleResetSecondaryFilters}
+                className="text-[11px] font-semibold text-rose-500 hover:text-rose-700 hover:underline px-2 ml-1"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+                Xóa bộ lọc
+              </button>
+            </div>
           )}
         </form>
 
@@ -1000,7 +1121,6 @@ export default function Moderation() {
                 value={dateFrom}
                 onChange={(e) => {
                   setDateFrom(e.target.value);
-
                 }}
                 className="h-9 px-3 text-xs bg-canvas border border-hairline rounded-full focus:outline-none focus:border-ink text-ink"
               />
@@ -1012,7 +1132,6 @@ export default function Moderation() {
                 value={dateTo}
                 onChange={(e) => {
                   setDateTo(e.target.value);
-
                 }}
                 className="h-9 px-3 text-xs bg-canvas border border-hairline rounded-full focus:outline-none focus:border-ink text-ink"
               />
@@ -1067,7 +1186,10 @@ export default function Moderation() {
       )}
 
       {/* Table section */}
-      <section ref={tableRef} className="scroll-mt-20 min-h-[600px] flex flex-col rounded-2xl border border-hairline bg-paper shadow-xs overflow-hidden">
+      <section
+        ref={tableRef}
+        className="scroll-mt-20 min-h-[600px] flex flex-col rounded-2xl border border-hairline bg-paper shadow-xs overflow-hidden"
+      >
         {/* Table Header Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-hairline gap-3 bg-canvas/40">
           <div className="flex items-center gap-2">
@@ -1120,7 +1242,12 @@ export default function Moderation() {
                   {renderSortHeader("content", "Nội dung")}
                   {renderSortHeader("target_type", "Phân loại")}
                   {renderSortHeader("status", "Trạng thái")}
-                  {renderSortHeader("created_at", "Thời gian", "Cũ nhất", "Mới nhất")}
+                  {renderSortHeader(
+                    "created_at",
+                    "Thời gian",
+                    "Cũ nhất",
+                    "Mới nhất",
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-hairline text-ink">
@@ -1193,10 +1320,22 @@ export default function Moderation() {
                           )}
                           {item.warning_type ? (
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-semibold w-fit mt-1">
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                />
                               </svg>
-                              {isComment ? "Bình luận vi phạm chính sách cộng đồng" : "Đánh giá vi phạm chính sách cộng đồng"}
+                              {isComment
+                                ? "Bình luận vi phạm chính sách cộng đồng"
+                                : "Đánh giá vi phạm chính sách cộng đồng"}
                             </div>
                           ) : (
                             <p className="text-xs sm:text-[13px] text-ink leading-relaxed font-medium line-clamp-3">
@@ -1273,7 +1412,6 @@ export default function Moderation() {
             onPageChange={(p) => setPage(p)}
             onPerPageChange={(pp) => {
               setPerPage(pp);
-
             }}
             itemLabel="bản ghi"
           />
@@ -1384,9 +1522,24 @@ export default function Moderation() {
                         Người thực hiện
                       </h3>
                       {drawerItem.user?.id && (
-                        <Link to={`/admin/users?open_user_id=${drawerItem.user.id}`} className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
+                        <Link
+                          to={`/admin/users?open_user_id=${drawerItem.user.id}`}
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                        >
                           Xem chi tiết người dùng
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
+                          </svg>
                         </Link>
                       )}
                     </div>
@@ -1439,9 +1592,24 @@ export default function Moderation() {
                         <div className="flex items-center justify-between">
                           <span className="text-mid-gray">Khóa học:</span>
                           {drawerItem.course?.id && (
-                            <Link to={`/admin/courses?open_course_id=${drawerItem.course.id}`} className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
+                            <Link
+                              to={`/admin/courses?open_course_id=${drawerItem.course.id}`}
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                            >
                               Xem chi tiết khóa học
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                />
+                              </svg>
                             </Link>
                           )}
                         </div>
@@ -1510,9 +1678,24 @@ export default function Moderation() {
                         <div className="flex flex-col gap-1.5 pb-2 border-b border-emerald-100/50">
                           <div className="flex items-center justify-between">
                             <span className="text-mid-gray">Mã đơn hàng:</span>
-                            <Link to={`/admin/orders?open_order_id=${drawerItem.order.id}`} className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1">
+                            <Link
+                              to={`/admin/orders?open_order_id=${drawerItem.order.id}`}
+                              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1"
+                            >
                               Xem chi tiết đơn hàng
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                />
+                              </svg>
                             </Link>
                           </div>
                           <span className="font-semibold text-ink">
@@ -1639,14 +1822,18 @@ export default function Moderation() {
                         onClick={() => triggerAction(drawerItem, "hide")}
                         className="px-4 py-2 text-xs font-semibold rounded-full border border-hairline bg-paper text-ink hover:bg-canvas transition-colors cursor-pointer"
                       >
-                        {drawerItem.target_type === "comment" ? "Ẩn bình luận" : "Ẩn đánh giá"}
+                        {drawerItem.target_type === "comment"
+                          ? "Ẩn bình luận"
+                          : "Ẩn đánh giá"}
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerAction(drawerItem, "delete")}
                         className="px-4 py-2 text-xs font-semibold rounded-full bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
                       >
-                        {drawerItem.target_type === "comment" ? "Xoá bình luận" : "Xoá đánh giá"}
+                        {drawerItem.target_type === "comment"
+                          ? "Xoá bình luận"
+                          : "Xoá đánh giá"}
                       </button>
                     </>
                   )}
