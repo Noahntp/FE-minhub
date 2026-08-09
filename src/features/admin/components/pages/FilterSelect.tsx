@@ -97,7 +97,7 @@ export default function FilterSelect({
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute left-0 right-0 top-[62px] z-40 bg-paper border border-hairline rounded-[6px] shadow-lg py-1 flex flex-col max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in duration-100">
+        <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-paper border border-hairline rounded-[6px] shadow-lg py-1 flex flex-col max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in duration-100">
           {options.map((opt) => {
             const isSelected = opt.value === value;
             return (
