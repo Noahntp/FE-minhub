@@ -104,110 +104,87 @@ export default function MyCoursesPage() {
 
   const { enrolledCourseIds = [], courses: globalCourses = [] } = useApp();
 
-  // Fetch real enrolled courses from Backend API (/api/me/courses) & merge with local enrolled courses
+  // Fetch real enrolled courses from Backend API (/api/me/courses)
   useEffect(() => {
     const fetchCourses = async () => {
       setIsLoadingApi(true);
       let apiCourses: any[] = [];
+      let isApiSuccess = false;
 
-      try {
-        const res = await apiFetch<any>('/me/courses');
-        const rawList = Array.isArray(res) ? res : (res?.data || []);
+      const token = localStorage.getItem('mindhub_api_token');
 
-        if (Array.isArray(rawList)) {
-          apiCourses = rawList.map((item: any) => {
-            const c = item.course || item;
-            const progress = item.progress_percent !== null && item.progress_percent !== undefined
-              ? Math.round(Number(item.progress_percent))
-              : 0;
-            const isCompleted = progress === 100 || item.status === 'completed';
-            const courseId = String(c.id || c.slug || item.id);
+      if (token) {
+        try {
+          const res = await apiFetch<any>('/me/courses');
+          const rawList = Array.isArray(res) ? res : (res?.data || []);
 
-            return {
-              id: courseId,
-              title: c.title || 'Khóa học đã đăng ký',
-              category: c.category?.name || c.category || 'Lập trình',
-              status: isCompleted ? 'completed' : 'learning',
-              badgeText: isCompleted ? 'Hoàn thành' : 'Đang học',
-              badgeType: isCompleted ? 'completed' : 'learning',
-              instructorName: c.instructor?.full_name || c.instructor_name || 'Giảng viên MindHub',
-              instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-              thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
-              progress: progress,
-              lessonsCount: c.lessons_count || (c.total_duration_seconds ? Math.max(12, Math.round(c.total_duration_seconds / 900)) : 40),
-              duration: c.total_duration_seconds
-                ? `${Math.floor(c.total_duration_seconds / 3600)}h ${Math.round((c.total_duration_seconds % 3600) / 60)}m`
-                : '12h 30m',
-              buttonText: isCompleted ? 'Xem lại khóa học' : 'Tiếp tục học',
-              buttonBg: isCompleted ? 'bg-[#10b981] text-white hover:bg-emerald-600' : 'bg-[#0f172a] text-white hover:bg-slate-800',
-              hasPlayIcon: !isCompleted,
-            };
-          });
+          if (Array.isArray(rawList)) {
+            isApiSuccess = true;
+            apiCourses = rawList.map((item: any) => {
+              const c = item.course || item;
+              const progress = item.progress_percent !== null && item.progress_percent !== undefined
+                ? Math.round(Number(item.progress_percent))
+                : 0;
+              const isCompleted = progress === 100 || item.status === 'completed';
+              const courseId = String(c.id || c.slug || item.id);
+
+              return {
+                id: courseId,
+                title: c.title || 'Khóa học đã đăng ký',
+                category: c.category?.name || c.category || 'Lập trình',
+                status: isCompleted ? 'completed' : 'learning',
+                badgeText: isCompleted ? 'Hoàn thành' : 'Đang học',
+                badgeType: isCompleted ? 'completed' : 'learning',
+                instructorName: c.instructor?.full_name || c.instructor_name || 'Giảng viên MindHub',
+                instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+                thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+                progress: progress,
+                lessonsCount: c.lessons_count || (c.total_duration_seconds ? Math.max(12, Math.round(c.total_duration_seconds / 900)) : 40),
+                duration: c.total_duration_seconds
+                  ? `${Math.floor(c.total_duration_seconds / 3600)}h ${Math.round((c.total_duration_seconds % 3600) / 60)}m`
+                  : '12h 30m',
+                buttonText: isCompleted ? 'Xem lại khóa học' : 'Tiếp tục học',
+                buttonBg: isCompleted ? 'bg-[#10b981] text-white hover:bg-emerald-600' : 'bg-[#0f172a] text-white hover:bg-slate-800',
+                hasPlayIcon: !isCompleted,
+              };
+            });
+          }
+        } catch (e) {
+          console.warn('Backend courses API error:', e);
         }
-      } catch (e) {
-        console.warn('Backend courses API error:', e);
       }
 
-      // Read local storage enrolled courses & full course objects
-      let localPurchasedCourses: any[] = [];
-      try {
-        const stored = localStorage.getItem('mindhub_purchased_courses_data');
-        if (stored) localPurchasedCourses = JSON.parse(stored);
-      } catch (err) {}
+      if (isApiSuccess) {
+        // Authenticated API user: Show strictly real database enrolled courses
+        setCoursesData(apiCourses);
+      } else {
+        // Guest / Demo Mode fallback: read local storage demo data
+        let localPurchasedCourses: any[] = [];
+        try {
+          const stored = localStorage.getItem('mindhub_purchased_courses_data');
+          if (stored) localPurchasedCourses = JSON.parse(stored);
+        } catch (err) {}
 
-      let localEnrolledIds: string[] = [];
-      try {
-        const stored = localStorage.getItem('mindhub_enrolled_courses');
-        if (stored) localEnrolledIds = JSON.parse(stored);
-      } catch (err) {}
+        let localEnrolledIds: string[] = [];
+        try {
+          const stored = localStorage.getItem('mindhub_enrolled_courses');
+          if (stored) localEnrolledIds = JSON.parse(stored);
+        } catch (err) {}
 
-      const existingIds = new Set(apiCourses.map((c) => String(c.id)));
-      const fallbackList: any[] = [];
+        const existingIds = new Set(apiCourses.map((c) => String(c.id)));
+        const fallbackList: any[] = [];
 
-      // 1. Add locally saved full course objects first
-      localPurchasedCourses.forEach((c) => {
-        if (c && c.id && !existingIds.has(String(c.id))) {
-          existingIds.add(String(c.id));
-          fallbackList.push(c);
-        }
-      });
-
-      // 2. Add remaining course IDs
-      const allEnrolledIds = Array.from(new Set([...enrolledCourseIds, ...localEnrolledIds]));
-      allEnrolledIds.forEach((id) => {
-        const strId = String(id);
-        if (!existingIds.has(strId)) {
-          existingIds.add(strId);
-          const foundMock = INITIAL_COURSES_DATA.find((c) => String(c.id) === strId);
-          if (foundMock) {
-            fallbackList.push(foundMock);
-          } else {
-            const foundGlobal: any = globalCourses.find((c: any) => String(c.id) === strId || String(c.slug) === strId);
-            if (foundGlobal) {
-              fallbackList.push({
-                id: String(foundGlobal.id),
-                title: foundGlobal.title,
-                category: foundGlobal.category || 'Khóa học',
-                status: 'learning',
-                badgeText: 'Đang học',
-                badgeType: 'learning',
-                instructorName: foundGlobal.instructorName || foundGlobal.instructor?.full_name || 'Giảng viên MindHub',
-                instructorAvatar: foundGlobal.instructorAvatar || foundGlobal.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-                thumbnail: foundGlobal.thumbnail || foundGlobal.thumbnail_url || foundGlobal.image || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
-                progress: 0,
-                lessonsCount: 30,
-                duration: '10h 00m',
-                buttonText: 'Tiếp tục học',
-                buttonBg: 'bg-[#0f172a] text-white hover:bg-slate-800',
-                hasPlayIcon: true,
-              });
-            }
+        localPurchasedCourses.forEach((c) => {
+          if (c && c.id && !existingIds.has(String(c.id))) {
+            existingIds.add(String(c.id));
+            fallbackList.push(c);
           }
-        }
-      });
+        });
 
-      const combined = [...apiCourses, ...fallbackList];
-      setCoursesData(combined);
+        const combined = [...apiCourses, ...fallbackList];
+        setCoursesData(combined);
+      }
+
       setIsLoadingApi(false);
     };
 

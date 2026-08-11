@@ -490,57 +490,39 @@ export default function CourseListPage() {
     <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans pb-20 pt-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
-        {/* 1. Hero Header Banner with Brand Emerald Theme & Integrated Search */}
-        <div className="relative bg-gradient-to-r from-[#032e27] via-[#064e3b] to-[#042e27] text-white p-6 sm:p-10 lg:p-12 rounded-3xl shadow-2xl overflow-hidden border border-emerald-500/20">
-          {/* Ambient Decorative Mesh Glows */}
-          <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-teal-400/20 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:28px_28px] opacity-15 pointer-events-none" />
+        {/* 1. Hero Header Banner with Creative 3D Visual & Glassmorphism Search */}
+        <div className="relative bg-gradient-to-r from-[#022822] via-[#043e34] to-[#022822] text-white p-6 sm:p-10 lg:p-12 rounded-3xl shadow-2xl overflow-hidden border border-emerald-500/30">
+          {/* Ambient Decorative Mesh & Light Glows */}
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/25 rounded-full blur-[110px] pointer-events-none" />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-teal-400/25 rounded-full blur-[110px] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:30px_30px] opacity-20 pointer-events-none" />
 
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
             
-            {/* Left Column: Headline & Value Proposition */}
-            <div className="lg:col-span-7 space-y-5 text-left">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-400/30 text-emerald-300 text-xs font-semibold shadow-lg backdrop-blur-md">
+            {/* Left Column: Headline, Value Proposition & Search Box */}
+            <div className="lg:col-span-7 space-y-6 text-left">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-400/40 text-emerald-300 text-xs font-bold shadow-lg backdrop-blur-md">
                 <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
                 <span>Thư viện 1,000+ Khóa học Chất lượng Cao</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
                   Khám Phá & Nâng Tầm <br className="hidden sm:inline" />
-                  <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-300 bg-clip-text text-transparent">
                     Kỹ Năng Của Bạn
                   </span>
                 </h1>
-                <p className="text-sm sm:text-base text-emerald-100/90 font-normal leading-relaxed max-w-xl">
+                <p className="text-xs sm:text-sm text-emerald-100/90 font-medium leading-relaxed max-w-xl">
                   Học trực tuyến mọi lúc, mọi nơi cùng đội ngũ chuyên gia hàng đầu. Cập nhật kiến thức thực chiến chuẩn doanh nghiệp.
                 </p>
               </div>
 
-              {/* Highlights / Quick Stats Pills */}
-              <div className="pt-2 flex flex-wrap items-center gap-3 text-xs text-emerald-100 font-medium">
-                <div className="flex items-center gap-2 bg-emerald-900/50 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Học thực hành 100%</span>
-                </div>
-                <div className="flex items-center gap-2 bg-emerald-900/50 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
-                  <Award className="w-4 h-4 text-amber-300" />
-                  <span>Cấp chứng nhận MindHub</span>
-                </div>
-                <div className="flex items-center gap-2 bg-emerald-900/50 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
-                  <Users className="w-4 h-4 text-teal-300" />
-                  <span>Hỗ trợ 24/7 từ Giảng viên</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column: Prominent Search Box & Suggested Tags */}
-            <div className="lg:col-span-5 space-y-4">
-              <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/20 shadow-2xl space-y-3.5">
+              {/* Prominent Search Input Box */}
+              <div className="bg-slate-900/60 backdrop-blur-xl p-4 sm:p-5 rounded-2xl border border-emerald-500/30 shadow-2xl space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-emerald-200 flex items-center gap-1.5">
-                    <Search className="w-3.5 h-3.5 text-emerald-300" />
+                  <label className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Tìm kiếm khóa học</span>
                   </label>
                   <span className="text-[11px] text-emerald-300/80 font-medium">Hơn 50,000+ lượt tìm kiếm</span>
@@ -549,50 +531,100 @@ export default function CourseListPage() {
                 <form onSubmit={handleSearchSubmit} className="relative flex items-center">
                   <input
                     type="text"
-                    placeholder="Nhập tên khóa học, kỹ năng..."
+                    placeholder="Nhập tên khóa học, kỹ năng (ReactJS, Laravel, AI...)"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-4 pr-28 py-3 bg-white rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-inner font-semibold placeholder:text-slate-400"
+                    className="w-full pl-4 pr-32 py-3 bg-white rounded-xl text-slate-900 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 shadow-inner font-semibold placeholder:text-slate-400"
                   />
                   {searchQuery ? (
                     <button
                       type="button"
                       onClick={() => { setSearchQuery(''); setActiveSearch(''); }}
-                      className="absolute right-24 p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+                      className="absolute right-28 p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   ) : null}
                   <button
                     type="submit"
-                    className="absolute right-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                    className="absolute right-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <Search className="w-3.5 h-3.5" />
                     <span>Tìm kiếm</span>
                   </button>
                 </form>
 
-                {/* Suggested Topics / Quick Tags */}
-                <div className="pt-1 text-left">
-                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-200 font-bold mb-2">
+                {/* Popular Search Tag Pills */}
+                <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-300 font-bold mr-1">
                     <Tag className="w-3 h-3 text-amber-300" />
-                    <span>Từ khóa phổ biến:</span>
+                    <span>Từ khóa hot:</span>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Laravel', 'ReactJS', 'Python AI', 'Figma UI', 'MySQL', 'DevOps'].map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => { setSearchQuery(tag); setActiveSearch(tag); }}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-500 hover:text-white text-emerald-100 border border-emerald-400/30 text-xs font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
+                  {['Laravel', 'ReactJS', 'Python AI', 'Figma UI', 'MySQL', 'DevOps'].map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => { setSearchQuery(tag); setActiveSearch(tag); }}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-950/70 hover:bg-emerald-500 hover:text-white text-emerald-200 border border-emerald-500/30 text-[11px] font-semibold transition-all cursor-pointer shadow-sm active:scale-95"
+                    >
+                      {tag}
+                    </button>
+                  ))}
                 </div>
               </div>
 
+              {/* Highlights / Quick Stats Pills */}
+              <div className="pt-1 flex flex-wrap items-center gap-3 text-xs text-emerald-100 font-medium">
+                <div className="flex items-center gap-2 bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Học thực hành 100%</span>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
+                  <Award className="w-4 h-4 text-amber-300" />
+                  <span>Cấp chứng nhận MindHub</span>
+                </div>
+                <div className="flex items-center gap-2 bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-500/30 backdrop-blur-sm shadow-sm">
+                  <Users className="w-4 h-4 text-teal-300" />
+                  <span>Hỗ trợ 24/7 từ Giảng viên</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Creative 3D Illustration Graphic Frame */}
+            <div className="lg:col-span-5 hidden lg:flex justify-center relative">
+              <div className="relative w-full max-w-md">
+                {/* Glowing Outer Frame */}
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 via-teal-400/20 to-cyan-500/30 rounded-3xl blur-2xl -z-10" />
+
+                {/* Glass Container */}
+                <div className="relative rounded-3xl bg-slate-900/80 border border-emerald-500/40 p-3 shadow-2xl backdrop-blur-xl overflow-hidden group">
+                  <img
+                    src="/courses-hero-illustration.png"
+                    alt="MindHub Learning 3D Illustration"
+                    className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-500"
+                  />
+
+                  {/* Floating Overlay Badge 1 */}
+                  <div className="absolute top-5 left-5 p-2.5 rounded-2xl bg-slate-950/85 border border-emerald-500/40 text-left backdrop-blur-md shadow-xl flex items-center gap-2.5 animate-bounce">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                    <div>
+                      <p className="text-[11px] font-bold text-emerald-300">50,000+ Học viên</p>
+                      <p className="text-[9px] text-slate-300">Đang tham gia khóa học</p>
+                    </div>
+                  </div>
+
+                  {/* Floating Overlay Badge 2 */}
+                  <div className="absolute bottom-5 right-5 p-2.5 rounded-2xl bg-slate-950/85 border border-amber-500/40 text-left backdrop-blur-md shadow-xl flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                      <Star className="w-4 h-4 fill-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-extrabold text-amber-300">4.9/5.0 Đánh giá</p>
+                      <p className="text-[9px] text-slate-300">Từ 15,000+ nhận xét</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
           </div>
@@ -860,25 +892,50 @@ export default function CourseListPage() {
               );
             })()}
 
-            {/* Pagination Controls */}
-            <div className="pt-8 flex items-center justify-center gap-2 text-xs font-bold">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="w-9 h-9 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center disabled:opacity-30 transition-all cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+            {/* Dynamic Pagination Controls matching real API totalPagesCount */}
+            {(() => {
+              const realTotalPages = Math.max(1, totalPagesCount);
+              if (realTotalPages <= 1) return null;
 
-              {(() => {
-                const total = Math.max(7, totalPagesCount);
-                const pages = [];
-                for (let p = 1; p <= Math.min(3, total); p++) {
-                  pages.push(p);
+              const pages: (number | string)[] = [];
+              if (realTotalPages <= 7) {
+                for (let i = 1; i <= realTotalPages; i++) {
+                  pages.push(i);
                 }
-                return (
-                  <>
-                    {pages.map((pageNum) => (
+              } else {
+                pages.push(1);
+                if (currentPage > 3) pages.push('...');
+                
+                const start = Math.max(2, currentPage - 1);
+                const end = Math.min(realTotalPages - 1, currentPage + 1);
+                for (let i = start; i <= end; i++) {
+                  if (!pages.includes(i)) pages.push(i);
+                }
+
+                if (currentPage < realTotalPages - 2) pages.push('...');
+                if (!pages.includes(realTotalPages)) pages.push(realTotalPages);
+              }
+
+              return (
+                <div className="pt-8 flex items-center justify-center gap-2 text-xs font-bold">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="w-9 h-9 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center disabled:opacity-30 transition-all cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {pages.map((p, idx) => {
+                    if (p === '...') {
+                      return (
+                        <span key={`dots-${idx}`} className="px-1 text-slate-400 font-bold">
+                          ...
+                        </span>
+                      );
+                    }
+                    const pageNum = Number(p);
+                    return (
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
@@ -890,30 +947,19 @@ export default function CourseListPage() {
                       >
                         {pageNum}
                       </button>
-                    ))}
-                    {total > 4 && <span className="px-1 text-slate-400 font-bold">...</span>}
-                    <button
-                      onClick={() => setCurrentPage(total)}
-                      className={`w-10 h-10 rounded-full transition-all flex items-center justify-center cursor-pointer ${
-                        currentPage === total
-                          ? 'bg-[#2563eb] text-white shadow-md shadow-blue-500/30 font-black'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold'
-                      }`}
-                    >
-                      {total}
-                    </button>
-                  </>
-                );
-              })()}
+                    );
+                  })}
 
-              <button
-                disabled={currentPage >= Math.max(7, totalPagesCount)}
-                onClick={() => setCurrentPage((p) => Math.min(Math.max(7, totalPagesCount), p + 1))}
-                className="w-9 h-9 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center disabled:opacity-30 transition-all cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+                  <button
+                    disabled={currentPage >= realTotalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(realTotalPages, p + 1))}
+                    className="w-9 h-9 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 flex items-center justify-center disabled:opacity-30 transition-all cursor-pointer"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })()}
 
           </div>
 

@@ -47,6 +47,34 @@ export default function NotificationPage() {
 
   const fetchNotifications = async () => {
     setLoading(true);
+    const token = localStorage.getItem('mindhub_api_token');
+
+    if (token) {
+      try {
+        const res = await apiFetch<any>(`/notifications?status=${statusFilter}&type=${categoryFilter}`);
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+
+        const apiMapped: NotificationItem[] = list.map((item: any) => ({
+          id: item.id,
+          type: item.type || 'info',
+          category: item.category || item.channel || 'system',
+          title: item.title || 'Thông báo mới',
+          message: item.message || '',
+          created_at: item.created_at,
+          time_ago: item.time_ago || 'Gần đây',
+          is_read: Boolean(item.is_read || item.read_at),
+          read_at: item.read_at,
+          action_url: item.action_url || '/courses'
+        }));
+
+        setNotifications(apiMapped);
+        setLoading(false);
+        return;
+      } catch (error) {
+        console.warn('Notification page API fetch error:', error);
+      }
+    }
+
     let localList: NotificationItem[] = [];
     try {
       const saved = localStorage.getItem('mindhub_user_notifications');
@@ -67,35 +95,8 @@ export default function NotificationPage() {
       }
     } catch (e) {}
 
-    try {
-      const res = await apiFetch<any>(`/notifications?status=${statusFilter}&type=${categoryFilter}`);
-      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-      
-      const apiMapped: NotificationItem[] = list.map((item: any) => ({
-        id: item.id,
-        type: item.type || 'info',
-        category: item.category || item.channel || 'system',
-        title: item.title || 'Thông báo mới',
-        message: item.message || '',
-        created_at: item.created_at,
-        time_ago: item.time_ago || 'Gần đây',
-        is_read: Boolean(item.is_read || item.read_at),
-        read_at: item.read_at,
-        action_url: item.action_url || '/courses'
-      }));
-
-      const mergedMap = new Map();
-      [...localList, ...apiMapped].forEach((n) => {
-        if (n && n.id) mergedMap.set(String(n.id), n);
-      });
-
-      const combined = Array.from(mergedMap.values());
-      setNotifications(combined);
-    } catch (error) {
-      setNotifications(localList);
-    } finally {
-      setLoading(false);
-    }
+    setNotifications(localList);
+    setLoading(false);
   };
 
   useEffect(() => {

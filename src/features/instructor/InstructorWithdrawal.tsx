@@ -1365,17 +1365,46 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
                     Hiệu lực: {Math.floor(otpTimer / 60)}:{(otpTimer % 60).toString().padStart(2, '0')}
                   </span>
                 </div>
-                <input 
-                  type="text" 
-                  maxLength={6}
-                  value={accountOtpCode}
-                  onChange={e => {
-                    setAccountOtpCode(e.target.value.replace(/\D/g, ''));
-                    setAccountOtpError(null);
-                  }}
-                  placeholder="------"
-                  className="w-full px-3.5 py-3 border border-[#dbdde4] rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono font-black text-center text-xl tracking-[0.4em] text-[#06091a]"
-                />
+                <div className="flex justify-center items-center gap-2 relative my-2">
+                  {Array.from({ length: 6 }).map((_, idx) => {
+                    const digit = accountOtpCode[idx] || '';
+                    const isCurrent = accountOtpCode.length === idx;
+                    const isFilled = Boolean(digit);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          const inputEl = document.getElementById('account-otp-real-input');
+                          if (inputEl) inputEl.focus();
+                        }}
+                        className={`w-11 h-13 rounded-xl border-2 flex items-center justify-center text-xl font-mono font-black transition-all cursor-pointer select-none shadow-sm ${
+                          isCurrent
+                            ? 'border-emerald-600 ring-4 ring-emerald-500/20 bg-emerald-50/50 text-emerald-950 scale-105'
+                            : isFilled
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                            : 'border-slate-200 bg-slate-50/50 text-slate-300 hover:border-emerald-300'
+                        }`}
+                      >
+                        {digit || <span className="text-slate-300 font-light text-sm">•</span>}
+                      </div>
+                    );
+                  })}
+                  <input 
+                    id="account-otp-real-input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    autoFocus
+                    value={accountOtpCode}
+                    onChange={(e) => {
+                      setAccountOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                      setAccountOtpError(null);
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    required
+                  />
+                </div>
               </div>
 
               {accountOtpError && (

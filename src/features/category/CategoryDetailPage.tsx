@@ -95,6 +95,23 @@ const DEFAULT_FALLBACK_COURSES: HomeCourseItem[] = [
   },
 ];
 
+const formatSlugTitle = (s: string) => {
+  if (!s) return 'Danh mục khóa học';
+  const customMap: Record<string, string> = {
+    'lo-trinh-web-developer': 'Lộ trình Web Developer',
+    'vnpay-laravel': 'VNPay Laravel',
+    'landing-page-conversion': 'Landing Page & Conversion',
+    'backend-laravel': 'Backend Laravel',
+    'giao-tiep-lam-viec': 'Giao tiếp & Làm việc nhóm',
+  };
+  if (customMap[s]) return customMap[s];
+
+  return s
+    .replace(/^lo-trinh-/i, 'Lộ trình ')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 export default function CategoryDetailPage() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const slug = (rawSlug || '').trim();
@@ -104,6 +121,7 @@ export default function CategoryDetailPage() {
   const [sortOption, setSortOption] = useState('popular');
   const [courses, setCourses] = useState<HomeCourseItem[]>([]);
   const [categoryInfo, setCategoryInfo] = useState<{
+    id?: string | number;
     title: string;
     desc: string;
     icon: string;
@@ -112,7 +130,7 @@ export default function CategoryDetailPage() {
     title: 'Danh mục khóa học',
     desc: 'Khám phá các khóa học chất lượng cao được thiết kế chuẩn thực tế',
     icon: '🚀',
-    bgGradient: 'from-emerald-950 via-slate-900 to-teal-950',
+    bgGradient: 'from-slate-950 via-[#02382c] to-slate-950',
   });
   const [loading, setLoading] = useState(true);
 
@@ -163,33 +181,33 @@ export default function CategoryDetailPage() {
       if (!slug) return;
 
       // 1. Resolve Category Metadata
-      let meta = CATEGORY_META[dbSlug] || CATEGORY_META[slug];
-      if (!meta) {
-        const formattedTitle = slug
-          .split('-')
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
-
-        meta = {
-          title: formattedTitle,
-          desc: `Khám phá lộ trình đào tạo và các khóa học hot nhất thuộc chủ đề ${formattedTitle}.`,
-          icon: '✨',
-          bgGradient: 'from-slate-900 via-emerald-950 to-teal-950',
-        };
-      }
+      let meta: { id?: string | number; title: string; desc: string; icon: string; bgGradient: string } = CATEGORY_META[dbSlug] || CATEGORY_META[slug] || {
+        title: formatSlugTitle(slug),
+        desc: `Khám phá các khóa học thực chiến và bài giảng chất lượng cao thuộc chủ đề ${formatSlugTitle(slug)}.`,
+        icon: slug.includes('web') ? '🌐' : slug.includes('api') || slug.includes('backend') ? '⚙️' : '🚀',
+        bgGradient: 'from-slate-950 via-[#02382c] to-slate-950',
+      };
 
       // Try fetching category details from Backend API /categories
       try {
         const catRes = await apiFetch<any>('/categories');
         const catList = Array.isArray(catRes) ? catRes : catRes?.data || [];
+        const formattedTargetTitle = formatSlugTitle(slug).toLowerCase();
         const found = catList.find(
-          (item: any) => item.slug === dbSlug || item.slug === slug || String(item.id) === slug
+          (item: any) => 
+            item.slug === dbSlug || 
+            item.slug === slug || 
+            String(item.id) === slug ||
+            (item.name || '').toLowerCase() === formattedTargetTitle
         );
         if (found) {
+          const rawDesc = found.description || meta.desc;
+          const cleanedDesc = rawDesc ? rawDesc.replace(/^danh\s*mục\s*demo(\s*mindhub)?[:\s]*/i, '').trim() : '';
           meta = {
             ...meta,
+            id: found.id,
             title: found.name || meta.title,
-            desc: found.description || meta.desc,
+            desc: cleanedDesc || meta.desc,
           };
         }
       } catch (err) {
@@ -209,35 +227,62 @@ export default function CategoryDetailPage() {
         if (sortOption === 'price_desc') sortParam = 'price_desc';
         if (sortOption === 'rating') sortParam = 'rating_desc';
 
-        // Primary Query using dbSlug
-        let coursesRes = await apiFetch<any>(`/courses?category_slug=${dbSlug}&sort=${sortParam}`);
-        let rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+        let rawCourses: any[] = [];
+
+        // Primary Query using category_slug=dbSlug
+        let coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(dbSlug)}&sort=${sortParam}`).catch(() => null);
+        rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
 
         // Secondary fallback query using original slug if dbSlug was different
         if ((!Array.isArray(rawCourses) || rawCourses.length === 0) && dbSlug !== slug) {
-          coursesRes = await apiFetch<any>(`/courses?category_slug=${slug}&sort=${sortParam}`);
+          coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(slug)}&sort=${sortParam}`).catch(() => null);
           rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
         }
 
-        // If still empty, fetch general courses from API so page is never broken
-        if (!Array.isArray(rawCourses) || rawCourses.length === 0) {
-          coursesRes = await apiFetch<any>(`/courses?sort=${sortParam}`);
+        // Try querying by category_id if available
+        if ((!Array.isArray(rawCourses) || rawCourses.length === 0) && meta.id) {
+          coursesRes = await apiFetch<any>(`/courses?category_id=${meta.id}&sort=${sortParam}`).catch(() => null);
           rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
         }
 
+        // If backend returned general list or no category filter applied on server side,
+        // strictly filter rawCourses to ensure courses match the category!
         if (Array.isArray(rawCourses) && rawCourses.length > 0) {
+          const targetSlug = dbSlug.toLowerCase();
+          const targetOriginalSlug = slug.toLowerCase();
+          const targetTitle = (meta.title || '').toLowerCase();
+          const targetKeywords = targetOriginalSlug.replace(/^lo-trinh-/i, '').split('-').filter((k) => k.length > 2);
+
+          const matchedCourses = rawCourses.filter((c: any) => {
+            const courseCatSlug = (c.category?.slug || c.category_slug || '').toLowerCase();
+            const courseCatName = (c.category?.name || c.category_name || '').toLowerCase();
+            const courseCatId = c.category_id || c.category?.id;
+
+            if (courseCatSlug && (courseCatSlug === targetSlug || courseCatSlug === targetOriginalSlug)) return true;
+            if (meta.id && courseCatId && String(courseCatId) === String(meta.id)) return true;
+            if (courseCatName && targetTitle && (courseCatName.includes(targetTitle) || targetTitle.includes(courseCatName))) return true;
+
+            const titleLower = (c.title || '').toLowerCase();
+            const descLower = (c.description || c.short_description || '').toLowerCase();
+            if (targetKeywords.length > 0 && targetKeywords.some((kw) => titleLower.includes(kw) || descLower.includes(kw))) {
+              return true;
+            }
+
+            return false;
+          });
+
           if (isMounted) {
-            setCourses(rawCourses.map(mapApiCourseToHomeCourseItem));
+            setCourses(matchedCourses.map(mapApiCourseToHomeCourseItem));
           }
         } else {
           if (isMounted) {
-            setCourses(DEFAULT_FALLBACK_COURSES);
+            setCourses([]);
           }
         }
       } catch (err) {
-        console.warn('Unable to load courses from Backend API', err);
+        console.warn('Unable to load courses for category from Backend API', err);
         if (isMounted) {
-          setCourses(DEFAULT_FALLBACK_COURSES);
+          setCourses([]);
         }
       } finally {
         if (isMounted) {
@@ -256,10 +301,11 @@ export default function CategoryDetailPage() {
   return (
     <PageTransition>
       {/* 1. Ultra-Premium Dark Hero Banner */}
-      <div className={`relative bg-gradient-to-r ${categoryInfo.bgGradient} text-white overflow-hidden py-12 lg:py-16`}>
+      <div className="relative bg-gradient-to-br from-slate-950 via-[#02382c] to-slate-950 text-white overflow-hidden py-12 lg:py-16 select-none shadow-xl">
         {/* Background Ambient Glows */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-80 h-80 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-teal-400/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:32px_32px] opacity-10 pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           

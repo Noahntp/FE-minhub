@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, Bell, LogOut, Settings, User, Calendar, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles } from "lucide-react";
+import { Search, Bell, LogOut, Settings, User, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles } from "lucide-react";
 import { useApp } from "@/app/AppContext";
 import { apiFetch } from "@/shared/lib/api-client";
 import { resolveMediaUrl } from "@/shared/utils/format";
@@ -20,7 +20,7 @@ import {
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, isLoggedIn, setIsLoggedIn } = useApp();
+  const { currentUser, isLoggedIn, setIsLoggedIn, enrolledCourseIds = [] } = useApp();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -30,28 +30,39 @@ export default function Navbar() {
   // Notification Bell Dropdown State
   const [navNotifications, setNavNotifications] = useState<any[]>([]);
   const [navUnreadCount, setNavUnreadCount] = useState<number>(0);
+  const [hasEnrolledCourses, setHasEnrolledCourses] = useState<boolean>(false);
 
   const fetchNavNotifications = async () => {
+    const token = localStorage.getItem('mindhub_api_token');
+
+    if (token) {
+      try {
+        const [notifRes, courseRes] = await Promise.all([
+          apiFetch<any>('/notifications').catch(() => []),
+          apiFetch<any>('/me/courses').catch(() => [])
+        ]);
+
+        const apiList = Array.isArray(notifRes?.data) ? notifRes.data : (Array.isArray(notifRes) ? notifRes : []);
+        setNavNotifications(apiList);
+        setNavUnreadCount(apiList.filter((n: any) => !n.is_read && !n.read_at).length);
+
+        const courseList = Array.isArray(courseRes?.data) ? courseRes.data : (Array.isArray(courseRes) ? courseRes : []);
+        setHasEnrolledCourses(courseList.length > 0);
+        return;
+      } catch (e) {
+        console.warn('Navbar notification API fetch error:', e);
+      }
+    }
+
     let localList: any[] = [];
     try {
       const saved = localStorage.getItem('mindhub_user_notifications');
       if (saved) localList = JSON.parse(saved);
     } catch (e) {}
 
-    try {
-      const res = await apiFetch<any>('/notifications');
-      const apiList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-      const mergedMap = new Map();
-      [...localList, ...apiList].forEach((n) => {
-        if (n && n.id) mergedMap.set(String(n.id), n);
-      });
-      const combined = Array.from(mergedMap.values());
-      setNavNotifications(combined);
-      setNavUnreadCount(combined.filter((n: any) => !n.is_read && !n.read_at).length);
-    } catch (e) {
-      setNavNotifications(localList);
-      setNavUnreadCount(localList.filter((n: any) => !n.is_read && !n.read_at).length);
-    }
+    setNavNotifications(localList);
+    setNavUnreadCount(localList.filter((n: any) => !n.is_read && !n.read_at).length);
+    setHasEnrolledCourses(enrolledCourseIds.length > 0 || localList.length > 0);
   };
 
   useEffect(() => {
@@ -158,6 +169,7 @@ export default function Navbar() {
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-extrabold mx-4">
           <Link to="/courses" className="text-slate-600 hover:text-emerald-600 transition-colors">Khóa học</Link>
+          <Link to="/roadmaps" className="text-slate-600 hover:text-emerald-600 transition-colors">Lộ trình</Link>
           <Link to="/instructors" className="text-slate-600 hover:text-emerald-600 transition-colors">Giảng viên</Link>
           <Link to="/services" className="text-slate-600 hover:text-emerald-600 transition-colors">Dịch vụ</Link>
           <Link to="/faq" className="text-slate-600 hover:text-emerald-600 transition-colors">Hỏi đáp</Link>
@@ -244,14 +256,24 @@ export default function Navbar() {
         <div className="flex items-center gap-2.5 ml-auto shrink-0">
           {isLoggedIn ? (
             <>
-              {/* My Courses Link */}
-              <Link
-                to="/my-courses"
-                className="hidden lg:inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 font-extrabold text-xs border border-emerald-200/80 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95"
-              >
-                <BookOpen className="w-4 h-4 text-emerald-600" />
-                <span>Khóa học của tôi</span>
-              </Link>
+              {/* My Courses Link - Only display "Khóa học của tôi" if account has purchased courses */}
+              {hasEnrolledCourses ? (
+                <Link
+                  to="/my-courses"
+                  className="hidden lg:inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 font-extrabold text-xs border border-emerald-200/80 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                >
+                  <BookOpen className="w-4 h-4 text-emerald-600" />
+                  <span>Khóa học của tôi</span>
+                </Link>
+              ) : (
+                <Link
+                  to="/courses"
+                  className="hidden lg:inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Khám phá khóa học</span>
+                </Link>
+              )}
               
               {/* Favorites Heart Button */}
               <Link
@@ -303,8 +325,10 @@ export default function Navbar() {
                   {/* Dropdown Items List */}
                   <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 bg-white">
                     {navNotifications.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-slate-400">
-                        Không có thông báo nào.
+                      <div className="p-6 text-center text-xs text-slate-500 space-y-1.5">
+                        <Bell className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="font-bold text-slate-700">Chưa có thông báo mới</p>
+                        <p className="text-[11px] text-slate-400">Bạn chưa đăng ký khóa học nào. Hãy đăng ký khóa học để nhận thông báo mới!</p>
                       </div>
                     ) : (
                       navNotifications.slice(0, 5).map((n) => (
@@ -378,15 +402,17 @@ export default function Navbar() {
                     Khóa học yêu thích
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem onClick={() => navigate("/my-courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
-                    <BookOpen className="mr-2.5 h-4 w-4 text-blue-600" />
-                    Khóa học của tôi
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem onClick={() => navigate("/calendar")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
-                    <Calendar className="mr-2.5 h-4 w-4 text-amber-600" />
-                    Lịch học
-                  </DropdownMenuItem>
+                  {hasEnrolledCourses ? (
+                    <DropdownMenuItem onClick={() => navigate("/my-courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                      <BookOpen className="mr-2.5 h-4 w-4 text-emerald-600" />
+                      Khóa học của tôi
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => navigate("/courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-emerald-50 text-emerald-700 font-extrabold">
+                      <Sparkles className="mr-2.5 h-4 w-4 text-emerald-600" />
+                      Khám phá khóa học
+                    </DropdownMenuItem>
+                  )}
 
                   <DropdownMenuItem onClick={() => navigate("/faq")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
                     <HelpCircle className="mr-2.5 h-4 w-4 text-teal-600" />
