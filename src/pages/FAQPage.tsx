@@ -292,11 +292,18 @@ export default function FAQPage() {
     const fetchFaqs = async () => {
       try {
         setIsLoading(true);
-        // Try fetching public FAQs from /home endpoint
-        const res = await apiFetch<any>('/home');
-        const apiFaqs = Array.isArray(res?.faqs) 
+        // Try fetching public FAQs from /home or /faqs endpoint
+        const res = await apiFetch<any>('/home').catch(() => null);
+        let apiFaqs = Array.isArray(res?.faqs) 
           ? res.faqs 
           : (Array.isArray(res?.data?.faqs) ? res.data.faqs : []);
+
+        if (!apiFaqs.length) {
+          const directRes = await apiFetch<any>('/faqs').catch(() => null);
+          apiFaqs = Array.isArray(directRes?.data)
+            ? directRes.data
+            : (Array.isArray(directRes) ? directRes : []);
+        }
 
         if (isMounted && apiFaqs.length > 0) {
           const categoryLabels: Record<string, string> = {
@@ -326,7 +333,7 @@ export default function FAQPage() {
               unhelpfulCount: item.unhelpful_count || 0,
               views: item.views || (600 + (idx * 40)),
               tags: [rawType, 'mindhub', 'faq'],
-              isPopular: idx < 3 || !!item.is_popular
+              isPopular: idx < 4 || !!item.is_popular
             };
           });
 
@@ -371,6 +378,14 @@ export default function FAQPage() {
       return matchesCategory && matchesQuery;
     });
   }, [faqs, activeCategory, searchQuery]);
+
+  // Dynamic Popular FAQs computed from active API/State faqs
+  const popularFaqs = useMemo(() => {
+    const list = faqs.filter(f => f.isPopular);
+    if (list.length >= 4) return list.slice(0, 4);
+    const sorted = [...faqs].sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0));
+    return sorted.slice(0, 4);
+  }, [faqs]);
 
   const toggleFaq = (id: string) => {
     setOpenFaqIds(prev => ({ ...prev, [id]: !prev[id] }));
@@ -463,73 +478,156 @@ export default function FAQPage() {
     <PageTransition>
       <div className="min-h-screen bg-slate-50/70 pb-20">
         
-        {/* REDESIGNED HERO SECTION */}
-        <div className="relative bg-gradient-to-b from-[#004D3F] via-[#007A64] to-[#005A49] text-white py-12 md:py-16 px-4 shadow-xl overflow-hidden">
-          {/* Subtle Decorative Mesh Glows */}
-          <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-teal-300/15 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px] opacity-10 pointer-events-none" />
+        {/* REDESIGNED CREATIVE HERO BANNER SECTION WITH INTEGRATED ILLUSTRATION & BALANCED LAYOUT */}
+        <div className="relative bg-gradient-to-br from-slate-950 via-[#02382c] to-slate-950 text-white py-12 md:py-16 px-4 sm:px-6 lg:px-8 shadow-2xl overflow-hidden select-none">
+          {/* Decorative Mesh Glows & Ambient Orbs */}
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:32px_32px] opacity-10 pointer-events-none" />
 
-          <div className="max-w-3xl mx-auto text-center relative z-10">
-            {/* Top Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/40 border border-emerald-300/30 text-emerald-200 text-xs font-bold tracking-wide mb-4 backdrop-blur-md shadow-inner">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Trung Tâm Trợ Giúp & FAQ MindHub
-            </div>
-
-            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight leading-tight mb-3 text-white">
-              Chúng tôi có thể giải đáp gì cho bạn?
-            </h1>
-            <p className="text-emerald-100/90 text-sm md:text-base max-w-xl mx-auto mb-6 leading-relaxed font-normal">
-              Tra cứu nhanh câu trả lời cho các thắc mắc về tài khoản, khóa học, thanh toán & chính sách hoàn tiền 7 ngày.
-            </p>
-
-            {/* SEARCH BAR WITH INTEGRATED BUTTON */}
-            <div className="relative max-w-xl mx-auto">
-              <div className="relative flex items-center shadow-2xl rounded-2xl p-1 bg-white border border-white/30 backdrop-blur-md">
-                <Search className="left-4 absolute w-4 h-4 text-slate-400 pointer-events-none" />
-                <Input 
-                  type="text"
-                  className="pl-10 pr-24 h-11 w-full text-slate-900 text-sm md:text-base border-none focus-visible:ring-0 placeholder:text-slate-400 bg-transparent font-medium"
-                  placeholder="Nhập từ khóa (Ví dụ: hoàn tiền, chứng chỉ, vnpay...)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery ? (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-28 p-1 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                ) : null}
-
-                <Button 
-                  onClick={() => selectCategoryAndScroll('all')}
-                  className="bg-[#007A64] hover:bg-emerald-700 text-white font-bold rounded-xl text-xs h-9 px-4 shrink-0 shadow-md"
-                >
-                  <Search className="w-3.5 h-3.5 mr-1" /> Tìm kiếm
-                </Button>
+          <div className="max-w-6xl mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            
+            {/* LEFT COLUMN: Content & Live Search */}
+            <div className="lg:col-span-7 text-center lg:text-left space-y-5">
+              {/* Top Pill Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-300 text-xs font-bold tracking-wide backdrop-blur-md shadow-inner">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" /> 
+                <span>Trung Tâm Trợ Giúp & FAQ MindHub</span>
               </div>
 
-              {/* POPULAR SEARCH TAG CHIPS */}
-              <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4 text-xs">
-                <span className="text-emerald-200 font-semibold flex items-center gap-1 text-[11px]">
-                  <Tag className="w-3.5 h-3.5 text-amber-300" /> Từ khóa gợi ý:
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-[1.15] text-white">
+                Chúng tôi có thể{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300">
+                  giải đáp gì cho bạn?
                 </span>
-                {POPULAR_SEARCH_TAGS.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      setSearchQuery(tag);
-                      selectCategoryAndScroll('all');
-                    }}
-                    className="px-3 py-1 rounded-full bg-emerald-950/40 hover:bg-white hover:text-emerald-800 text-emerald-100 border border-emerald-400/30 text-[11px] font-semibold transition-all cursor-pointer shadow-sm"
+              </h1>
+
+              <p className="text-slate-300 text-sm md:text-base max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
+                Tra cứu nhanh câu trả lời cho các thắc mắc về tài khoản, khóa học, thanh toán & chính sách hoàn tiền 7 ngày.
+              </p>
+
+              {/* SLEEK GLASSMORPHIC SEARCH BAR */}
+              <div className="relative max-w-xl mx-auto lg:mx-0 pt-1">
+                <div className="relative flex items-center shadow-2xl rounded-2xl p-1.5 bg-slate-900/90 border border-slate-700/80 backdrop-blur-xl focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/25 transition-all">
+                  <Search className="left-4 absolute w-5 h-5 text-emerald-400 pointer-events-none" />
+                  <Input 
+                    type="text"
+                    className="pl-11 pr-32 h-12 w-full text-white text-sm md:text-base border-none focus-visible:ring-0 placeholder:text-slate-400/90 bg-transparent font-medium"
+                    placeholder="Tìm kiếm câu hỏi, từ khóa (hoàn tiền, vnpay...)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery ? (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-32 p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                      aria-label="Clear Search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : null}
+
+                  <Button 
+                    onClick={() => selectCategoryAndScroll('all')}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl text-xs h-10 px-5 shrink-0 shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
                   >
-                    {tag}
-                  </button>
-                ))}
+                    <span>Tìm kiếm</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+
+                {/* POPULAR SEARCH TAG CHIPS */}
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mt-4 text-xs">
+                  <span className="text-emerald-300 font-semibold flex items-center gap-1 text-[11px]">
+                    <Tag className="w-3.5 h-3.5 text-amber-300" /> Từ khóa gợi ý:
+                  </span>
+                  {POPULAR_SEARCH_TAGS.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        setSearchQuery(tag);
+                        selectCategoryAndScroll('all');
+                      }}
+                      className="px-3 py-1 rounded-full bg-slate-900/70 hover:bg-emerald-500/20 hover:text-emerald-300 text-slate-300 border border-slate-700/60 text-[11px] font-medium transition-all cursor-pointer shadow-sm hover:border-emerald-500/40"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* QUICK STATUS BADGES ROW */}
+              <div className="pt-2 grid grid-cols-2 sm:grid-cols-3 gap-3 text-left">
+                <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5 backdrop-blur-md">
+                  <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Hỗ trợ tự động 24/7</p>
+                    <p className="text-[10px] text-slate-400">Trợ lý AI sẵn sàng</p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5 backdrop-blur-md">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Cam kết 7 ngày</p>
+                    <p className="text-[10px] text-slate-400">Hoàn tiền 100%</p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5 backdrop-blur-md col-span-2 sm:col-span-1">
+                  <div className="p-2 rounded-xl bg-teal-500/20 text-teal-400 shrink-0">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">Phản hồi siêu tốc</p>
+                    <p className="text-[10px] text-slate-400">Dưới 5 phút hỗ trợ</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT COLUMN: Interactive 3D Illustration Asset Card */}
+            <div className="lg:col-span-5 hidden lg:flex justify-center">
+              <div className="relative w-full max-w-md">
+                {/* Outer Ambient Glow Ring */}
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 via-teal-500/20 to-cyan-500/30 rounded-3xl blur-2xl -z-10" />
+
+                {/* Glass Illustration Frame */}
+                <div className="relative rounded-3xl bg-slate-900/70 border border-slate-700/60 p-3 shadow-2xl backdrop-blur-xl overflow-hidden group">
+                  <img 
+                    src="/faq-hero-illustration.png" 
+                    alt="MindHub FAQ Support Assistant Illustration" 
+                    className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-500"
+                  />
+
+                  {/* Floating Overlay Badge 1 */}
+                  <div className="absolute top-6 left-6 p-2.5 rounded-2xl bg-slate-950/85 border border-emerald-500/40 text-left backdrop-blur-md shadow-xl flex items-center gap-2.5 animate-bounce">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                    <div>
+                      <p className="text-[11px] font-bold text-emerald-300">MindHub AI Bot Active</p>
+                      <p className="text-[9px] text-slate-300">"Tôi có thể hỗ trợ giải đáp 24/7!"</p>
+                    </div>
+                  </div>
+
+                  {/* Floating Overlay Badge 2 */}
+                  <div className="absolute bottom-6 right-6 p-2.5 rounded-2xl bg-slate-950/85 border border-amber-500/40 text-left backdrop-blur-md shadow-xl flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-extrabold text-amber-300">99.8% Hài lòng</p>
+                      <p className="text-[9px] text-slate-300">12,500+ lượt hỗ trợ thành công</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+
           </div>
         </div>
 
@@ -623,7 +721,7 @@ export default function FAQPage() {
                 </h3>
 
                 <div className="space-y-2">
-                  {INITIAL_FAQS.filter(f => f.isPopular).slice(0, 4).map(pop => (
+                  {popularFaqs.map(pop => (
                     <button
                       key={pop.id}
                       onClick={() => {
@@ -632,7 +730,7 @@ export default function FAQPage() {
                         const el = document.getElementById(pop.id);
                         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                       }}
-                      className="w-full text-left p-2.5 rounded-xl hover:bg-slate-50 transition-colors group border border-transparent hover:border-slate-200/60"
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-slate-50 transition-colors group border border-transparent hover:border-slate-200/60 cursor-pointer"
                     >
                       <p className="text-xs font-bold text-slate-700 group-hover:text-emerald-600 line-clamp-2 leading-snug">
                         {pop.q}

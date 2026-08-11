@@ -131,47 +131,48 @@ export function StudentTestimonialsSection({ testimonials: apiTestimonials }: St
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100/80 text-xs font-semibold mb-2.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Cảm nhận thực tế</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
-              Học viên nói gì về MindHub?
-            </h2>
-            <p className="text-sm text-slate-500 mt-1.5 font-medium">
-              Hàng ngàn học viên đã và đang phát triển sự nghiệp cùng lộ trình đào tạo tại MindHub
-            </p>
+        <div className="mb-10 text-left">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100/80 text-xs font-semibold mb-2.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Cảm nhận thực tế</span>
           </div>
-
-          {/* Carousel Arrow Controls */}
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <button
-              onClick={() => handleScroll('left')}
-              disabled={!canScrollLeft}
-              aria-label="Previous review"
-              className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-white disabled:hover:text-slate-400 disabled:hover:border-slate-200"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => handleScroll('right')}
-              disabled={!canScrollRight}
-              aria-label="Next review"
-              className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-white disabled:hover:text-slate-400 disabled:hover:border-slate-200"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">
+            Học viên nói gì về MindHub?
+          </h2>
+          <p className="text-sm text-slate-500 mt-1.5 font-medium">
+            Hàng ngàn học viên đã và đang phát triển sự nghiệp cùng lộ trình đào tạo tại MindHub
+          </p>
         </div>
 
-        {/* Testimonials Carousel Container */}
-        <div
-          ref={scrollRef}
-          className="flex gap-6 overflow-x-auto scrollbar-none snap-x snap-mandatory py-4 -mx-1 px-1 scroll-smooth"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
+        {/* Testimonials Carousel Wrapper with Side Arrow Controls Centered on Cards */}
+        <div className="relative group/slider">
+          
+          {/* Left Arrow Button */}
+          <button
+            onClick={() => handleScroll('left')}
+            disabled={!canScrollLeft}
+            aria-label="Previous review"
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 sm:-translate-x-5 z-20 w-11 h-11 rounded-full bg-white/95 backdrop-blur-md shadow-xl border border-slate-200 text-slate-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-white disabled:hover:text-slate-300 disabled:hover:border-slate-200 disabled:shadow-none"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+
+          {/* Right Arrow Button */}
+          <button
+            onClick={() => handleScroll('right')}
+            disabled={!canScrollRight}
+            aria-label="Next review"
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 sm:translate-x-5 z-20 w-11 h-11 rounded-full bg-white/95 backdrop-blur-md shadow-xl border border-slate-200 text-slate-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-white disabled:hover:text-slate-300 disabled:hover:border-slate-200 disabled:shadow-none"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+
+          {/* Testimonials Carousel Container */}
+          <div
+            ref={scrollRef}
+            className="flex gap-6 overflow-x-auto scrollbar-none snap-x snap-mandatory py-4 -mx-1 px-1 scroll-smooth"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
           {processedTestimonials.map((item, idx) => (
             <div
               key={idx}
@@ -198,7 +199,7 @@ export function StudentTestimonialsSection({ testimonials: apiTestimonials }: St
 
                 {/* Comment Text */}
                 <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed italic text-left min-h-[4rem]">
-                  "{item.comment}"
+                  &ldquo;{item.comment}&rdquo;
                 </p>
               </div>
 
@@ -232,6 +233,8 @@ export function StudentTestimonialsSection({ testimonials: apiTestimonials }: St
 
             </div>
           ))}
+        </div>
+
         </div>
 
       </div>

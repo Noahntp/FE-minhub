@@ -146,7 +146,7 @@ export default function CourseDetailPage() {
     }
   }, [course, courseId, navigate]);
 
-  const { cart, setCart, enrolledCourseIds, setEnrolledCourseIds } = useApp();
+  const { cart, setCart, enrolledCourseIds, setEnrolledCourseIds, openTrialModal } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'instructor' | 'reviews' | 'faq'>('overview');
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({
     ch1: true,
@@ -563,8 +563,8 @@ export default function CourseDetailPage() {
                   </div>
                 </div>
 
-                {/* Single Purchase Button */}
-                <div className="pt-1">
+                {/* Single Purchase & Free Trial Buttons */}
+                <div className="pt-1 space-y-2">
                   {isEnrolled ? (
                     <button
                       onClick={() => navigate(`/learn/${course.id}`)}
@@ -574,13 +574,24 @@ export default function CourseDetailPage() {
                       <span>Tiếp tục học ngay</span>
                     </button>
                   ) : (
-                    <button
-                      onClick={handleEnrollNow}
-                      className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
-                    >
-                      {(course as any).isFree || Number(course.price || 0) === 0 ? <PlayCircle className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
-                      <span>{(course as any).isFree || Number(course.price || 0) === 0 ? 'Tham gia ngay' : 'Mua ngay'}</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={handleEnrollNow}
+                        className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+                      >
+                        {(course as any).isFree || Number(course.price || 0) === 0 ? <PlayCircle className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
+                        <span>{(course as any).isFree || Number(course.price || 0) === 0 ? 'Tham gia ngay' : 'Mua ngay'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openTrialModal({ courseTitle: course.title, courseId: course.slug || course.id, instructorName: course.instructorName })}
+                        className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-xs flex items-center justify-center gap-2 border border-emerald-200 transition-all cursor-pointer"
+                      >
+                        <PlayCircle className="w-4 h-4 text-emerald-600" />
+                        <span>Học thử bài giảng miễn phí</span>
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -812,23 +823,36 @@ export default function CourseDetailPage() {
                               className="overflow-hidden bg-white divide-y divide-slate-100"
                             >
                               {lessonList.map((lesson: any) => (
-                                <div
+                                <button
                                   key={lesson.id}
-                                  className="p-3.5 pl-10 flex items-center justify-between text-xs hover:bg-slate-50 transition-colors"
+                                  type="button"
+                                  onClick={() => openTrialModal({
+                                    id: lesson.id,
+                                    title: lesson.title,
+                                    duration: lesson.duration || '10:00',
+                                    courseTitle: course.title,
+                                    courseId: course.slug || course.id,
+                                    instructorName: course.instructorName
+                                  })}
+                                  className="w-full p-3.5 pl-10 flex items-center justify-between text-xs hover:bg-emerald-50/60 transition-colors text-left group cursor-pointer"
                                 >
-                                  <div className="flex items-center gap-2.5 text-slate-700 font-medium">
-                                    <PlayCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                                  <div className="flex items-center gap-2.5 text-slate-700 group-hover:text-emerald-700 font-medium">
+                                    <PlayCircle className="w-4 h-4 text-emerald-600 shrink-0 group-hover:scale-110 transition-transform" />
                                     <span>{lesson.title}</span>
                                   </div>
                                   <div className="flex items-center gap-3">
-                                    {lesson.isPreview && (
-                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                                    {lesson.isPreview ? (
+                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded shadow-sm">
                                         Xem thử
                                       </span>
+                                    ) : (
+                                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded opacity-80 group-hover:opacity-100">
+                                        Học thử
+                                      </span>
                                     )}
-                                    <span className="text-slate-400">{lesson.duration || '10:00'}</span>
+                                    <span className="text-slate-400 font-mono text-[11px]">{lesson.duration || '10:00'}</span>
                                   </div>
-                                </div>
+                                </button>
                               ))}
                             </motion.div>
                           )}

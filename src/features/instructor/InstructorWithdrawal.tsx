@@ -2,10 +2,31 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { instructorApi } from '@/features/instructor/api';
 import { authApi } from '@/features/auth/api';
 import { 
-  Wallet, Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, 
+  Wallet, Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, ChevronDown,
   Sparkles, X, Loader2, ShieldCheck, Eye, EyeOff, Lock,
   Building2, Info, Calendar, Zap, ArrowRight, Bell, HelpCircle
 } from 'lucide-react';
+
+const VIETNAM_BANKS = [
+  { code: 'TCB', name: 'Techcombank', fullName: 'Techcombank (Ngân hàng Kỹ thương)' },
+  { code: 'VCB', name: 'Vietcombank', fullName: 'Vietcombank (Ngân hàng Ngoại thương)' },
+  { code: 'MB', name: 'MBBank', fullName: 'MBBank (Ngân hàng Quân đội)' },
+  { code: 'ICB', name: 'VietinBank', fullName: 'VietinBank (Ngân hàng Công thương)' },
+  { code: 'BIDV', name: 'BIDV', fullName: 'BIDV (Ngân hàng Đầu tư & Phát triển)' },
+  { code: 'VBA', name: 'Agribank', fullName: 'Agribank (Ngân hàng Nông nghiệp)' },
+  { code: 'VPB', name: 'VPBank', fullName: 'VPBank (Ngân hàng Việt Nam Thịnh Vượng)' },
+  { code: 'TPB', name: 'TPBank', fullName: 'TPBank (Ngân hàng Tiên Phong)' },
+  { code: 'ACB', name: 'ACB', fullName: 'ACB (Ngân hàng Á Châu)' },
+  { code: 'STB', name: 'Sacombank', fullName: 'Sacombank (Ngân hàng Sài Gòn Thương Tín)' },
+  { code: 'VIB', name: 'VIB', fullName: 'VIB (Ngân hàng Quốc tế)' },
+  { code: 'HDB', name: 'HDBank', fullName: 'HDBank (Ngân hàng Phát triển TP.HCM)' },
+  { code: 'MSB', name: 'MSB', fullName: 'MSB (Ngân hàng Hàng hải)' },
+  { code: 'OCB', name: 'OCB', fullName: 'OCB (Ngân hàng Phương Đông)' },
+  { code: 'LPB', name: 'LPBank', fullName: 'LPBank (Ngân hàng Lộc Phát)' },
+  { code: 'SHB', name: 'SHB', fullName: 'SHB (Ngân hàng Sài Gòn - Hà Nội)' },
+  { code: 'SeAB', name: 'SeABank', fullName: 'SeABank (Ngân hàng Đông Nam Á)' },
+  { code: 'EIB', name: 'Eximbank', fullName: 'Eximbank (Ngân hàng Xuất Nhập Khẩu)' },
+];
 
 interface InstructorPaymentSummary {
   page_title?: string;
@@ -44,6 +65,29 @@ const PAYOUT_STATUS_LABELS: Record<string, { label: string; style: string }> = {
   pending: { label: 'Chờ duyệt', style: 'bg-amber-50 text-amber-700 border-amber-200' },
   approved: { label: 'Đã duyệt', style: 'bg-blue-50 text-blue-700 border-blue-200' },
   rejected: { label: 'Bị từ chối', style: 'bg-rose-50 text-rose-700 border-rose-200' },
+};
+
+const getBankLogoUrl = (bankNameOrCode?: string): string => {
+  if (!bankNameOrCode) return 'https://cdn.vietqr.io/img/TCB.png';
+  const str = bankNameOrCode.toLowerCase();
+  if (str.includes('techcom') || str.includes('tcb')) return 'https://cdn.vietqr.io/img/TCB.png';
+  if (str.includes('vietcom') || str.includes('vcb')) return 'https://cdn.vietqr.io/img/VCB.png';
+  if (str.includes('mb') || str.includes('quân đội')) return 'https://cdn.vietqr.io/img/MB.png';
+  if (str.includes('vietin') || str.includes('icb') || str.includes('công thương')) return 'https://cdn.vietqr.io/img/ICB.png';
+  if (str.includes('bidv') || str.includes('đầu tư')) return 'https://cdn.vietqr.io/img/BIDV.png';
+  if (str.includes('agri') || str.includes('nông nghiệp') || str.includes('vba')) return 'https://cdn.vietqr.io/img/VBA.png';
+  if (str.includes('acb') || str.includes('á châu')) return 'https://cdn.vietqr.io/img/ACB.png';
+  if (str.includes('vpbank') || str.includes('vpb') || str.includes('thịnh vượng')) return 'https://cdn.vietqr.io/img/VPB.png';
+  if (str.includes('tpbank') || str.includes('tpb') || str.includes('tiên phong')) return 'https://cdn.vietqr.io/img/TPB.png';
+  if (str.includes('sacom') || str.includes('stb')) return 'https://cdn.vietqr.io/img/STB.png';
+  if (str.includes('vib')) return 'https://cdn.vietqr.io/img/VIB.png';
+  if (str.includes('msb') || str.includes('hàng hải')) return 'https://cdn.vietqr.io/img/MSB.png';
+  if (str.includes('ocb') || str.includes('phương đông')) return 'https://cdn.vietqr.io/img/OCB.png';
+  if (str.includes('hdbank') || str.includes('hdb')) return 'https://cdn.vietqr.io/img/HDB.png';
+  if (str.includes('shb')) return 'https://cdn.vietqr.io/img/SHB.png';
+  if (str.includes('lpb') || str.includes('liên việt') || str.includes('lpbank')) return 'https://cdn.vietqr.io/img/LPB.png';
+  if (str.includes('exim') || str.includes('eib')) return 'https://cdn.vietqr.io/img/EIB.png';
+  return 'https://cdn.vietqr.io/img/TCB.png';
 };
 
 interface InstructorWithdrawalProps {
@@ -708,9 +752,19 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
 
         {activePayoutAccount ? (
           <div className="flex items-center gap-4">
-            <div className="w-20 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0 p-2 text-center shadow-2xs">
-              <span className="text-[11px] font-black tracking-wider text-rose-600 uppercase">
-                {activePayoutAccount.bank_code || (activePayoutAccount.bank_name && activePayoutAccount.bank_name.toLowerCase() !== 'ngân hàng' ? activePayoutAccount.bank_name : 'TECHCOMBANK')}
+            <div className="w-24 h-12 rounded-xl border border-slate-200/90 bg-white flex items-center justify-center shrink-0 p-2 shadow-2xs overflow-hidden">
+              <img 
+                src={getBankLogoUrl(activePayoutAccount.bank_name || activePayoutAccount.bank_code || activePayoutAccount.provider_label)} 
+                alt={activePayoutAccount.bank_name || 'Bank Logo'} 
+                className="max-h-full max-w-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                  const fallbackEl = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                  if (fallbackEl) fallbackEl.classList.remove('hidden');
+                }}
+              />
+              <span className="hidden text-[11px] font-black tracking-wider text-rose-600 uppercase">
+                {activePayoutAccount.bank_code || 'BANK'}
               </span>
             </div>
             
@@ -1066,9 +1120,16 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
                 {/* Bank Readonly Snapshot */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase font-bold text-[#595959]">Tài khoản nhận tiền (Default Verified)</label>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-semibold text-xs text-[#06091a]">
-                    <div>{activePayoutAccount?.provider_label || activePayoutAccount?.bank_name || 'Techcombank'}</div>
-                    <div className="text-[11px] font-mono text-[#737373] mt-0.5">{activePayoutAccount?.account_number_masked || '********6789'} ({activePayoutAccount?.account_name})</div>
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-semibold text-xs text-[#06091a] flex items-center gap-3">
+                    <img 
+                      src={getBankLogoUrl(activePayoutAccount?.bank_name || activePayoutAccount?.bank_code || activePayoutAccount?.provider_label)} 
+                      alt="Bank logo" 
+                      className="w-12 h-6 object-contain shrink-0 bg-white rounded p-0.5 border border-slate-200/80" 
+                    />
+                    <div>
+                      <div className="font-bold">{activePayoutAccount?.provider_label || activePayoutAccount?.bank_name || 'Techcombank'}</div>
+                      <div className="text-[11px] font-mono text-[#737373] mt-0.5">{activePayoutAccount?.account_number_masked || '********6789'} ({activePayoutAccount?.account_name})</div>
+                    </div>
                   </div>
                 </div>
 
@@ -1206,12 +1267,29 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
             <form onSubmit={handleSaveAccountSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase font-bold text-[#595959]">Ngân hàng *</label>
-                <input 
-                  type="text" 
-                  value={accountForm.bankName}
-                  onChange={e => setAccountForm(prev => ({ ...prev, bankName: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 border border-[#dbdde4] rounded-xl font-semibold text-xs text-[#06091a]"
-                />
+                <div className="relative flex items-center">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 w-6 h-4 flex items-center justify-center shrink-0">
+                    <img 
+                      src={getBankLogoUrl(accountForm.bankName)} 
+                      alt="Bank logo" 
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  <select 
+                    value={accountForm.bankName}
+                    onChange={e => setAccountForm(prev => ({ ...prev, bankName: e.target.value }))}
+                    className="w-full pl-12 pr-9 py-2.5 bg-white border border-[#dbdde4] rounded-xl font-bold text-xs text-[#06091a] focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer appearance-none"
+                  >
+                    {VIETNAM_BANKS.map((b) => (
+                      <option key={b.code} value={b.name}>
+                        {b.fullName}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase font-bold text-[#595959]">Số tài khoản *</label>
@@ -1237,7 +1315,120 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
                   Hủy
                 </button>
                 <button type="submit" disabled={savingAccount} className="px-5 py-2.5 bg-[#0066FF] text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer disabled:opacity-50">
+                  {savingAccount ? <Loader2 className="w-4 h-4 animate-spin inline mr-1" /> : null}
                   Gửi mã OTP Email
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC THỰC OTP THAY ĐỔI TÀI KHOẢN NHẬN TIỀN */}
+      {isAccountOtpModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 text-left relative">
+            <button 
+              type="button" 
+              onClick={() => setIsAccountOtpModalOpen(false)} 
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-5 pb-3 border-b border-[#e7e8ed]">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-[#06091a]">Xác thực OTP thay đổi tài khoản</h3>
+                <p className="text-[11px] text-[#737373] font-medium">Mã OTP đã được gửi đến email <strong>{maskedEmail}</strong></p>
+              </div>
+            </div>
+
+            <form onSubmit={handleVerifyAccountOtpSubmit} className="space-y-4">
+              <div className="p-3.5 bg-blue-50/80 border border-blue-100 rounded-xl space-y-1.5 text-xs text-blue-900">
+                <div className="font-bold flex items-center gap-1.5 text-blue-900">
+                  <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Thông tin tài khoản nhận tiền mới:</span>
+                </div>
+                <div className="space-y-0.5 text-[11px] text-blue-800 font-medium pl-5">
+                  <div>• Ngân hàng: <strong>{accountForm.bankName}</strong></div>
+                  <div>• Số tài khoản: <strong className="font-mono">{accountForm.accountNumber}</strong></div>
+                  <div>• Tên chủ tài khoản: <strong>{accountForm.accountName.toUpperCase()}</strong></div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] uppercase font-bold text-[#595959]">Nhập mã OTP 6 chữ số *</label>
+                  <span className="text-[10px] font-mono text-slate-500 font-bold">
+                    Hiệu lực: {Math.floor(otpTimer / 60)}:{(otpTimer % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="flex justify-center items-center gap-2 relative my-2">
+                  {Array.from({ length: 6 }).map((_, idx) => {
+                    const digit = accountOtpCode[idx] || '';
+                    const isCurrent = accountOtpCode.length === idx;
+                    const isFilled = Boolean(digit);
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          const inputEl = document.getElementById('account-otp-real-input');
+                          if (inputEl) inputEl.focus();
+                        }}
+                        className={`w-11 h-13 rounded-xl border-2 flex items-center justify-center text-xl font-mono font-black transition-all cursor-pointer select-none shadow-sm ${
+                          isCurrent
+                            ? 'border-emerald-600 ring-4 ring-emerald-500/20 bg-emerald-50/50 text-emerald-950 scale-105'
+                            : isFilled
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                            : 'border-slate-200 bg-slate-50/50 text-slate-300 hover:border-emerald-300'
+                        }`}
+                      >
+                        {digit || <span className="text-slate-300 font-light text-sm">•</span>}
+                      </div>
+                    );
+                  })}
+                  <input 
+                    id="account-otp-real-input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    autoFocus
+                    value={accountOtpCode}
+                    onChange={(e) => {
+                      setAccountOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                      setAccountOtpError(null);
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    required
+                  />
+                </div>
+              </div>
+
+              {accountOtpError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2 text-xs font-bold">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{accountOtpError}</span>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-[#e7e8ed] flex gap-3 justify-end items-center">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAccountOtpModalOpen(false)} 
+                  className="px-4 py-2.5 border border-[#dbdde4] text-[#121b4b] hover:bg-slate-50 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit"
+                  disabled={verifyingAccountOtp || accountOtpCode.length !== 6}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {verifyingAccountOtp && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Xác nhận & Cập nhật
                 </button>
               </div>
             </form>

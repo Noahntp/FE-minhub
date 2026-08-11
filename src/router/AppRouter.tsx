@@ -27,7 +27,6 @@ const MyCoursesPage = React.lazy(() => import('@/features/courses/MyCoursesPage'
 const FavoritesPage = React.lazy(() => import('@/features/courses/FavoritesPage').then(m => ({ default: m.default })));
 const AchievementsPage = React.lazy(() => import('@/features/profile/AchievementsPage').then(m => ({ default: m.default })));
 const NotificationPage = React.lazy(() => import('@/features/notifications/NotificationPage').then(m => ({ default: m.default })));
-const LearningCalendarPage = React.lazy(() => import('@/features/calendar/LearningCalendarPage').then(m => ({ default: m.default })));
 const CertificateCenterPage = React.lazy(() => import('@/features/certificates/CertificateCenterPage').then(m => ({ default: m.default })));
 const PurchaseHistoryPage = React.lazy(() => import('@/features/purchase-history/PurchaseHistoryPage').then(m => ({ default: m.default })));
 const SettingsPage = React.lazy(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.default })));
@@ -217,6 +216,10 @@ function AppRoutes() {
             {/* Course Discovery & Learning */}
             <Route path="/courses/:courseId" element={<CourseDetailPage />} />
             <Route path="/courses" element={<CourseListPage />} />
+            <Route path="/learn/:courseId" element={<ClassroomPage />} />
+            <Route path="/learning/:courseId" element={<ClassroomPage />} />
+            <Route path="/lessons/:courseId" element={<ClassroomPage />} />
+            <Route path="/learn/lessons/:courseId" element={<ClassroomPage />} />
             <Route path="/category/:slug" element={<CategoryDetailPage />} />
             <Route path="/roadmaps" element={<RoadmapsPage />} />
             <Route path="/roadmaps/:roadmapId" element={<RoadmapDetailPage />} />
@@ -227,7 +230,6 @@ function AppRoutes() {
             <Route path="/favorites" element={isLoggedIn ? <FavoritesPage /> : <Navigate to="/login" replace />} />
             <Route path="/achievements" element={isLoggedIn ? <AchievementsPage /> : <Navigate to="/login" replace />} />
             <Route path="/notifications" element={isLoggedIn ? <NotificationPage /> : <Navigate to="/login" replace />} />
-            <Route path="/calendar" element={isLoggedIn ? <LearningCalendarPage /> : <Navigate to="/login" replace />} />
             <Route path="/certificates" element={isLoggedIn ? <CertificateCenterPage /> : <Navigate to="/login" replace />} />
             <Route path="/purchase-history" element={isLoggedIn ? <PurchaseHistoryPage /> : <Navigate to="/login" replace />} />
             <Route path="/settings" element={isLoggedIn ? <SettingsPage /> : <Navigate to="/login" replace />} />

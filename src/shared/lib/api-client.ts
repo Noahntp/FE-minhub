@@ -111,7 +111,14 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     } catch {
       /* ignore */
     }
-    const errMsg = errJson?.message || errJson?.error || `HTTP error! status: ${response.status}`;
+    let validationMsg = '';
+    if (errJson?.errors && typeof errJson.errors === 'object') {
+      const flattened = Object.values(errJson.errors).flat().filter((val) => typeof val === 'string' && val.trim().length > 0);
+      if (flattened.length > 0) {
+        validationMsg = (flattened as string[]).join('. ');
+      }
+    }
+    const errMsg = validationMsg || errJson?.message || errJson?.error || `HTTP error! status: ${response.status}`;
     devLog('Error Response', errMsg, { status: response.status, url });
     throw new ApiError(errMsg, response.status, errJson?.errors);
   }

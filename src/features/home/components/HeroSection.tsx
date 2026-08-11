@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Search,
@@ -27,8 +28,11 @@ import {
   Check
 } from 'lucide-react';
 
+import { useApp } from '@/app/AppContext';
+
 export function HeroSection() {
   const navigate = useNavigate();
+  const { openTrialModal, openAiModal } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -47,6 +51,24 @@ export function HeroSection() {
     return () => clearInterval(timer);
   }, [isPaused, slidesCount, slideIntervalMs]);
 
+  const handleCopyVoucher = () => {
+    try {
+      navigator.clipboard.writeText('MINDSTART50');
+    } catch (e) {}
+    setCopiedVoucher(true);
+    toast.success('Đã sao chép mã ưu đãi MINDSTART50! Dùng khi thanh toán để được giảm 50% học phí.');
+    setTimeout(() => setCopiedVoucher(false), 3000);
+  };
+
+  const handleApplyVoucher = () => {
+    try {
+      navigator.clipboard.writeText('MINDSTART50');
+      sessionStorage.setItem('mindhub_applied_coupon', 'MINDSTART50');
+    } catch (e) {}
+    toast.success('Đã lưu mã MINDSTART50! Đang chuyển tới danh sách khóa học...');
+    navigate('/courses?coupon=MINDSTART50');
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -58,11 +80,6 @@ export function HeroSection() {
     navigate(`/search?q=${encodeURIComponent(tag)}`);
   };
 
-  const handleCopyVoucher = () => {
-    navigator.clipboard.writeText('MINDSTART50');
-    setCopiedVoucher(true);
-    setTimeout(() => setCopiedVoucher(false), 2000);
-  };
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slidesCount);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slidesCount) % slidesCount);
@@ -202,13 +219,14 @@ export function HeroSection() {
                     >
                       Khám phá khóa học <ArrowRight className="w-4 h-4" />
                     </Link>
-                    <Link
-                      to="/courses?free=true"
-                      className="px-6 py-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold text-sm flex items-center gap-2 active:scale-95 transition-all"
+                    <button
+                      type="button"
+                      onClick={() => openTrialModal()}
+                      className="px-6 py-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-emerald-400 font-bold text-sm flex items-center gap-2 active:scale-95 transition-all cursor-pointer shadow-md"
                     >
                       <PlayCircle className="w-4 h-4 text-emerald-400" />
-                      Học thử miễn phí
-                    </Link>
+                      <span>Học thử miễn phí</span>
+                    </button>
                   </div>
                 </div>
 
@@ -394,18 +412,23 @@ export function HeroSection() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 pt-3">
-                    <Link
-                      to="/roadmaps"
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-400 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 active:scale-95 transition-all flex items-center gap-2"
+                    <button
+                      type="button"
+                      onClick={() => openAiModal()}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-400 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                     >
-                      Trải nghiệm AI & Lộ trình <ArrowRight className="w-4 h-4" />
-                    </Link>
+                      <span>Trải nghiệm AI & Lộ trình</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
                 {/* Right Visual Chat Preview */}
                 <div className="lg:col-span-5 hidden lg:flex justify-center">
-                  <div className="relative w-full max-w-md bg-slate-900 rounded-2xl p-5 border border-cyan-500/30 shadow-2xl space-y-3">
+                  <div
+                    onClick={() => openAiModal()}
+                    className="relative w-full max-w-md bg-slate-900 hover:bg-slate-900/90 rounded-2xl p-5 border border-cyan-500/40 hover:border-cyan-400 shadow-2xl space-y-3 cursor-pointer group transition-all"
+                  >
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
@@ -490,46 +513,61 @@ export function HeroSection() {
 
                 {/* Right Visual Roadmap Card */}
                 <div className="lg:col-span-5 hidden lg:flex justify-center">
-                  <div className="relative w-full max-w-md bg-slate-900 rounded-2xl p-5 border border-amber-500/30 shadow-2xl space-y-3">
+                  <div
+                    onClick={() => navigate('/roadmaps/frontend')}
+                    className="relative w-full max-w-md bg-slate-900 hover:bg-slate-900/90 rounded-2xl p-5 border border-amber-500/30 hover:border-amber-400 shadow-2xl space-y-3 cursor-pointer group transition-all"
+                  >
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-2">
                       <div className="flex items-center gap-2">
-                        <Compass className="w-4 h-4 text-amber-400" />
-                        <span className="text-xs font-bold text-amber-300">Fullstack Web Roadmap</span>
+                        <Compass className="w-4 h-4 text-amber-400 group-hover:rotate-45 transition-transform duration-300" />
+                        <span className="text-xs font-bold text-amber-300 group-hover:text-amber-200">Fullstack Web Roadmap</span>
                       </div>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">4 MILESTONES</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono group-hover:bg-amber-500/30">4 MILESTONES</span>
                     </div>
 
                     <div className="space-y-2.5">
-                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3">
-                        <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center border border-emerald-500/40">1</span>
-                        <div>
-                          <p className="text-xs font-bold text-white">Nền tảng Web & JS ES6+</p>
-                          <p className="text-[11px] text-slate-400">HTML5, CSS3, TailwindCSS, JS DOM</p>
+                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 group-hover:border-slate-700 flex items-center justify-between transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center border border-emerald-500/40">1</span>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-white">Nền tảng Web & JS ES6+</p>
+                            <p className="text-[11px] text-slate-400">HTML5, CSS3, TailwindCSS, JS DOM</p>
+                          </div>
                         </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
                       </div>
 
-                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3">
-                        <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold flex items-center justify-center border border-cyan-500/40">2</span>
-                        <div>
-                          <p className="text-xs font-bold text-white">Frontend Framework</p>
-                          <p className="text-[11px] text-slate-400">React.js, Next.js, Redux Toolkit, React Query</p>
+                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 group-hover:border-slate-700 flex items-center justify-between transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 text-xs font-bold flex items-center justify-center border border-cyan-500/40">2</span>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-white">Frontend Framework</p>
+                            <p className="text-[11px] text-slate-400">React.js, Next.js, Redux Toolkit, React Query</p>
+                          </div>
                         </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
                       </div>
 
-                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3">
-                        <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-center border border-rose-500/40">3</span>
-                        <div>
-                          <p className="text-xs font-bold text-white">Backend & Database</p>
-                          <p className="text-[11px] text-slate-400">Laravel / Node.js, REST API, MySQL, Redis</p>
+                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 group-hover:border-slate-700 flex items-center justify-between transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-center border border-rose-500/40">3</span>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-white">Backend & Database</p>
+                            <p className="text-[11px] text-slate-400">Laravel / Node.js, REST API, MySQL, Redis</p>
+                          </div>
                         </div>
+                        <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
                       </div>
 
-                      <div className="p-2.5 rounded-xl bg-gradient-to-r from-amber-950/40 to-slate-950 border border-amber-500/30 flex items-center gap-3">
-                        <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center border border-amber-500/40">4</span>
-                        <div>
-                          <p className="text-xs font-bold text-amber-300">DevOps & Capstone</p>
-                          <p className="text-[11px] text-slate-400">Docker, CI/CD, Deploy AWS/Vercel & Sẵn sàng đi làm</p>
+                      <div className="p-2.5 rounded-xl bg-gradient-to-r from-amber-950/40 to-slate-950 border border-amber-500/30 flex items-center justify-between transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center border border-amber-500/40">4</span>
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-amber-300">DevOps & Capstone</p>
+                            <p className="text-[11px] text-slate-400">Docker, CI/CD, Deploy AWS/Vercel & Sẵn sàng đi làm</p>
+                          </div>
                         </div>
+                        <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
                   </div>
@@ -584,17 +622,22 @@ export function HeroSection() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <Link
-                      to="/courses"
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 active:scale-95 transition-all flex items-center gap-2"
+                    <button
+                      type="button"
+                      onClick={handleApplyVoucher}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-sm shadow-lg shadow-purple-600/30 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                     >
-                      Áp dụng ngay <ArrowRight className="w-4 h-4" />
-                    </Link>
+                      <span>Áp dụng ngay</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
                 <div className="lg:col-span-5 hidden lg:flex justify-center">
-                  <div className="relative w-full max-w-md bg-gradient-to-br from-purple-900/80 via-slate-900 to-slate-950 rounded-2xl p-6 border border-purple-500/40 shadow-2xl text-center space-y-4">
+                  <div
+                    onClick={handleApplyVoucher}
+                    className="relative w-full max-w-md bg-gradient-to-br from-purple-900/80 via-slate-900 to-slate-950 hover:from-purple-900 hover:via-slate-900 hover:to-slate-900 rounded-2xl p-6 border border-purple-500/40 hover:border-purple-400 shadow-2xl text-center space-y-4 cursor-pointer group transition-all"
+                  >
                     <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300">
                       <Gift className="w-7 h-7" />
                     </div>
