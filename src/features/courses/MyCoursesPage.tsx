@@ -217,76 +217,90 @@ export default function MyCoursesPage() {
       <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
           
-          {/* 1. Header Banner & 3D Graduation Cap Graphic */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-            <div className="space-y-2 text-left z-10">
-              <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-                Khóa học của tôi
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                Theo dõi tiến độ, tiếp tục học và chinh phục mục tiêu của bạn.
-              </p>
-            </div>
+          {/* 1. Ultra-Premium Dark Hero Banner with Brand Emerald Theme & Integrated Live Stats */}
+          <div className="relative bg-gradient-to-br from-[#022822] via-[#043e34] to-[#022822] text-white p-6 sm:p-8 lg:p-10 rounded-3xl shadow-2xl overflow-hidden border border-emerald-500/30">
+            {/* Ambient Mesh Glows */}
+            <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-500/25 rounded-full blur-[90px] pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-teal-400/25 rounded-full blur-[90px] pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:28px_28px] opacity-15 pointer-events-none" />
 
-            {/* 3D Graduation Cap Graphic Container */}
-            <div className="relative w-44 h-28 sm:w-56 sm:h-32 bg-blue-50/80 rounded-2xl flex items-center justify-center border border-blue-100 shrink-0">
-              <div className="absolute -top-3 -right-3 w-10 h-10 bg-blue-100 rounded-full blur-xl"></div>
-              <div className="text-center space-y-1 z-10">
-                <div className="text-4xl sm:text-5xl">🎓</div>
-                <div className="text-[11px] font-extrabold text-blue-700 bg-white/90 px-2.5 py-0.5 rounded-full shadow-xs">
-                  MindHub Learning
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+              
+              {/* Left Column: Title & Description */}
+              <div className="lg:col-span-7 space-y-4 text-left">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-400/40 text-emerald-300 text-xs font-bold shadow-md backdrop-blur-md">
+                  <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>HÀNH TRÌNH HỌC TẬP CỦA BẠN</span>
+                </div>
+
+                <div className="space-y-2">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                    Khóa Học Của Tôi
+                  </h1>
+                  <p className="text-xs sm:text-sm text-emerald-100/90 font-medium leading-relaxed max-w-xl">
+                    Theo dõi tiến độ, tiếp tục các bài giảng dang dở và gặt hái chứng nhận hoàn thành tại MindHub.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <Link
+                    to="/courses"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Rocket className="w-4 h-4" />
+                    <span>Khám phá thêm khóa học mới</span>
+                  </Link>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* 2. Key Learning Metrics (4 Stat Cards) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">{learningCount}</div>
-                <div className="text-xs font-bold text-slate-800 mt-1">Khóa học</div>
-                <div className="text-[11px] text-slate-400 font-medium">Đang theo học</div>
-              </div>
-            </div>
+              {/* Right Column: Integrated Live Stats Widget */}
+              <div className="lg:col-span-5 grid grid-cols-2 gap-3">
+                <div className="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-left space-y-1 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Đang học</span>
+                  </div>
+                  <div className="text-2xl font-black text-white pt-1">{learningCount}</div>
+                  <p className="text-[11px] text-slate-300 font-medium truncate">Khóa học active</p>
+                </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                <Trophy className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">{completedCount}</div>
-                <div className="text-xs font-bold text-slate-800 mt-1">Hoàn thành</div>
-                <div className="text-[11px] text-slate-400 font-medium">Khóa học đã hoàn thành</div>
-              </div>
-            </div>
+                <div className="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-left space-y-1 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                      <Trophy className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Đã xong</span>
+                  </div>
+                  <div className="text-2xl font-black text-white pt-1">{completedCount}</div>
+                  <p className="text-[11px] text-slate-300 font-medium truncate">Cấp chứng nhận</p>
+                </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
-              <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-                <Target className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">{completedCount * 100 + learningCount * 25}</div>
-                <div className="text-xs font-bold text-slate-800 mt-1">XP nhận được</div>
-                <div className="text-[11px] text-slate-400 font-medium">Tiếp tục phát triển!</div>
-              </div>
-            </div>
+                <div className="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-left space-y-1 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 rounded-xl bg-purple-500/20 text-purple-300">
+                      <Target className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300">Điểm XP</span>
+                  </div>
+                  <div className="text-2xl font-black text-white pt-1">{completedCount * 100 + learningCount * 25}</div>
+                  <p className="text-[11px] text-slate-300 font-medium truncate">Học tập tích cực</p>
+                </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center gap-4 text-left">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                <Clock className="w-6 h-6" />
+                <div className="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-left space-y-1 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <div className="p-2 rounded-xl bg-sky-500/20 text-sky-300">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300">Tổng giờ</span>
+                  </div>
+                  <div className="text-2xl font-black text-white pt-1">{learningCount * 15 + completedCount * 25}h</div>
+                  <p className="text-[11px] text-slate-300 font-medium truncate">Thời gian học tập</p>
+                </div>
               </div>
-              <div>
-                <div className="text-2xl font-black text-slate-900 leading-none">{learningCount * 15 + completedCount * 25}h</div>
-                <div className="text-xs font-bold text-slate-800 mt-1">Thời gian học</div>
-                <div className="text-[11px] text-slate-400 font-medium">Tổng thời gian học tập</div>
-              </div>
-            </div>
 
+            </div>
           </div>
 
           {/* 3. Filter Tabs & Sort Control Bar */}
