@@ -25,6 +25,7 @@ import {
   disablePayoutAccountApi
 } from '@/assets/js/api/payout-accounts-api';
 import AdminPagination from "../shared/AdminPagination";
+import FilterSelect from "./FilterSelect";
 
 interface PayoutAccountItem {
   id: number;
@@ -342,320 +343,242 @@ export default function PayoutAccounts() {
   return (
     <div className="relative min-h-screen text-ink pb-12">
       {/* HEADER SECTION */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-mid-gray">
-              <span>Admin</span>
-              <span>&gt;</span>
-              <span className="text-ink">Tài khoản nhận tiền</span>
-            </div>
-            <h1 className="mt-2 text-2xl font-bold text-ink">Tài khoản nhận tiền</h1>
-            <p className="text-xs text-mid-gray mt-1">
-              Theo dõi, xác minh và quản lý tài khoản nhận tiền của giảng viên.
-            </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+        <div>
+          <div className="flex items-center gap-2 text-xs text-mid-gray font-medium uppercase tracking-wider mb-1">
+            <span>DASHBOARD</span>
+            <span>&gt;</span>
+            <span>KINH DOANH</span>
+            <span>&gt;</span>
+            <span className="text-ink">TÀI KHOẢN NHẬN TIỀN</span>
           </div>
+          <h1 className="text-2xl font-bold text-ink">Tài khoản nhận tiền</h1>
+          <p className="text-xs text-mid-gray mt-1">
+            Theo dõi, xác minh và quản lý tài khoản nhận tiền của giảng viên.
+          </p>
+          {lastUpdateTime && (
+            <p className="text-[10px] text-mid-gray italic mt-1">
+              Cập nhật lần cuối: {lastUpdateTime}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
           <button
             onClick={() => loadData(false)}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg border border-hairline bg-paper shadow-sm hover:bg-canvas-alt active:scale-[0.98] transition-all"
+            className="h-9 w-9 flex items-center justify-center rounded-full border border-hairline hover:bg-canvas text-ink shrink-0 transition-colors shadow-sm cursor-pointer"
+            aria-label="Làm mới dữ liệu"
           >
-            <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Làm mới dữ liệu
+            <RotateCw className={`w-4 h-4 transition-transform duration-500 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-
-        {lastUpdateTime && (
-          <span className="text-[10px] text-mid-gray italic">
-            Cập nhật lần cuối lúc: {lastUpdateTime}
-          </span>
-        )}
       </div>
 
       {/* KPI SUMMARY CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mt-6">
         {/* Total Accounts */}
         <div
           onClick={() => handleFilterClick('all', 'Tất cả tài khoản')}
-          className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
-            status === 'all'
-              ? 'bg-paper shadow-md ring-2 ring-ink/10 border-transparent translate-y-[-2px]'
-              : 'bg-paper hover:bg-canvas-alt/50'
-          }`}
+          tabIndex={0}
+          role="button"
+          aria-label="Tất cả tài khoản"
+          className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-mid-gray/60 hover:shadow-md transition-all cursor-pointer min-h-[115px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
         >
-          <p className="text-[10px] font-bold text-mid-gray tracking-wider uppercase">TỔNG TÀI KHOẢN</p>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black">{summary.total_accounts}</span>
-            <span className="text-xs text-mid-gray font-medium">tài khoản</span>
+          <div className="flex items-center justify-between text-mid-gray">
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Tổng tài khoản</span>
+            <svg className="w-4 h-4 text-ink shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path d="M3 21h18" />
+              <path d="M3 10h18" />
+              <path d="M5 6h14" />
+              <path d="M4 10v11" />
+              <path d="M20 10v11" />
+            </svg>
           </div>
-          <p className="text-[11px] text-mid-gray mt-4 truncate">
-            {summary.inactive_count} đã vô hiệu hóa
-          </p>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl lg:text-2xl font-bold text-ink">{summary.total_accounts}</span>
+              <span className="text-xs text-mid-gray">tài khoản</span>
+            </div>
+            <p className="text-[11px] font-medium text-mid-gray mt-1">
+              {summary.inactive_count} tài khoản đã vô hiệu hóa
+            </p>
+          </div>
         </div>
 
         {/* Pending Verification */}
         <div
           onClick={() => handleFilterClick('pending_verification', 'Chờ xác minh')}
-          className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
-            status === 'pending_verification'
-              ? 'bg-paper shadow-md ring-2 ring-amber-500/20 border-transparent translate-y-[-2px]'
-              : 'bg-paper hover:bg-canvas-alt/50'
-          }`}
+          tabIndex={0}
+          role="button"
+          aria-label="Lọc tài khoản chờ xác minh"
+          className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-amber-400 hover:shadow-md transition-all cursor-pointer min-h-[115px] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
         >
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-amber-800/80 tracking-wider uppercase">CHỜ XÁC MINH</p>
-            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">
-              {getPercentage(summary.pending_verification_count)}%
-            </span>
+          <div className="flex items-center justify-between text-mid-gray">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">Chờ xác minh</span>
+            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
           </div>
-          <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-3xl font-black text-amber-700">{summary.pending_verification_count}</span>
-            <span className="text-[11px] text-amber-600/80 font-medium">yêu cầu</span>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-            <div
-              className="bg-amber-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${getPercentage(summary.pending_verification_count)}%` }}
-            ></div>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl lg:text-2xl font-bold text-amber-600">{summary.pending_verification_count}</span>
+              <span className="text-xs font-semibold text-amber-600">{getPercentage(summary.pending_verification_count)}%</span>
+            </div>
+            <div className="w-full bg-canvas rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="bg-amber-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${getPercentage(summary.pending_verification_count)}%` }}></div>
+            </div>
           </div>
         </div>
 
         {/* Active Accounts */}
         <div
           onClick={() => handleFilterClick('active', 'Hoạt động')}
-          className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
-            status === 'active'
-              ? 'bg-paper shadow-md ring-2 ring-emerald-500/20 border-transparent translate-y-[-2px]'
-              : 'bg-paper hover:bg-canvas-alt/50'
-          }`}
+          tabIndex={0}
+          role="button"
+          aria-label="Lọc tài khoản đang hoạt động"
+          className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer min-h-[115px] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
         >
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-emerald-800/80 tracking-wider uppercase">HOẠT ĐỘNG</p>
-            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-              {getPercentage(summary.active_count)}%
-            </span>
+          <div className="flex items-center justify-between text-mid-gray">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Đang hoạt động</span>
+            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
           </div>
-          <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-3xl font-black text-emerald-700">{summary.active_count}</span>
-            <span className="text-[11px] text-emerald-600/80 font-medium">tài khoản</span>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-            <div
-              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${getPercentage(summary.active_count)}%` }}
-            ></div>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl lg:text-2xl font-bold text-emerald-600">{summary.active_count}</span>
+              <span className="text-xs font-semibold text-emerald-600">{getPercentage(summary.active_count)}%</span>
+            </div>
+            <div className="w-full bg-canvas rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${getPercentage(summary.active_count)}%` }}></div>
+            </div>
           </div>
         </div>
 
         {/* Rejected Accounts */}
         <div
           onClick={() => handleFilterClick('rejected', 'Đã từ chối')}
-          className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
-            status === 'rejected'
-              ? 'bg-paper shadow-md ring-2 ring-rose-500/20 border-transparent translate-y-[-2px]'
-              : 'bg-paper hover:bg-canvas-alt/50'
-          }`}
+          tabIndex={0}
+          role="button"
+          aria-label="Lọc tài khoản đã từ chối"
+          className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-rose-400 hover:shadow-md transition-all cursor-pointer min-h-[115px] focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
         >
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-rose-800/80 tracking-wider uppercase">ĐÃ TỪ CHỐI</p>
-            <span className="text-[11px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded-full">
-              {getPercentage(summary.rejected_count)}%
-            </span>
+          <div className="flex items-center justify-between text-mid-gray">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-700">Đã từ chối</span>
+            <span className="h-2 w-2 rounded-full bg-rose-500"></span>
           </div>
-          <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-3xl font-black text-rose-700">{summary.rejected_count}</span>
-            <span className="text-[11px] text-rose-600/80 font-medium">tài khoản</span>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-            <div
-              className="bg-rose-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${getPercentage(summary.rejected_count)}%` }}
-            ></div>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl lg:text-2xl font-bold text-rose-600">{summary.rejected_count}</span>
+              <span className="text-xs font-semibold text-rose-600">{getPercentage(summary.rejected_count)}%</span>
+            </div>
+            <div className="w-full bg-canvas rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="bg-rose-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${getPercentage(summary.rejected_count)}%` }}></div>
+            </div>
           </div>
         </div>
 
         {/* Inactive Accounts */}
         <div
           onClick={() => handleFilterClick('inactive', 'Vô hiệu hóa')}
-          className={`rounded-2xl border border-hairline p-5 shadow-sm transition-all cursor-pointer ${
-            status === 'inactive'
-              ? 'bg-paper shadow-md ring-2 ring-slate-500/20 border-transparent translate-y-[-2px]'
-              : 'bg-paper hover:bg-canvas-alt/50'
-          }`}
+          tabIndex={0}
+          role="button"
+          aria-label="Lọc tài khoản đã vô hiệu hóa"
+          className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle flex flex-col justify-between hover:border-slate-400 hover:shadow-md transition-all cursor-pointer min-h-[115px] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
         >
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-slate-800/80 tracking-wider uppercase">VÔ HIỆU HÓA</p>
-            <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-full">
-              {getPercentage(summary.inactive_count)}%
-            </span>
+          <div className="flex items-center justify-between text-mid-gray">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">Đã vô hiệu hóa</span>
+            <span className="h-2 w-2 rounded-full bg-slate-400"></span>
           </div>
-          <div className="flex items-baseline gap-1 mt-2">
-            <span className="text-3xl font-black text-slate-700">{summary.inactive_count}</span>
-            <span className="text-[11px] text-slate-600/80 font-medium">tài khoản</span>
-          </div>
-          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-            <div
-              className="bg-slate-400 h-full rounded-full transition-all duration-500"
-              style={{ width: `${getPercentage(summary.inactive_count)}%` }}
-            ></div>
+          <div className="mt-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl lg:text-2xl font-bold text-slate-600">{summary.inactive_count}</span>
+              <span className="text-xs font-semibold text-slate-600">{getPercentage(summary.inactive_count)}%</span>
+            </div>
+            <div className="w-full bg-canvas rounded-full h-1.5 mt-2 overflow-hidden">
+              <div className="bg-slate-400 h-1.5 rounded-full transition-all duration-500" style={{ width: `${getPercentage(summary.inactive_count)}%` }}></div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* FILTER & DATA SECTION */}
-      <section
-        id="payout-accounts-list-section"
-        className="rounded-3xl border border-hairline bg-paper shadow-sm mt-8 overflow-hidden"
-      >
-        {/* Filters bar */}
-        <div className="p-6 border-b border-hairline bg-paper flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
-              {/* Keyword Search */}
-              <div className="relative min-w-[200px] flex-1 max-w-sm">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-mid-gray" />
-                <input
-                  id="input-search"
-                  type="text"
-                  placeholder="Tìm kiếm giảng viên, STK, ví..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full pl-10 pr-9 py-2 text-xs rounded-xl border border-hairline bg-paper focus:outline-none focus:ring-1 focus:ring-ink"
-                />
-                {search && (
-                  <button
-                    onClick={() => {
-                      setSearch('');
-                      setPage(1);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-mid-gray hover:text-ink rounded-full"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Provider filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-mid-gray uppercase tracking-wide">CỔNG</span>
-                <select
-                  id="select-provider"
-                  value={provider}
-                  onChange={(e) => {
-                    setProvider(e.target.value);
-                    setPage(1);
-                  }}
-                  className="px-3 py-2 text-xs rounded-xl border border-hairline bg-paper focus:outline-none focus:ring-1 focus:ring-ink"
+      {/* FILTER BAR SECTION */}
+      <div className="rounded-[6px] border border-hairline bg-paper p-3.5 shadow-subtle mt-4">
+        <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-3 lg:flex-row lg:items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+            {/* Ô Tìm kiếm */}
+            <div className="relative flex-1 min-w-[260px] max-w-[460px]">
+              <input
+                type="text"
+                placeholder="Tên/email GV, ngân hàng, chủ tài khoản, STK..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-full h-10 rounded-full border border-hairline bg-canvas pl-9 pr-8 text-xs text-ink placeholder:text-mid-gray/70 focus:border-ink focus:outline-none transition-colors"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mid-gray" />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => { setSearch(''); setPage(1); }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mid-gray hover:text-ink p-0.5"
+                  aria-label="Xóa từ khóa"
                 >
-                  <option value="all">Tất cả cổng / ví</option>
-                  <option value="bank">Ngân hàng (Bank)</option>
-                  <option value="momo">Ví MoMo</option>
-                  <option value="paypal">Cổng PayPal</option>
-                </select>
-              </div>
-
-              {/* Status filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-mid-gray uppercase tracking-wide">TRẠNG THÁI</span>
-                <select
-                  id="select-status"
-                  value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value);
-                    setPage(1);
-                  }}
-                  className="px-3 py-2 text-xs rounded-xl border border-hairline bg-paper focus:outline-none focus:ring-1 focus:ring-ink"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="pending_verification">Chờ xác minh</option>
-                  <option value="active">Đang hoạt động</option>
-                  <option value="rejected">Đã từ chối</option>
-                  <option value="inactive">Đã vô hiệu hóa</option>
-                </select>
-              </div>
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* Clear Filters Button */}
+            {/* Custom Select: Provider */}
+            <div className="w-[180px] shrink-0">
+              <FilterSelect
+                id="select-provider"
+                label=""
+                value={provider}
+                onChange={(val) => { setProvider(val); setPage(1); }}
+                placeholder="Tất cả ngân hàng"
+                options={[
+                  { value: "all", label: "Tất cả ngân hàng" },
+                  { value: "bank", label: "Ngân hàng (Bank)" },
+                  { value: "momo", label: "Ví MoMo" },
+                  { value: "paypal", label: "Cổng PayPal" },
+                ]}
+              />
+            </div>
+
+            {/* Custom Select: Status */}
+            <div className="w-[185px] shrink-0">
+              <FilterSelect
+                id="select-status"
+                label=""
+                value={status}
+                onChange={(val) => { setStatus(val); setPage(1); }}
+                placeholder="Tất cả trạng thái"
+                options={[
+                  { value: "all", label: "Tất cả trạng thái" },
+                  { value: "pending_verification", label: "Chờ xác minh", colorClass: "text-amber-600" },
+                  { value: "active", label: "Đang hoạt động", colorClass: "text-emerald-600" },
+                  { value: "rejected", label: "Đã từ chối", colorClass: "text-rose-600" },
+                  { value: "inactive", label: "Đã vô hiệu hóa", colorClass: "text-slate-600" },
+                ]}
+              />
+            </div>
+
+            {/* Nút Đặt lại Filter */}
             <button
-              id="btn-reset-filters"
+              type="button"
               disabled={!hasFilters}
               onClick={handleResetFilters}
-              className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-all active:scale-[0.98] ${
-                hasFilters
-                  ? 'text-rose-600 border-rose-300 bg-rose-50/20 hover:bg-rose-50/50 cursor-pointer'
-                  : 'text-mid-gray border-hairline opacity-50 cursor-not-allowed bg-paper'
+              className={`h-10 px-4 flex items-center justify-center rounded-[6px] border text-xs font-medium shrink-0 transition-all ml-auto ${
+                hasFilters 
+                  ? 'border-hairline bg-canvas text-rose-600 hover:bg-rose-50 hover:border-rose-200 cursor-pointer' 
+                  : 'border-hairline bg-canvas text-mid-gray opacity-60 cursor-not-allowed'
               }`}
+              title="Đặt lại bộ lọc"
             >
-              Xóa bộ lọc
+              Đặt lại
             </button>
           </div>
+        </form>
+      </div>
 
-          {/* Active chips display */}
-          {hasFilters && (
-            <div id="filter-chips-container" className="flex flex-wrap items-center gap-2 pt-2 border-t border-hairline/50">
-              <span className="text-[10px] font-bold text-mid-gray uppercase tracking-wider mr-1 select-none">
-                Đang lọc:
-              </span>
-
-              {search.trim() !== '' && (
-                <span className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border border-blue-200/80 bg-blue-50/20 text-[11px] font-medium transition-all">
-                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-                  <span className="text-mid-gray/80">Tìm kiếm:</span>
-                  <span className="text-blue-600 font-semibold">{search.trim()}</span>
-                  <button
-                    onClick={() => setSearch('')}
-                    className="p-0.5 text-blue-500 hover:bg-blue-100 hover:text-rose-600 rounded-full transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-
-              {provider !== 'all' && (
-                <span className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border border-slate-200 bg-slate-50/20 text-[11px] font-medium transition-all">
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
-                  <span className="text-mid-gray/80">Cổng:</span>
-                  <span className="text-slate-700 font-semibold">{provider}</span>
-                  <button
-                    onClick={() => setProvider('all')}
-                    className="p-0.5 text-slate-500 hover:bg-slate-100 hover:text-rose-600 rounded-full transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-
-              {status !== 'all' && (
-                <span className={`inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full border ${statusConfig[status]?.bgClass} text-[11px] font-medium transition-all`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${statusConfig[status]?.dotClass}`}></span>
-                  <span className="text-mid-gray/80">Trạng thái:</span>
-                  <span className={`${statusConfig[status]?.textClass} font-semibold`}>
-                    {statusConfig[status]?.label}
-                  </span>
-                  <button
-                    onClick={() => setStatus('all')}
-                    className="p-0.5 text-mid-gray hover:bg-slate-100 hover:text-rose-600 rounded-full transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-
-              {/* Clear All button */}
-              <button
-                onClick={handleResetFilters}
-                className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline px-2.5 py-1 transition-colors cursor-pointer ml-1 select-none"
-              >
-                Xóa tất cả
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Data Table */}
-        <div className="w-full overflow-x-auto relative">
+      {/* TABLE SECTION */}
+      <section id="payout-accounts-list-section" className="space-y-3 mt-4">
+        <div className="rounded-[6px] border border-hairline bg-paper shadow-subtle overflow-hidden relative">
           {isLoading && (
             <div className="absolute inset-0 bg-white/60 z-20 flex items-center justify-center min-h-[300px]">
               <div className="flex flex-col items-center gap-3">

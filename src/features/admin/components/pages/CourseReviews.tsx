@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Filter, RotateCcw } from 'lucide-react';
 import {
   getCourseReviews,
   getCourseReview,
@@ -105,6 +106,26 @@ export default function CourseReviews() {
 
   // Active Dropdown state
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterPopoverRef.current &&
+        !filterPopoverRef.current.contains(event.target as Node)
+      ) {
+        setFilterPopoverOpen(false);
+      }
+    };
+    if (filterPopoverOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [filterPopoverOpen]);
 
   // Card click active filter state (default to pending review)
   const [statusFilter, setStatusFilter] = useState('pending');
@@ -312,9 +333,11 @@ export default function CourseReviews() {
     setPerPage(urlPerPage);
 
     try {
-      getCategories().then((res: any) => {
-        if (res && res.success) {
-          setCategories(res.data.items || res.data || []);
+      getCategories({ per_page: 200 }).then((res: any) => {
+        if (res && Array.isArray(res.data)) {
+          setCategories(res.data.map((c: any) => ({ id: c.id, name: c.name })));
+        } else if (res && res.data && Array.isArray(res.data.items)) {
+          setCategories(res.data.items.map((c: any) => ({ id: c.id, name: c.name })));
         }
       });
     } catch (err) {
@@ -552,6 +575,9 @@ export default function CourseReviews() {
       date_from: '',
       date_to: '',
     });
+    
+    setFilterPopoverOpen(false);
+    setActiveDropdownId(null);
   };
 
   // Auto trigger preset filter if not "custom"
@@ -1203,89 +1229,122 @@ export default function CourseReviews() {
       <section className="rounded-[6px] border border-hairline bg-paper p-4 shadow-subtle">
         <form onSubmit={handleSubmitFilters} className="space-y-3 p-0">
           {/* Grid Layout matching exact courses styling */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_240px_200px_200px_200px] xl:items-end w-full">
-            {/* Tìm kiếm */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor="filter-search" className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
-                Tìm kiếm
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="filter-search"
-                  value={formSearch}
-                  onChange={(e) => setFormSearch(e.target.value)}
-                  placeholder="Tìm theo tên khóa học, slug hoặc giảng viên..."
-                  className="w-full h-10 pl-8 pr-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-mid-gray/40 outline-none text-ink placeholder-mid-gray/70 font-semibold"
-                />
-                <svg className="w-3.5 h-3.5 text-mid-gray/80 absolute left-3 top-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-              </div>
+          <div className="flex flex-wrap items-center gap-[10px] w-full min-w-0">
+            {/* TÌM KIẾM */}
+            <div className="relative w-full sm:w-[360px] max-w-full h-[33px] shrink-0">
+              <svg
+                className="w-3.5 h-3.5 text-mid-gray absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                id="filter-search"
+                value={formSearch}
+                onChange={(e) => setFormSearch(e.target.value)}
+                placeholder="Tìm theo tên khóa học, slug hoặc giảng viên..."
+                className="w-full h-full pl-9 pr-3 text-xs bg-canvas border border-hairline rounded-full focus:outline-none focus:border-ink transition-colors text-ink placeholder:text-mid-gray/70"
+              />
             </div>
 
-            {/* Danh mục */}
-            <div className="flex min-w-0 flex-col gap-1.5">
+            {/* DANH MỤC */}
+            <div className="w-full sm:w-[170px] max-w-full shrink-0">
               <FilterSelect
-                label="Danh mục"
-                placeholder="Tất cả danh mục"
+                label=""
                 value={formCategoryId}
                 options={categoryOptions}
                 onChange={(val) => handleCustomSelectChange('category_id', val)}
+                placeholder="Tất cả danh mục"
                 id="select-category"
                 activeId={activeDropdownId}
                 setActiveId={setActiveDropdownId}
+                className="w-full h-[33px]"
               />
             </div>
 
-            {/* Thời gian */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <FilterSelect
-                label="Thời gian"
-                placeholder="Tất cả thời gian"
-                value={formDatePreset}
-                options={timeOptions}
-                onChange={(val) => handleCustomSelectChange('time_preset', val)}
-                id="select-time"
-                activeId={activeDropdownId}
-                setActiveId={setActiveDropdownId}
-              />
-            </div>
+            {/* Action Group */}
+            <div className="flex items-center gap-2 xl:ml-auto w-full xl:w-auto justify-end shrink-0">
+              {/* Reset Button */}
+              {(formSearch || formCategoryId || formDatePreset !== 'all' || formSort !== 'submitted_desc' || formDateFrom || formDateTo) && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="h-[33px] px-2.5 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-medium text-danger-brick hover:text-red-700 hover:bg-red-50/50 transition-colors border-none cursor-pointer"
+                  title="Đặt lại bộ lọc"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Đặt lại</span>
+                </button>
+              )}
 
-            {/* Sắp xếp */}
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <FilterSelect
-                label="Sắp xếp"
-                placeholder="Gửi gần nhất"
-                value={formSort}
-                options={sortOptions}
-                onChange={(val) => handleCustomSelectChange('sort', val)}
-                id="select-sort"
-                activeId={activeDropdownId}
-                setActiveId={setActiveDropdownId}
-              />
-            </div>
+              {/* Filter Popover Button */}
+              <div className="relative shrink-0" ref={filterPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => setFilterPopoverOpen(!filterPopoverOpen)}
+                  aria-label="Bộ lọc"
+                  className={`relative flex items-center justify-center w-[33px] h-[33px] rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-ink cursor-pointer ${
+                    filterPopoverOpen || (formDatePreset !== 'all' || formSort !== 'submitted_desc')
+                      ? "bg-canvas border-ink text-ink shadow-sm"
+                      : "bg-paper border-hairline text-mid-gray hover:bg-canvas hover:text-ink"
+                  }`}
+                >
+                  <Filter className="w-3.5 h-3.5 text-ink" />
+                  {((formDatePreset !== 'all' ? 1 : 0) + (formSort !== 'submitted_desc' ? 1 : 0)) > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                      {(formDatePreset !== 'all' ? 1 : 0) + (formSort !== 'submitted_desc' ? 1 : 0)}
+                    </span>
+                  )}
+                </button>
 
-            {/* Nút Thao tác */}
-            <div className="flex min-w-0 items-end gap-2 justify-end">
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="px-3.5 py-2 h-10 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer shrink-0"
-              >
-                Đặt lại
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 h-10 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-              >
-                Áp dụng
-              </button>
+                {/* Popover Content */}
+                {filterPopoverOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[280px] z-50 bg-paper border border-hairline rounded-[12px] shadow-lg p-4 animate-in fade-in zoom-in-95 duration-100 text-left">
+                    <div className="space-y-4">
+                      {/* THỜI GIAN */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">Thời gian</label>
+                        <FilterSelect
+                          label=""
+                          value={formDatePreset}
+                          options={timeOptions}
+                          onChange={(val) => handleCustomSelectChange('time_preset', val)}
+                          placeholder="Tất cả thời gian"
+                          id="select-time"
+                          activeId={activeDropdownId}
+                          setActiveId={setActiveDropdownId}
+                          className="w-full h-[33px]"
+                        />
+                      </div>
+
+                      {/* SẮP XẾP */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-mid-gray uppercase tracking-wider mb-2">Sắp xếp theo</label>
+                        <FilterSelect
+                          label=""
+                          value={formSort}
+                          options={sortOptions}
+                          onChange={(val) => handleCustomSelectChange('sort', val)}
+                          placeholder="Gửi gần nhất"
+                          id="select-sort"
+                          activeId={activeDropdownId}
+                          setActiveId={setActiveDropdownId}
+                          className="w-full h-[33px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Hàng bổ sung cho Tùy chọn khoảng thời gian */}
+          {/* Date Picker Row (only when formDatePreset === 'custom') */}
           {formDatePreset === 'custom' && (
             <div id="custom-date-container" className="flex flex-wrap items-center gap-3 pt-3 border-t border-hairline/60 w-full">
               <div className="flex items-center gap-2">
@@ -1297,7 +1356,7 @@ export default function CourseReviews() {
                   id="filter-date-from"
                   value={formDateFrom}
                   onChange={(e) => setFormDateFrom(e.target.value)}
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                  className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -1309,9 +1368,10 @@ export default function CourseReviews() {
                   id="filter-date-to"
                   value={formDateTo}
                   onChange={(e) => setFormDateTo(e.target.value)}
-                  className="h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
+                  className="h-[33px] px-3 text-xs bg-canvas border border-hairline rounded-[6px] outline-none text-ink font-semibold"
                 />
               </div>
+
             </div>
           )}
         </form>
