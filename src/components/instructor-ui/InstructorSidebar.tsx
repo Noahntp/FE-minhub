@@ -48,7 +48,6 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
         <div className="flex items-center justify-between px-2 pb-5 border-b border-slate-100">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
             <img src="/mindhub-logo.png" alt="MindHub Instructor Logo" className="h-10 w-auto object-contain shrink-0" />
-            <span className="text-[10px] text-emerald-700 font-extrabold uppercase tracking-wider block px-1.5 py-0.5 bg-emerald-50 border border-emerald-100 rounded-md">Instructor</span>
           </div>
 
           {/* Close button for mobile drawer */}

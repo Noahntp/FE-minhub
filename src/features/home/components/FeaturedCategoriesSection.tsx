@@ -145,11 +145,17 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
     'bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-600 group-hover:text-white',
   ];
 
+  const cleanSubtitle = (desc?: string) => {
+    if (!desc) return 'Chủ đề phong phú';
+    const cleaned = desc.replace(/^danh\s*mục\s*demo(\s*mindhub)?[:\s]*/i, '').trim();
+    return cleaned || 'Chủ đề phong phú';
+  };
+
   const categories = Array.isArray(apiCategories) && apiCategories.length > 0
     ? apiCategories.map((cat, idx) => ({
         id: String(cat.id || cat.slug || idx),
         title: cat.name || 'Danh mục',
-        subtitle: cat.description || 'Chủ đề phong phú',
+        subtitle: cleanSubtitle(cat.description),
         coursesCount: `${cat.courses_count ?? 0} khóa`,
         icon: icons[idx % icons.length],
         bgColor: bgColors[idx % bgColors.length],

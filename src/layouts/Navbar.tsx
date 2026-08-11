@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, Bell, LogOut, Settings, User, Calendar, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles } from "lucide-react";
+import { Search, Bell, LogOut, Settings, User, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles } from "lucide-react";
 import { useApp } from "@/app/AppContext";
 import { apiFetch } from "@/shared/lib/api-client";
 import { resolveMediaUrl } from "@/shared/utils/format";
@@ -169,6 +169,7 @@ export default function Navbar() {
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-extrabold mx-4">
           <Link to="/courses" className="text-slate-600 hover:text-emerald-600 transition-colors">Khóa học</Link>
+          <Link to="/roadmaps" className="text-slate-600 hover:text-emerald-600 transition-colors">Lộ trình</Link>
           <Link to="/instructors" className="text-slate-600 hover:text-emerald-600 transition-colors">Giảng viên</Link>
           <Link to="/services" className="text-slate-600 hover:text-emerald-600 transition-colors">Dịch vụ</Link>
           <Link to="/faq" className="text-slate-600 hover:text-emerald-600 transition-colors">Hỏi đáp</Link>
@@ -412,11 +413,6 @@ export default function Navbar() {
                       Khám phá khóa học
                     </DropdownMenuItem>
                   )}
-
-                  <DropdownMenuItem onClick={() => navigate("/calendar")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
-                    <Calendar className="mr-2.5 h-4 w-4 text-amber-600" />
-                    Lịch học
-                  </DropdownMenuItem>
 
                   <DropdownMenuItem onClick={() => navigate("/faq")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
                     <HelpCircle className="mr-2.5 h-4 w-4 text-teal-600" />
