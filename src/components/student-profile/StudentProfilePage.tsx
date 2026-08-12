@@ -5,8 +5,8 @@ import { StudentAvatarCard } from './StudentAvatarCard';
 import { StudentStreakCard } from './StudentStreakCard';
 import { StudentPersonalInfoCard } from './StudentPersonalInfoCard';
 import { StudentAccountStatusCard } from './StudentAccountStatusCard';
-import { StudentInstructorWorkspaceCard } from './StudentInstructorWorkspaceCard';
 import { StudentSecurityCard } from './StudentSecurityCard';
+import { StudentBankCard } from './StudentBankCard';
 
 import { resolveMediaUrl } from '@/shared/utils/format';
 
@@ -87,12 +87,6 @@ export const StudentProfilePage: React.FC<StudentProfilePageProps> = ({
         onNavigateTo={navigateTo}
       />
 
-      {/* Instructor Workspace Prompt (ONLY rendered if user has instructor role) */}
-      <StudentInstructorWorkspaceCard
-        currentUser={userState}
-        onNavigateTo={navigateTo}
-      />
-
       {/* Main Grid Content Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (Avatar & Account Verification) */}
@@ -101,6 +95,7 @@ export const StudentProfilePage: React.FC<StudentProfilePageProps> = ({
             currentAvatarUrl={userState?.avatarUrl || userState?.avatar_url || userState?.avatar}
             userName={userState?.name || userState?.full_name}
             userEmail={userState?.email}
+            userRole={userState?.role}
             onAvatarUpdated={handleAvatarUpdated}
             showToast={showToast}
           />
@@ -120,6 +115,12 @@ export const StudentProfilePage: React.FC<StudentProfilePageProps> = ({
         {/* Right Column (Personal Details & Security) */}
         <div className="lg:col-span-7 w-full space-y-6">
           <StudentPersonalInfoCard
+            currentUser={userState}
+            onProfileUpdated={handleProfileUpdated}
+            showToast={showToast}
+          />
+
+          <StudentBankCard
             currentUser={userState}
             onProfileUpdated={handleProfileUpdated}
             showToast={showToast}

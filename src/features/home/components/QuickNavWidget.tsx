@@ -1,5 +1,5 @@
 import React from "react";
-import { Compass, Heart, Settings, User } from "lucide-react";
+import { Compass, Heart, User } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export function QuickNavWidget() {
@@ -7,7 +7,6 @@ export function QuickNavWidget() {
     { icon: <Compass className="w-4 h-4" />, label: "Khám phá", path: "/courses" },
     { icon: <Heart className="w-4 h-4 text-rose-500" />, label: "Đã lưu", path: "/favorites" },
     { icon: <User className="w-4 h-4" />, label: "Hồ sơ cá nhân", path: "/profile" },
-    { icon: <Settings className="w-4 h-4" />, label: "Cài đặt", path: "/settings" },
   ];
 
   return (

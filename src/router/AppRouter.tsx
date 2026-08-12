@@ -29,7 +29,6 @@ const AchievementsPage = React.lazy(() => import('@/features/profile/Achievement
 const NotificationPage = React.lazy(() => import('@/features/notifications/NotificationPage').then(m => ({ default: m.default })));
 const CertificateCenterPage = React.lazy(() => import('@/features/certificates/CertificateCenterPage').then(m => ({ default: m.default })));
 const PurchaseHistoryPage = React.lazy(() => import('@/features/purchase-history/PurchaseHistoryPage').then(m => ({ default: m.default })));
-const SettingsPage = React.lazy(() => import('@/features/settings/SettingsPage').then(m => ({ default: m.default })));
 const SearchPage = React.lazy(() => import('@/features/search/SearchPage').then(m => ({ default: m.default })));
 const AboutPage = React.lazy(() => import('@/pages/AboutPage').then(m => ({ default: m.default })));
 const ServicesPage = React.lazy(() => import('@/pages/ServicesPage').then(m => ({ default: m.default })));
@@ -232,7 +231,7 @@ function AppRoutes() {
             <Route path="/notifications" element={isLoggedIn ? <NotificationPage /> : <Navigate to="/login" replace />} />
             <Route path="/certificates" element={isLoggedIn ? <CertificateCenterPage /> : <Navigate to="/login" replace />} />
             <Route path="/purchase-history" element={isLoggedIn ? <PurchaseHistoryPage /> : <Navigate to="/login" replace />} />
-            <Route path="/settings" element={isLoggedIn ? <SettingsPage /> : <Navigate to="/login" replace />} />
+            <Route path="/settings" element={<Navigate to="/profile" replace />} />
             
             {/* Search Route */}
             <Route path="/search" element={<SearchPage />} />

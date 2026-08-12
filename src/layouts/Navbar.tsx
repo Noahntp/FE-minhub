@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, Bell, LogOut, Settings, User, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles } from "lucide-react";
+import { Search, Bell, LogOut, User, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles } from "lucide-react";
 import { useApp } from "@/app/AppContext";
 import { apiFetch } from "@/shared/lib/api-client";
 import { resolveMediaUrl } from "@/shared/utils/format";
@@ -417,11 +417,6 @@ export default function Navbar() {
                   <DropdownMenuItem onClick={() => navigate("/faq")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
                     <HelpCircle className="mr-2.5 h-4 w-4 text-teal-600" />
                     Hỏi đáp (FAQ)
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem onClick={() => navigate("/settings")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
-                    <Settings className="mr-2.5 h-4 w-4 text-slate-600" />
-                    Cài đặt
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator className="my-1 border-slate-100" />
