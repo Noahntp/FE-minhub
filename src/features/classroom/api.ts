@@ -32,9 +32,12 @@ async verifyClassroomAccess(lessonId: string): Promise<{ has_access: boolean }> 
   return apiFetch<{ has_access: boolean }>(`/learn/lessons/${lessonId}/check-access`);
   },
 
-async markLessonAsComplete(lessonId: string): Promise<{ success: boolean }> {
-  devLog('Learning', `Setting milestone checkmark to Lesson: ${lessonId}`);
-  return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/complete`, { method: 'PATCH' });
+async markLessonAsComplete(lessonId: string, completed: boolean = true): Promise<{ success: boolean }> {
+  devLog('Learning', `Setting milestone checkmark to Lesson: ${lessonId}`, { completed });
+  return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/complete`, {
+    method: 'PATCH',
+    body: JSON.stringify({ completed }),
+  });
   },
 
 async getNextLessonNode(lessonId: string): Promise<any> {
@@ -42,12 +45,16 @@ async getNextLessonNode(lessonId: string): Promise<any> {
   return apiFetch<any>(`/learn/lessons/${lessonId}/next`);
   },
 
-async saveVideoPlaybackRatio(lessonId: string, currentSeconds: number): Promise<{ success: boolean }> {
-  devLog('Learning', `Syncing video playback bookmark: ${lessonId}`, { seconds: currentSeconds });
+async saveVideoPlaybackRatio(lessonId: string, currentSeconds: number, durationSeconds?: number, isCompleted?: boolean): Promise<{ success: boolean }> {
+  devLog('Learning', `Syncing video playback bookmark: ${lessonId}`, { current_second: currentSeconds });
   return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/progress`, {
-          method: 'PATCH',
-          body: JSON.stringify({ current_time: currentSeconds }),
-        });
+    method: 'PATCH',
+    body: JSON.stringify({
+      current_second: Math.round(currentSeconds),
+      duration_second: durationSeconds ? Math.round(durationSeconds) : undefined,
+      is_completed: isCompleted,
+    }),
+  });
   },
 
 async generateSignedAssetUrl(assetId: string): Promise<{ signedUrl: string }> {

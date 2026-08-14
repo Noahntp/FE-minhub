@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Search, Bell, LogOut, User, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles } from "lucide-react";
+import { Search, Bell, LogOut, User, Heart, BookOpen, HelpCircle, CheckCheck, ArrowRight, Sparkles, Shield } from "lucide-react";
 import { useApp } from "@/app/AppContext";
 import { apiFetch } from "@/shared/lib/api-client";
 import { resolveMediaUrl } from "@/shared/utils/format";
@@ -34,20 +34,33 @@ export default function Navbar() {
 
   const fetchNavNotifications = async () => {
     const token = localStorage.getItem('mindhub_api_token');
+    const userRole = currentUser?.role || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('mindhub_current_user') || localStorage.getItem('user') || '{}');
+        return u?.role;
+      } catch {
+        return null;
+      }
+    })();
 
     if (token) {
       try {
-        const [notifRes, courseRes] = await Promise.all([
-          apiFetch<any>('/notifications').catch(() => []),
-          apiFetch<any>('/me/courses').catch(() => [])
-        ]);
+        const promises: Promise<any>[] = [apiFetch<any>('/notifications').catch(() => [])];
+        if (userRole === 'learner') {
+          promises.push(apiFetch<any>('/me/courses').catch(() => []));
+        }
+        const [notifRes, courseRes] = await Promise.all(promises);
 
         const apiList = Array.isArray(notifRes?.data) ? notifRes.data : (Array.isArray(notifRes) ? notifRes : []);
         setNavNotifications(apiList);
         setNavUnreadCount(apiList.filter((n: any) => !n.is_read && !n.read_at).length);
 
-        const courseList = Array.isArray(courseRes?.data) ? courseRes.data : (Array.isArray(courseRes) ? courseRes : []);
-        setHasEnrolledCourses(courseList.length > 0);
+        if (userRole === 'learner') {
+          const courseList = Array.isArray(courseRes?.data) ? courseRes.data : (Array.isArray(courseRes) ? courseRes : []);
+          setHasEnrolledCourses(courseList.length > 0);
+        } else {
+          setHasEnrolledCourses(false);
+        }
         return;
       } catch (e) {
         console.warn('Navbar notification API fetch error:', e);
@@ -62,7 +75,7 @@ export default function Navbar() {
 
     setNavNotifications(localList);
     setNavUnreadCount(localList.filter((n: any) => !n.is_read && !n.read_at).length);
-    setHasEnrolledCourses(enrolledCourseIds.length > 0 || localList.length > 0);
+    setHasEnrolledCourses(userRole === 'learner' && (enrolledCourseIds.length > 0 || localList.length > 0));
   };
 
   useEffect(() => {
@@ -120,22 +133,17 @@ export default function Navbar() {
     setIsSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await apiFetch<any>(`/courses?search=${encodeURIComponent(searchQuery)}`);
+        const res = await apiFetch<any>(`/search/suggestions?q=${encodeURIComponent(searchQuery.trim())}`);
         const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         if (isMounted) {
-          const q = searchQuery.toLowerCase();
-          const filtered = list.filter((c: any) =>
-            (c.title || '').toLowerCase().includes(q) ||
-            (c.instructor?.full_name || '').toLowerCase().includes(q)
-          );
-          setSuggestions(filtered.slice(0, 5));
+          setSuggestions(list);
         }
       } catch (err) {
         if (isMounted) setSuggestions([]);
       } finally {
         if (isMounted) setIsSearching(false);
       }
-    }, 300);
+    }, 250);
 
     return () => {
       isMounted = false;
@@ -188,7 +196,7 @@ export default function Navbar() {
           >
              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 z-10" />
              <Input 
-               placeholder="Tìm kiếm khoá học, giảng viên..."
+               placeholder="Tìm kiếm khoá học, giảng viên, chủ đề..."
                className="w-full bg-slate-100/80 shadow-none appearance-none pl-9 rounded-full h-10 border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500/50 transition-all text-xs font-semibold placeholder:text-slate-400"
                value={searchQuery}
                onChange={(e) => setSearchQuery(e.target.value)}
@@ -209,28 +217,52 @@ export default function Navbar() {
                      <span>Đang tìm kiếm...</span>
                    </div>
                  ) : suggestions.length > 0 ? (
-                   suggestions.map((item: any) => (
-                     <div
-                       key={item.id || item.slug}
-                       onMouseDown={() => {
-                         setIsSearchFocused(false);
-                         navigate(`/courses/${item.slug || item.id}`);
-                       }}
-                       className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-                     >
-                       <img
-                         src={item.thumbnail_url || item.thumbnail || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=150&q=80'}
-                         alt={item.title}
-                         className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
-                       />
-                       <div className="min-w-0 flex-1">
-                         <div className="text-xs font-bold text-slate-900 truncate">{item.title}</div>
-                         <div className="text-[11px] text-slate-400 truncate">
-                           {item.instructor?.full_name || 'Giảng viên MindHub'} • {item.price ? `${Number(item.price).toLocaleString('vi-VN')}đ` : 'Miễn phí'}
+                   suggestions.map((item: any) => {
+                     const isCategory = item.type === 'category';
+                     const displayTitle = item.text || item.title;
+                     const targetUrl = isCategory 
+                       ? `/courses?category=${encodeURIComponent(item.slug || displayTitle)}` 
+                       : `/courses/${item.slug || item.id}`;
+
+                     return (
+                       <div
+                         key={`${item.type || 'course'}-${item.id || item.slug}`}
+                         onMouseDown={() => {
+                           setIsSearchFocused(false);
+                           navigate(targetUrl);
+                         }}
+                         className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+                       >
+                         {isCategory ? (
+                           <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs border border-emerald-100 shrink-0">
+                             <BookOpen className="w-5 h-5" />
+                           </div>
+                         ) : (
+                           <img
+                             src={item.thumbnail_url ? resolveMediaUrl(item.thumbnail_url) : (item.thumbnail ? resolveMediaUrl(item.thumbnail) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=150&q=80')}
+                             alt={displayTitle}
+                             className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
+                           />
+                         )}
+                         <div className="min-w-0 flex-1">
+                           <div className="text-xs font-bold text-slate-900 truncate">{displayTitle}</div>
+                           <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5">
+                             {isCategory ? (
+                               <span className="text-emerald-600 font-medium">Danh mục khóa học</span>
+                             ) : (
+                               <>
+                                 <span>{item.instructor_name || item.instructor?.full_name || 'Giảng viên MindHub'}</span>
+                                 <span>•</span>
+                                 <span className="font-semibold text-slate-700">
+                                   {item.price ? `${Number(item.sale_price || item.price).toLocaleString('vi-VN')}đ` : 'Miễn phí'}
+                                 </span>
+                               </>
+                             )}
+                           </div>
                          </div>
                        </div>
-                     </div>
-                   ))
+                     );
+                   })
                  ) : (
                    <div className="px-4 py-3 text-xs text-slate-500 italic">
                      Không tìm thấy kết quả cho "{searchQuery}"
@@ -256,8 +288,15 @@ export default function Navbar() {
         <div className="flex items-center gap-2.5 ml-auto shrink-0">
           {isLoggedIn ? (
             <>
-              {/* My Courses Link - Only display "Khóa học của tôi" if account has purchased courses */}
-              {hasEnrolledCourses ? (
+              {currentUser?.role === 'admin' ? (
+                <Link
+                  to="/admin"
+                  className="hidden lg:inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                >
+                  <Shield className="w-4 h-4 text-emerald-400" />
+                  <span>Trang Quản trị</span>
+                </Link>
+              ) : hasEnrolledCourses ? (
                 <Link
                   to="/my-courses"
                   className="hidden lg:inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 font-extrabold text-xs border border-emerald-200/80 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95"
@@ -275,14 +314,16 @@ export default function Navbar() {
                 </Link>
               )}
               
-              {/* Favorites Heart Button */}
-              <Link
-                to="/favorites"
-                className="w-9 h-9 rounded-2xl bg-rose-50/90 hover:bg-rose-100 text-rose-600 border border-rose-200/80 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
-                title="Khóa học yêu thích"
-              >
-                <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-              </Link>
+              {/* Favorites Heart Button (Only for Learners) */}
+              {currentUser?.role !== 'admin' && (
+                <Link
+                  to="/favorites"
+                  className="w-9 h-9 rounded-2xl bg-rose-50/90 hover:bg-rose-100 text-rose-600 border border-rose-200/80 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm"
+                  title="Khóa học yêu thích"
+                >
+                  <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+                </Link>
+              )}
 
               {/* Notification Bell Dropdown */}
               <DropdownMenu>
@@ -328,7 +369,7 @@ export default function Navbar() {
                       <div className="p-6 text-center text-xs text-slate-500 space-y-1.5">
                         <Bell className="w-8 h-8 text-slate-300 mx-auto" />
                         <p className="font-bold text-slate-700">Chưa có thông báo mới</p>
-                        <p className="text-[11px] text-slate-400">Bạn chưa đăng ký khóa học nào. Hãy đăng ký khóa học để nhận thông báo mới!</p>
+                        <p className="text-[11px] text-slate-400">Bạn chưa có thông báo mới nào từ hệ thống.</p>
                       </div>
                     ) : (
                       navNotifications.slice(0, 5).map((n) => (
@@ -385,34 +426,48 @@ export default function Navbar() {
                 <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl border border-slate-200/80 shadow-2xl space-y-1">
                   <DropdownMenuLabel className="p-3 bg-slate-50/80 rounded-xl mb-1 border border-slate-100">
                     <div className="flex flex-col space-y-0.5">
-                      <p className="text-xs font-black text-slate-900 truncate">{currentUser?.full_name || currentUser?.name || 'Tài khoản'}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-black text-slate-900 truncate">{currentUser?.full_name || currentUser?.name || 'Tài khoản'}</p>
+                        {currentUser?.role === 'admin' && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-black uppercase bg-slate-900 text-emerald-400 rounded">Admin</span>
+                        )}
+                      </div>
                       {currentUser?.email && (
                         <p className="text-[11px] text-slate-500 font-semibold truncate">{currentUser.email}</p>
                       )}
                     </div>
                   </DropdownMenuLabel>
                   
+                  {currentUser?.role === 'admin' ? (
+                    <DropdownMenuItem onClick={() => navigate("/admin")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100 text-slate-900">
+                      <Shield className="mr-2.5 h-4 w-4 text-emerald-600" />
+                      Trang Quản trị (Admin)
+                    </DropdownMenuItem>
+                  ) : (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate("/favorites")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-rose-50 text-rose-700">
+                        <Heart className="mr-2.5 h-4 w-4 text-rose-500 fill-rose-500" />
+                        Khóa học yêu thích
+                      </DropdownMenuItem>
+
+                      {hasEnrolledCourses ? (
+                        <DropdownMenuItem onClick={() => navigate("/my-courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                          <BookOpen className="mr-2.5 h-4 w-4 text-emerald-600" />
+                          Khóa học của tôi
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => navigate("/courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-emerald-50 text-emerald-700 font-extrabold">
+                          <Sparkles className="mr-2.5 h-4 w-4 text-emerald-600" />
+                          Khám phá khóa học
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  )}
+
                   <DropdownMenuItem onClick={() => navigate("/profile")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
                     <User className="mr-2.5 h-4 w-4 text-emerald-600" />
                     Hồ sơ cá nhân
                   </DropdownMenuItem>
-
-                  <DropdownMenuItem onClick={() => navigate("/favorites")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-rose-50 text-rose-700">
-                    <Heart className="mr-2.5 h-4 w-4 text-rose-500 fill-rose-500" />
-                    Khóa học yêu thích
-                  </DropdownMenuItem>
-
-                  {hasEnrolledCourses ? (
-                    <DropdownMenuItem onClick={() => navigate("/my-courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
-                      <BookOpen className="mr-2.5 h-4 w-4 text-emerald-600" />
-                      Khóa học của tôi
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={() => navigate("/courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-emerald-50 text-emerald-700 font-extrabold">
-                      <Sparkles className="mr-2.5 h-4 w-4 text-emerald-600" />
-                      Khám phá khóa học
-                    </DropdownMenuItem>
-                  )}
 
                   <DropdownMenuItem onClick={() => navigate("/faq")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
                     <HelpCircle className="mr-2.5 h-4 w-4 text-teal-600" />

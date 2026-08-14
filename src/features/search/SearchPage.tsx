@@ -9,6 +9,7 @@ import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { CourseCard } from '@/features/courses/components/CourseCard';
 import { CourseCardSkeleton } from '@/features/courses/components/CourseCardSkeleton';
 import { apiFetch } from '@/shared/lib/api-client';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
@@ -39,14 +40,14 @@ export default function SearchPage() {
           title: c.title || 'Khóa học',
           description: c.description || c.summary || 'Khóa học chất lượng cao',
           instructorName: c.instructor?.full_name || 'Giảng viên MindHub',
-          instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+          instructorAvatar: c.instructor?.avatar_url ? resolveMediaUrl(c.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
           price: Number(c.price || 0),
           salePrice: c.sale_price !== null && c.sale_price !== undefined ? Number(c.sale_price) : undefined,
           rating: Number(c.average_rating || 4.8),
           reviewCount: Number(c.reviews_count || 120),
           studentCount: Number(c.enrollments_count || 1200),
           level: c.level || 'Cơ bản',
-          thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+          thumbnail: c.thumbnail_url ? resolveMediaUrl(c.thumbnail_url) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
           category: c.category?.name || 'Lập trình',
           slug: c.slug || c.id,
         })) : INITIAL_COURSES;

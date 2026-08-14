@@ -306,23 +306,33 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
         // 3. Try to fetch outline syllabus from Backend API (/learn/courses/:id/outline)
         const numericId = parseInt(String(courseId).replace(/\D/g, ''), 10);
         let apiChapters: any[] = [];
+        let backendCompletedLessonIds: string[] = [];
+        let hasBackendOutline = false;
+
         if (!isNaN(numericId) && numericId > 0) {
           try {
             const outlineRes = await classroomApi.getStudentCourseOutline(String(numericId));
             const rawSections = Array.isArray(outlineRes?.data) ? outlineRes.data : (Array.isArray(outlineRes) ? outlineRes : []);
             if (rawSections.length > 0) {
+              hasBackendOutline = true;
               apiChapters = rawSections.map((sec: any, idx: number) => ({
                 id: String(sec.id || `sec-${idx}`),
                 title: sec.title || sec.name || `Chương ${idx + 1}`,
-                lessons: (sec.lessons || sec.items || []).map((l: any, lIdx: number) => ({
-                  id: String(l.id || `l-${idx}-${lIdx}`),
-                  title: l.title || l.name || `Bài ${lIdx + 1}`,
-                  type: 'video',
-                  duration: l.duration ? (typeof l.duration === 'number' ? `${Math.floor(l.duration/60)}:${String(l.duration%60).padStart(2,'0')}` : String(l.duration)) : '12:30',
-                  isPreview: Boolean(l.is_preview),
-                  videoUrl: l.video_url || l.stream_url || 'https://www.w3schools.com/html/mov_bbb.mp4',
-                  content: l.description || l.summary,
-                }))
+                lessons: (sec.lessons || sec.items || []).map((l: any, lIdx: number) => {
+                  const lessonIdStr = String(l.id || `l-${idx}-${lIdx}`);
+                  if (l.progress?.status === 'completed' || l.progress?.completed_at) {
+                    backendCompletedLessonIds.push(lessonIdStr);
+                  }
+                  return {
+                    id: lessonIdStr,
+                    title: l.title || l.name || `Bài ${lIdx + 1}`,
+                    type: 'video',
+                    duration: l.duration ? (typeof l.duration === 'number' ? `${Math.floor(l.duration/60)}:${String(l.duration%60).padStart(2,'0')}` : String(l.duration)) : '12:30',
+                    isPreview: Boolean(l.is_preview),
+                    videoUrl: l.video_url || l.stream_url || 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    content: l.description || l.summary,
+                  };
+                })
               }));
             }
           } catch (e) {
@@ -353,6 +363,11 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
             } catch (e) {}
           }
 
+          // If backend provided progress, prioritize real DB progress and merge
+          const finalCompletedIds = hasBackendOutline 
+            ? Array.from(new Set([...backendCompletedLessonIds, ...savedCompletedIds]))
+            : savedCompletedIds;
+
           // Pick first active lesson
           let firstLesson: Lesson | null = null;
           if (foundCourse.chapters && foundCourse.chapters.length > 0 && foundCourse.chapters[0].lessons.length > 0) {
@@ -364,7 +379,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
           setProgress({
             courseId: foundCourse.id,
             currentLessonId: firstLesson?.id || '',
-            completedLessonIds: savedCompletedIds,
+            completedLessonIds: finalCompletedIds,
             notes: [],
             bookmarks: [],
             lastWatchedProgressSec: 0
@@ -432,7 +447,8 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
 
       // Async sync with API in background
       try {
-        classroomApi.markLessonAsComplete(lessonId).catch(() => {});
+        const isNowCompleted = newCompletedIds.includes(lessonId);
+        classroomApi.markLessonAsComplete(lessonId, isNowCompleted).catch(() => {});
         classroomApi.updateStudentProgress(course.id, {
           completedLessonIds: newCompletedIds,
         }).catch(() => {});

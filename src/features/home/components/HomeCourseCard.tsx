@@ -32,7 +32,7 @@ interface HomeCourseCardProps {
 
 export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
   const navigate = useNavigate();
-  const { favorites, setFavorites } = useApp();
+  const { favorites, setFavorites, currentUser } = useApp();
 
   const isWishlisted =
     favorites.includes(course.id) ||
@@ -54,6 +54,11 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (currentUser?.role === 'admin') {
+      toast.error('Tài khoản Quản trị viên (Admin) không sử dụng danh sách yêu thích.');
+      return;
+    }
 
     const targetId = course.realId || (course as any).course_id || course.id;
     const nextState = !isWishlisted;
@@ -89,6 +94,12 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
   const handleBuyNow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (currentUser?.role === 'admin') {
+      toast.error('Tài khoản Quản trị viên (Admin) không thực hiện mua khóa học.');
+      return;
+    }
+
     if (course.isFree || course.price === 0) {
       toast.success(`Đăng ký tham gia khóa học miễn phí thành công: ${course.title}`);
       navigate(`/learn/${courseTarget}`);

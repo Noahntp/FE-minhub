@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { apiFetch } from '@/shared/lib/api-client';
 import { useApp } from '@/app/AppContext';
+import { resolveMediaUrl } from '@/shared/utils/format';
 import {
   BookOpen,
   Trophy,
@@ -136,8 +137,8 @@ export default function MyCoursesPage() {
                 badgeText: isCompleted ? 'Hoàn thành' : 'Đang học',
                 badgeType: isCompleted ? 'completed' : 'learning',
                 instructorName: c.instructor?.full_name || c.instructor_name || 'Giảng viên MindHub',
-                instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-                thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+                instructorAvatar: c.instructor?.avatar_url ? resolveMediaUrl(c.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+                thumbnail: c.thumbnail_url ? resolveMediaUrl(c.thumbnail_url) : 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
                 progress: progress,
                 lessonsCount: c.lessons_count || (c.total_duration_seconds ? Math.max(12, Math.round(c.total_duration_seconds / 900)) : 40),
                 duration: c.total_duration_seconds

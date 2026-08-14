@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { resolveMediaUrl } from '@/shared/utils/format';
 import {
   Star,
   PlayCircle,
@@ -146,7 +147,7 @@ export default function CourseDetailPage() {
     }
   }, [course, courseId, navigate]);
 
-  const { cart, setCart, enrolledCourseIds, setEnrolledCourseIds, openTrialModal } = useApp();
+  const { cart, setCart, enrolledCourseIds, setEnrolledCourseIds, openTrialModal, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'instructor' | 'reviews' | 'faq'>('overview');
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({
     ch1: true,
@@ -187,24 +188,29 @@ export default function CourseDetailPage() {
       .catch(() => {});
 
     // Fetch course reviews
-    apiFetch<any>(`/courses/${course.id}/reviews?per_page=100`)
-      .then((res) => {
-        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        if (list.length > 0) {
-          const mappedReviews = list.map((rev: any) => ({
-            id: rev.id,
-            name: rev.reviewer?.full_name || rev.order?.user?.full_name || rev.user?.full_name || 'Học viên MindHub',
-            avatar: rev.reviewer?.avatar_url || rev.order?.user?.avatar_url || rev.user?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-            date: rev.created_at ? new Date(rev.created_at).toLocaleDateString('vi-VN') : 'vừa xong',
-            content: rev.comment || 'Khóa học tuyệt vời và mang lại nhiều giá trị.',
-            rating: Number(rev.rating || 5),
-            helpfulCount: rev.helpful_count || 12,
-          }));
-          setApiReviewsList(mappedReviews);
-          setTotalReviewsCount(res?.meta?.total || list.length);
-        }
-      })
-      .catch(() => {});
+    if (course?.id) {
+      apiFetch<any>(`/courses/${course.id}/reviews?per_page=100`)
+        .then((res) => {
+          const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+          if (list.length > 0) {
+            const mappedReviews = list.map((rev: any) => {
+              const rawAvatar = rev.reviewer?.avatar_url || rev.order?.user?.avatar_url || rev.user?.avatar_url;
+              return {
+                id: rev.id,
+                name: rev.reviewer?.full_name || rev.order?.user?.full_name || rev.user?.full_name || 'Học viên MindHub',
+                avatar: rawAvatar ? resolveMediaUrl(rawAvatar) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+                date: rev.created_at ? new Date(rev.created_at).toLocaleDateString('vi-VN') : 'vừa xong',
+                content: rev.comment || 'Khóa học tuyệt vời và mang lại nhiều giá trị.',
+                rating: Number(rev.rating || 5),
+                helpfulCount: rev.helpful_count || 12,
+              };
+            });
+            setApiReviewsList(mappedReviews);
+            setTotalReviewsCount(res?.meta?.total || list.length);
+          }
+        })
+        .catch(() => {});
+    }
   }, [course?.id]);
 
   // Live Countdown Timer state (02 Days, 15 Hours, 30 Mins, 45 Secs)
@@ -251,6 +257,10 @@ export default function CourseDetailPage() {
 
   const handleAddToCart = () => {
     if (!course) return;
+    if (currentUser?.role === 'admin') {
+      toast.error('Tài khoản Quản trị viên (Admin) không thực hiện mua khóa học.');
+      return;
+    }
     if (!cart.includes(course.id)) {
       setCart([...cart, course.id]);
     }
@@ -260,6 +270,10 @@ export default function CourseDetailPage() {
 
   const handleEnrollNow = () => {
     if (!course) return;
+    if (currentUser?.role === 'admin') {
+      toast.error('Tài khoản Quản trị viên (Admin) không thực hiện mua khóa học hoặc tham gia học.');
+      return;
+    }
     const isFreeCourse = Boolean((course as any).isFree || Number(course.price || 0) === 0);
     if (isFreeCourse) {
       if (!enrolledCourseIds.includes(course.id)) {
@@ -277,6 +291,10 @@ export default function CourseDetailPage() {
 
   const handleToggleWishlist = async () => {
     if (!course) return;
+    if (currentUser?.role === 'admin') {
+      toast.error('Tài khoản Quản trị viên (Admin) không sử dụng danh sách yêu thích.');
+      return;
+    }
     const nextState = !isWishlisted;
     setIsWishlisted(nextState);
     if (nextState) {
