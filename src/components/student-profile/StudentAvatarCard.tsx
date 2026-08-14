@@ -6,6 +6,7 @@ interface StudentAvatarCardProps {
   currentAvatarUrl?: string | null;
   userName?: string;
   userEmail?: string;
+  userRole?: string;
   onAvatarUpdated: (newAvatarUrl: string | null) => void;
   showToast: (message: string, type?: 'success' | 'error') => void;
 }
@@ -20,8 +21,9 @@ const PRESET_OPTIONS = [
 
 export const StudentAvatarCard: React.FC<StudentAvatarCardProps> = ({
   currentAvatarUrl,
-  userName = 'Học viên',
+  userName = 'Người dùng',
   userEmail = '',
+  userRole = 'student',
   onAvatarUpdated,
   showToast
 }) => {
@@ -141,7 +143,7 @@ export const StudentAvatarCard: React.FC<StudentAvatarCardProps> = ({
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <h3 className="text-xl font-bold text-slate-900">{userName}</h3>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Học viên
+                {userRole === 'instructor' ? 'Giảng viên' : userRole === 'admin' ? 'Quản trị viên' : 'Học viên'}
               </span>
             </div>
             {userEmail && <p className="text-xs text-slate-500 font-medium mt-0.5">{userEmail}</p>}

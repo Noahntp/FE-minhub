@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Globe, Facebook, Linkedin, Youtube, Check, Loader2, Award } from 'lucide-react';
+import { Briefcase, Globe, Facebook, Linkedin, Youtube, Check, Loader2, Award, CreditCard, Copy } from 'lucide-react';
 import { instructorApi } from '@/features/instructor/api';
+
+const getBankLogoUrl = (bankNameOrCode?: string): string => {
+  if (!bankNameOrCode) return 'https://cdn.vietqr.io/img/TCB.png';
+  const str = bankNameOrCode.toLowerCase();
+  if (str.includes('techcom') || str.includes('tcb')) return 'https://cdn.vietqr.io/img/TCB.png';
+  if (str.includes('vietcom') || str.includes('vcb')) return 'https://cdn.vietqr.io/img/VCB.png';
+  if (str.includes('mb') || str.includes('quân đội')) return 'https://cdn.vietqr.io/img/MB.png';
+  if (str.includes('vietin') || str.includes('icb') || str.includes('công thương')) return 'https://cdn.vietqr.io/img/ICB.png';
+  if (str.includes('bidv') || str.includes('đầu tư')) return 'https://cdn.vietqr.io/img/BIDV.png';
+  if (str.includes('agri') || str.includes('nông nghiệp') || str.includes('vba')) return 'https://cdn.vietqr.io/img/VBA.png';
+  if (str.includes('acb') || str.includes('á châu')) return 'https://cdn.vietqr.io/img/ACB.png';
+  if (str.includes('vpbank') || str.includes('vpb') || str.includes('thịnh vượng')) return 'https://cdn.vietqr.io/img/VPB.png';
+  if (str.includes('tpbank') || str.includes('tpb') || str.includes('tiên phong')) return 'https://cdn.vietqr.io/img/TPB.png';
+  if (str.includes('sacom') || str.includes('stb')) return 'https://cdn.vietqr.io/img/STB.png';
+  if (str.includes('vib')) return 'https://cdn.vietqr.io/img/VIB.png';
+  if (str.includes('msb') || str.includes('hàng hải')) return 'https://cdn.vietqr.io/img/MSB.png';
+  if (str.includes('ocb') || str.includes('phương đông')) return 'https://cdn.vietqr.io/img/OCB.png';
+  if (str.includes('hdbank') || str.includes('hdb')) return 'https://cdn.vietqr.io/img/HDB.png';
+  if (str.includes('shb')) return 'https://cdn.vietqr.io/img/SHB.png';
+  if (str.includes('lpb') || str.includes('liên việt') || str.includes('lpbank')) return 'https://cdn.vietqr.io/img/LPB.png';
+  if (str.includes('exim') || str.includes('eib')) return 'https://cdn.vietqr.io/img/EIB.png';
+  return 'https://cdn.vietqr.io/img/TCB.png';
+};
 
 interface ProfessionalProfileTabProps {
   currentUser: any;
@@ -26,6 +49,12 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
     youtube: currentUser?.youtube || 'https://youtube.com/@mindhub'
   });
 
+  const [bankInfo, setBankInfo] = useState({
+    bankName: currentUser?.bank_name || currentUser?.payout_account?.bank_name || 'Techcombank',
+    accountNumber: currentUser?.account_number || currentUser?.payout_account?.account_number || '1903 8888 9999 68',
+    accountName: currentUser?.account_name || currentUser?.payout_account?.account_name || currentUser?.full_name || 'NGUYEN VAN A'
+  });
+
   const [initialForm, setInitialForm] = useState({ ...form });
 
   useEffect(() => {
@@ -49,6 +78,13 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
           };
           setForm(loaded);
           setInitialForm(loaded);
+          if (data.bank_name || data.account_number || data.payout_account) {
+            setBankInfo({
+              bankName: data.bank_name || data.payout_account?.bank_name || 'Techcombank',
+              accountNumber: data.account_number || data.payout_account?.account_number || '1903 8888 9999 68',
+              accountName: data.account_name || data.payout_account?.account_name || data.full_name || 'NGUYEN VAN A'
+            });
+          }
         }
       } catch (err) {
         console.warn('Fallback to current user context for professional profile:', err);
@@ -254,6 +290,48 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
             />
           </div>
         </div>
+      </div>
+
+      {/* Section 4: Tài khoản ngân hàng nhận thanh toán */}
+      <div className="bg-white rounded-2xl border border-[#e7e8ed] p-5 shadow-xs">
+        <h2 className="text-xs font-black uppercase tracking-wider text-[#06091a] mb-4 pb-2 border-b border-[#e7e8ed] flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-[#007A64]" /> Tài khoản ngân hàng nhận thanh toán
+        </h2>
+        <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-[#e7e8ed] flex items-center gap-4">
+          <div className="w-28 h-18 sm:w-32 sm:h-20 rounded-xl bg-white p-2.5 border border-[#dbdde4] shadow-2xs flex items-center justify-center shrink-0">
+            <img
+              src={getBankLogoUrl(bankInfo.bankName)}
+              alt={bankInfo.bankName}
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://cdn.vietqr.io/img/TCB.png';
+              }}
+            />
+          </div>
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="text-xs font-black text-[#007A64] uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/80 inline-block">
+              {bankInfo.bankName}
+            </div>
+            <div className="font-mono font-black text-[#06091a] text-base sm:text-lg tracking-wider flex items-center gap-2">
+              <span>{bankInfo.accountNumber}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(bankInfo.accountNumber.replace(/\s+/g, ''));
+                  showToast('Đã sao chép số tài khoản!');
+                }}
+                className="p-1 rounded text-[#737373] hover:text-[#007A64] transition-colors cursor-pointer"
+                title="Sao chép STK"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-xs font-semibold text-[#595959] uppercase">
+              {bankInfo.accountName}
+            </div>
+          </div>
+        </div>
+      </div>
 
         {/* Submit Controls */}
         <div className="pt-5 mt-4 border-t border-[#e7e8ed] flex items-center justify-end gap-3">
@@ -276,7 +354,6 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
             {saving ? 'Đang lưu...' : 'Cập nhật hồ sơ chuyên môn'}
           </button>
         </div>
-      </div>
     </form>
   );
 };

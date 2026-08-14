@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
-import { Star, Users, PlayCircle, Award, MessageCircle, MapPin, Globe, CheckCircle2, BookOpen, ShieldCheck, Sparkles, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, Users, PlayCircle, Award, MessageCircle, MapPin, Globe, CheckCircle2, BookOpen, ShieldCheck, Sparkles, ExternalLink, ChevronLeft, ChevronRight, CreditCard, Copy } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { ReviewList } from '@/features/reviews/ReviewList';
 import { apiFetch } from '@/shared/lib/api-client';
@@ -102,6 +102,29 @@ const FALLBACK_INSTRUCTOR_COURSES: HomeCourseItem[] = [
 
 const ITEMS_PER_PAGE = 4;
 
+const getBankLogoUrl = (bankNameOrCode?: string): string => {
+  if (!bankNameOrCode) return 'https://cdn.vietqr.io/img/TCB.png';
+  const str = bankNameOrCode.toLowerCase();
+  if (str.includes('techcom') || str.includes('tcb')) return 'https://cdn.vietqr.io/img/TCB.png';
+  if (str.includes('vietcom') || str.includes('vcb')) return 'https://cdn.vietqr.io/img/VCB.png';
+  if (str.includes('mb') || str.includes('quân đội')) return 'https://cdn.vietqr.io/img/MB.png';
+  if (str.includes('vietin') || str.includes('icb') || str.includes('công thương')) return 'https://cdn.vietqr.io/img/ICB.png';
+  if (str.includes('bidv') || str.includes('đầu tư')) return 'https://cdn.vietqr.io/img/BIDV.png';
+  if (str.includes('agri') || str.includes('nông nghiệp') || str.includes('vba')) return 'https://cdn.vietqr.io/img/VBA.png';
+  if (str.includes('acb') || str.includes('á châu')) return 'https://cdn.vietqr.io/img/ACB.png';
+  if (str.includes('vpbank') || str.includes('vpb') || str.includes('thịnh vượng')) return 'https://cdn.vietqr.io/img/VPB.png';
+  if (str.includes('tpbank') || str.includes('tpb') || str.includes('tiên phong')) return 'https://cdn.vietqr.io/img/TPB.png';
+  if (str.includes('sacom') || str.includes('stb')) return 'https://cdn.vietqr.io/img/STB.png';
+  if (str.includes('vib')) return 'https://cdn.vietqr.io/img/VIB.png';
+  if (str.includes('msb') || str.includes('hàng hải')) return 'https://cdn.vietqr.io/img/MSB.png';
+  if (str.includes('ocb') || str.includes('phương đông')) return 'https://cdn.vietqr.io/img/OCB.png';
+  if (str.includes('hdbank') || str.includes('hdb')) return 'https://cdn.vietqr.io/img/HDB.png';
+  if (str.includes('shb')) return 'https://cdn.vietqr.io/img/SHB.png';
+  if (str.includes('lpb') || str.includes('liên việt') || str.includes('lpbank')) return 'https://cdn.vietqr.io/img/LPB.png';
+  if (str.includes('exim') || str.includes('eib')) return 'https://cdn.vietqr.io/img/EIB.png';
+  return 'https://cdn.vietqr.io/img/TCB.png';
+};
+
 export default function InstructorProfilePage() {
   const { instructorId } = useParams();
   const [activeTab, setActiveTab] = useState<'courses' | 'reviews'>('courses');
@@ -163,6 +186,9 @@ export default function InstructorProfilePage() {
     website: instructorData?.instructor_profile?.website || instructorData?.website || 'https://mindhub.vn',
     companies: ['VNG Corporation', 'VinAI Research', 'FPT Software'],
     skills: parsedSkills,
+    bankName: instructorData?.bank_name || instructorData?.instructor_profile?.bank_name || instructorData?.payout_account?.bank_name || instructorData?.payout_account?.bank_code || instructorData?.bank_code || 'Techcombank',
+    accountNumber: instructorData?.account_number || instructorData?.instructor_profile?.account_number || instructorData?.payout_account?.account_number || '1903 8888 9999 68',
+    accountName: instructorData?.account_name || instructorData?.instructor_profile?.account_name || instructorData?.payout_account?.account_name || instructorData?.full_name || instructorData?.name || 'NGUYEN VAN A',
   };
 
   const handleFollowToggle = () => {
@@ -457,6 +483,57 @@ export default function InstructorProfilePage() {
                     {skill}
                   </span>
                 ))}
+              </div>
+            </div>
+
+            {/* Card 3: Tài khoản ngân hàng nhận thanh toán */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-emerald-600" /> Tài khoản thanh toán
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-100">
+                  Đã xác minh
+                </span>
+              </div>
+
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-emerald-50/20 to-slate-50 border border-slate-200/70 flex items-center gap-4 shadow-xs">
+                <div className="w-24 h-16 sm:w-28 sm:h-18 rounded-2xl bg-white p-2 border border-slate-200 shadow-sm flex items-center justify-center shrink-0">
+                  <img
+                    src={getBankLogoUrl(instructor.bankName)}
+                    alt={instructor.bankName}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://cdn.vietqr.io/img/TCB.png';
+                    }}
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/80 truncate">
+                      {instructor.bankName}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(instructor.accountNumber.replace(/\s+/g, ''));
+                        toast.success('Đã sao chép số tài khoản!');
+                      }}
+                      className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white transition-colors cursor-pointer"
+                      title="Sao chép số tài khoản"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="font-mono font-black text-slate-900 text-base sm:text-lg tracking-wider">
+                    {instructor.accountNumber}
+                  </div>
+
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide truncate">
+                    {instructor.accountName}
+                  </p>
+                </div>
               </div>
             </div>
 

@@ -1,5 +1,6 @@
 import React from 'react';
-import { User, ShieldCheck, ChevronRight, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, ShieldCheck, ChevronRight, Sparkles, LayoutDashboard, ArrowRight } from 'lucide-react';
 
 interface StudentProfileHeaderProps {
   status?: string;
@@ -12,6 +13,16 @@ export const StudentProfileHeader: React.FC<StudentProfileHeaderProps> = ({
   role = 'student',
   onNavigateTo
 }) => {
+  const navigate = useNavigate();
+
+  const handleGoToInstructorDashboard = () => {
+    if (onNavigateTo) {
+      onNavigateTo('/instructor/dashboard');
+    } else {
+      navigate('/instructor/dashboard');
+    }
+  };
+
   return (
     <header className="mb-8">
       {/* Breadcrumb Navigation */}
@@ -39,20 +50,34 @@ export const StudentProfileHeader: React.FC<StudentProfileHeaderProps> = ({
               Hồ sơ cá nhân
             </h1>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              <Sparkles className="w-3.5 h-3.5" /> Học viên
+              <Sparkles className="w-3.5 h-3.5" /> {role === 'instructor' ? 'Giảng viên' : role === 'admin' ? 'Quản trị viên' : 'Học viên'}
             </span>
           </div>
           <p className="text-sm text-slate-300 max-w-xl font-medium leading-relaxed">
-            Quản lý thông tin tài khoản, ảnh đại diện, xác minh thông tin và cài đặt mật khẩu của bạn.
+            {role === 'instructor' 
+              ? 'Quản lý thông tin tài khoản, thông tin thanh toán, ảnh đại diện và cài đặt mật khẩu của bạn.' 
+              : 'Quản lý thông tin tài khoản, ảnh đại diện, xác minh thông tin và cài đặt mật khẩu của bạn.'}
           </p>
         </div>
 
-        {/* Status Badge */}
-        <div className="shrink-0 relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700 text-xs font-bold text-slate-200">
+        {/* Action Controls & Status Badge */}
+        <div className="flex flex-wrap sm:flex-col items-start sm:items-end gap-3 shrink-0 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-700 text-xs font-bold text-slate-200">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>Tài khoản hoạt động</span>
           </div>
+
+          {(role === 'instructor' || role === 'admin') && (
+            <button
+              type="button"
+              onClick={handleGoToInstructorDashboard}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-2 border border-indigo-400/30 active:scale-95"
+            >
+              <LayoutDashboard className="w-4 h-4 text-indigo-200" />
+              <span>Dashboard Giảng viên</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
     </header>
