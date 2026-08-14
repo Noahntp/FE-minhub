@@ -389,6 +389,16 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
     initLoad();
   }, [fetchSummaryAndAccounts, fetchHistoryList]);
 
+  // Refresh on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchSummaryAndAccounts();
+      fetchHistoryList(1, historyTab, statusFilter);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchSummaryAndAccounts, fetchHistoryList, historyTab, statusFilter]);
+
   // Handle Tab Change
   const handleTabChange = (tab: 'automatic' | 'early') => {
     setHistoryTab(tab);
