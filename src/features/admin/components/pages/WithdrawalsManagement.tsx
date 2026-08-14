@@ -1330,33 +1330,26 @@ export default function WithdrawalsManagement() {
                       Số dư khả dụng trước rút:
                     </span>
                     <span className="font-semibold text-ink">
-                      {formatVND(
-                        detail.balance_snapshot?.available_balance_before,
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-mid-gray">Số tiền đang giữ:</span>
-                    <span className="font-semibold text-amber-600">
-                      {formatVND(
-                        detail.balance_snapshot?.holding_balance_before,
-                      )}
+                      {detail.balance_snapshot?.available_balance_before != null 
+                        ? formatVND(detail.balance_snapshot.available_balance_before) 
+                        : "—"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-hairline/50">
                     <span className="text-mid-gray font-medium">
-                      Số dư khả dụng còn lại:
+                      Số dư khả dụng sau khi giữ:
                     </span>
                     <span className="font-semibold text-emerald-600">
-                      {formatVND(
-                        detail.balance_snapshot?.available_balance_after,
-                      )}
+                      {detail.balance_snapshot?.available_balance_after != null 
+                        ? formatVND(detail.balance_snapshot.available_balance_after) 
+                        : "—"}
                     </span>
                   </div>
                 </div>
 
-                {detail.balance_snapshot?.available_balance_before <
-                  detail.amount && (
+                {["pending", "approved"].includes(detail.status) && 
+                  detail.balance_snapshot?.available_balance_before != null &&
+                  detail.balance_snapshot.available_balance_before < detail.amount && (
                   <div className="p-2.5 rounded-[6px] bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-snug">
                     ⚠️ Số dư khả dụng của tài khoản thấp hơn số tiền yêu cầu.
                     Cần kiểm tra đối soát trước khi duyệt.
