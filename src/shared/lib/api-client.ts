@@ -20,7 +20,7 @@ export function getNormalizedBaseUrl(rawUrl?: string): string {
   return url;
 }
 
-const initialMode = (import.meta as any).env?.VITE_API_MODE === 'api' ? 'api' : 'mock';
+const initialMode = (import.meta as any).env?.VITE_API_MODE === 'mock' ? 'mock' : 'api';
 
 const initialBaseUrl = getNormalizedBaseUrl(
   localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL
@@ -35,8 +35,9 @@ const config: ApiConfig = {
 
 const devLog = (category: string, action: string, payload?: any) => {
   if (config.isLogEnabled) {
+    const modeLabel = config.mode === 'api' ? 'REAL' : 'MOCK';
     console.log(
-      `%c[API ${config.mode.toUpperCase()}] %c${category} -> ${action}`,
+      `%c[API ${modeLabel}] %c${category} -> ${action}`,
       'color: #8b5e3c; font-weight: bold;',
       'color: #10b981;',
       payload || ''
