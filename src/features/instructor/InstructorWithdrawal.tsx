@@ -389,6 +389,16 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
     initLoad();
   }, [fetchSummaryAndAccounts, fetchHistoryList]);
 
+  // Refresh on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchSummaryAndAccounts();
+      fetchHistoryList(1, historyTab, statusFilter);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchSummaryAndAccounts, fetchHistoryList, historyTab, statusFilter]);
+
   // Handle Tab Change
   const handleTabChange = (tab: 'automatic' | 'early') => {
     setHistoryTab(tab);
@@ -1484,6 +1494,14 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
                       {PAYOUT_STATUS_LABELS[selectedItem.status]?.label || selectedItem.status}
                     </span>
                   </div>
+                  {selectedItem.payout_mode && (
+                    <div className="col-span-2 sm:col-span-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Phương thức chi trả</span>
+                      <span className="font-bold text-slate-900 text-xs block mt-0.5">
+                        {selectedItem.payout_mode === 'auto' ? 'Tự động' : (selectedItem.payout_mode === 'manual' ? 'Thủ công' : 'Không xác định')}
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Số tiền giải ngân</span>
                     <span className="font-black text-blue-600 text-base block mt-0.5">{formatVND(selectedItem.amount)}</span>

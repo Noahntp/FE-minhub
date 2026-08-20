@@ -84,8 +84,8 @@ const STATUS_MAP: Record<
   },
   cancelled: {
     label: "Đã hủy",
-    color: "text-mid-gray bg-paper border-hairline",
-    dot: "bg-mid-gray",
+    color: "text-rose-700 bg-paper border-hairline",
+    dot: "bg-rose-500",
   },
 };
 
@@ -1123,14 +1123,26 @@ export default function WithdrawalsManagement() {
                         </span>
                       </td>
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${badge.color}`}
-                        >
+                        <div className="flex flex-col gap-1.5 items-center">
                           <span
-                            className={`h-1.5 w-1.5 rounded-full ${badge.dot} shrink-0`}
-                          />
-                          <span>{badge.label}</span>
-                        </span>
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${badge.color}`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${badge.dot} shrink-0`}
+                            />
+                            <span>{badge.label}</span>
+                          </span>
+                          {item.payout_mode === 'auto' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                              AUTO
+                            </span>
+                          )}
+                          {item.payout_mode === 'manual' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                              MANUAL
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         <span className="inline-flex items-center px-2 py-1 rounded-[6px] border border-hairline bg-paper text-[11px] font-medium text-mid-gray">
@@ -1248,11 +1260,23 @@ export default function WithdrawalsManagement() {
                 Chi tiết yêu cầu rút tiền
               </h2>
               {detail && (
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_MAP[detail.status]?.color}`}
-                >
-                  {STATUS_MAP[detail.status]?.label}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_MAP[detail.status]?.color}`}
+                  >
+                    {STATUS_MAP[detail.status]?.label}
+                  </span>
+                  {detail.payout_mode === 'auto' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                      AUTO
+                    </span>
+                  )}
+                  {detail.payout_mode === 'manual' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                      MANUAL
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             <p className="text-xs text-mid-gray font-mono mt-0.5">
@@ -1330,33 +1354,26 @@ export default function WithdrawalsManagement() {
                       Số dư khả dụng trước rút:
                     </span>
                     <span className="font-semibold text-ink">
-                      {formatVND(
-                        detail.balance_snapshot?.available_balance_before,
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-mid-gray">Số tiền đang giữ:</span>
-                    <span className="font-semibold text-amber-600">
-                      {formatVND(
-                        detail.balance_snapshot?.holding_balance_before,
-                      )}
+                      {detail.balance_snapshot?.available_balance_before != null 
+                        ? formatVND(detail.balance_snapshot.available_balance_before) 
+                        : "—"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-1 border-t border-hairline/50">
                     <span className="text-mid-gray font-medium">
-                      Số dư khả dụng còn lại:
+                      Số dư khả dụng sau khi giữ:
                     </span>
                     <span className="font-semibold text-emerald-600">
-                      {formatVND(
-                        detail.balance_snapshot?.available_balance_after,
-                      )}
+                      {detail.balance_snapshot?.available_balance_after != null 
+                        ? formatVND(detail.balance_snapshot.available_balance_after) 
+                        : "—"}
                     </span>
                   </div>
                 </div>
 
-                {detail.balance_snapshot?.available_balance_before <
-                  detail.amount && (
+                {["pending", "approved"].includes(detail.status) && 
+                  detail.balance_snapshot?.available_balance_before != null &&
+                  detail.balance_snapshot.available_balance_before < detail.amount && (
                   <div className="p-2.5 rounded-[6px] bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-snug">
                     ⚠️ Số dư khả dụng của tài khoản thấp hơn số tiền yêu cầu.
                     Cần kiểm tra đối soát trước khi duyệt.
@@ -1410,8 +1427,28 @@ export default function WithdrawalsManagement() {
               {/* Section 3.5: Transaction Details */}
               <div className="rounded-[6px] border border-hairline bg-paper p-3.5 space-y-2 text-xs">
                 <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray mb-1">
-                  Thông tin giao dịch &amp; Xử lý
+                  Phương thức chi trả &amp; Giao dịch
                 </h3>
+                <div className="flex justify-between items-center py-1 border-b border-hairline/60">
+                  <span className="text-mid-gray">Phương thức:</span>
+                  <span className="font-semibold text-ink">
+                    {detail.payout_mode === 'auto' ? "Tự động" : (detail.payout_mode === 'manual' ? "Thủ công" : "Không xác định")}
+                  </span>
+                </div>
+                {detail.payout_mode === 'auto' && (
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-mid-gray">Provider:</span>
+                    <span className="font-semibold text-ink uppercase">
+                      {detail.payout_provider === 'fake' ? "Fake Gateway" : detail.payout_provider}
+                    </span>
+                  </div>
+                )}
+                {detail.payout_mode === 'manual' && (
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-mid-gray">Xử lý bởi:</span>
+                    <span className="font-semibold text-ink">Admin</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center py-1">
                   <span className="text-mid-gray">Mã giao dịch:</span>
                   <span className="font-mono font-bold text-ink">
