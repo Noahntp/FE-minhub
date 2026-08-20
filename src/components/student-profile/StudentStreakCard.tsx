@@ -183,13 +183,13 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
           <span className="text-amber-600 font-extrabold">{completedDaysInWeek} / {totalDaysInWeek} ngày đã hoàn thành</span>
         </div>
 
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {weekDays.map((item, idx) => {
             const isToday = item.isToday || item.is_today;
             return (
               <div
                 key={idx}
-                className={`p-2.5 rounded-2xl border text-center flex flex-col items-center gap-1 transition-all ${
+                className={`p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border text-center flex flex-col items-center gap-0.5 sm:gap-1 transition-all ${
                   isToday
                     ? 'bg-amber-400 text-slate-900 border-amber-400 shadow-md shadow-amber-400/30 scale-105 font-black'
                     : item.active
@@ -197,13 +197,13 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
                     : 'bg-slate-50 text-slate-400 border-slate-200/80'
                 }`}
               >
-                <span className="text-[10px] font-extrabold uppercase">{item.day}</span>
+                <span className="text-[9px] sm:text-[10px] font-extrabold uppercase">{item.day}</span>
                 {isToday ? (
-                  <Flame className="w-4 h-4 fill-amber-900 text-amber-900 animate-pulse" />
+                  <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-900 text-amber-900 animate-pulse" />
                 ) : item.active ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />
                 ) : (
-                  <div className="w-4 h-4 rounded-full border-2 border-slate-300" />
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-slate-300" />
                 )}
               </div>
             );

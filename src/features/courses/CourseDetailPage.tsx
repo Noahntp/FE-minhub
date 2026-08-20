@@ -1244,6 +1244,45 @@ export default function CourseDetailPage() {
         </div>
       </section>
 
+      {/* Sticky Mobile Buy Bar (Visible only on < lg) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 p-3 sm:p-4 lg:hidden shadow-2xl flex items-center justify-between gap-3">
+        <div className="text-left min-w-0">
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Học phí trọn đời</div>
+          <div className="text-lg sm:text-xl font-black text-emerald-600 truncate">
+            {course.price === 0 ? 'Miễn phí' : new Intl.NumberFormat('vi-VN').format(course.price) + 'đ'}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleToggleWishlist}
+            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-rose-500 transition-colors"
+            title="Yêu thích"
+          >
+            <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-rose-500 stroke-rose-500' : ''}`} />
+          </button>
+
+          {isEnrolled ? (
+            <button
+              onClick={() => navigate(`/learn/${course.id}`)}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-md"
+            >
+              <PlayCircle className="w-4 h-4" />
+              <span>Vào học</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleEnrollNow}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span>Đăng ký ngay</span>
+            </button>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }
+

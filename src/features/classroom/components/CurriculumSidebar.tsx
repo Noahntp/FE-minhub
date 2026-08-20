@@ -56,13 +56,8 @@ export function CurriculumSidebar({
   const completedCount = completedLessonIds.length;
   const percent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
-  return (
-    <aside
-      className={`
-        bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex flex-col w-full lg:w-[380px] shrink-0 sticky top-20 max-h-[calc(100vh-100px)]
-        ${isOpen ? 'block' : 'hidden lg:flex'}
-      `}
-    >
+  const renderContent = () => (
+    <>
       {/* SIDEBAR HEADER */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
         <div className="flex items-center gap-2">
@@ -144,7 +139,10 @@ export function CurriculumSidebar({
                     return (
                       <div
                         key={lesson.id}
-                        onClick={() => onSelectLesson(lesson.id)}
+                        onClick={() => {
+                          onSelectLesson(lesson.id);
+                          onClose();
+                        }}
                         className={`
                           relative p-3 flex items-center justify-between gap-3 transition-all cursor-pointer group
                           ${
@@ -225,8 +223,28 @@ export function CurriculumSidebar({
           </p>
         </div>
       </div>
+    </>
+  );
 
-    </aside>
+  return (
+    <>
+      {/* Desktop Sticky Sidebar */}
+      <aside className="hidden lg:flex bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex-col w-[380px] shrink-0 sticky top-20 max-h-[calc(100vh-100px)]">
+        {renderContent()}
+      </aside>
+
+      {/* Mobile Slide-over Drawer Modal */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            onClick={onClose}
+          />
+          <div className="relative w-full max-w-xs sm:max-w-sm bg-white h-full shadow-2xl flex flex-col z-10 p-4 animate-in slide-in-from-right duration-300">
+            {renderContent()}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
-

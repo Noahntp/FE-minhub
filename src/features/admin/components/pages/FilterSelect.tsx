@@ -18,6 +18,7 @@ interface FilterSelectProps {
   activeId?: string | null;
   setActiveId?: (id: string | null) => void;
   className?: string;
+  searchable?: boolean;
 }
 
 export default function FilterSelect({

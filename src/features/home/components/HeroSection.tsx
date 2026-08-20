@@ -136,37 +136,37 @@ export function HeroSection() {
           {/* Navigation Arrows */}
           <button
             onClick={prevSlide}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-slate-950/70 text-slate-300 hover:text-white hover:bg-emerald-600 transition-all shadow-lg border border-slate-700/50 backdrop-blur-md group"
+            className="absolute left-1.5 sm:left-3 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-slate-950/70 text-slate-300 hover:text-white hover:bg-emerald-600 transition-all shadow-lg border border-slate-700/50 backdrop-blur-md group"
             aria-label="Previous Slide"
           >
-            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-0.5 transition-transform" />
           </button>
           
           <button
             onClick={nextSlide}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2.5 rounded-full bg-slate-950/70 text-slate-300 hover:text-white hover:bg-emerald-600 transition-all shadow-lg border border-slate-700/50 backdrop-blur-md group"
+            className="absolute right-1.5 sm:right-3 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-slate-950/70 text-slate-300 hover:text-white hover:bg-emerald-600 transition-all shadow-lg border border-slate-700/50 backdrop-blur-md group"
             aria-label="Next Slide"
           >
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 transition-transform" />
           </button>
 
           {/* Horizontal Slide Track Container */}
-          <div className="relative min-h-[460px] lg:min-h-[440px] overflow-hidden">
+          <div className="relative min-h-[480px] sm:min-h-[440px] overflow-hidden">
             <div 
               className="flex w-full h-full transition-transform duration-700 ease-in-out"
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
             >
 
               {/* SLIDE 1: Tong quan MindHub & Tim kiem */}
-              <div className="w-full shrink-0 min-w-full p-6 sm:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="w-full shrink-0 min-w-full p-4 sm:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
                 {/* Left Column */}
-                <div className="lg:col-span-7 space-y-5 text-left">
+                <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-left">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
                     <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                     <span>Nền tảng Học Lập trình Thực chiến & AI 2026</span>
                   </div>
 
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-white">
+                  <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-white">
                     Học thật – Làm được <br />
                     Phát triển sự nghiệp cùng{' '}
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
