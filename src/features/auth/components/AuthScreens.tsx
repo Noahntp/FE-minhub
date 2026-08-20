@@ -1,6 +1,6 @@
 import { ApiError } from "@/shared/lib/api-client";
 import React, { useState } from 'react';
-import { Database, User, Shield, Lock, Mail, Phone, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X } from 'lucide-react';
+import { Database, User, Shield, Lock, Mail, Phone, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X, Briefcase, GraduationCap, FileText, ChevronDown } from 'lucide-react';
 import { User as UserType, normalizeUser } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
@@ -745,58 +745,79 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
               {/* Instructor specialty & Bio form fields */}
               {registerRole === 'instructor' && (
-                <div className="space-y-3 bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200/80 grid grid-cols-1 gap-3">
+                <div className="space-y-3.5 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200/80 shadow-sm transition-all">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800 pb-2 border-b border-emerald-200/60">
+                    <Award className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Thông tin bổ sung Giảng viên</span>
+                  </div>
+
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Số điện thoại xác thực liên hệ *</label>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Số điện thoại xác thực liên hệ <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
-                      <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+                      <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
                       <input 
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="VD: 0987654321"
-                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white"
+                        placeholder="VD: 0987 654 321"
+                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all shadow-none"
                         required
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Lĩnh vực Giảng dạy chuyên môn</label>
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Lĩnh vực Giảng dạy chuyên môn
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
                       <select
                         value={instructorSpecialty}
                         onChange={(e) => setInstructorSpecialty(e.target.value)}
-                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white"
+                        className="w-full pl-9 pr-8 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all appearance-none cursor-pointer"
                       >
-                        <option value="Development">Phát triển phần mềm (Development)</option>
-                        <option value="Design">Thiết kế & Sáng tạo (Design)</option>
-                        <option value="Marketing">Truyền thông & Marketing</option>
-                        <option value="Artificial Intelligence">Trí tuệ nhân tạo (AI)</option>
-                        <option value="Business & Startup">Khởi nghiệp & Kinh doanh</option>
+                        <option value="Development">Phát triển phần mềm (Software Development)</option>
+                        <option value="Design">Thiết kế & Sáng tạo (UI/UX, Graphic)</option>
+                        <option value="Marketing">Truyền thông & Marketing Digital</option>
+                        <option value="Artificial Intelligence">Trí tuệ nhân tạo (AI & Data Science)</option>
+                        <option value="Business & Startup">Khởi nghiệp & Quản trị Kinh doanh</option>
                       </select>
+                      <ChevronDown className="w-4 h-4 text-stone-400 absolute right-3 top-2.5 pointer-events-none z-10" />
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Số năm kinh nghiệm giảng dạy</label>
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Số năm kinh nghiệm giảng dạy
+                    </label>
+                    <div className="relative">
+                      <GraduationCap className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
                       <input 
                         type="text"
                         value={instructorExperience}
                         onChange={(e) => setInstructorExperience(e.target.value)}
-                        placeholder="VD: Trên 5 năm, Thạc sĩ CNTT..."
-                        className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white"
+                        placeholder="VD: Trên 5 năm kinh nghiệm, Thạc sĩ CNTT..."
+                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all shadow-none"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Tiểu sử tóm tắt (Giới thiệu bản thân)</label>
-                    <textarea
-                      value={instructorBio}
-                      onChange={(e) => setInstructorBio(e.target.value)}
-                      placeholder="Hãy viết vài dòng giới thiệu năng lực chuyên môn và các dự án của Thầy Cô..."
-                      className="w-full px-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 bg-white h-16 resize-none"
-                    />
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                      Tiểu sử tóm tắt (Giới thiệu bản thân)
+                    </label>
+                    <div className="relative">
+                      <FileText className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
+                      <textarea
+                        value={instructorBio}
+                        onChange={(e) => setInstructorBio(e.target.value)}
+                        placeholder="Hãy viết vài dòng giới thiệu năng lực chuyên môn và các dự án tiêu biểu của Thầy Cô..."
+                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white h-20 resize-none transition-all shadow-none"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

@@ -348,8 +348,8 @@ export function getCategoryComparator(
     } else if (mode === "name_desc") {
       return (b.name || "").localeCompare(a.name || "", "vi");
     } else if (mode === "sort_order_asc") {
-      const sa = a.sort_order || 0;
-      const sb = b.sort_order || 0;
+      const sa = Number(a.sort_order) || 0;
+      const sb = Number(b.sort_order) || 0;
       if (sa > 0 && sb > 0) {
         if (sa !== sb) return sa - sb;
         return (a.name || "").localeCompare(b.name || "", "vi");
@@ -358,8 +358,8 @@ export function getCategoryComparator(
       if (sa === 0 && sb > 0) return 1;
       return (a.name || "").localeCompare(b.name || "", "vi");
     } else if (mode === "sort_order_desc") {
-      const sa = a.sort_order || 0;
-      const sb = b.sort_order || 0;
+      const sa = Number(a.sort_order) || 0;
+      const sb = Number(b.sort_order) || 0;
       if (sa > 0 && sb > 0) {
         if (sa !== sb) return sb - sa;
         return (a.name || "").localeCompare(b.name || "", "vi");

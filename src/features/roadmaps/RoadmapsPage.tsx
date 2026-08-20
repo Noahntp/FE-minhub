@@ -244,40 +244,40 @@ export default function RoadmapsPage() {
                 </div>
 
                 {/* Metrics Stats Badge Bar */}
-                <div className="pt-5 border-t border-slate-800/80 grid grid-cols-3 gap-3 text-left max-w-lg">
+                <div className="pt-5 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 text-left max-w-lg">
                   <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-3 shadow-inner">
-                    <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
+                    <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0">
                       <Map className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="text-base sm:text-lg font-black text-white">
                         {stats?.total_roadmaps || stats?.total_courses || '12'}+
                       </div>
-                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Lộ trình học tập</div>
+                      <div className="text-[11px] text-slate-400 font-medium">Lộ trình học tập</div>
                     </div>
                   </div>
 
                   <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-3 shadow-inner">
-                    <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400">
+                    <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
                       <Users className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="text-base sm:text-lg font-black text-emerald-400">
                         <CountUpNumber target={stats?.total_students || 25000} suffix="+" />
                       </div>
-                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Học viên tham gia</div>
+                      <div className="text-[11px] text-slate-400 font-medium">Học viên tham gia</div>
                     </div>
                   </div>
 
                   <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-3 shadow-inner">
-                    <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
+                    <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 shrink-0">
                       <TrendingUp className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="text-base sm:text-lg font-black text-cyan-400">
                         {stats?.completion_rate ? `${stats.completion_rate}%` : '92%'}
                       </div>
-                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Tỷ lệ hoàn thành</div>
+                      <div className="text-[11px] text-slate-400 font-medium">Tỷ lệ hoàn thành</div>
                     </div>
                   </div>
                 </div>

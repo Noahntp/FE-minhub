@@ -633,14 +633,24 @@ export default function CourseListPage() {
         {/* 2. Main Layout (Left: Sidebar Filters | Right: Results Grid) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Cột Trái (3 cols): Sidebar Filters */}
-          <div className={`lg:col-span-3 space-y-4 ${showMobileFilter ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm space-y-6 text-left">
+          {/* Desktop Left Column (3 cols): Sidebar Filters */}
+          <div className="hidden lg:block lg:col-span-3 space-y-4">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm space-y-6 text-left sticky top-24">
               
               {/* Header: Bộ lọc */}
-              <div className="flex items-center gap-2 font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-3">
-                <Filter className="w-4 h-4 text-emerald-600" />
-                <span>Bộ lọc</span>
+              <div className="flex items-center justify-between font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-emerald-600" />
+                  <span>Bộ lọc</span>
+                </div>
+                {(selectedCategories.length > 0 || selectedLevels.length > 0 || selectedPriceType !== 'all' || selectedMinRating) && (
+                  <button
+                    onClick={resetAllFilters}
+                    className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                  >
+                    Xóa tất cả
+                  </button>
+                )}
               </div>
 
               {/* Filter 1: DANH MỤC */}
@@ -768,6 +778,137 @@ export default function CourseListPage() {
 
             </div>
           </div>
+
+          {/* Mobile Slide-over Filter Drawer Modal */}
+          {showMobileFilter && (
+            <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
+              <div 
+                className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+                onClick={() => setShowMobileFilter(false)}
+              />
+              <div className="relative w-full max-w-xs sm:max-w-sm bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300 text-left">
+                {/* Header */}
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-emerald-600" />
+                    <span className="font-extrabold text-sm text-slate-900">Bộ lọc tìm kiếm</span>
+                  </div>
+                  <button
+                    onClick={() => setShowMobileFilter(false)}
+                    className="p-1 rounded-full hover:bg-slate-200 text-slate-500 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Filter list content */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                  {/* Category Filter */}
+                  <div className="border-b border-slate-100 pb-4">
+                    <p className="font-extrabold text-xs text-slate-900 mb-3">Danh mục khóa học</p>
+                    <div className="space-y-2.5">
+                      {(apiCategories.length > 0 ? apiCategories : [
+                        { id: 'lap-trinh', label: 'Lập trình', count: 18 },
+                        { id: 'thiet-ke', label: 'Thiết kế', count: 6 },
+                        { id: 'kinh-doanh', label: 'Kinh doanh', count: 3 },
+                      ]).map((cat) => {
+                        const isChecked = selectedCategories.includes(cat.id) || selectedCategories.includes(cat.slug || '');
+                        return (
+                          <label key={cat.id} className="flex items-center justify-between text-xs text-slate-600 hover:text-slate-900 cursor-pointer">
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleCategory(cat.id)}
+                                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                              />
+                              <span className={isChecked ? 'font-bold text-emerald-700' : ''}>{cat.label}</span>
+                            </div>
+                            <span className="text-[11px] text-slate-400">{cat.count}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Level Filter */}
+                  <div className="border-b border-slate-100 pb-4">
+                    <p className="font-extrabold text-xs text-slate-900 mb-3">Cấp độ</p>
+                    <div className="space-y-2.5">
+                      {[
+                        { id: 'Beginner', label: 'Beginner', count: 12 },
+                        { id: 'Intermediate', label: 'Intermediate', count: 11 },
+                        { id: 'Advanced', label: 'Advanced', count: 5 },
+                      ].map((lvl) => {
+                        const isChecked = selectedLevels.includes(lvl.id);
+                        return (
+                          <label key={lvl.id} className="flex items-center justify-between text-xs text-slate-600 hover:text-slate-900 cursor-pointer">
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleLevel(lvl.id)}
+                                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                              />
+                              <span className={isChecked ? 'font-bold text-emerald-700' : ''}>{lvl.label}</span>
+                            </div>
+                            <span className="text-[11px] text-slate-400">{lvl.count}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Price Filter */}
+                  <div>
+                    <p className="font-extrabold text-xs text-slate-900 mb-3">Khoảng giá</p>
+                    <div className="space-y-2.5">
+                      {[
+                        { id: 'free', label: 'Miễn phí' },
+                        { id: 'under-500k', label: 'Dưới 500.000đ' },
+                        { id: '500k-1m', label: '500.000đ - 1.000.000đ' },
+                        { id: 'over-1m', label: 'Trên 1.000.000đ' },
+                      ].map((p) => {
+                        const isChecked = selectedPriceType === p.id;
+                        return (
+                          <label key={p.id} className="flex items-center justify-between text-xs text-slate-600 hover:text-slate-900 cursor-pointer">
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => setSelectedPriceType(isChecked ? 'all' : (p.id as any))}
+                                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                              />
+                              <span className={isChecked ? 'font-bold text-emerald-700' : ''}>{p.label}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Apply / Reset */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      resetAllFilters();
+                      setShowMobileFilter(false);
+                    }}
+                    className="w-1/2 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100"
+                  >
+                    Đặt lại
+                  </button>
+                  <button
+                    onClick={() => setShowMobileFilter(false)}
+                    className="w-1/2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20"
+                  >
+                    Xem kết quả
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Cột Phải (9 cols): Main Content Results Grid */}
           <div className="lg:col-span-9 space-y-6 text-left">
