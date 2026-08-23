@@ -104,7 +104,7 @@ export interface Assignment {
 }
 
 export interface Lesson {
-  id: string;
+  id: number | string;
   title: string;
   type: 'video' | 'quiz' | 'assignment' | 'doc';
   lesson_type?: 'video' | 'quiz' | 'assignment' | 'doc';
@@ -112,6 +112,8 @@ export interface Lesson {
   video_duration_seconds?: number;
   videoUrl?: string;
   video_url?: string;
+  stream_url?: string;
+  streamUrl?: string;
   isPreview?: boolean;
   is_preview?: boolean;
   quiz?: Quiz;
@@ -242,10 +244,10 @@ export interface Coupon {
 
 export interface StudentProgress {
   courseId: string;
-  currentLessonId: string;
-  completedLessonIds: string[];
-  notes: { id: string; lessonId: string; text: string; timestamp?: string; timestampSec?: number }[];
-  bookmarks: { id: string; lessonId: string; title: string; timestampSec: number }[];
+  currentLessonId: string | number;
+  completedLessonIds: (string | number)[];
+  notes: { id: string; lessonId: string | number; text: string; timestamp?: string; timestampSec?: number }[];
+  bookmarks: { id: string; lessonId: string | number; title: string; timestampSec: number }[];
   lastWatchedProgressSec: number; // e.g. 124s
 }
 

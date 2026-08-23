@@ -269,7 +269,7 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
   const calculatedPercent = totalLessonsCount > 0 ? Math.round((completedLessonsCount / totalLessonsCount) * 100) : 0;
 
   // Track lesson selection & security access check
-  const handleSelectLesson = (lessonId: string) => {
+  const handleSelectLesson = (lessonId: string | number) => {
     const target = allLessons.find(l => l.id === lessonId);
     if (!target) return;
 
@@ -292,7 +292,7 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
     logActivity('Vào bài học', `Chuyển sang học bài: ${target.title}`);
   };
 
-  const handleToggleComplete = (lessonId: string) => {
+  const handleToggleComplete = (lessonId: string | number) => {
     const target = allLessons.find(l => l.id === lessonId);
     const isLessonFree = target?.isPreview;
     const hasAccess = hasFullCourseAccess || isLessonFree;
@@ -362,7 +362,7 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
         setVideoTime(isFirst ? 45 : 0);
       }
       setIsPlaying(false);
-      localStorage.setItem(`mindhub_last_lesson_${course.id}`, progress.currentLessonId);
+      localStorage.setItem(`mindhub_last_lesson_${course.id}`, String(progress.currentLessonId));
     }
   }, [progress.currentLessonId, course.id, chapters]);
 
@@ -760,7 +760,7 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
               <div className="space-y-1">
                 {chapter.lessons.map((lesson) => {
                   const isCurrent = progress.currentLessonId === lesson.id;
-                  const isCompleted = progress.completedLessonIds.includes(lesson.id);
+                  const isCompleted = progress.completedLessonIds.map(String).includes(String(lesson.id));
                   const isLocked = !hasFullCourseAccess && !lesson.isPreview;
                   return (
                     <button
@@ -911,20 +911,20 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
                 type="button"
                 onClick={() => handleToggleComplete(activeLesson.id)}
                 className={`py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer ${
-                  progress.completedLessonIds.includes(activeLesson.id)
+                  progress.completedLessonIds.map(String).includes(String(activeLesson.id))
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : classroomTheme === 'dark'
                       ? 'bg-[#252830] hover:bg-[#2d313a] border border-white/10 text-stone-200'
                       : 'bg-stone-200 hover:bg-stone-250 text-stone-955'
                 }`}
-                title={progress.completedLessonIds.includes(activeLesson.id) ? "Kích mốc để Hủy đánh dấu hoàn thành" : "Click để Xác nhận hoàn thành bài học này"}
+                title={progress.completedLessonIds.map(String).includes(String(activeLesson.id)) ? "Kích mốc để Hủy đánh dấu hoàn thành" : "Click để Xác nhận hoàn thành bài học này"}
               >
-                <CheckCircle className={`w-3.5 h-3.5 ${progress.completedLessonIds.includes(activeLesson.id) ? 'fill-white stroke-emerald-600' : ''}`} />
+                <CheckCircle className={`w-3.5 h-3.5 ${progress.completedLessonIds.map(String).includes(String(activeLesson.id)) ? 'fill-white stroke-emerald-600' : ''}`} />
                 <span className="hidden sm:inline">
-                  {progress.completedLessonIds.includes(activeLesson.id) ? 'Đã hoàn thành ✓' : 'Hoàn thành bài học'}
+                  {progress.completedLessonIds.map(String).includes(String(activeLesson.id)) ? 'Đã hoàn thành ✓' : 'Hoàn thành bài học'}
                 </span>
                 <span className="inline sm:hidden">
-                  {progress.completedLessonIds.includes(activeLesson.id) ? 'Đã học ✓' : 'Đã học?'}
+                  {progress.completedLessonIds.map(String).includes(String(activeLesson.id)) ? 'Đã học ✓' : 'Đã học?'}
                 </span>
               </button>
             </div>

@@ -106,14 +106,14 @@ export default function ClassroomPage() {
   // 90% video playback auto-completion
   const handleProgress90 = () => {
     if (activeLesson && !isActiveLessonCompleted) {
-      markAsCompleted(activeLesson.id);
+      markAsCompleted(String(activeLesson.id));
       toast.success('Đã tự động đánh dấu hoàn thành bài học (xem >90%)!');
     }
   };
 
   const handleVideoEnded = () => {
     if (activeLesson && !isActiveLessonCompleted) {
-      markAsCompleted(activeLesson.id);
+      markAsCompleted(String(activeLesson.id));
       toast.success('Đã hoàn thành bài học!');
     }
   };
@@ -121,7 +121,7 @@ export default function ClassroomPage() {
   const handleToggleCurrentLesson = () => {
     if (!activeLesson) return;
     const willBeCompleted = !isActiveLessonCompleted;
-    toggleLessonCompletion(activeLesson.id);
+    toggleLessonCompletion(String(activeLesson.id));
     if (willBeCompleted) {
       toast.success('Đã đánh dấu bài học hoàn thành!');
     } else {
@@ -131,10 +131,10 @@ export default function ClassroomPage() {
 
   const handleGoNext = () => {
     if (activeLesson && !isActiveLessonCompleted) {
-      markAsCompleted(activeLesson.id);
+      markAsCompleted(String(activeLesson.id));
     }
     if (nextLesson) {
-      selectLesson(nextLesson.id);
+      selectLesson(String(nextLesson.id));
     } else {
       // Last lesson -> check for completion modal
       if (completedCount + 1 >= allLessons.length) {
@@ -145,7 +145,7 @@ export default function ClassroomPage() {
 
   const handleGoPrev = () => {
     if (prevLesson) {
-      selectLesson(prevLesson.id);
+      selectLesson(String(prevLesson.id));
     }
   };
 

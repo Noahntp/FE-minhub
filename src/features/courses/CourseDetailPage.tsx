@@ -47,9 +47,9 @@ const mockChapters = [
     lessonCount: 6,
     duration: '45 phút',
     lessons: [
-      { id: 'l1', title: '1.1 Python là gì?', duration: '05:30', isPreview: true },
-      { id: 'l2', title: '1.2 Cài đặt Python và môi trường lập trình', duration: '08:15', isPreview: true },
-      { id: 'l3', title: '1.3 Chạy chương trình đầu tiên', duration: '04:45', isPreview: false },
+      { id: '1', title: '1.1 Python là gì?', duration: '05:30', isPreview: true },
+      { id: '2', title: '1.2 Cài đặt Python và môi trường lập trình', duration: '08:15', isPreview: true },
+      { id: '3', title: '1.3 Chạy chương trình đầu tiên', duration: '04:45', isPreview: false },
     ],
   },
   {
@@ -58,9 +58,9 @@ const mockChapters = [
     lessonCount: 8,
     duration: '1 giờ 10 phút',
     lessons: [
-      { id: 'l4', title: '2.1 Khai báo biến và đặt tên chuẩn', duration: '09:20', isPreview: false },
-      { id: 'l5', title: '2.2 Kiểu dữ liệu số (Integer, Float)', duration: '12:10', isPreview: false },
-      { id: 'l6', title: '2.3 Chuỗi ký tự (String) & Xử lý chuỗi', duration: '15:40', isPreview: false },
+      { id: '4', title: '2.1 Khai báo biến và đặt tên chuẩn', duration: '09:20', isPreview: false },
+      { id: '5', title: '2.2 Kiểu dữ liệu số (Integer, Float)', duration: '12:10', isPreview: false },
+      { id: '6', title: '2.3 Chuỗi ký tự (String) & Xử lý chuỗi', duration: '15:40', isPreview: false },
     ],
   },
   {
@@ -69,8 +69,8 @@ const mockChapters = [
     lessonCount: 7,
     duration: '1 giờ',
     lessons: [
-      { id: 'l7', title: '3.1 Toán tử số học & gán giá trị', duration: '10:00', isPreview: false },
-      { id: 'l8', title: '3.2 Toán tử so sánh & logic', duration: '14:30', isPreview: false },
+      { id: '7', title: '3.1 Toán tử số học & gán giá trị', duration: '10:00', isPreview: false },
+      { id: '8', title: '3.2 Toán tử so sánh & logic', duration: '14:30', isPreview: false },
     ],
   },
   {
@@ -79,8 +79,8 @@ const mockChapters = [
     lessonCount: 6,
     duration: '50 phút',
     lessons: [
-      { id: 'l9', title: '4.1 Câu lệnh If - Else cơ bản', duration: '11:15', isPreview: false },
-      { id: 'l10', title: '4.2 Điều kiện lồng nhau & Elif', duration: '13:50', isPreview: false },
+      { id: '9', title: '4.1 Câu lệnh If - Else cơ bản', duration: '11:15', isPreview: false },
+      { id: '10', title: '4.2 Điều kiện lồng nhau & Elif', duration: '13:50', isPreview: false },
     ],
   },
   {
@@ -89,8 +89,8 @@ const mockChapters = [
     lessonCount: 7,
     duration: '1 giờ 5 phút',
     lessons: [
-      { id: 'l11', title: '5.1 Vòng lặp For và hàm range()', duration: '12:00', isPreview: false },
-      { id: 'l12', title: '5.2 Vòng lặp While & xử lý điều kiện dừng', duration: '14:20', isPreview: false },
+      { id: '11', title: '5.1 Vòng lặp For và hàm range()', duration: '12:00', isPreview: false },
+      { id: '12', title: '5.2 Vòng lặp While & xử lý điều kiện dừng', duration: '14:20', isPreview: false },
     ],
   },
   {
@@ -99,8 +99,8 @@ const mockChapters = [
     lessonCount: 8,
     duration: '1 giờ 15 phút',
     lessons: [
-      { id: 'l13', title: '6.1 Định nghĩa hàm def & Tham số truyền vào', duration: '11:30', isPreview: false },
-      { id: 'l14', title: '6.2 Giá trị trả về Return & Scope biến', duration: '14:10', isPreview: false },
+      { id: '13', title: '6.1 Định nghĩa hàm def & Tham số truyền vào', duration: '11:30', isPreview: false },
+      { id: '14', title: '6.2 Giá trị trả về Return & Scope biến', duration: '14:10', isPreview: false },
     ],
   },
   {
@@ -109,8 +109,8 @@ const mockChapters = [
     lessonCount: 10,
     duration: '1 giờ 30 phút',
     lessons: [
-      { id: 'l15', title: '7.1 Thao tác với List & Tuple', duration: '15:20', isPreview: false },
-      { id: 'l16', title: '7.2 Dictionary & Cấu trúc JSON trong Python', duration: '18:40', isPreview: false },
+      { id: '15', title: '7.1 Thao tác với List & Tuple', duration: '15:20', isPreview: false },
+      { id: '16', title: '7.2 Dictionary & Cấu trúc JSON trong Python', duration: '18:40', isPreview: false },
     ],
   },
   {
@@ -119,8 +119,8 @@ const mockChapters = [
     lessonCount: 7,
     duration: '55 phút',
     lessons: [
-      { id: 'l17', title: '8.1 Thao tác đọc ghi tệp tin TXT / CSV', duration: '13:10', isPreview: false },
-      { id: 'l18', title: '8.2 Khối Try - Except xử lý lỗi ứng dụng', duration: '12:45', isPreview: false },
+      { id: '17', title: '8.1 Thao tác đọc ghi tệp tin TXT / CSV', duration: '13:10', isPreview: false },
+      { id: '18', title: '8.2 Khối Try - Except xử lý lỗi ứng dụng', duration: '12:45', isPreview: false },
     ],
   },
   {
@@ -129,8 +129,8 @@ const mockChapters = [
     lessonCount: 9,
     duration: '1 giờ 40 phút',
     lessons: [
-      { id: 'l19', title: '9.1 Class, Object & Kế thừa trong OOP', duration: '20:15', isPreview: false },
-      { id: 'l20', title: '9.2 Xây dựng phần mềm Quản lý Học viên Mini Project', duration: '25:30', isPreview: false },
+      { id: '19', title: '9.1 Class, Object & Kế thừa trong OOP', duration: '20:15', isPreview: false },
+      { id: '20', title: '9.2 Xây dựng phần mềm Quản lý Học viên Mini Project', duration: '25:30', isPreview: false },
     ],
   },
 ];

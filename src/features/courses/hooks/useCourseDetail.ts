@@ -11,8 +11,8 @@ interface UseCourseDetailResult {
 
 // Fallback map for custom slug-based course IDs from Homepage & Catalog
 export const FALLBACK_COURSES_MAP: Record<string, Partial<Course>> = {
-  'laravel-rest-api': {
-    id: 'laravel-rest-api',
+  'laravel-rest-api-tu-co-ban-den-trien-khai': {
+    id: 'laravel-rest-api-tu-co-ban-den-trien-khai',
     title: 'Laravel REST API từ cơ bản đến triển khai',
     subtitle: 'Khóa học dành cho người mới bắt đầu, giúp bạn nắm vững kiến thức nền tảng Laravel REST API từ cơ bản đến thực hành, dễ hiểu, dễ áp dụng.',
     description: '<p>Laravel là PHP Framework số 1 hiện nay với cú pháp thanh lịch và khả năng mở rộng mạnh mẽ. Khóa học này hướng dẫn bạn từng bước thiết kế RESTful API chuẩn quốc tế, tích hợp JWT Authentication, Eloquent ORM và triển khai lên Server thực tế.</p>',
@@ -90,12 +90,12 @@ function mapApiDetailToCourse(res: any): Course {
         title: sec.title || `Chương ${sIdx + 1}`,
         lessons: Array.isArray(sec.lessons)
           ? sec.lessons.map((les: any, lIdx: number) => ({
-              id: String(les.id || `l-${sIdx + 1}-${lIdx + 1}`),
+              id: les.id && !isNaN(Number(les.id)) ? Number(les.id) : String(les.id || `l-${sIdx + 1}-${lIdx + 1}`),
               title: les.title || `Bài ${lIdx + 1}`,
               type: les.type || 'video',
               duration: les.duration ? `${Math.floor(les.duration / 60)}:${les.duration % 60}` : '10:00',
               isPreview: Boolean(les.is_free_preview || les.isPreview),
-              videoUrl: les.video_url || 'https://www.w3schools.com/html/mov_bbb.mp4',
+              videoUrl: les.stream_url || les.streamUrl || les.video_url || les.videoUrl || (import.meta.env.DEV ? 'https://www.w3schools.com/html/mov_bbb.mp4' : ''),
             }))
           : [],
       }))
@@ -137,16 +137,16 @@ function mapApiDetailToCourse(res: any): Course {
         id: 'ch1',
         title: 'Chương 1: Giới thiệu và thiết lập môi trường',
         lessons: [
-          { id: 'l1', title: '1.1 Tổng quan về khóa học', type: 'video', duration: '08:30', isPreview: true },
-          { id: 'l2', title: '1.2 Cài đặt phần mềm cần thiết', type: 'video', duration: '12:15', isPreview: true }
+          { id: '1', title: '1.1 Tổng quan về khóa học', type: 'video', duration: '08:30', isPreview: true },
+          { id: '2', title: '1.2 Cài đặt phần mềm cần thiết', type: 'video', duration: '12:15', isPreview: true }
         ]
       },
       {
         id: 'ch2',
         title: 'Chương 2: Kiến thức cốt lõi & Thực hành',
         lessons: [
-          { id: 'l3', title: '2.1 Các khái niệm quan trọng', type: 'video', duration: '15:45', isPreview: false },
-          { id: 'l4', title: '2.2 Viết đoạn chương trình đầu tiên', type: 'video', duration: '20:10', isPreview: false }
+          { id: '3', title: '2.1 Các khái niệm quan trọng', type: 'video', duration: '15:45', isPreview: false },
+          { id: '4', title: '2.2 Viết đoạn chương trình đầu tiên', type: 'video', duration: '20:10', isPreview: false }
         ]
       }
     ]
@@ -223,8 +223,8 @@ export function useCourseDetail(courseId: string | undefined): UseCourseDetailRe
               id: 'ch1',
               title: 'Chương 1: Giới thiệu và thiết lập môi trường',
               lessons: [
-                { id: 'l1', title: '1.1 Tổng quan về khóa học', type: 'video', duration: '08:30', isPreview: true },
-                { id: 'l2', title: '1.2 Cài đặt phần mềm cần thiết', type: 'video', duration: '12:15', isPreview: true }
+                { id: '1', title: '1.1 Tổng quan về khóa học', type: 'video', duration: '08:30', isPreview: true },
+                { id: '2', title: '1.2 Cài đặt phần mềm cần thiết', type: 'video', duration: '12:15', isPreview: true }
               ]
             }
           ]
@@ -268,8 +268,8 @@ export function useCourseDetail(courseId: string | undefined): UseCourseDetailRe
               id: 'ch1',
               title: 'Chương 1: Giới thiệu khóa học',
               lessons: [
-                { id: 'l1', title: '1.1 Khái niệm cơ bản', type: 'video', duration: '08:00', isPreview: true },
-                { id: 'l2', title: '1.2 Hướng dẫn thực hành', type: 'video', duration: '14:20', isPreview: true }
+                { id: '1', title: '1.1 Khái niệm cơ bản', type: 'video', duration: '08:00', isPreview: true },
+                { id: '2', title: '1.2 Hướng dẫn thực hành', type: 'video', duration: '14:20', isPreview: true }
               ]
             }
           ]

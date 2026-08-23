@@ -60,7 +60,7 @@ export function CourseBuilderWizard({
   const [newLessonDuration, setNewLessonDuration] = useState('15:00');
   const [newLessonVideoUrl, setNewLessonVideoUrl] = useState('https://www.youtube.com/embed/dQw4w9WgXcQ');
   const [newLessonDocContent, setNewLessonDocContent] = useState('');
-  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [editingLessonId, setEditingLessonId] = useState<string | number | null>(null);
   const [newLessonIsPreview, setNewLessonIsPreview] = useState<boolean>(false);
 
   // Simulated Video Uploading Space States
@@ -1107,7 +1107,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                                       type="button"
                                       onClick={() => {
                                         if (window.confirm(`Bạn có chắc chắn muốn gỡ bài: "${les.title}"?`)) {
-                                          handleRemoveLesson(selectedChapterIndex, les.id);
+                                          handleRemoveLesson(selectedChapterIndex, String(les.id));
                                           if (editingLessonId === les.id) {
                                             setEditingLessonId(null);
                                             setNewLessonTitle('');

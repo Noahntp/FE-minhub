@@ -2,7 +2,7 @@ import { apiFetch, devLog, config, ApiError, setAuthToken } from '@/shared/lib/a
 import { Course, Chapter, Lesson, Resource, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '@/shared/types';
 
 export const authApi = {
-async register(payload: any): Promise<{ user: User; token: string }> {
+async register(payload: any): Promise<{ user: User; token: string; verify_url?: string; otp_code?: string; note?: string }> {
     devLog('Auth', 'Register new user', { email: payload.email, role: payload.role });
     const endpoint = payload.role === 'instructor' ? '/auth/register/instructor' : '/auth/register/learner';
     const res = await apiFetch<any>(endpoint, {
@@ -11,7 +11,10 @@ async register(payload: any): Promise<{ user: User; token: string }> {
     });
     return {
       user: res.user,
-      token: res.token || ''
+      token: res.token || '',
+      verify_url: res.verify_url,
+      otp_code: res.otp_code,
+      note: res.note
     };
   },
 

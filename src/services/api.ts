@@ -5,10 +5,10 @@ import { SYSTEM_ROLE_USERS } from '@/shared/data';
 
 /**
  * MindHub API Service Configuration and Integration Layer
- * 
- * This service is designed to serve as the unified bridge between the React frontend 
+ *
+ * This service is designed to serve as the unified bridge between the React frontend
  * and your real Laravel / PHP backend (supporting nearly 100 API endpoints).
- * 
+ *
  * HOW TO INTEGRATE WITH REAL BACKEND:
  * 1. Set the VITE_API_MODE environment variable to "api" (or toggle via the Developer Panel in the UI).
  * 2. Configure VITE_API_BASE_URL in your `.env` or `.env.local` file:
@@ -105,12 +105,12 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   const url = `${baseUrl}${cleanEndpoint}`;
 
   const headers = new Headers(options.headers || {});
-  
+
   if (!(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   headers.set('Accept', 'application/json');
-  
+
   const effectiveToken = config.authToken || localStorage.getItem('mindhub_api_token');
   if (effectiveToken) {
     headers.set('Authorization', `Bearer ${effectiveToken}`);
@@ -180,12 +180,12 @@ async function apiFetchEnvelope<T>(endpoint: string, options: RequestInit = {}):
 
   const url = `${config.baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
   const headers = new Headers(options.headers || {});
-  
+
   if (!(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   headers.set('Accept', 'application/json');
-  
+
   if (config.authToken) {
     headers.set('Authorization', `Bearer ${config.authToken}`);
   }
@@ -294,7 +294,7 @@ export const ApiService = {
       // Let's do a fast GET request with a small timeout to verify connectivity and CORS
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
-      
+
       const response = await fetch(`${targetUrl}/courses`, {
         method: 'GET',
         headers: {
@@ -302,12 +302,12 @@ export const ApiService = {
         },
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
       const latency = Date.now() - startTime;
-      
-      return { 
-        success: response.ok || response.status < 500, 
+
+      return {
+        success: response.ok || response.status < 500,
         message: `Kết nối thành công! Mã phản hồi HTTP: ${response.status}.`,
         latency
       };
@@ -320,8 +320,8 @@ export const ApiService = {
       } else if (e.message) {
         errMsg = `Lỗi kết nối: ${e.message}`;
       }
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: errMsg,
         latency
       };
@@ -331,9 +331,9 @@ export const ApiService = {
   // ==========================================
   // MODULE 1. AUTHENTICATION & SESSIONS
   // ==========================================
-  
+
   /** POST /auth/register */
-  async register(payload: any): Promise<{ user: User; token: string }> {
+  async register(payload: any): Promise<{ user: User; token: string; verify_url?: string; otp_code?: string; note?: string }> {
     devLog('Auth', 'Register new user', { email: payload.email, role: payload.role });
     const endpoint = payload.role === 'instructor' ? '/auth/register/instructor' : '/auth/register/learner';
     const res = await apiFetch<any>(endpoint, {
@@ -342,7 +342,10 @@ export const ApiService = {
     });
     return {
       user: res.user,
-      token: res.token || ''
+      token: res.token || '',
+      verify_url: res.verify_url,
+      otp_code: res.otp_code,
+      note: res.note
     };
   },
 
@@ -600,15 +603,15 @@ export const ApiService = {
       // Mock logic
       const allCourses = await MockDB.getCourses();
       // Match by instructorId
-      return allCourses.filter(c => 
-        c.instructorId === instructorId && 
-        c.status === 'active' && 
+      return allCourses.filter(c =>
+        c.instructorId === instructorId &&
+        c.status === 'active' &&
         !c.isHidden
       );
     } catch (err) {
-      return (await MockDB.getCourses()).filter(c => 
-        c.instructorId === instructorId && 
-        c.status === 'active' && 
+      return (await MockDB.getCourses()).filter(c =>
+        c.instructorId === instructorId &&
+        c.status === 'active' &&
         !c.isHidden
       );
     } finally {
@@ -819,7 +822,7 @@ export const ApiService = {
         body: JSON.stringify(payload)
       });
     }
-    
+
     const req: AccountRequest = {
       ...payload,
       id: 'req-' + Date.now(),
@@ -1567,9 +1570,9 @@ export const ApiService = {
   /** POST /admin/courses/{id}/reject */
   async rejectCourse(courseId: string, reason: string): Promise<{ success: boolean }> {
   devLog('Admin', `Reject course ID: ${courseId} with reason: ${reason}`);
-  return apiFetch<any>(`/admin/courses/${courseId}/reject`, { 
+  return apiFetch<any>(`/admin/courses/${courseId}/reject`, {
           method: 'PATCH',
-          body: JSON.stringify({ reason }) 
+          body: JSON.stringify({ reason })
         });
   },
 
@@ -1626,7 +1629,7 @@ export const ApiService = {
         method: 'POST',
         body: formData,
       });
-      return { 
+      return {
         url: res?.url || res?.data?.url || res?.file_url || '',
         path: res?.path || res?.data?.path || ''
       };
@@ -2068,7 +2071,7 @@ export const ApiService = {
     if (params?.type && params.type !== 'all') query.append('type', params.type);
     if (params?.course_id && params.course_id !== 'all') query.append('course_id', String(params.course_id));
     if (params?.search) query.append('search', params.search);
-    
+
     const qs = query.toString() ? `?${query.toString()}` : '';
     return apiFetch<any>(`/instructor/discount-codes${qs}`);
   },
@@ -2264,7 +2267,7 @@ export const ApiService = {
   },
 
   async uploadLessonVideoWithProgress(
-    file: File, 
+    file: File,
     onProgress: (progress: number, status: string) => void,
     lessonId: string = 'new'
   ): Promise<{ success: boolean; videoUrl: string; duration: string }> {
@@ -2274,18 +2277,18 @@ export const ApiService = {
   return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open('POST', `${config.baseUrl}/instructor/lessons/${lessonId}/video`);
-          
+
           if (config.authToken) {
             xhr.setRequestHeader('Authorization', `Bearer ${config.authToken}`);
           }
-          
+
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
               const percentComplete = Math.round((event.loaded / event.total) * 100);
               onProgress(percentComplete, 'Đang gửi từng cụm byte lên Cloud Storage...');
             }
           };
-          
+
           xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
               try {
@@ -2298,7 +2301,7 @@ export const ApiService = {
               reject(new Error(`Tải video lỗi: status code ${xhr.status}`));
             }
           };
-          
+
           xhr.onerror = () => reject(new Error('Mất kết nối tới máy chủ lưu trữ HLS.'));
           xhr.send(formData);
         });
@@ -2410,10 +2413,10 @@ export const ApiService = {
         body: JSON.stringify({ action })
       });
     }
-    return { 
-      success: true, 
-      message: action === 'lock' ? 'Tài khoản đã bị khóa.' : 'Tài khoản đã được mở khóa.', 
-      status: action === 'lock' ? 'locked' : 'active' 
+    return {
+      success: true,
+      message: action === 'lock' ? 'Tài khoản đã bị khóa.' : 'Tài khoản đã được mở khóa.',
+      status: action === 'lock' ? 'locked' : 'active'
     };
   },
 
@@ -2487,7 +2490,7 @@ export const ApiService = {
         });
   },
 
-  
+
   // ================= PAYOUT & BALANCE API =================
   async getInstructorWithdrawalSummary(): Promise<any> {
     devLog('Instructor', 'Get withdrawal summary');
@@ -2561,10 +2564,10 @@ export const ApiService = {
     devLog('Instructor', 'Update payout account', payload);
     // If first argument is numeric ID, route to PATCH /instructor/payout-accounts/:id
     // Otherwise if it's instructorId string or payload has id, handle gracefully
-    const accountId = typeof payload?.id === 'number' || typeof payload?.id === 'string' 
-      ? payload.id 
+    const accountId = typeof payload?.id === 'number' || typeof payload?.id === 'string'
+      ? payload.id
       : idOrInstructorId;
-    
+
     if (accountId && (typeof accountId === 'number' || !isNaN(Number(accountId)))) {
       return apiFetch<any>(`/instructor/payout-accounts/${accountId}`, {
         method: 'PATCH',
@@ -3062,8 +3065,8 @@ export const ApiService = {
 
   async replyInstructorQuestion(id: string | number, payload: { content: string; is_official?: boolean; notify_learner?: boolean } | string): Promise<any> {
     if (config.mode === 'api') {
-      const bodyData = typeof payload === 'string' 
-        ? { content: payload, is_official: true, notify_learner: true } 
+      const bodyData = typeof payload === 'string'
+        ? { content: payload, is_official: true, notify_learner: true }
         : payload;
       return apiFetch<any>(`/instructor/questions/${id}/reply`, {
         method: 'POST',
@@ -3251,7 +3254,7 @@ export const ApiService = {
 
   async selectAccountAvatarPreset(presetId: string): Promise<any> {
     if (config.mode === 'api') {
-      return apiFetch<any>('/account/avatar/preset', {
+      return apiFetch<any>('users/me/avatar/preset', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ preset_id: presetId })
@@ -3262,7 +3265,7 @@ export const ApiService = {
 
   async deleteAccountAvatar(): Promise<any> {
     if (config.mode === 'api') {
-      return apiFetch<any>('/account/avatar', {
+      return apiFetch<any>('users/me/avatar', {
         method: 'DELETE'
       });
     }

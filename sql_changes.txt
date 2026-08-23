@@ -1,0 +1,19 @@
+-- ==========================================
+-- SQL Changes: Cloudinary & Bunny.net Setup
+-- ==========================================
+
+-- 1. Thay đổi SQL cho Cloudinary (Lưu trữ ảnh Avatar)
+-- Mục đích: Lưu trữ public_id của ảnh trên Cloudinary để hỗ trợ xóa/cập nhật ảnh gốc
+-- File: BE/database/migrations/2026_08_18_140619_add_avatar_public_id_to_users_table.php
+
+ALTER TABLE users 
+ADD COLUMN avatar_public_id VARCHAR(255) NULL AFTER avatar_url;
+
+
+-- 2. Thay đổi SQL cho Bunny.net (Lưu trữ Video bài giảng)
+-- Mục đích: Quản lý video stream an toàn qua Bunny.net (thêm provider và video_id)
+-- File: BE/database/migrations/2026_08_18_190431_add_video_provider_to_lessons_table.php
+
+ALTER TABLE lessons 
+ADD COLUMN video_provider VARCHAR(255) NULL DEFAULT 'local' AFTER video_url,
+ADD COLUMN video_id VARCHAR(255) NULL AFTER video_provider;

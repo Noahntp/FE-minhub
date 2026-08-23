@@ -2,7 +2,7 @@ import { apiFetch, devLog, config, ApiError } from '@/shared/lib/api-client';
 import { Course, Chapter, Lesson, Resource, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '@/shared/types';
 
 export const classroomApi = {
-async getFreeLessonPreview(lessonId: string): Promise<any> {
+async getFreeLessonPreview(lessonId: number | string): Promise<any> {
   devLog('Catalog', `Attempting free sample preview for Lesson ID: ${lessonId}`);
   return apiFetch<any>(`/lessons/${lessonId}/preview`);
   },
@@ -22,18 +22,23 @@ async getStudentCourseProgress(courseId: string): Promise<any> {
   return apiFetch<any>(`/learn/courses/${courseId}/progress`);
   },
 
-async getSecureLessonContent(lessonId: string): Promise<Lesson> {
+async getSecureLessonContent(lessonId: number | string): Promise<Lesson> {
   devLog('Learning', `Get secure media payload and attachments for Lesson: ${lessonId}`);
   return apiFetch<Lesson>(`/learn/lessons/${lessonId}`);
   },
 
-async verifyClassroomAccess(lessonId: string): Promise<{ has_access: boolean }> {
+async getSignedLessonVideoUrl(lessonId: number | string): Promise<{ stream_url: string | null; expires_in: number; expires_at: string | null }> {
+  devLog('Learning', `Get signed video url for Lesson: ${lessonId}`);
+  return apiFetch<{ stream_url: string | null; expires_in: number; expires_at: string | null }>(`/learn/lessons/${lessonId}/video-url`);
+  },
+
+async verifyClassroomAccess(lessonId: number | string): Promise<{ has_access: boolean }> {
   devLog('Learning', `Assert system eligibility node of Lesson ID: ${lessonId}`);
   return apiFetch<{ has_access: boolean }>(`/learn/lessons/${lessonId}/check-access`);
   },
 
-async markLessonAsComplete(lessonId: string, completed: boolean = true): Promise<{ success: boolean }> {
-  devLog('Learning', `Setting milestone checkmark to Lesson: ${lessonId}`, { completed });
+async markLessonAsComplete(lessonId: number | string, completed: boolean = true): Promise<{ success: boolean }> {
+  devLog('Learning', `Post completion log for Lesson: ${lessonId}`);
   return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/complete`, {
     method: 'PATCH',
     body: JSON.stringify({ completed }),

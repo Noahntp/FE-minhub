@@ -43,7 +43,7 @@ const FALLBACK_INSTRUCTOR_COURSES: HomeCourseItem[] = [
     isHot: true,
   },
   {
-    id: 'laravel-rest-api-expert',
+    id: 'laravel-rest-api-tu-co-ban-den-trien-khai-expert',
     title: 'Lập Trình Laravel RESTful API & Security Best Practices',
     level: 'Trung cấp',
     thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',

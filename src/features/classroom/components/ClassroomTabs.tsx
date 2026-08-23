@@ -75,10 +75,9 @@ function formatFileSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const getNumericLessonId = (rawId?: string | number): number => {
-  if (!rawId) return 1;
-  const num = parseInt(String(rawId).replace(/\D/g, ''), 10);
-  return isNaN(num) || num <= 0 ? 1 : num;
+const getCleanLessonId = (rawId?: string | number): string => {
+  if (!rawId) return '';
+  return String(rawId);
 };
 
 export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, currentVideoTime }: ClassroomTabsProps) {
@@ -196,8 +195,12 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     setIsLoadingNotes(true);
     const storageKey = `mindhub_notes_list_${course?.id || 'c1'}_${activeLesson.id}`;
     try {
-      const numericId = getNumericLessonId(activeLesson.id);
-      const res = await classroomApi.getLessonNotes(String(numericId));
+      const cleanId = getCleanLessonId(activeLesson.id);
+      if (!cleanId || cleanId.startsWith('l-') || cleanId.startsWith('sec-')) {
+        setSavedNotes([]);
+        return;
+      }
+      const res = await classroomApi.getLessonNotes(cleanId);
       if (Array.isArray(res)) {
         const formatted = res.map((n: any) => ({
           id: String(n.id),
@@ -249,8 +252,9 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     setIsLoadingQA(true);
     const storageKey = `mindhub_qa_list_${course?.id || 'c1'}_${activeLesson.id}`;
     try {
-      const numericId = getNumericLessonId(activeLesson.id);
-      const res = await classroomApi.getLessonComments(String(numericId));
+      const cleanId = getCleanLessonId(activeLesson.id);
+      if (!cleanId || cleanId.startsWith('l-') || cleanId.startsWith('sec-')) return;
+      const res = await classroomApi.getLessonComments(cleanId);
       if (Array.isArray(res)) {
         setQaList((prev) => {
           const localOnly = prev.filter((item) => String(item.id).startsWith('local-'));
@@ -295,8 +299,12 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     if (!activeLesson?.id) return;
     setIsLoadingResources(true);
     try {
-      const numericId = getNumericLessonId(activeLesson.id);
-      const lessonData = await classroomApi.getSecureLessonContent(String(numericId));
+      const cleanId = getCleanLessonId(activeLesson.id);
+      if (!cleanId || cleanId.startsWith('l-') || cleanId.startsWith('sec-')) {
+        setResourcesList([]);
+        return;
+      }
+      const lessonData = await classroomApi.getSecureLessonContent(cleanId);
       if (lessonData && Array.isArray((lessonData as any).assets)) {
         setResourcesList((lessonData as any).assets);
       } else {
@@ -353,8 +361,9 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     });
 
     try {
-      const numericId = getNumericLessonId(activeLesson.id);
-      await classroomApi.addLessonNote(String(numericId), noteText, timeSeconds);
+      const cleanId = getCleanLessonId(activeLesson.id);
+      if (!cleanId) return;
+      await classroomApi.addLessonNote(cleanId, noteText, timeSeconds);
       toast.success('Đã lưu ghi chú bài học thành công!');
       fetchNotesData();
     } catch (err: any) {
@@ -397,8 +406,9 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     });
 
     try {
-      const numericId = getNumericLessonId(activeLesson.id);
-      await classroomApi.addLessonComment(String(numericId), questionText);
+      const cleanId = getCleanLessonId(activeLesson.id);
+      if (!cleanId) return;
+      await classroomApi.addLessonComment(cleanId, questionText);
       toast.success('Đã gửi câu hỏi! Giảng viên sẽ phản hồi sớm nhất.');
       fetchQAData();
     } catch (err: any) {

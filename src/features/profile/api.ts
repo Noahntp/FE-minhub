@@ -102,7 +102,7 @@ async resolveAccountRequest(requestId: string, action: 'approved' | 'rejected'):
   },
 
   async selectAccountAvatarPreset(presetId: string): Promise<any> {
-    return apiFetch<any>('/account/avatar/preset', {
+    return apiFetch<any>('users/me/avatar/preset', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ preset_id: presetId })
@@ -110,7 +110,7 @@ async resolveAccountRequest(requestId: string, action: 'approved' | 'rejected'):
   },
 
   async deleteAccountAvatar(): Promise<any> {
-    return apiFetch<any>('/account/avatar', {
+    return apiFetch<any>('users/me/avatar', {
       method: 'DELETE'
     });
   }

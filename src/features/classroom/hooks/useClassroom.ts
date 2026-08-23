@@ -34,26 +34,26 @@ function generateTopicSyllabus(title: string, category: string): any[] {
         id: 'ch1',
         title: 'Chương 1: Khởi tạo & Cấu trúc Dự án React.js',
         lessons: [
-          { id: 'l1', title: '1.1 Tổng quan về React.js & Virtual DOM', type: 'video', duration: '10:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-          { id: 'l2', title: '1.2 Cài đặt Node.js & Tạo ứng dụng với Vite', type: 'video', duration: '14:30', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
-          { id: 'l3', title: '1.3 Cấu trúc thư mục & JSX Syntax', type: 'video', duration: '12:45', isPreview: false }
+          { id: '1', title: '1.1 Tổng quan về React.js & Virtual DOM', type: 'video', duration: '10:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+          { id: '2', title: '1.2 Cài đặt Node.js & Tạo ứng dụng với Vite', type: 'video', duration: '14:30', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
+          { id: '3', title: '1.3 Cấu trúc thư mục & JSX Syntax', type: 'video', duration: '12:45', isPreview: false }
         ]
       },
       {
         id: 'ch2',
         title: 'Chương 2: Components, State & Hooks',
         lessons: [
-          { id: 'l4', title: '2.1 Props & Reusable Components', type: 'video', duration: '15:20', isPreview: false },
-          { id: 'l5', title: '2.2 Quản lý trạng thái với useState', type: 'video', duration: '18:10', isPreview: false },
-          { id: 'l6', title: '2.3 Xử lý Side Effects với useEffect & Custom Hooks', type: 'video', duration: '20:05', isPreview: false }
+          { id: '4', title: '2.1 Props & Reusable Components', type: 'video', duration: '15:20', isPreview: false },
+          { id: '5', title: '2.2 Quản lý trạng thái với useState', type: 'video', duration: '18:10', isPreview: false },
+          { id: '6', title: '2.3 Xử lý Side Effects với useEffect & Custom Hooks', type: 'video', duration: '20:05', isPreview: false }
         ]
       },
       {
         id: 'ch3',
         title: 'Chương 3: Real-world Project & Deployment',
         lessons: [
-          { id: 'l7', title: '3.1 Tích hợp RESTful API & Async Fetch', type: 'video', duration: '22:15', isPreview: false },
-          { id: 'l8', title: '3.2 Triển khai Production lên Vercel/Netlify', type: 'video', duration: '16:40', isPreview: false }
+          { id: '7', title: '3.1 Tích hợp RESTful API & Async Fetch', type: 'video', duration: '22:15', isPreview: false },
+          { id: '8', title: '3.2 Triển khai Production lên Vercel/Netlify', type: 'video', duration: '16:40', isPreview: false }
         ]
       }
     ];
@@ -65,18 +65,18 @@ function generateTopicSyllabus(title: string, category: string): any[] {
         id: 'ch1',
         title: 'Chương 1: Cú pháp Nền tảng Python',
         lessons: [
-          { id: 'l1', title: '1.1 Giới thiệu về Python & Cài đặt môi trường', type: 'video', duration: '09:40', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-          { id: 'l2', title: '1.2 Biến, Kiểu dữ liệu & Toán tử', type: 'video', duration: '13:10', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
-          { id: 'l3', title: '1.3 Câu lệnh điều kiện & Vòng lặp For/While', type: 'video', duration: '15:50', isPreview: false }
+          { id: '1', title: '1.1 Giới thiệu về Python & Cài đặt môi trường', type: 'video', duration: '09:40', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+          { id: '2', title: '1.2 Biến, Kiểu dữ liệu & Toán tử', type: 'video', duration: '13:10', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
+          { id: '3', title: '1.3 Câu lệnh điều kiện & Vòng lặp For/While', type: 'video', duration: '15:50', isPreview: false }
         ]
       },
       {
         id: 'ch2',
         title: 'Chương 2: Hàm & Lập trình Hướng đối tượng (OOP)',
         lessons: [
-          { id: 'l4', title: '2.1 Định nghĩa Hàm, Tham số & Lambda Functions', type: 'video', duration: '14:25', isPreview: false },
-          { id: 'l5', title: '2.2 Class, Object, Thuộc tính & Phương thức', type: 'video', duration: '19:30', isPreview: false },
-          { id: 'l6', title: '2.3 Tính Đóng gói, Kế thừa & Đa hình', type: 'video', duration: '17:45', isPreview: false }
+          { id: '4', title: '2.1 Định nghĩa Hàm, Tham số & Lambda Functions', type: 'video', duration: '14:25', isPreview: false },
+          { id: '5', title: '2.2 Class, Object, Thuộc tính & Phương thức', type: 'video', duration: '19:30', isPreview: false },
+          { id: '6', title: '2.3 Tính Đóng gói, Kế thừa & Đa hình', type: 'video', duration: '17:45', isPreview: false }
         ]
       }
     ];
@@ -88,18 +88,18 @@ function generateTopicSyllabus(title: string, category: string): any[] {
         id: 'ch1',
         title: 'Chương 1: Nền tảng Node.js Runtime',
         lessons: [
-          { id: 'l1', title: '1.1 Khái niệm Event Loop & V8 Engine', type: 'video', duration: '11:20', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-          { id: 'l2', title: '1.2 Quản lý thư viện với NPM & Package.json', type: 'video', duration: '12:45', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
-          { id: 'l3', title: '1.3 Xây dựng HTTP Web Server đầu tiên', type: 'video', duration: '14:15', isPreview: false }
+          { id: '1', title: '1.1 Khái niệm Event Loop & V8 Engine', type: 'video', duration: '11:20', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+          { id: '2', title: '1.2 Quản lý thư viện với NPM & Package.json', type: 'video', duration: '12:45', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
+          { id: '3', title: '1.3 Xây dựng HTTP Web Server đầu tiên', type: 'video', duration: '14:15', isPreview: false }
         ]
       },
       {
         id: 'ch2',
         title: 'Chương 2: Xây dựng RESTful API với Express.js',
         lessons: [
-          { id: 'l4', title: '2.1 Routing & Middleware trong Express', type: 'video', duration: '16:40', isPreview: false },
-          { id: 'l5', title: '2.2 Kết nối Database & ORM Query', type: 'video', duration: '21:10', isPreview: false },
-          { id: 'l6', title: '2.3 Bảo mật với JWT Authentication & Password Hashing', type: 'video', duration: '18:50', isPreview: false }
+          { id: '4', title: '2.1 Routing & Middleware trong Express', type: 'video', duration: '16:40', isPreview: false },
+          { id: '5', title: '2.2 Kết nối Database & ORM Query', type: 'video', duration: '21:10', isPreview: false },
+          { id: '6', title: '2.3 Bảo mật với JWT Authentication & Password Hashing', type: 'video', duration: '18:50', isPreview: false }
         ]
       }
     ];
@@ -111,17 +111,17 @@ function generateTopicSyllabus(title: string, category: string): any[] {
         id: 'ch1',
         title: 'Chương 1: Tư duy Thiết kế UI/UX & Figma Basics',
         lessons: [
-          { id: 'l1', title: '1.1 Tổng quan về Quy trình Thiết kế Sản phẩm UI/UX', type: 'video', duration: '10:00', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-          { id: 'l2', title: '1.2 Công cụ Figma & Cấu trúc Canvas, Frame, Vector', type: 'video', duration: '15:20', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
-          { id: 'l3', title: '1.3 Typography, Color Palette & Design Tokens', type: 'video', duration: '13:45', isPreview: false }
+          { id: '1', title: '1.1 Tổng quan về Quy trình Thiết kế Sản phẩm UI/UX', type: 'video', duration: '10:00', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+          { id: '2', title: '1.2 Công cụ Figma & Cấu trúc Canvas, Frame, Vector', type: 'video', duration: '15:20', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
+          { id: '3', title: '1.3 Typography, Color Palette & Design Tokens', type: 'video', duration: '13:45', isPreview: false }
         ]
       },
       {
         id: 'ch2',
         title: 'Chương 2: Design System & Interactive Prototype',
         lessons: [
-          { id: 'l4', title: '2.1 Components, Variants & Auto Layout 5.0', type: 'video', duration: '17:30', isPreview: false },
-          { id: 'l5', title: '2.2 Xây dựng Prototype tương tác chuyển động', type: 'video', duration: '19:15', isPreview: false }
+          { id: '4', title: '2.1 Components, Variants & Auto Layout 5.0', type: 'video', duration: '17:30', isPreview: false },
+          { id: '5', title: '2.2 Xây dựng Prototype tương tác chuyển động', type: 'video', duration: '19:15', isPreview: false }
         ]
       }
     ];
@@ -133,18 +133,18 @@ function generateTopicSyllabus(title: string, category: string): any[] {
         id: 'ch1',
         title: 'Chương 1: Giới thiệu & Cấu trúc Laravel Framework',
         lessons: [
-          { id: 'l1', title: '1.1 Cài đặt Composer, PHP & Laravel Framework', type: 'video', duration: '12:00', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-          { id: 'l2', title: '1.2 Architecture Concepts: Routing, Middleware & Controllers', type: 'video', duration: '16:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
-          { id: 'l3', title: '1.3 Blade Templating Engine & Layout Components', type: 'video', duration: '14:50', isPreview: false }
+          { id: '1', title: '1.1 Cài đặt Composer, PHP & Laravel Framework', type: 'video', duration: '12:00', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+          { id: '2', title: '1.2 Architecture Concepts: Routing, Middleware & Controllers', type: 'video', duration: '16:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
+          { id: '3', title: '1.3 Blade Templating Engine & Layout Components', type: 'video', duration: '14:50', isPreview: false }
         ]
       },
       {
         id: 'ch2',
         title: 'Chương 2: Eloquent ORM & REST API Development',
         lessons: [
-          { id: 'l4', title: '2.1 Database Migrations, Seeders & Factories', type: 'video', duration: '18:30', isPreview: false },
-          { id: 'l5', title: '2.2 Eloquent Relationships & Performance Optimization', type: 'video', duration: '22:10', isPreview: false },
-          { id: 'l6', title: '2.3 Laravel Sanctum Authentication & API Resources', type: 'video', duration: '19:40', isPreview: false }
+          { id: '4', title: '2.1 Database Migrations, Seeders & Factories', type: 'video', duration: '18:30', isPreview: false },
+          { id: '5', title: '2.2 Eloquent Relationships & Performance Optimization', type: 'video', duration: '22:10', isPreview: false },
+          { id: '6', title: '2.3 Laravel Sanctum Authentication & API Resources', type: 'video', duration: '19:40', isPreview: false }
         ]
       }
     ];
@@ -155,17 +155,17 @@ function generateTopicSyllabus(title: string, category: string): any[] {
       id: 'ch1',
       title: 'Chương 1: Giới thiệu & Môi trường phát triển',
       lessons: [
-        { id: 'l1', title: '1.1 Tổng quan về khóa học & Mục tiêu', type: 'video', duration: '10:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-        { id: 'l2', title: '1.2 Cài đặt các công cụ & Phần mềm cần thiết', type: 'video', duration: '14:30', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
-        { id: 'l3', title: '1.3 Thực hành bài tập đầu tiên', type: 'video', duration: '12:45', isPreview: false }
+        { id: '1', title: '1.1 Tổng quan về khóa học & Mục tiêu', type: 'video', duration: '10:15', isPreview: true, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+        { id: '2', title: '1.2 Cài đặt các công cụ & Phần mềm cần thiết', type: 'video', duration: '14:30', isPreview: true, videoUrl: 'https://www.w3schools.com/html/movie.mp4' },
+        { id: '3', title: '1.3 Thực hành bài tập đầu tiên', type: 'video', duration: '12:45', isPreview: false }
       ]
     },
     {
       id: 'ch2',
       title: 'Chương 2: Kiến thức nâng cao & Dự án thực tế',
       lessons: [
-        { id: 'l4', title: '2.1 Kiến trúc cốt lõi & Quy trình làm việc', type: 'video', duration: '15:20', isPreview: false },
-        { id: 'l5', title: '2.2 Xây dựng dự án thực chiến & Tối ưu hóa', type: 'video', duration: '18:10', isPreview: false }
+        { id: '4', title: '2.1 Kiến trúc cốt lõi & Quy trình làm việc', type: 'video', duration: '15:20', isPreview: false },
+        { id: '5', title: '2.2 Xây dựng dự án thực chiến & Tối ưu hóa', type: 'video', duration: '18:10', isPreview: false }
       ]
     }
   ];
@@ -304,7 +304,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
         (foundCourse as any).instructorBio = instInfo.bio;
 
         // 3. Try to fetch outline syllabus from Backend API (/learn/courses/:id/outline)
-        const numericId = parseInt(String(courseId).replace(/\D/g, ''), 10);
+        const numericId = parseInt(String(foundCourse.id).replace(/\D/g, ''), 10);
         let apiChapters: any[] = [];
         let backendCompletedLessonIds: string[] = [];
         let hasBackendOutline = false;
@@ -319,17 +319,17 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
                 id: String(sec.id || `sec-${idx}`),
                 title: sec.title || sec.name || `Chương ${idx + 1}`,
                 lessons: (sec.lessons || sec.items || []).map((l: any, lIdx: number) => {
-                  const lessonIdStr = String(l.id || `l-${idx}-${lIdx}`);
+                  const lessonIdVal = l.id && !isNaN(Number(l.id)) ? Number(l.id) : String(l.id || `l-${idx}-${lIdx}`);
                   if (l.progress?.status === 'completed' || l.progress?.completed_at) {
-                    backendCompletedLessonIds.push(lessonIdStr);
+                    backendCompletedLessonIds.push(String(lessonIdVal));
                   }
                   return {
-                    id: lessonIdStr,
+                    id: lessonIdVal,
                     title: l.title || l.name || `Bài ${lIdx + 1}`,
                     type: 'video',
                     duration: l.duration ? (typeof l.duration === 'number' ? `${Math.floor(l.duration/60)}:${String(l.duration%60).padStart(2,'0')}` : String(l.duration)) : '12:30',
                     isPreview: Boolean(l.is_preview),
-                    videoUrl: l.video_url || l.stream_url || 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    videoUrl: l.stream_url || l.streamUrl || l.video_url || l.videoUrl || (import.meta.env.DEV ? 'https://www.w3schools.com/html/mov_bbb.mp4' : ''),
                     content: l.description || l.summary,
                   };
                 })
@@ -398,10 +398,51 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     };
   }, [courseId, courses]);
 
+  useEffect(() => {
+    let isMounted = true;
+    if (!activeLesson?.id) return;
+
+    // Real backend IDs are numeric. Do not call API for mock string IDs.
+    if (isNaN(Number(activeLesson.id))) return;
+
+    classroomApi.getSecureLessonContent(activeLesson.id)
+      .then(secureLesson => {
+          if (isMounted && secureLesson) {
+             setActiveLesson(prev => {
+                if (prev?.id !== activeLesson.id) return prev;
+                const secureVideoUrl = secureLesson.stream_url || secureLesson.streamUrl || secureLesson.video_url || secureLesson.videoUrl || prev.videoUrl;
+                return {
+                   ...prev,
+                   videoUrl: secureVideoUrl,
+                   content: secureLesson.content || prev.content,
+                   docContent: secureLesson.docContent || prev.docContent,
+                };
+             });
+          }
+        })
+      .catch(err => console.warn('Failed to load secure lesson info:', err));
+
+    classroomApi.getSignedLessonVideoUrl(activeLesson.id)
+      .then(response => {
+          if (isMounted && response?.stream_url) {
+             setActiveLesson(prev => {
+                if (prev?.id !== activeLesson.id) return prev;
+                return {
+                   ...prev,
+                   videoUrl: response.stream_url,
+                };
+             });
+          }
+      })
+      .catch(err => console.warn('Failed to load signed video url:', err));
+
+    return () => { isMounted = false; };
+  }, [activeLesson?.id]);
+
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const setTab = (tab: TabType) => setActiveTab(tab);
 
-  const selectLesson = (lessonId: string) => {
+  const selectLesson = (lessonId: string | number) => {
     if (!course) return;
     for (const chapter of course.chapters) {
       const lesson = chapter.lessons.find(l => l.id === lessonId);
@@ -415,12 +456,12 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     }
   };
 
-  const toggleLessonCompletion = useCallback((lessonId: string, forceStatus?: boolean) => {
+  const toggleLessonCompletion = useCallback((lessonId: string | number, forceStatus?: boolean) => {
     if (!course) return;
     setProgress(prev => {
       if (!prev) return prev;
       const isAlreadyCompleted = prev.completedLessonIds.includes(lessonId);
-      let newCompletedIds: string[];
+      let newCompletedIds: (string | number)[];
 
       if (typeof forceStatus === 'boolean') {
         if (forceStatus) {

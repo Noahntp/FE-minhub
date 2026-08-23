@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Lock, Play, FileText, Video, ShoppingBag, BookOpen, Sparkles, RefreshCw, Info } from 'lucide-react';
 import { Course, Lesson } from '@/shared/types';
 import { resolveMediaUrl } from '@/shared/utils/format';
+import Hls from 'hls.js';
 
 interface FreePreviewModalProps {
   previewLesson: { lesson: Lesson; course: Course };
@@ -14,12 +15,27 @@ export function FreePreviewModal({ previewLesson, onClose, onBuyNow }: FreePrevi
   const [isLocked, setIsLocked] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const resolvedVideoUrl = resolveMediaUrl(lesson.videoUrl || (lesson as any).video_url) || "https://www.w3schools.com/html/mov_bbb.mp4";
+  const resolvedVideoUrl = resolveMediaUrl(lesson.stream_url || lesson.streamUrl || lesson.videoUrl || (lesson as any).video_url) || (import.meta.env.DEV ? "https://www.w3schools.com/html/mov_bbb.mp4" : "");
 
   useEffect(() => {
+    let hls: Hls | null = null;
+    
     if (videoRef.current && resolvedVideoUrl) {
-      videoRef.current.load();
+      if (resolvedVideoUrl.includes('.m3u8') && Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(resolvedVideoUrl);
+        hls.attachMedia(videoRef.current);
+      } else {
+        videoRef.current.src = resolvedVideoUrl;
+        videoRef.current.load();
+      }
     }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
   }, [resolvedVideoUrl]);
 
   // Helper to format VND currency safely
@@ -112,7 +128,6 @@ export function FreePreviewModal({ previewLesson, onClose, onBuyNow }: FreePrevi
                     });
                   }}
                 >
-                  <source src={resolvedVideoUrl} type={resolvedVideoUrl.endsWith('.webm') ? 'video/webm' : resolvedVideoUrl.endsWith('.mov') ? 'video/quicktime' : 'video/mp4'} />
                   Trình duyệt không hỗ trợ xem video này.
                 </video>
 

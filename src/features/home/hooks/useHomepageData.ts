@@ -85,7 +85,7 @@ export function useHomepageData() {
           // Sample mock course catalog matching the MindHub design screenshot (for fallback)
           const mockFeaturedCourses: HomeCourseItem[] = [
             {
-              id: 'laravel-rest-api',
+              id: 'laravel-rest-api-tu-co-ban-den-trien-khai',
               title: 'Laravel REST API từ cơ bản đến triển khai',
               level: 'Cơ bản',
               thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',

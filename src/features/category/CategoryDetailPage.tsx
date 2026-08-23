@@ -65,7 +65,7 @@ const CATEGORY_META: Record<string, { title: string; desc: string; icon: string;
 
 const DEFAULT_FALLBACK_COURSES: HomeCourseItem[] = [
   {
-    id: 'laravel-rest-api',
+    id: 'laravel-rest-api-tu-co-ban-den-trien-khai',
     title: 'Laravel REST API từ cơ bản đến triển khai',
     level: 'Cơ bản',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',

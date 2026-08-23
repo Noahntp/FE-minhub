@@ -323,13 +323,13 @@ export function HeroSection() {
 
                   <div className="flex flex-wrap items-center gap-3 pt-3">
                     <Link
-                      to="/courses/laravel-rest-api"
+                      to="/courses/laravel-rest-api-tu-co-ban-den-trien-khai"
                       className="px-6 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-sm shadow-lg shadow-rose-600/30 active:scale-95 transition-all flex items-center gap-2"
                     >
                       Xem chi tiết khóa học <ArrowRight className="w-4 h-4" />
                     </Link>
                     <Link
-                      to="/courses/laravel-rest-api"
+                      to="/courses/laravel-rest-api-tu-co-ban-den-trien-khai"
                       className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-500/30 font-bold text-sm flex items-center gap-2 active:scale-95 transition-all"
                     >
                       <PlayCircle className="w-4 h-4 text-rose-400" />

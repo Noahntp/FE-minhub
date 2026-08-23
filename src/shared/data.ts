@@ -158,7 +158,7 @@ export const INITIAL_COURSES: Course[] = [
         title: 'Chương 1: Giới thiệu React 19 & Kiến trúc Next.js mới',
         lessons: [
           {
-            id: 'c1-ch1-l1',
+            id: '1',
             title: '1.1 Tổng quan về cuộc cách mạng React 19',
             type: 'video',
             duration: '14:25',
@@ -176,7 +176,7 @@ export const INITIAL_COURSES: Course[] = [
             content: 'Giới thiệu về React 19 mới với React Compiler cốt lỗi giúp loại bỏ nhu cầu useMemo, useCallback thủ công.'
           },
           {
-            id: 'c1-ch1-l2',
+            id: '2',
             title: '1.2 Server Components vs Client Components thực tiễn',
             type: 'video',
             duration: '18:10',
@@ -185,7 +185,7 @@ export const INITIAL_COURSES: Course[] = [
             content: 'Hướng dẫn chi tiết lúc nào nên dùng Server Components để tăng tốc độ tải trang SEO và lúc nào sử dụng Client Components.'
           },
           {
-            id: 'c1-ch1-l3',
+            id: '3',
             title: '1.3 Trắc nghiệm: Nắm vững nguyên lý kết xuất (Rendering)',
             type: 'quiz',
             duration: '5 Câu hỏi',
@@ -227,7 +227,7 @@ export const INITIAL_COURSES: Course[] = [
         title: 'Chương 2: Làm chủ Server Actions & Biểu mẫu bảo mật',
         lessons: [
           {
-            id: 'c1-ch2-l1',
+            id: '1',
             title: '2.1 Khởi tạo Server Action đầu tiên của bạn',
             type: 'video',
             duration: '22:40',
@@ -236,7 +236,7 @@ export const INITIAL_COURSES: Course[] = [
             content: 'Tìm hiểu cách định nghĩa hàm với "use server" và gọi trực tiếp từ sự kiện onSubmit của Form.'
           },
           {
-            id: 'c1-ch2-l2',
+            id: '2',
             title: '2.2 Xử lý Loading State bằng useActionState và useFormStatus',
             type: 'video',
             duration: '15:15',
@@ -245,7 +245,7 @@ export const INITIAL_COURSES: Course[] = [
             content: 'Sử dụng các hook tích hợp mới của React 19 để theo dõi trạng thái gửi form đơn giản mà cực kỳ hiệu quả.'
           },
           {
-            id: 'c1-ch2-l3',
+            id: '3',
             title: 'Bài tập bắt buộc: Viết Form Đăng ký tin tức bảo mật',
             type: 'assignment',
             duration: 'Nộp bài',
@@ -328,7 +328,7 @@ export const INITIAL_COURSES: Course[] = [
         title: 'Chương 1: Cách mạng AI trong quy trình UI/UX hiện đại',
         lessons: [
           {
-            id: 'c2-ch1-l1',
+            id: '1',
             title: '1.1 Tổng quan về AI Design và ranh giới sáng tạo',
             type: 'video',
             duration: '10:50',
@@ -342,7 +342,7 @@ export const INITIAL_COURSES: Course[] = [
             content: 'Giới thiệu các loại AI hỗ trợ thiết kế giúp designer bứt phá năng suất.'
           },
           {
-            id: 'c2-ch1-l2',
+            id: '2',
             title: '1.2 Làm quen với Midjourney và cấu trúc Prompt UI',
             type: 'video',
             duration: '16:40',
@@ -400,7 +400,7 @@ export const INITIAL_COURSES: Course[] = [
         title: 'Chương 1: Những khối gạch đầu tiên của AI Agent',
         lessons: [
           {
-            id: 'c3-ch1-l1',
+            id: '1',
             title: '1.1 Khái niệm AI Agent vs Chatbot thông thường',
             type: 'video',
             duration: '12:00',

@@ -4,6 +4,7 @@ import { useApp, TrialLessonItem } from '@/app/AppContext';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/lib/media-url';
+import Hls from 'hls.js';
 
 const FALLBACK_SAMPLE_VIDEOS = [
   'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
@@ -32,7 +33,7 @@ export function TrialPreviewModal() {
             id: String(item.id),
             title: item.title || 'Bài học xem thử',
             duration: item.duration || '12:30',
-            videoUrl: item.video_url || item.videoUrl || FALLBACK_SAMPLE_VIDEOS[0],
+            videoUrl: item.stream_url || item.video_url || item.videoUrl || (import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : ''),
             courseTitle: item.course_title || item.courseTitle || 'Khóa học chất lượng cao',
             courseId: String(item.course_id || item.courseId || 'react-nextjs-master'),
             instructorName: item.instructor_name || item.instructorName || 'Giảng viên MindHub',
@@ -60,12 +61,34 @@ export function TrialPreviewModal() {
         setVideoSrc(rawUrl);
       } else {
         // Prevent 404 on dev server for unhosted relative video paths like /demo/videos/...
-        setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
+        setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : rawUrl);
       }
     } else {
-      setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
+      setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : '');
     }
   }, [currentLesson?.videoUrl]);
+
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    let hls: Hls | null = null;
+    
+    if (videoRef.current && videoSrc) {
+      if (videoSrc.includes('.m3u8') && Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(videoSrc);
+        hls.attachMedia(videoRef.current);
+      } else {
+        videoRef.current.src = videoSrc;
+      }
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();
+      }
+    };
+  }, [videoSrc]);
 
   if (!trialModalOpen) return null;
 
@@ -135,8 +158,8 @@ export function TrialPreviewModal() {
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl flex items-center justify-center">
               {videoSrc ? (
                 <video
+                  ref={videoRef}
                   key={videoSrc}
-                  src={videoSrc}
                   controls
                   autoPlay
                   onError={handleVideoError}

@@ -238,7 +238,7 @@ const ROADMAP_DATA = {
       lastStudied: 'Chưa học',
     },
     nextCourse: {
-      id: 'laravel-rest-api',
+      id: 'laravel-rest-api-tu-co-ban-den-trien-khai',
       title: 'Laravel REST API nâng cao',
       currentLesson: 'Bài 1: Tổng quan Laravel Framework',
       iconBg: 'bg-rose-600',
@@ -287,7 +287,7 @@ const ROADMAP_DATA = {
         progressPercent: 0,
         courses: [
           {
-            id: 'laravel-rest-api',
+            id: 'laravel-rest-api-tu-co-ban-den-trien-khai',
             title: 'Laravel REST API nâng cao',
             duration: '16 giờ 00 phút',
             lessons: 75,

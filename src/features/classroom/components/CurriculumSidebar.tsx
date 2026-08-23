@@ -5,8 +5,8 @@ import { Button } from '@/shared/components/ui/button';
 
 interface CurriculumSidebarProps {
   course: Course | null;
-  activeLessonId: string;
-  completedLessonIds: string[];
+  activeLessonId: string | number;
+  completedLessonIds: (string | number)[];
   isOpen: boolean;
   onClose: () => void;
   onSelectLesson: (lessonId: string) => void;
@@ -101,7 +101,7 @@ export function CurriculumSidebar({
         {course.chapters.map((chapter, chapterIndex) => {
           const isExpanded = expandedChapters[chapter.id] ?? true;
           const completedInChapter = chapter.lessons.filter((l) =>
-            completedLessonIds.includes(l.id)
+            completedLessonIds.map(String).includes(String(l.id))
           ).length;
 
           return (
@@ -139,12 +139,12 @@ export function CurriculumSidebar({
                 <div className="border-t border-slate-100 bg-white divide-y divide-slate-100">
                   {chapter.lessons.map((lesson, lessonIndex) => {
                     const isActive = lesson.id === activeLessonId;
-                    const isCompleted = completedLessonIds.includes(lesson.id);
+                    const isCompleted = completedLessonIds.map(String).includes(String(lesson.id));
 
                     return (
                       <div
                         key={lesson.id}
-                        onClick={() => onSelectLesson(lesson.id)}
+                        onClick={() => onSelectLesson(String(lesson.id))}
                         className={`
                           relative p-3 flex items-center justify-between gap-3 transition-all cursor-pointer group
                           ${

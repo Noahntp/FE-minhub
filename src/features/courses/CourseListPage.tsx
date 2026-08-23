@@ -63,7 +63,7 @@ const SORT_OPTIONS = [
 // 21 Rich Sample Courses matching design screenshot
 const ALL_COURSES_DATA: HomeCourseItem[] = [
   {
-    id: 'laravel-rest-api',
+    id: 'laravel-rest-api-tu-co-ban-den-trien-khai',
     title: 'Lập trình Python cơ bản cho người mới bắt đầu',
     level: 'Cơ bản',
     thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',

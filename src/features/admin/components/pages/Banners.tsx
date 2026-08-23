@@ -1274,7 +1274,7 @@ export default function Banners() {
                   </label>
                   <input
                     type="text"
-                    placeholder="/courses/laravel-rest-api hoặc đường dẫn ngoài..."
+                    placeholder="/courses/laravel-rest-api-tu-co-ban-den-trien-khai hoặc đường dẫn ngoài..."
                     value={formData.target_url}
                     onChange={(e) => setFormData({ ...formData, target_url: e.target.value })}
                     className="h-10 w-full rounded-xl border border-hairline bg-transparent px-3.5 text-sm outline-none focus:border-ink transition-colors"
