@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { homeApi } from '@/features/home/api';
 import { HomeCourseItem } from '../components/HomeCourseCard';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 export interface HomepageData {
   featuredCategories: any[];
@@ -31,6 +32,23 @@ function mapLevel(level?: string): 'Cơ bản' | 'Trung cấp' | 'Nâng cao' | '
   return 'Mọi trình độ';
 }
 
+function formatPublishedAt(dateStr?: string): string {
+  if (!dateStr) return 'Vừa ra mắt';
+  try {
+    const pubDate = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - pubDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Vừa ra mắt';
+    if (diffDays === 1) return 'Ra mắt 1 ngày';
+    if (diffDays < 7) return `Ra mắt ${diffDays} ngày`;
+    if (diffDays < 30) return `Ra mắt ${Math.floor(diffDays / 7)} tuần`;
+    return `Ra mắt ${pubDate.toLocaleDateString('vi-VN')}`;
+  } catch {
+    return 'Vừa ra mắt';
+  }
+}
+
 export function mapApiCourseToHomeCourseItem(c: any): HomeCourseItem {
   const price = c.sale_price !== null && c.sale_price !== undefined ? Number(c.sale_price) : Number(c.price || 0);
   const originalPrice = c.sale_price !== null && c.sale_price !== undefined && Number(c.sale_price) < Number(c.price) ? Number(c.price) : undefined;
@@ -43,17 +61,36 @@ export function mapApiCourseToHomeCourseItem(c: any): HomeCourseItem {
     }
   }
 
+  const rawEnrollments = Number(c.enrollments_count || 0);
+  const completedEnrollments = Number(c.completed_enrollments_count || 0);
+  const avgProgress = Number(c.average_progress_percent || 0);
+
+  let completionRate: number | undefined = undefined;
+  if (c.completion_rate !== undefined && c.completion_rate !== null) {
+    completionRate = Number(c.completion_rate);
+  } else if (rawEnrollments > 0 && completedEnrollments > 0) {
+    completionRate = Math.round((completedEnrollments / rawEnrollments) * 100);
+  } else if (avgProgress > 0) {
+    completionRate = Math.round(avgProgress);
+  }
+
   return {
     id: String(c.id || c.slug),
     realId: typeof c.id === 'number' ? c.id : (!isNaN(Number(c.id)) ? Number(c.id) : undefined),
     title: c.title || 'Khóa học chưa có tên',
     level: mapLevel(c.level),
-    thumbnail: c.thumbnail_url || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+    thumbnail: resolveMediaUrl(c.thumbnail_url || c.thumbnail) || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
     rating: Number(c.average_rating || 5.0),
     reviewCount: Number(c.reviews_count || 0),
-    studentCount: formatStudentCount(Number(c.enrollments_count || 0)),
+    studentCount: formatStudentCount(rawEnrollments),
+    rawStudentCount: rawEnrollments,
+    completedStudentCount: completedEnrollments > 0 ? completedEnrollments : undefined,
+    completionRate,
+    averageProgress: avgProgress > 0 ? avgProgress : undefined,
+    publishedAt: c.published_at ? formatPublishedAt(c.published_at) : undefined,
+    versionTag: 'Giáo trình 2026',
     instructorName: c.instructor?.full_name || 'Giảng viên MindHub',
-    instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    instructorAvatar: resolveMediaUrl(c.instructor?.avatar_url || c.instructor?.avatar) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
     price,
     originalPrice,
     discountBadge,
@@ -92,6 +129,9 @@ export function useHomepageData() {
               rating: 4.8,
               reviewCount: 120,
               studentCount: '1.2K',
+              rawStudentCount: 1200,
+              completedStudentCount: 1020,
+              completionRate: 85,
               instructorName: 'Nguyễn Văn A',
               instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
               price: 299000,
@@ -106,6 +146,9 @@ export function useHomepageData() {
               rating: 4.6,
               reviewCount: 98,
               studentCount: '980',
+              rawStudentCount: 980,
+              completedStudentCount: 764,
+              completionRate: 78,
               instructorName: 'Trần Minh Đức',
               instructorAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
               price: 399000,
@@ -118,6 +161,9 @@ export function useHomepageData() {
               rating: 4.7,
               reviewCount: 85,
               studentCount: '860',
+              rawStudentCount: 860,
+              completedStudentCount: 791,
+              completionRate: 92,
               instructorName: 'Lê Hoàng Nam',
               instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
               price: 449000,
@@ -130,6 +176,9 @@ export function useHomepageData() {
               rating: 4.9,
               reviewCount: 110,
               studentCount: '1.1K',
+              rawStudentCount: 1100,
+              completedStudentCount: 968,
+              completionRate: 88,
               instructorName: 'Phạm Quỳnh Anh',
               instructorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
               price: 499000,
@@ -142,6 +191,9 @@ export function useHomepageData() {
               rating: 4.9,
               reviewCount: 160,
               studentCount: '2.3K',
+              rawStudentCount: 2300,
+              completedStudentCount: 2185,
+              completionRate: 95,
               instructorName: 'Đỗ Thành Long',
               instructorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
               price: 0,
@@ -164,6 +216,8 @@ export function useHomepageData() {
               originalPrice: 699000,
               discountBadge: '-28%',
               isNew: true,
+              publishedAt: 'Ra mắt 2 ngày',
+              versionTag: 'Next.js 15 & React 19',
             },
             {
               id: 'docker-k8s-devops',
@@ -179,6 +233,8 @@ export function useHomepageData() {
               originalPrice: 899000,
               discountBadge: '-33%',
               isNew: true,
+              publishedAt: 'Ra mắt 5 ngày',
+              versionTag: 'Docker 2026 Edition',
             },
             {
               id: 'nestjs-microservices',
@@ -192,6 +248,8 @@ export function useHomepageData() {
               instructorAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
               price: 549000,
               isNew: true,
+              publishedAt: 'Ra mắt 1 tuần',
+              versionTag: 'NestJS 10 Enterprise',
             },
             {
               id: 'spring-boot-3',
@@ -205,6 +263,8 @@ export function useHomepageData() {
               instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
               price: 499000,
               isNew: true,
+              publishedAt: 'Ra mắt 1 tuần',
+              versionTag: 'Spring Boot 3.3',
             },
             {
               id: 'python-data-science',
@@ -218,6 +278,8 @@ export function useHomepageData() {
               instructorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
               price: 349000,
               isNew: true,
+              publishedAt: 'Ra mắt 3 ngày',
+              versionTag: 'Python 3.12 AI Stack',
             },
           ];
 
@@ -299,12 +361,141 @@ export function useHomepageData() {
             },
           ];
 
+          const mockFeaturedCategories = [
+            { id: 1, name: 'Lập trình Backend', slug: 'backend-development', icon: 'Server', courses_count: 24, description: 'Laravel, Node.js, Go, Microservices' },
+            { id: 2, name: 'Lập trình Frontend', slug: 'frontend-development', icon: 'Layout', courses_count: 32, description: 'React 19, Next.js 15, TypeScript' },
+            { id: 3, name: 'Trí tuệ nhân tạo & AI', slug: 'ai-data-science', icon: 'Bot', courses_count: 18, description: 'LLMs, AI Assistant, Python ML' },
+            { id: 4, name: 'DevOps & Cloud', slug: 'devops-cloud', icon: 'Cloud', courses_count: 15, description: 'Docker, Kubernetes, CI/CD, AWS' },
+            { id: 5, name: 'Thiết kế UI/UX', slug: 'ui-ux-design', icon: 'Figma', courses_count: 20, description: 'Figma, Design System, UX Research' },
+            { id: 6, name: 'Lập trình Di động', slug: 'mobile-development', icon: 'Smartphone', courses_count: 16, description: 'Flutter, React Native, iOS, Android' },
+          ];
+
+          const mockTopInstructors = [
+            {
+              id: 1,
+              full_name: 'TS. Lê Quốc Khánh',
+              name: 'TS. Lê Quốc Khánh',
+              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&q=80',
+              avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&q=80',
+              expertise: 'React 19, Next.js 15, Cloud Architecture',
+              bio: 'Tiến sĩ Khoa học Máy tính, cựu Tech Lead tại các tập đoàn công nghệ lớn. Hơn 10 năm kinh nghiệm kiến trúc hệ thống.',
+              total_students: 18500,
+              courses_count: 8,
+              average_rating: 4.9,
+            },
+            {
+              id: 2,
+              full_name: 'Trần Minh Anh',
+              name: 'Trần Minh Anh',
+              avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&q=80',
+              avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&q=80',
+              expertise: 'Frontend Mastery, UI/UX, TypeScript, Performance',
+              bio: 'Principal Frontend Engineer & UI Specialist với nhiều năm kinh nghiệm tối ưu trải nghiệm người dùng.',
+              total_students: 12800,
+              courses_count: 6,
+              average_rating: 4.8,
+            },
+            {
+              id: 3,
+              full_name: 'Đỗ Thành Long',
+              name: 'Đỗ Thành Long',
+              avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&q=80',
+              avatar_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&q=80',
+              expertise: 'DevOps, Docker, Kubernetes, CI/CD, AWS Cloud',
+              bio: 'Cloud Architect với các chứng chỉ quốc tế AWS Solutions Architect Pro & CKA Kubernetes Administrator.',
+              total_students: 15200,
+              courses_count: 7,
+              average_rating: 4.9,
+            },
+            {
+              id: 4,
+              full_name: 'Phạm Quỳnh Anh',
+              name: 'Phạm Quỳnh Anh',
+              avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&q=80',
+              avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&q=80',
+              expertise: 'AI Assistant, LangChain, LLMs, Python Data Science',
+              bio: 'AI Researcher & Data Scientist chuyên sâu về ứng dụng mô hình ngôn ngữ lớn vào sản phẩm thực tế.',
+              total_students: 14100,
+              courses_count: 5,
+              average_rating: 4.9,
+            },
+          ];
+
+          const mockTestimonials = [
+            {
+              id: 1,
+              rating: 5,
+              comment: 'Khóa học React 19 và Next.js 15 của thầy Khánh thực sự làm thay đổi tư duy lập trình của mình. Mình đã tự tin ứng tuyển vị trí Frontend Developer và nhận offer ngay sau khi kết thúc khóa!',
+              user_name: 'Nguyễn Tuấn Anh',
+              user_role: 'Frontend Developer @ VNG',
+              user_avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+            },
+            {
+              id: 2,
+              rating: 5,
+              comment: 'Nội dung khóa Laravel REST API rất thực chiến và chuẩn enterprise. Giảng viên hỗ trợ nhiệt tình, code mẫu sạch đẹp và có sẵn template triển khai Docker thực tế.',
+              user_name: 'Trần Thu Hà',
+              user_role: 'Backend Engineer @ Shopee',
+              user_avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
+            },
+            {
+              id: 3,
+              rating: 5,
+              comment: 'Khóa học AI và LLMs rất cuốn hút! Từ một người chưa biết gì về Vector Database hay RAG, giờ mình đã có thể tự xây dựng AI Chatbot phục vụ cho dự án của công ty.',
+              user_name: 'Lê Minh Quang',
+              user_role: 'AI Engineer Fresher',
+              user_avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
+            },
+          ];
+
+          const mockVouchers = [
+            {
+              id: 1,
+              code: 'MINDHUB50',
+              name: 'Siêu Ưu Đãi Khai Xuân 50%',
+              description: 'Giảm trực tiếp 50% cho tất cả khóa học công nghệ mới.',
+              discount_type: 'percentage',
+              discount_value: 50,
+            },
+            {
+              id: 2,
+              code: 'DEVPRO30',
+              name: 'Ưu Đãi Lập Trình Viên Pro 30%',
+              description: 'Giảm 30% khi đăng ký các khóa học nâng cao.',
+              discount_type: 'percentage',
+              discount_value: 30,
+            },
+            {
+              id: 3,
+              code: 'CHUYENGIA',
+              name: 'Voucher Chuyên Gia 20%',
+              description: 'Giảm 20% cho các khóa học cùng Giảng viên tiêu biểu.',
+              discount_type: 'percentage',
+              discount_value: 20,
+            },
+            {
+              id: 4,
+              code: 'NEWSTUDENT',
+              name: 'Chào Đón Tân Học Viên 100K',
+              description: 'Giảm ngay 100.000đ cho đơn hàng đầu tiên.',
+              discount_type: 'fixed',
+              discount_value: 100000,
+            },
+          ];
+
+          const mockStats = {
+            total_courses: 48,
+            total_students: 18500,
+            total_instructors: 35,
+            total_reviews: 4200,
+          };
+
           const apiFeatured = Array.isArray(res?.featured_courses) && res.featured_courses.length > 0
             ? res.featured_courses.map(mapApiCourseToHomeCourseItem)
             : mockFeaturedCourses;
 
           const apiNew = Array.isArray(res?.latest_courses) && res.latest_courses.length > 0
-            ? res.latest_courses.map((c: any) => ({ ...mapApiCourseToHomeCourseItem(c), isNew: true }))
+            ? res.latest_courses.map((c: any) => ({ ...mapApiCourseToHomeCourseItem(c), isNew: true, hasCertificate: true }))
             : mockNewCourses;
 
           const apiDiscounted = Array.isArray(res?.discounted_courses) && res.discounted_courses.length > 0
@@ -312,15 +503,15 @@ export function useHomepageData() {
             : mockDiscountedCourses;
 
           setData({
-            featuredCategories: Array.isArray(res?.categories) ? res.categories : [],
+            featuredCategories: Array.isArray(res?.categories) && res.categories.length > 0 ? res.categories : mockFeaturedCategories,
             featuredCourses: apiFeatured,
             newCourses: apiNew,
             discountedCourses: apiDiscounted,
-            topInstructors: Array.isArray(res?.featured_instructors) ? res.featured_instructors : [],
-            faqs: Array.isArray(res?.faqs) ? res.faqs : [],
-            testimonials: Array.isArray(res?.testimonials) ? res.testimonials : [],
-            vouchers: Array.isArray(res?.vouchers) ? res.vouchers : [],
-            stats: res?.stats || null,
+            topInstructors: Array.isArray(res?.featured_instructors) && res.featured_instructors.length > 0 ? res.featured_instructors : mockTopInstructors,
+            faqs: Array.isArray(res?.faqs) && res.faqs.length > 0 ? res.faqs : [],
+            testimonials: Array.isArray(res?.testimonials) && res.testimonials.length > 0 ? res.testimonials : mockTestimonials,
+            vouchers: Array.isArray(res?.vouchers) && res.vouchers.length > 0 ? res.vouchers : mockVouchers,
+            stats: res?.stats || mockStats,
           });
         }
       } catch (err: any) {

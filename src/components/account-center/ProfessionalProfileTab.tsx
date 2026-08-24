@@ -313,7 +313,7 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
               {bankInfo.bankName}
             </div>
             <div className="font-mono font-black text-[#06091a] text-base sm:text-lg tracking-wider flex items-center gap-2">
-              <span>{bankInfo.accountNumber}</span>
+              <span className="whitespace-nowrap select-all">{bankInfo.accountNumber}</span>
               <button
                 type="button"
                 onClick={() => {

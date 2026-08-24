@@ -113,6 +113,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .catch(err => {
           console.warn('Could not fetch fresh user profile on app load:', err);
         });
+
+      apiFetch<any>('/me/courses')
+        .then((res) => {
+          const list = Array.isArray(res) ? res : (res?.data || []);
+          if (Array.isArray(list)) {
+            const ids = list
+              .map((item: any) => String(item.course_id || item.course?.id || item.course?.slug || item.id))
+              .filter(Boolean);
+            if (ids.length > 0) {
+              setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
+            }
+          }
+        })
+        .catch(() => {});
     }
   }, []);
 

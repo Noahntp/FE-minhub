@@ -26,8 +26,12 @@ import {
   Trash2,
   Check,
   X,
+  Send,
+  PenLine,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useApp } from '@/app/AppContext';
+import { apiFetch } from '@/shared/lib/api-client';
 
 interface ClassroomTabsProps {
   course: Course | null;
@@ -98,6 +102,42 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
 
   const [resourcesList, setResourcesList] = useState<any[]>([]);
   const [isLoadingResources, setIsLoadingResources] = useState(false);
+
+  const { currentUser, enrolledCourseIds = [] } = useApp();
+  const isEnrolled = Boolean(
+    currentUser && (
+      (course as any)?.is_enrolled ||
+      (course as any)?.isEnrolled ||
+      enrolledCourseIds.some(
+        (id) => String(id) === String(course?.id) || String(id) === String(course?.slug)
+      )
+    )
+  );
+
+  const [courseReviews, setCourseReviews] = useState<any[]>([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [selectedReviewRating, setSelectedReviewRating] = useState<number>(5);
+  const [hoverReviewRating, setHoverReviewRating] = useState<number | null>(null);
+  const [reviewCommentText, setReviewCommentText] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const fetchReviewsData = useCallback(async () => {
+    if (!course?.id) return;
+    setIsLoadingReviews(true);
+    try {
+      const res = await apiFetch<any>(`/courses/${course.id}/reviews?per_page=100`);
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      setCourseReviews(list);
+    } catch (e) {
+      setCourseReviews([]);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  }, [course?.id]);
+
+  useEffect(() => {
+    fetchReviewsData();
+  }, [fetchReviewsData]);
 
   // Continuous auto-sync with current real video time while watching, unless user manually edited custom time
   useEffect(() => {
@@ -248,26 +288,28 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     if (!activeLesson?.id) return;
     setIsLoadingQA(true);
     const storageKey = `mindhub_qa_list_${course?.id || 'c1'}_${activeLesson.id}`;
+    // Xóa bộ nhớ đệm cũ trên trình duyệt để tránh hiển thị bình luận lỗi trước đây
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (e) {}
+
     try {
       const numericId = getNumericLessonId(activeLesson.id);
       const res = await classroomApi.getLessonComments(String(numericId));
-      if (Array.isArray(res)) {
-        setQaList((prev) => {
-          const localOnly = prev.filter((item) => String(item.id).startsWith('local-'));
-          const mergedMap = new Map<string, any>();
-          [...localOnly, ...res].forEach((item) => {
-            const key = String(item.id || item.comment_id);
-            mergedMap.set(key, item);
-          });
-          const merged = Array.from(mergedMap.values());
-          try {
-            localStorage.setItem(storageKey, JSON.stringify(merged));
-          } catch (e) {}
-          return merged;
-        });
-      }
+      const commentsArray = Array.isArray(res)
+        ? res
+        : Array.isArray((res as any)?.items)
+        ? (res as any).items
+        : Array.isArray((res as any)?.data)
+        ? (res as any).data
+        : [];
+
+      // Chỉ hiển thị các bình luận hợp lệ (status = visible)
+      const validComments = commentsArray.filter((item: any) => item.status === 'visible' || !item.status);
+      setQaList(validComments);
     } catch (err: any) {
       console.warn('Could not load Q&A from backend API:', err?.message);
+      setQaList([]);
     } finally {
       setIsLoadingQA(false);
     }
@@ -275,21 +317,8 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
 
   useEffect(() => {
     if (!activeLesson?.id) return;
-    const storageKey = `mindhub_qa_list_${course?.id || 'c1'}_${activeLesson.id}`;
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setQaList(parsed);
-        }
-      }
-    } catch (e) {}
-
-    if (activeTab === 'qa') {
-      fetchQAData();
-    }
-  }, [activeTab, activeLesson?.id, course?.id, fetchQAData]);
+    fetchQAData();
+  }, [activeLesson?.id, fetchQAData]);
 
   const fetchResourcesData = useCallback(async () => {
     if (!activeLesson?.id) return;
@@ -324,6 +353,7 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     { id: 'qa', label: 'Hỏi đáp', icon: <MessageSquare className="w-4 h-4" />, badge: `${qaList.length}` },
     { id: 'notes', label: 'Ghi chú', icon: <FileText className="w-4 h-4" />, badge: `${savedNotes.length}` },
     { id: 'resources', label: 'Tài nguyên', icon: <FolderDown className="w-4 h-4" />, badge: `${resourcesList.length}` },
+    { id: 'reviews', label: 'Đánh giá', icon: <Star className="w-4 h-4" />, badge: courseReviews.length > 0 ? `${courseReviews.length}` : undefined },
   ];
 
   const handleAddNote = async () => {
@@ -372,40 +402,19 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     const questionText = newQuestion.trim();
     setIsSubmittingQA(true);
 
-    const newQaItem = {
-      id: 'local-' + Date.now(),
-      comment_id: Date.now(),
-      content: questionText,
-      created_at: new Date().toISOString(),
-      user: {
-        id: 999,
-        full_name: 'Bạn (Học viên)',
-        role: 'learner',
-      },
-      replies: [],
-    };
-
-    const storageKey = `mindhub_qa_list_${course?.id || 'c1'}_${activeLesson.id}`;
-
-    // Immediately persist locally so reload retains it 100%
-    setQaList((prev) => {
-      const updated = [newQaItem, ...prev];
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-
     try {
       const numericId = getNumericLessonId(activeLesson.id);
       await classroomApi.addLessonComment(String(numericId), questionText);
       toast.success('Đã gửi câu hỏi! Giảng viên sẽ phản hồi sớm nhất.');
-      fetchQAData();
-    } catch (err: any) {
-      console.warn('API add comment note:', err?.message);
-      toast.success('Đã gửi câu hỏi! Giảng viên sẽ phản hồi sớm nhất.');
-    } finally {
       setNewQuestion('');
+      await fetchQAData();
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Bình luận chứa nội dung không phù hợp với tiêu chuẩn cộng đồng!';
+      toast.error(errorMsg);
+    } finally {
       setIsSubmittingQA(false);
     }
   };
@@ -968,6 +977,229 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
                           <Download className="w-4 h-4" />
                         </button>
                       )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* 5. TAB: ĐÁNH GIÁ (REVIEWS) */}
+        {activeTab === 'reviews' && (
+          <div className="space-y-6">
+            
+            {/* Header / Summary Card */}
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200/60 flex flex-col items-center justify-center shrink-0">
+                  <span className="text-xl font-black text-amber-700">
+                    {course.rating ? course.rating.toFixed(1) : '5.0'}
+                  </span>
+                  <div className="flex items-center gap-0.5 mt-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-2.5 h-2.5 ${
+                          i < Math.round(course.rating || 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">
+                    Đánh giá & Nhận xét từ học viên
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {courseReviews.length > 0
+                      ? `Tổng cộng ${courseReviews.length} lượt đánh giá thực tế`
+                      : `Khóa học có ${course.reviewCount || 0} lượt đánh giá`}
+                  </p>
+                </div>
+              </div>
+
+              {isEnrolled && (
+                <div className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Đã ghi danh — Được phép đánh giá</span>
+                </div>
+              )}
+            </div>
+
+            {/* Submit / Edit Review Box */}
+            {isEnrolled ? (
+              <div className="p-5 sm:p-6 bg-gradient-to-br from-amber-500/5 via-white to-emerald-500/5 border-2 border-amber-300/60 rounded-3xl shadow-sm space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <PenLine className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                      Gửi đánh giá của bạn
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Đánh giá sẽ hiển thị công khai
+                  </span>
+                </div>
+
+                {/* Interactive Star Picker */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-700">Chọn số sao:</span>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const isFilled = (hoverReviewRating !== null ? hoverReviewRating : selectedReviewRating) >= star;
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onMouseEnter={() => setHoverReviewRating(star)}
+                          onMouseLeave={() => setHoverReviewRating(null)}
+                          onClick={() => setSelectedReviewRating(star)}
+                          className="p-1 hover:scale-125 transition-transform cursor-pointer"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              isFilled ? 'fill-amber-400 text-amber-400 drop-shadow-sm' : 'text-slate-300'
+                            }`}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="text-xs font-extrabold text-amber-700 ml-1">
+                    {(hoverReviewRating !== null ? hoverReviewRating : selectedReviewRating) === 5
+                      ? 'Tuyệt vời (5 sao)'
+                      : (hoverReviewRating !== null ? hoverReviewRating : selectedReviewRating) === 4
+                      ? 'Rất tốt (4 sao)'
+                      : (hoverReviewRating !== null ? hoverReviewRating : selectedReviewRating) === 3
+                      ? 'Bình thường (3 sao)'
+                      : (hoverReviewRating !== null ? hoverReviewRating : selectedReviewRating) === 2
+                      ? 'Tạm được (2 sao)'
+                      : 'Chưa tốt (1 sao)'}
+                  </span>
+                </div>
+
+                {/* Comment Textarea */}
+                <div className="space-y-2">
+                  <textarea
+                    value={reviewCommentText}
+                    onChange={(e) => setReviewCommentText(e.target.value)}
+                    placeholder="Chia sẻ cảm nghĩ, chất lượng nội dung, sự hỗ trợ của giảng viên..."
+                    className="w-full h-24 p-3.5 rounded-2xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-xs font-medium resize-none shadow-inner text-slate-800 placeholder:text-slate-400"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      disabled={isSubmittingReview || !reviewCommentText.trim()}
+                      onClick={async () => {
+                        if (!course?.id) return;
+                        if (!reviewCommentText.trim()) {
+                          toast.error('Vui lòng nhập nội dung đánh giá.');
+                          return;
+                        }
+                        setIsSubmittingReview(true);
+                        try {
+                          await apiFetch(`/courses/${course.id}/reviews`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              rating: selectedReviewRating,
+                              content: reviewCommentText.trim(),
+                              comment: reviewCommentText.trim(),
+                            }),
+                          });
+                          toast.success('Đã gửi đánh giá khóa học thành công!');
+                          setReviewCommentText('');
+                          fetchReviewsData();
+                        } catch (err: any) {
+                          toast.error(err?.message || 'Có lỗi xảy ra khi gửi đánh giá.');
+                        } finally {
+                          setIsSubmittingReview(false);
+                        }
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-2 shadow-md hover:shadow-amber-500/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      {isSubmittingReview ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                      <span>Gửi đánh giá</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3 text-slate-600 text-xs font-medium">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>Chỉ những học viên đã đăng ký hoặc mua khóa học mới có thể gửi đánh giá và nhận xét.</span>
+              </div>
+            )}
+
+            {/* List of Reviews */}
+            {isLoadingReviews ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              </div>
+            ) : courseReviews.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 p-6 space-y-2">
+                <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center mx-auto mb-3">
+                  <Star className="w-6 h-6 fill-amber-400" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">Chưa có đánh giá nào</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Hãy là người đầu tiên chia sẻ cảm nhận về khóa học này!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {courseReviews.map((rev: any, idx: number) => {
+                  const ratingVal = Number(rev.rating) || 5;
+                  const reviewerName = rev.reviewer_name || rev.user_name || rev.name || rev.user?.full_name || 'Học viên MindHub';
+                  const reviewerAvatar = rev.reviewer_avatar || rev.user_avatar || rev.avatar || rev.user?.avatar;
+                  const reviewContent = rev.content || rev.comment || rev.review_text || '';
+                  const reviewTime = rev.created_at ? formatTimeAgo(rev.created_at) : (rev.date || 'Gần đây');
+
+                  return (
+                    <div
+                      key={rev.id || idx}
+                      className="p-4 sm:p-5 bg-white border border-slate-200/80 rounded-2xl space-y-3 hover:border-amber-300/60 transition-all shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {reviewerAvatar ? (
+                            <img
+                              src={reviewerAvatar}
+                              alt={reviewerName}
+                              className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+                              {reviewerName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-xs font-black text-slate-900">{reviewerName}</div>
+                            <div className="text-[10px] text-slate-400 font-medium">{reviewTime}</div>
+                          </div>
+                        </div>
+
+                        {/* Star display */}
+                        <div className="flex items-center gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${
+                                i < ratingVal ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-700 leading-relaxed font-normal">
+                        {reviewContent}
+                      </p>
                     </div>
                   );
                 })}

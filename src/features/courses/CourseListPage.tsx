@@ -22,6 +22,7 @@ import {
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 // Sample mock categories with count matching design mockup
 const CATEGORY_FILTERS = [
@@ -376,7 +377,7 @@ export default function CourseListPage() {
               realId: item.id ? Number(item.id) : undefined,
               title: item.title || 'Khóa học chưa có tên',
               level: levelLabel,
-              thumbnail: item.image || item.thumbnail_url || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
+              thumbnail: resolveMediaUrl(item.image || item.thumbnail_url || item.thumbnail) || 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
               rating: item.rating !== undefined && item.rating !== null 
                 ? Number(item.rating) 
                 : (item.average_rating !== undefined && item.average_rating !== null ? Number(item.average_rating) : 0),
@@ -387,7 +388,7 @@ export default function CourseListPage() {
                 ? `${item.enrolledCount}` 
                 : (item.enrollments_count !== undefined && item.enrollments_count !== null ? `${item.enrollments_count}` : '0'),
               instructorName: item.instructorName || item.instructor?.full_name || item.instructor?.name || 'Giảng viên MindHub',
-              instructorAvatar: item.instructorAvatar || item.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+              instructorAvatar: resolveMediaUrl(item.instructorAvatar || item.instructor?.avatar_url || item.instructor?.avatar) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
               price: finalPrice,
               originalPrice: originalPrice,
               discountBadge: originalPrice && originalPrice > finalPrice ? `-${Math.round(((originalPrice - finalPrice) / originalPrice) * 100)}%` : undefined,

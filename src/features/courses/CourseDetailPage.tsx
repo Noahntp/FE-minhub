@@ -30,9 +30,13 @@ import {
   CheckCircle2,
   ThumbsUp,
   ChevronLeft,
+  PenLine,
+  Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 
 import { useApp } from '@/app/AppContext';
+import { CourseReviewModal } from '@/features/reviews/CourseReviewModal';
 import { useCourseDetail } from './hooks/useCourseDetail';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { CourseDetailSkeleton } from './components/CourseDetailSkeleton';
@@ -160,6 +164,78 @@ export default function CourseDetailPage() {
   const [apiRelatedCourses, setApiRelatedCourses] = useState<HomeCourseItem[]>([]);
   const [apiReviewsList, setApiReviewsList] = useState<any[]>([]);
   const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
+  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
+  const [apiFaqsList, setApiFaqsList] = useState<{ id: string | number; question: string; answer: string }[]>([]);
+  const [expandedFaqs, setExpandedFaqs] = useState<Record<string | number, boolean>>({ 0: true, 1: true });
+
+  const DEFAULT_FAQS = [
+    {
+      id: 'faq-1',
+      question: 'Khóa học này phù hợp với ai và có cần kiến thức nền tảng trước không?',
+      answer: 'Khóa học được thiết kế từ cơ bản đến nâng cao. Bạn chỉ cần có máy tính cá nhân kết nối Internet và tinh thần học hỏi, không bắt buộc kinh nghiệm lập trình từ trước.',
+    },
+    {
+      id: 'faq-2',
+      question: 'Tôi có được xem lại bài giảng sau khi hoàn thành khóa học không?',
+      answer: 'Có, bạn được cấp quyền truy cập trọn đời vào toàn bộ video bài giảng, tài liệu PDF và source code mẫu của khóa học trên mọi thiết bị.',
+    },
+    {
+      id: 'faq-3',
+      question: 'Tôi có nhận được chứng chỉ sau khi hoàn thành khóa học không?',
+      answer: 'Sau khi hoàn thành 100% các bài học và bài kiểm tra cuối khóa, hệ thống MindHub sẽ tự động cấp chứng chỉ hoàn thành có mã định danh xác thực cho bạn.',
+    },
+    {
+      id: 'faq-4',
+      question: 'Nếu gặp khó khăn trong quá trình làm bài tập thì tôi hỏi ai?',
+      answer: 'Mỗi bài học đều có mục Hỏi & Đáp (Q&A) tương tác trực tiếp với Giảng viên và cộng đồng học viên MindHub để được hỗ trợ giải đáp 24/7.',
+    },
+    {
+      id: 'faq-5',
+      question: 'Chính sách hoàn tiền của MindHub như thế nào?',
+      answer: 'MindHub cam kết hoàn tiền 100% trong vòng 7 ngày đầu nếu bạn chưa học quá 20% nội dung và cảm thấy khóa học không phù hợp với mục tiêu của mình.',
+    },
+  ];
+
+  const isEnrolled = Boolean(
+    currentUser && (
+      (course as any)?.is_enrolled ||
+      (course as any)?.isEnrolled ||
+      enrolledCourseIds.some(
+        (id) => String(id) === String(course?.id) || String(id) === String(course?.slug)
+      )
+    )
+  );
+
+  const loadReviews = () => {
+    if (!course?.id) return;
+    apiFetch<any>(`/courses/${course.id}/reviews?per_page=100`)
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (list.length > 0) {
+          const mappedReviews = list.map((rev: any) => {
+            const rawAvatar = rev.reviewer_avatar || rev.reviewer?.avatar_url || rev.order?.user?.avatar_url || rev.user?.avatar_url;
+            return {
+              id: rev.id,
+              reviewer_id: rev.reviewer_id || rev.reviewer?.id || rev.user_id,
+              name: rev.reviewer_name || rev.reviewer?.full_name || rev.order?.user?.full_name || rev.user?.full_name || 'Học viên MindHub',
+              avatar: rawAvatar ? resolveMediaUrl(rawAvatar) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+              date: rev.created_at ? new Date(rev.created_at).toLocaleDateString('vi-VN') : 'vừa xong',
+              content: rev.content || rev.comment || 'Khóa học tuyệt vời và mang lại nhiều giá trị.',
+              rating: Number(rev.rating || 5),
+              helpfulCount: rev.helpful_count || 12,
+            };
+          });
+          setApiReviewsList(mappedReviews);
+          setTotalReviewsCount(res?.meta?.total || list.length);
+        } else {
+          setApiReviewsList([]);
+          setTotalReviewsCount(0);
+        }
+      })
+      .catch(() => {
+        setApiReviewsList([]);
+      });
+  };
 
   useEffect(() => {
     if (!course?.id) return;
@@ -188,29 +264,21 @@ export default function CourseDetailPage() {
       .catch(() => {});
 
     // Fetch course reviews
-    if (course?.id) {
-      apiFetch<any>(`/courses/${course.id}/reviews?per_page=100`)
-        .then((res) => {
-          const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-          if (list.length > 0) {
-            const mappedReviews = list.map((rev: any) => {
-              const rawAvatar = rev.reviewer?.avatar_url || rev.order?.user?.avatar_url || rev.user?.avatar_url;
-              return {
-                id: rev.id,
-                name: rev.reviewer?.full_name || rev.order?.user?.full_name || rev.user?.full_name || 'Học viên MindHub',
-                avatar: rawAvatar ? resolveMediaUrl(rawAvatar) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-                date: rev.created_at ? new Date(rev.created_at).toLocaleDateString('vi-VN') : 'vừa xong',
-                content: rev.comment || 'Khóa học tuyệt vời và mang lại nhiều giá trị.',
-                rating: Number(rev.rating || 5),
-                helpfulCount: rev.helpful_count || 12,
-              };
-            });
-            setApiReviewsList(mappedReviews);
-            setTotalReviewsCount(res?.meta?.total || list.length);
-          }
-        })
-        .catch(() => {});
-    }
+    loadReviews();
+
+    // Fetch course FAQs
+    apiFetch<any>(`/courses/${course.id}/faqs?per_page=100`)
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (list.length > 0) {
+          setApiFaqsList(list.map((f: any, idx: number) => ({
+            id: f.id || `faq-${idx}`,
+            question: f.question || f.title || 'Câu hỏi',
+            answer: f.answer || f.content || 'Nội dung trả lời đang cập nhật.',
+          })));
+        }
+      })
+      .catch(() => {});
   }, [course?.id]);
 
   // Live Countdown Timer state (02 Days, 15 Hours, 30 Mins, 45 Secs)
@@ -341,8 +409,6 @@ export default function CourseDetailPage() {
       </div>
     );
   }
-
-  const isEnrolled = (enrolledCourseIds || []).includes(course.id);
 
   // Related courses mock data
   const relatedCoursesData: HomeCourseItem[] = [
@@ -497,11 +563,16 @@ export default function CourseDetailPage() {
 
                 <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
 
-                <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="flex items-center gap-1.5 text-slate-700 hover:text-amber-600 font-bold transition-colors cursor-pointer"
+                  title="Xem các đánh giá từ học viên"
+                >
                   <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                   <span>{course.rating.toFixed(1)}</span>
                   <span className="text-slate-400 font-normal">({course.reviewCount.toLocaleString()} đánh giá)</span>
-                </div>
+                </button>
 
                 <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
 
@@ -584,13 +655,28 @@ export default function CourseDetailPage() {
                 {/* Single Purchase & Free Trial Buttons */}
                 <div className="pt-1 space-y-2">
                   {isEnrolled ? (
-                    <button
-                      onClick={() => navigate(`/learn/${course.id}`)}
-                      className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
-                    >
-                      <PlayCircle className="w-5 h-5" />
-                      <span>Tiếp tục học ngay</span>
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => navigate(`/learn/${course.id}`)}
+                        className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+                      >
+                        <PlayCircle className="w-5 h-5" />
+                        <span>Tiếp tục học ngay</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowReviewModal(true)}
+                        className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs flex items-center justify-center gap-2 border border-amber-200 transition-all cursor-pointer shadow-sm"
+                      >
+                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                        <span>
+                          {apiReviewsList.some((r) => r.reviewer_id === currentUser?.id || r.name === currentUser?.full_name)
+                            ? 'Chỉnh sửa đánh giá của bạn'
+                            : 'Đánh giá khóa học này'}
+                        </span>
+                      </button>
+                    </div>
                   ) : (
                     <>
                       <button
@@ -715,25 +801,39 @@ export default function CourseDetailPage() {
       </section>
 
       {/* 5. Main Tabbed Content & Right Sidebar */}
-      <section className="py-10">
+      <section className="py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 border-b border-slate-200 mb-8 overflow-x-auto">
+          {/* Sticky Navigation Tabs */}
+          <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md pt-2 pb-1 border-b border-slate-200 mb-8 overflow-x-auto flex items-center gap-2">
             {[
-              { id: 'overview', label: 'Tổng quan' },
-              { id: 'curriculum', label: 'Nội dung khóa học' },
-              { id: 'instructor', label: 'Giảng viên' },
-              { id: 'reviews', label: 'Đánh giá (1.234)' },
-              { id: 'faq', label: 'Hỏi đáp (320)' },
+              { id: 'overview', label: 'Tổng quan', targetId: 'overview-section' },
+              { id: 'curriculum', label: 'Nội dung khóa học', targetId: 'curriculum-section' },
+              { id: 'instructor', label: 'Giảng viên', targetId: 'instructor-section' },
+              { 
+                id: 'reviews', 
+                label: `Đánh giá (${(totalReviewsCount || apiReviewsList.length || course.reviewCount || 0).toLocaleString()})`, 
+                targetId: 'reviews-section' 
+              },
+              { 
+                id: 'faq', 
+                label: `Hỏi đáp (${(apiFaqsList.length > 0 ? apiFaqsList.length : DEFAULT_FAQS.length)})`, 
+                targetId: 'faq-section' 
+              },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-5 py-3 text-sm font-extrabold transition-all border-b-2 whitespace-nowrap ${
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  const el = document.getElementById(tab.targetId);
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className={`px-5 py-3 text-sm font-extrabold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
                   activeTab === tab.id
-                    ? 'border-emerald-600 text-emerald-600 bg-emerald-50/50 rounded-t-xl'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-emerald-600 text-emerald-600 bg-emerald-50/60 rounded-t-xl shadow-xs'
+                    : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-t-xl'
                 }`}
               >
                 {tab.label}
@@ -747,7 +847,7 @@ export default function CourseDetailPage() {
             <div className="lg:col-span-8 space-y-8 text-left">
               
               {/* Box 1: Bạn sẽ học được gì */}
-              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <div id="overview-section" className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-4 scroll-mt-24">
                 <h2 className="text-xl font-extrabold text-slate-900">
                   Bạn sẽ học được gì
                 </h2>
@@ -782,14 +882,14 @@ export default function CourseDetailPage() {
                 </div>
                 <button
                   onClick={() => setIsDescExpanded(!isDescExpanded)}
-                  className="text-xs font-bold text-emerald-600 hover:underline pt-1 inline-block"
+                  className="text-xs font-bold text-emerald-600 hover:underline pt-1 inline-block cursor-pointer"
                 >
                   {isDescExpanded ? '... Thu gọn' : '... Xem thêm'}
                 </button>
               </div>
 
               {/* Box 3: Nội dung khóa học (Accordion) */}
-              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <div id="curriculum-section" className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm space-y-4 scroll-mt-24">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-extrabold text-slate-900">
@@ -899,7 +999,7 @@ export default function CourseDetailPage() {
             <div className="lg:col-span-4 space-y-6 text-left">
               
               {/* Widget 1: Thông tin Giảng viên */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <div id="instructor-section" className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4 scroll-mt-24">
                 <h3 className="font-extrabold text-slate-900 text-base">
                   Giảng viên
                 </h3>
@@ -1086,12 +1186,34 @@ export default function CourseDetailPage() {
       </section>
 
       {/* 7. Đánh giá của học viên */}
-      <section className="py-12 bg-slate-50/50 border-t border-slate-200/80">
+      <section id="reviews-section" className="py-12 bg-slate-50/50 border-t border-slate-200/80 scroll-mt-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight text-left mb-8">
-            Đánh giá của học viên
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight text-left">
+                Đánh giá của học viên
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-1 text-left">
+                Nhận xét chân thực từ cộng đồng học viên đã tham gia khóa học
+              </p>
+            </div>
+
+            {/* Action button for enrolled students */}
+            {isEnrolled && (
+              <button
+                onClick={() => setShowReviewModal(true)}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-900/10 active:scale-95 transition-all cursor-pointer"
+              >
+                <PenLine className="w-4 h-4" />
+                <span>
+                  {apiReviewsList.some((r) => r.reviewer_id === currentUser?.id || r.name === currentUser?.full_name)
+                    ? 'Chỉnh sửa đánh giá của bạn'
+                    : 'Viết đánh giá của bạn'}
+                </span>
+              </button>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
@@ -1110,7 +1232,6 @@ export default function CourseDetailPage() {
                   const pct = Math.round((matchCount / reviewListForStats.length) * 100);
                   return { star: `${starNum} sao`, percent: pct };
                 }
-                // Default clean distribution if no reviews yet
                 const defaultPct = starNum === 5 ? 100 : 0;
                 return { star: `${starNum} sao`, percent: defaultPct };
               });
@@ -1159,11 +1280,43 @@ export default function CourseDetailPage() {
 
             {/* Review Cards List (8 cols) */}
             <div className="lg:col-span-8 space-y-4 text-left">
+              {/* Enrolled Callout if not reviewed yet */}
+              {isEnrolled && !apiReviewsList.some((r) => r.reviewer_id === currentUser?.id || r.name === currentUser?.full_name) && (
+                <div className="bg-gradient-to-r from-emerald-950 via-[#043e34] to-emerald-950 p-5 rounded-3xl border border-emerald-500/30 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 font-extrabold text-sm text-emerald-300">
+                      <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                      <span>Bạn đã tham gia khóa học này!</span>
+                    </div>
+                    <p className="text-xs text-emerald-100/80 font-medium">
+                      Hãy chia sẻ đánh giá và trải nghiệm học tập của bạn để giúp đỡ cộng đồng nhé.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowReviewModal(true)}
+                    className="px-4 py-2 rounded-xl bg-white text-emerald-900 hover:bg-emerald-50 font-extrabold text-xs shrink-0 shadow transition-all active:scale-95 cursor-pointer"
+                  >
+                    Viết đánh giá ngay
+                  </button>
+                </div>
+              )}
+
+              {/* Not Enrolled Info Banner */}
+              {!isEnrolled && (
+                <div className="bg-slate-100/80 p-4 rounded-2xl border border-slate-200 text-slate-600 text-xs font-medium flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>
+                    Chỉ những học viên đã đăng ký hoặc mua khóa học mới có thể gửi đánh giá và nhận xét.
+                  </span>
+                </div>
+              )}
+
               {(() => {
                 const rawReviews = apiReviewsList.length > 0
                   ? apiReviewsList
                   : [
                       {
+                        id: 'demo-1',
                         name: 'Trần Minh Đức',
                         date: '2 tuần trước',
                         avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
@@ -1173,6 +1326,7 @@ export default function CourseDetailPage() {
                         rating: 5,
                       },
                       {
+                        id: 'demo-2',
                         name: 'Lê Hoàng Anh',
                         date: '1 tháng trước',
                         avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
@@ -1182,58 +1336,104 @@ export default function CourseDetailPage() {
                         rating: 5,
                       },
                     ];
-                const visibleReviews = showAllReviews ? rawReviews : rawReviews.slice(0, 4);
+
+                // Put current user's review at top if exists
+                const userReview = rawReviews.find(
+                  (r) => r.reviewer_id === currentUser?.id || r.name === currentUser?.full_name
+                );
+                const otherReviews = rawReviews.filter(
+                  (r) => !(r.reviewer_id === currentUser?.id || r.name === currentUser?.full_name)
+                );
+                const sortedReviews = userReview ? [userReview, ...otherReviews] : otherReviews;
+                const visibleReviews = showAllReviews ? sortedReviews : sortedReviews.slice(0, 4);
 
                 return (
                   <>
-                    {visibleReviews.map((rev, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={rev.avatar}
-                              alt={rev.name}
-                              className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                            />
-                            <div>
-                              <div className="font-extrabold text-slate-900 text-sm">
-                                {rev.name}
+                    {visibleReviews.map((rev, idx) => {
+                      const isMyReviewItem = Boolean(
+                        userReview && (rev.id === userReview.id || rev.name === userReview.name)
+                      );
+
+                      return (
+                        <div
+                          key={rev.id || idx}
+                          className={`bg-white p-5 rounded-2xl border shadow-sm space-y-3 transition-all ${
+                            isMyReviewItem
+                              ? 'border-emerald-500/50 ring-1 ring-emerald-500/20 bg-emerald-50/20'
+                              : 'border-slate-200/80'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={rev.avatar}
+                                alt={rev.name}
+                                className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-extrabold text-slate-900 text-sm">
+                                    {rev.name}
+                                  </span>
+                                  {isMyReviewItem && (
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+                                      Đánh giá của bạn
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-400">{rev.date}</div>
                               </div>
-                              <div className="text-[11px] text-slate-400">{rev.date}</div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-3.5 h-3.5 ${
+                                      i < (rev.rating || 5)
+                                        ? 'fill-amber-400 text-amber-400'
+                                        : 'text-slate-200'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              {isMyReviewItem && (
+                                <button
+                                  onClick={() => setShowReviewModal(true)}
+                                  className="text-xs text-emerald-600 hover:text-emerald-700 font-bold ml-2 underline cursor-pointer"
+                                >
+                                  Sửa
+                                </button>
+                              )}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`w-3.5 h-3.5 ${i < (rev.rating || 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-                            ))}
+                          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            {rev.content}
+                          </p>
+
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-start">
+                            <button className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-600 font-bold transition-colors">
+                              <ThumbsUp className="w-3.5 h-3.5" />
+                              <span>Hữu ích ({rev.helpfulCount || 0})</span>
+                            </button>
                           </div>
                         </div>
+                      );
+                    })}
 
-                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                          {rev.content}
-                        </p>
-
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-start">
-                          <button className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-600 font-bold transition-colors">
-                            <ThumbsUp className="w-3.5 h-3.5" />
-                            <span>Hữu ích ({rev.helpfulCount})</span>
-                          </button>
-                        </div>
+                    {sortedReviews.length > 4 && (
+                      <div className="text-center pt-2">
+                        <button
+                          onClick={() => setShowAllReviews(!showAllReviews)}
+                          className="px-6 py-2.5 rounded-xl border border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 text-xs font-extrabold transition-colors cursor-pointer"
+                        >
+                          {showAllReviews ? 'Thu gọn danh sách đánh giá' : `Xem tất cả (${sortedReviews.length}) đánh giá`}
+                        </button>
                       </div>
-                    ))}
-
-                    <div className="text-center pt-2">
-                      <button
-                        onClick={() => setShowAllReviews(!showAllReviews)}
-                        className="px-6 py-2.5 rounded-xl border border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 text-xs font-extrabold transition-colors cursor-pointer"
-                      >
-                        {showAllReviews ? 'Thu gọn danh sách đánh giá' : `Xem tất cả (${rawReviews.length}) đánh giá`}
-                      </button>
-                    </div>
+                    )}
                   </>
                 );
               })()}
@@ -1243,6 +1443,105 @@ export default function CourseDetailPage() {
 
         </div>
       </section>
+
+      {/* 8. Câu hỏi thường gặp (FAQ) / Hỏi đáp */}
+      <section id="faq-section" className="py-12 bg-white border-t border-slate-200/80 scroll-mt-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-extrabold mb-2 border border-emerald-200/60">
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Hỏi & Đáp thường gặp</span>
+              </div>
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                Câu hỏi thường gặp (FAQ)
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Giải đáp nhanh các câu hỏi phổ biến của học viên về khóa học
+              </p>
+            </div>
+          </div>
+
+          <div className="max-w-4xl space-y-4">
+            {(apiFaqsList.length > 0 ? apiFaqsList : DEFAULT_FAQS).map((faq, idx) => {
+              const isOpen = Boolean(expandedFaqs[faq.id] ?? expandedFaqs[idx]);
+              return (
+                <div
+                  key={faq.id || idx}
+                  className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white shadow-xs transition-all"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedFaqs((prev) => ({
+                        ...prev,
+                        [faq.id]: !isOpen,
+                        [idx]: !isOpen,
+                      }))
+                    }
+                    className="w-full p-5 flex items-center justify-between gap-4 text-left hover:bg-slate-50/60 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-7 h-7 rounded-xl bg-emerald-100/80 text-emerald-800 font-extrabold text-xs flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="font-extrabold text-slate-900 text-sm sm:text-base">
+                        {faq.question}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-300 ${
+                        isOpen ? 'rotate-180 text-emerald-600' : ''
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-5 pt-0 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100 bg-slate-50/30 pl-15">
+                          {faq.answer}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+
+        </div>
+      </section>
+
+      {/* Course Review Modal */}
+      {course && (
+        <CourseReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          courseId={course.id}
+          courseTitle={course.title}
+          initialRating={
+            apiReviewsList.find(
+              (r) => r.reviewer_id === currentUser?.id || r.name === currentUser?.full_name
+            )?.rating || 5
+          }
+          initialComment={
+            apiReviewsList.find(
+              (r) => r.reviewer_id === currentUser?.id || r.name === currentUser?.full_name
+            )?.content || ''
+          }
+          onSuccess={() => {
+            loadReviews();
+          }}
+        />
+      )}
 
       {/* Sticky Mobile Buy Bar (Visible only on < lg) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 p-3 sm:p-4 lg:hidden shadow-2xl flex items-center justify-between gap-3">

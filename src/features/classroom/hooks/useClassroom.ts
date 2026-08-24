@@ -8,7 +8,7 @@ import { resolveCourseById } from '@/features/cart/CartAndCheckout';
 import { classroomApi } from '../api';
 import { apiFetch } from '@/shared/lib/api-client';
 
-export type TabType = 'overview' | 'qa' | 'notes' | 'resources';
+export type TabType = 'overview' | 'qa' | 'notes' | 'resources' | 'reviews';
 
 export interface UseClassroomResult {
   course: Course | null;
@@ -323,13 +323,25 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
                   if (l.progress?.status === 'completed' || l.progress?.completed_at) {
                     backendCompletedLessonIds.push(lessonIdStr);
                   }
+                  const rawSecs = l.video_duration_seconds ?? l.duration_seconds ?? l.duration ?? l.video_duration;
+                  let parsedDuration = '';
+                  if (typeof rawSecs === 'number' && rawSecs > 0) {
+                    const m = Math.floor(rawSecs / 60);
+                    const s = Math.floor(rawSecs % 60);
+                    parsedDuration = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                  } else if (typeof rawSecs === 'string' && rawSecs.trim()) {
+                    parsedDuration = rawSecs;
+                  } else {
+                    parsedDuration = '05:00';
+                  }
+
                   return {
                     id: lessonIdStr,
                     title: l.title || l.name || `Bài ${lIdx + 1}`,
                     type: 'video',
-                    duration: l.duration ? (typeof l.duration === 'number' ? `${Math.floor(l.duration/60)}:${String(l.duration%60).padStart(2,'0')}` : String(l.duration)) : '12:30',
+                    duration: parsedDuration,
                     isPreview: Boolean(l.is_preview),
-                    videoUrl: l.video_url || l.stream_url || 'https://www.w3schools.com/html/mov_bbb.mp4',
+                    videoUrl: l.video_url || l.stream_url || '',
                     content: l.description || l.summary,
                   };
                 })

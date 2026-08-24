@@ -195,21 +195,37 @@ export async function getVideoDurationSecondsFromUrl(url: string): Promise<numbe
 }
 
 /**
- * Resolve relative or absolute media path to full backend public URL
+ * Resolve relative or absolute media path to full public media URL or backend URL
  */
 export function resolveMediaUrl(path?: string | null): string {
-  if (!path) return '';
-  if (path.startsWith('blob:')) return path;
+  if (!path) return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
+  if (path.startsWith('blob:') || path.startsWith('data:')) return path;
   if (/^https?:\/\//i.test(path)) {
     if (path.includes('localhost:3000') || path.includes('127.0.0.1:3000')) {
       return path.replace(/http:\/\/(localhost|127\.0\.0\.1):3000/i, 'http://127.0.0.1:8000');
     }
     return path;
   }
+
+  let cleanPath = path.replace(/^\/+/, '');
+
+  // Strip accidental inner /courses/ in thumbnail paths
+  if (cleanPath.startsWith('thumbnails/courses/')) {
+    cleanPath = cleanPath.replace('thumbnails/courses/', 'thumbnails/');
+  }
+  if (cleanPath.startsWith('demo/courses/')) {
+    cleanPath = cleanPath.replace('demo/courses/', 'thumbnails/');
+  }
+
+  // If path is a mindhub-media asset (thumbnails, videos, demo)
+  if (cleanPath.startsWith('thumbnails/') || cleanPath.startsWith('videos/') || cleanPath.startsWith('demo/')) {
+    return `https://mindhub.io.vn/mindhub-media/${cleanPath}`;
+  }
+
   const backendBase = 'http://127.0.0.1:8000';
-  const cleanPath = path.replace(/^\/+/, '');
   if (cleanPath.startsWith('storage/')) {
     return `${backendBase}/${cleanPath}`;
   }
   return `${backendBase}/storage/${cleanPath}`;
 }
+

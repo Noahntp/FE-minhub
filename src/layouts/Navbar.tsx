@@ -365,7 +365,7 @@ export default function Navbar() {
                     <Shield className="w-4 h-4 text-emerald-400" />
                     <span>Quản trị</span>
                   </Link>
-                ) : hasEnrolledCourses ? (
+                ) : (isLoggedIn || currentUser) ? (
                   <Link
                     to="/my-courses"
                     className="hidden lg:inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-50/90 hover:bg-emerald-100 text-emerald-800 font-extrabold text-xs border border-emerald-200/80 shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-95"
@@ -519,17 +519,10 @@ export default function Navbar() {
                           Khóa học yêu thích
                         </DropdownMenuItem>
 
-                        {hasEnrolledCourses ? (
-                          <DropdownMenuItem onClick={() => navigate("/my-courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
-                            <BookOpen className="mr-2.5 h-4 w-4 text-emerald-600" />
-                            Khóa học của tôi
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => navigate("/courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-emerald-50 text-emerald-700 font-extrabold">
-                            <Sparkles className="mr-2.5 h-4 w-4 text-emerald-600" />
-                            Khám phá khóa học
-                          </DropdownMenuItem>
-                        )}
+                        <DropdownMenuItem onClick={() => navigate("/my-courses")} className="p-2.5 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-100">
+                          <BookOpen className="mr-2.5 h-4 w-4 text-emerald-600" />
+                          Khóa học của tôi
+                        </DropdownMenuItem>
                       </>
                     )}
 

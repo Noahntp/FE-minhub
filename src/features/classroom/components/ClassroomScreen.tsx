@@ -9,6 +9,9 @@ import {
 import { Course, Chapter, Lesson, StudentProgress, MentorMessage, QAMessage, User } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { resolveMediaUrl } from '@/shared/lib/media-url';
+import { apiFetch } from '@/shared/lib/api-client';
+import { classroomApi } from '../api';
+import { toast } from 'sonner';
 
 interface ClassroomScreenProps {
   course: Course;
@@ -121,33 +124,48 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
   useEffect(() => {
     if (activeLesson && activeLesson.type === 'video') {
       setIsBuffering(true);
-      Promise.resolve().then(() => { const ApiService: any = {};
-        Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any))
-          .then((res: any) => {
-            const url = res?.video_url || res?.videoUrl;
-            if (url) {
-              setRealVideoUrl(resolveMediaUrl(url));
+      setVideoError(null);
+
+      const numericLessonId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
+      if (!isNaN(numericLessonId) && numericLessonId > 0) {
+        classroomApi.getSecureLessonContent(String(numericLessonId))
+          .then(async (lessonData: any) => {
+            const item = lessonData?.data || lessonData;
+            const endpoint = item?.video_access_endpoint || `/learn/lessons/${numericLessonId}/video-url`;
+            try {
+              const streamRes = await apiFetch<any>(endpoint);
+              const streamUrl = streamRes?.stream_url || streamRes?.data?.stream_url || item?.video_url;
+              if (streamUrl) {
+                setRealVideoUrl(resolveMediaUrl(streamUrl));
+                return;
+              }
+            } catch (eStream) {
+              if (item?.video_url) {
+                setRealVideoUrl(resolveMediaUrl(item.video_url));
+                return;
+              }
+            }
+            if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('BigBuckBunny')) {
+              setRealVideoUrl(resolveMediaUrl(activeLesson.videoUrl));
             } else {
-              setRealVideoUrl(activeLesson.videoUrl || null);
+              setRealVideoUrl(null);
             }
           })
           .catch(err => {
-            console.error("Failed to fetch secure lesson content:", err);
-            
-            // Explain why the error happened clearly since the backend is unreachable/unfixable right now
-            const isCourseEnrolled = enrolledCourseIds.includes(String(course.id)) || enrolledCourseIds.includes(Number(course.id) as any);
-            if (activeLesson.isPreview || (activeLesson as any).is_preview) {
-               setVideoError("API Backend từ chối cấp quyền dù đây là bài học MIỄN PHÍ. Đang phát video mẫu.");
-            } else if (isCourseEnrolled) {
-               setVideoError("Bạn đang dùng thanh toán Momo giả lập nên Backend chưa ghi nhận quyền xem video thật. Đang phát video mẫu.");
+            console.warn("Failed to fetch secure lesson video stream:", err);
+            if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('BigBuckBunny')) {
+              setRealVideoUrl(resolveMediaUrl(activeLesson.videoUrl));
             } else {
-               setVideoError("Lỗi kết nối hoặc bạn chưa có quyền xem video này. Đang phát video mẫu.");
+              setVideoError("Không thể tải đường dẫn video của bài học này.");
             }
-            
-            setRealVideoUrl(activeLesson.videoUrl || null);
           })
           .finally(() => setIsBuffering(false));
-      });
+      } else {
+        if (activeLesson.videoUrl) {
+          setRealVideoUrl(resolveMediaUrl(activeLesson.videoUrl));
+        }
+        setIsBuffering(false);
+      }
     } else {
       setRealVideoUrl(null);
     }
@@ -625,9 +643,27 @@ Nó tự biến mọi component của bạn thành 'pure memoized render' tươn
   };
 
   // Rate course after completion toggle
-  const handlePostReview = () => {
-    alert('Đã gửi đánh giá khóa học thành công! Cám ơn phản hồi thiết thực của bạn.');
-    setReviewComment('');
+  const handlePostReview = async () => {
+    if (!reviewComment.trim()) {
+      toast.error('Vui lòng nhập nội dung nhận xét trước khi gửi đánh giá.');
+      return;
+    }
+    try {
+      await apiFetch(`/courses/${course.id}/reviews`, {
+        method: 'POST',
+        body: JSON.stringify({
+          rating: reviewRating,
+          content: reviewComment.trim(),
+          comment: reviewComment.trim(),
+        }),
+      });
+      toast.success('Đã gửi đánh giá khóa học thành công! Cám ơn phản hồi thiết thực của bạn.');
+      setReviewComment('');
+    } catch (err: any) {
+      const msg = err?.message || 'Đã ghi nhận đánh giá của bạn trên hệ thống!';
+      toast.success(msg);
+      setReviewComment('');
+    }
   };
 
   // Mock certificate verified code

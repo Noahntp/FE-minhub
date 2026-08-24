@@ -9,6 +9,7 @@ import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/utils/format';
 import { mapApiCourseToHomeCourseItem } from '@/features/home/hooks/useHomepageData';
 import { toast } from 'sonner';
+import { useApp } from '@/app/AppContext';
 
 // Sample fallback courses for instructor profile
 const FALLBACK_INSTRUCTOR_COURSES: HomeCourseItem[] = [
@@ -126,6 +127,8 @@ const getBankLogoUrl = (bankNameOrCode?: string): string => {
 };
 
 export default function InstructorProfilePage() {
+  const { currentUser } = useApp();
+  const isInstructor = currentUser?.role === 'instructor';
   const { instructorId } = useParams();
   const [activeTab, setActiveTab] = useState<'courses' | 'reviews'>('courses');
   const [isFollowing, setIsFollowing] = useState(false);
@@ -486,56 +489,71 @@ export default function InstructorProfilePage() {
               </div>
             </div>
 
-            {/* Card 3: Tài khoản ngân hàng nhận thanh toán */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-emerald-600" /> Tài khoản thanh toán
-                </h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-100">
-                  Đã xác minh
-                </span>
-              </div>
-
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-emerald-50/20 to-slate-50 border border-slate-200/70 flex items-center gap-4 shadow-xs">
-                <div className="w-24 h-16 sm:w-28 sm:h-18 rounded-2xl bg-white p-2 border border-slate-200 shadow-sm flex items-center justify-center shrink-0">
-                  <img
-                    src={getBankLogoUrl(instructor.bankName)}
-                    alt={instructor.bankName}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://cdn.vietqr.io/img/TCB.png';
-                    }}
-                  />
+            {/* Card 3: Tài khoản ngân hàng nhận thanh toán (Chỉ hiển thị đối với tài khoản Giảng viên) */}
+            {isInstructor && (
+              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-emerald-600" /> Tài khoản thanh toán
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-100 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Đã xác minh
+                  </span>
                 </div>
 
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/80 truncate">
-                      {instructor.bankName}
-                    </span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(instructor.accountNumber.replace(/\s+/g, ''));
-                        toast.success('Đã sao chép số tài khoản!');
-                      }}
-                      className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white transition-colors cursor-pointer"
-                      title="Sao chép số tài khoản"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-emerald-50/20 to-slate-50 border border-slate-200/70 space-y-3 shadow-2xs">
+                  {/* Top Bar: Bank Logo & Bank Badge + Copy Button */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="h-8 px-2.5 py-1 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center justify-center shrink-0">
+                      <img
+                        src={getBankLogoUrl(instructor.bankName)}
+                        alt={instructor.bankName}
+                        className="h-full w-auto max-w-[90px] object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://cdn.vietqr.io/img/TCB.png';
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/80 truncate">
+                        {instructor.bankName}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(instructor.accountNumber.replace(/\s+/g, ''));
+                          toast.success('Đã sao chép số tài khoản!');
+                        }}
+                        className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white transition-colors cursor-pointer border border-transparent hover:border-slate-200 shrink-0"
+                        title="Sao chép số tài khoản"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="font-mono font-black text-slate-900 text-base sm:text-lg tracking-wider">
-                    {instructor.accountNumber}
+                  {/* Account Number (Full Width & No Wrap) */}
+                  <div className="pt-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Số tài khoản</span>
+                    <div className="font-mono font-black text-slate-900 text-base sm:text-lg tracking-wider whitespace-nowrap select-all overflow-x-auto">
+                      {instructor.accountNumber}
+                    </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide truncate">
-                    {instructor.accountName}
-                  </p>
+                  {/* Account Holder Name */}
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Chủ tài khoản</span>
+                      <p className="font-bold text-slate-700 uppercase tracking-wide truncate max-w-[200px] mt-0.5">
+                        {instructor.accountName}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Card 3: Liên hệ công việc */}
             <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-950 p-6 rounded-3xl text-white shadow-xl space-y-4 text-center">

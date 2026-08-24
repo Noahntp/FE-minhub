@@ -255,10 +255,12 @@ export default function CartAndCheckout({
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Price calculations
-  const originalPrice = (checkoutCourse as any).originalPrice || Math.round(checkoutCourse.price * 1.4);
+  const rawOriginalPrice = (checkoutCourse as any).originalPrice;
   const salePrice = checkoutCourse.salePrice || checkoutCourse.price;
-  const initialDiscountAmount = originalPrice - salePrice;
-  const initialDiscountPercent = Math.round((initialDiscountAmount / originalPrice) * 100);
+  const hasCourseDiscount = Boolean(rawOriginalPrice && rawOriginalPrice > salePrice);
+  const originalPrice = hasCourseDiscount ? rawOriginalPrice : salePrice;
+  const initialDiscountAmount = hasCourseDiscount ? originalPrice - salePrice : 0;
+  const initialDiscountPercent = hasCourseDiscount && originalPrice > 0 ? Math.round((initialDiscountAmount / originalPrice) * 100) : 0;
 
   const couponDiscountAmount = activeDiscount
     ? Math.round((salePrice * activeDiscount.percent) / 100)
@@ -284,8 +286,8 @@ export default function CartAndCheckout({
     // 1. Try Backend API Coupon Validation endpoint
     try {
       const res = await apiFetch<any>(`/coupons/validate?code=${encodeURIComponent(cleanCode)}&course_id=${checkoutCourse.id}`);
-      if (res?.success && res?.data) {
-        const item = res.data;
+      const item = res?.data || res;
+      if (item && (item.code || item.discount_type || item.discount_value)) {
         let percent = 0;
         if (item.discount_type === 'percent') {
           percent = Number(item.discount_value);
@@ -300,7 +302,7 @@ export default function CartAndCheckout({
         return;
       }
     } catch (err: any) {
-      if (err?.message && !err.message.includes('Fetch') && !err.message.includes('404')) {
+      if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
         setCouponError(err.message);
         toast.error(err.message);
         return;
@@ -723,14 +725,23 @@ export default function CartAndCheckout({
 
               {/* Payment Summary breakdown */}
               <div className="space-y-2 text-xs border-b border-slate-100 pb-4">
-                <div className="flex justify-between text-slate-500 font-medium">
-                  <span>Giá niêm yết:</span>
-                  <span className="font-bold text-slate-700">{formatVND(originalPrice)}</span>
-                </div>
-                <div className="flex justify-between text-slate-500 font-medium">
-                  <span>Giảm giá khóa học:</span>
-                  <span className="font-bold text-rose-600">-{formatVND(initialDiscountAmount)}</span>
-                </div>
+                {hasCourseDiscount ? (
+                  <>
+                    <div className="flex justify-between text-slate-500 font-medium">
+                      <span>Giá niêm yết:</span>
+                      <span className="font-bold text-slate-700 line-through opacity-70">{formatVND(originalPrice)}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-500 font-medium">
+                      <span>Giảm giá khóa học (-{initialDiscountPercent}%):</span>
+                      <span className="font-bold text-rose-600">-{formatVND(initialDiscountAmount)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between text-slate-500 font-medium">
+                    <span>Giá khóa học:</span>
+                    <span className="font-bold text-slate-700">{formatVND(salePrice)}</span>
+                  </div>
+                )}
                 {activeDiscount && (
                   <div className="flex justify-between text-emerald-600 font-semibold">
                     <span>Voucher ({activeDiscount.code}):</span>
@@ -874,14 +885,16 @@ export default function CartAndCheckout({
 
                   {/* Price Tag Right */}
                   <div className="text-left sm:text-right shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
-                    <div className="flex items-center sm:justify-end gap-1.5">
-                      <span className="text-xs text-slate-400 line-through font-medium">
-                        {formatVND(originalPrice)}
-                      </span>
-                      <span className="bg-rose-100 text-rose-600 text-[11px] font-extrabold px-1.5 py-0.5 rounded">
-                        -{initialDiscountPercent}%
-                      </span>
-                    </div>
+                    {hasCourseDiscount && (
+                      <div className="flex items-center sm:justify-end gap-1.5">
+                        <span className="text-xs text-slate-400 line-through font-medium">
+                          {formatVND(originalPrice)}
+                        </span>
+                        <span className="bg-rose-100 text-rose-600 text-[11px] font-extrabold px-1.5 py-0.5 rounded">
+                          -{initialDiscountPercent}%
+                        </span>
+                      </div>
+                    )}
                     <div className="text-lg sm:text-xl font-black text-slate-900 mt-0.5">
                       {formatVND(salePrice)}
                     </div>
@@ -1207,15 +1220,24 @@ export default function CartAndCheckout({
 
                 {/* Price Breakdown */}
                 <div className="space-y-2 text-xs font-medium text-slate-600 border-t border-slate-100 pt-3">
-                  <div className="flex items-center justify-between">
-                    <span>Giá gốc</span>
-                    <span className="font-bold text-slate-900">{formatVND(originalPrice)}</span>
-                  </div>
+                  {hasCourseDiscount ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span>Giá gốc</span>
+                        <span className="font-bold text-slate-400 line-through">{formatVND(originalPrice)}</span>
+                      </div>
 
-                  <div className="flex items-center justify-between">
-                    <span>Giảm giá (-{initialDiscountPercent}%)</span>
-                    <span className="font-bold text-rose-600">-{formatVND(initialDiscountAmount)}</span>
-                  </div>
+                      <div className="flex items-center justify-between">
+                        <span>Giảm giá khóa học (-{initialDiscountPercent}%)</span>
+                        <span className="font-bold text-rose-600">-{formatVND(initialDiscountAmount)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span>Giá khóa học</span>
+                      <span className="font-bold text-slate-900">{formatVND(salePrice)}</span>
+                    </div>
+                  )}
 
                   {activeDiscount && (
                     <div className="flex items-center justify-between text-emerald-600 font-semibold">
