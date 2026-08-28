@@ -5,9 +5,22 @@ export const authApi = {
 async register(payload: any): Promise<{ user: User; token: string; verify_url?: string; otp_code?: string; note?: string }> {
     devLog('Auth', 'Register new user', { email: payload.email, role: payload.role });
     const endpoint = payload.role === 'instructor' ? '/auth/register/instructor' : '/auth/register/learner';
+    
+    const cleanPayload = { ...payload };
+    if (cleanPayload.experience_years !== undefined && cleanPayload.experience_years !== null && cleanPayload.experience_years !== '') {
+      const parsedExp = parseInt(String(cleanPayload.experience_years), 10);
+      if (!isNaN(parsedExp) && parsedExp >= 0) {
+        cleanPayload.experience_years = parsedExp;
+      } else {
+        delete cleanPayload.experience_years;
+      }
+    } else {
+      delete cleanPayload.experience_years;
+    }
+
     const res = await apiFetch<any>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(cleanPayload),
     });
     return {
       user: res.user,

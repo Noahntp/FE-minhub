@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   Sparkles,
   Loader2,
+  Star,
 } from 'lucide-react';
+import { CourseReviewModal } from '@/features/reviews/CourseReviewModal';
 
 const INITIAL_COURSES_DATA = [
   {
@@ -102,6 +104,8 @@ export default function MyCoursesPage() {
 
   const [coursesData, setCoursesData] = useState<any[]>([]);
   const [isLoadingApi, setIsLoadingApi] = useState(true);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedReviewCourse, setSelectedReviewCourse] = useState<any>(null);
 
   const { enrolledCourseIds = [], courses: globalCourses = [] } = useApp();
 
@@ -495,21 +499,50 @@ export default function MyCoursesPage() {
                     </span>
                   </div>
 
-                  {/* CTA Button */}
-                  <button
-                    onClick={() => navigate(course.status === 'saved' ? `/courses/${course.id}` : `/learn/${course.id}`)}
-                    className={`w-full py-2.5 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xs ${course.buttonBg}`}
-                  >
-                    <span>{course.buttonText}</span>
-                    {course.hasPlayIcon && <PlayCircle className="w-3.5 h-3.5 fill-current" />}
-                    {course.isArrowButton && <ArrowRight className="w-3.5 h-3.5" />}
-                  </button>
+                  {/* CTA Button & Review Option */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => navigate(course.status === 'saved' ? `/courses/${course.id}` : `/learn/${course.id}`)}
+                      className={`flex-1 py-2.5 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xs ${course.buttonBg}`}
+                    >
+                      <span>{course.buttonText}</span>
+                      {course.hasPlayIcon && <PlayCircle className="w-3.5 h-3.5 fill-current" />}
+                      {course.isArrowButton && <ArrowRight className="w-3.5 h-3.5" />}
+                    </button>
+
+                    {course.status !== 'saved' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedReviewCourse(course);
+                          setShowReviewModal(true);
+                        }}
+                        title="Đánh giá khóa học"
+                        className="p-2.5 rounded-2xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50/50 text-slate-400 hover:text-amber-500 transition-all cursor-pointer shrink-0 shadow-xs"
+                      >
+                        <Star className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
 
                 </div>
 
               </div>
             ))}
           </div>
+          )}
+
+          {/* Course Review Modal */}
+          {selectedReviewCourse && (
+            <CourseReviewModal
+              isOpen={showReviewModal}
+              onClose={() => {
+                setShowReviewModal(false);
+                setSelectedReviewCourse(null);
+              }}
+              courseId={selectedReviewCourse.id}
+              courseTitle={selectedReviewCourse.title}
+            />
           )}
 
           {/* 5. Bottom Goal Setting Rocket Banner */}

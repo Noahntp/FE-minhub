@@ -194,7 +194,16 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
               max={80}
               name="experienceYears"
               value={form.experienceYears}
-              onChange={handleInputChange}
+              onChange={(e) => {
+                const onlyNums = e.target.value.replace(/\D/g, '');
+                const val = onlyNums === '' ? 0 : parseInt(onlyNums, 10);
+                setForm(prev => ({ ...prev, experienceYears: val > 80 ? 80 : val }));
+              }}
+              onKeyDown={(e) => {
+                if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               className="w-full px-3.5 py-2.5 border border-[#dbdde4] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#007A64] bg-white font-medium text-[#06091a]"
             />
           </div>
@@ -313,7 +322,7 @@ export const ProfessionalProfileTab: React.FC<ProfessionalProfileTabProps> = ({
               {bankInfo.bankName}
             </div>
             <div className="font-mono font-black text-[#06091a] text-base sm:text-lg tracking-wider flex items-center gap-2">
-              <span>{bankInfo.accountNumber}</span>
+              <span className="whitespace-nowrap select-all">{bankInfo.accountNumber}</span>
               <button
                 type="button"
                 onClick={() => {

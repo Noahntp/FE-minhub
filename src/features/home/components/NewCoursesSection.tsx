@@ -43,7 +43,12 @@ export function NewCoursesSection({ courses }: { courses: HomeCourseItem[] }) {
         {/* Course Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
           {courses.slice(0, 5).map((course) => (
-            <HomeCourseCard key={course.id} course={course} tagVariant="new" />
+            <HomeCourseCard
+              key={course.id}
+              course={course}
+              tagVariant="new"
+              showProofBadge={true}
+            />
           ))}
         </div>
 

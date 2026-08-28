@@ -1652,12 +1652,18 @@ export default function Faqs() {
                       type="number"
                       min={0}
                       value={formFaq.sort_order}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const sanitized = e.target.value.replace(/\D/g, '');
                         setFormFaq((prev) => ({
                           ...prev,
-                          sort_order: Number(e.target.value),
-                        }))
-                      }
+                          sort_order: sanitized === '' ? 0 : parseInt(sanitized, 10),
+                        }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className="w-full h-10 rounded-lg border border-hairline bg-canvas px-4 text-sm text-ink focus:border-ink focus:outline-none transition-colors"
                     />
                   </div>

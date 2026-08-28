@@ -731,13 +731,7 @@ export default function InstructorDashboard({
   const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
   const [videoUploadStatus, setVideoUploadStatus] = useState<string>('');
 
-  // Step 3: Quizzes
-  const [newQuizQuestion, setNewQuizQuestion] = useState('');
-  const [quizA, setQuizA] = useState('');
-  const [quizB, setQuizB] = useState('');
-  const [quizC, setQuizC] = useState('');
-  const [quizD, setQuizD] = useState('');
-  const [correctAnswer, setCorrectAnswer] = useState<'A' | 'B' | 'C' | 'D'>('A');
+
 
   // Step 4: Settings (Student permissions)
   const [allowSkip, setAllowSkip] = useState<boolean>(true);
@@ -1771,54 +1765,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     alert('Đã tải lên và đọc nội dung văn bản gốc từ file Word .doc thành công!');
   };
 
-  const handleAddQuizToLesson = (chapterIdx: number, lessonId: string) => {
-    if (!newQuizQuestion.trim()) {
-      alert('Vui lòng soạn câu hỏi trắc nghiệm.');
-      return;
-    }
-    if (!quizA || !quizB) {
-      alert('Cần tối thiểu hai phương án đáp án A và B.');
-      return;
-    }
 
-    const newQuestion: QuizQuestion = {
-      id: 'q-' + Date.now(),
-      question: newQuizQuestion,
-      options: [quizA, quizB, quizC || 'Không có', quizD || 'Không có'],
-      correctIndex: correctAnswer === 'A' ? 0 : correctAnswer === 'B' ? 1 : correctAnswer === 'C' ? 2 : 3,
-      explanation: 'Đáp án chính xác do giảng viên thẩm duyệt thiết lập.'
-    };
-
-    setChapters(chapters.map((ch, idx) => {
-      if (idx === chapterIdx) {
-        return {
-          ...ch,
-          lessons: ch.lessons.map(les => {
-            if (les.id === lessonId) {
-              const currentQuiz = les.quiz || { id: 'qz-' + Date.now(), title: 'Bài tập trắc nghiệm khái niệm', questions: [] as QuizQuestion[] };
-              return {
-                ...les,
-                quiz: {
-                  id: currentQuiz.id,
-                  title: currentQuiz.title,
-                  questions: [...currentQuiz.questions, newQuestion]
-                }
-              };
-            }
-            return les;
-          })
-        };
-      }
-      return ch;
-    }));
-
-    setNewQuizQuestion('');
-    setQuizA('');
-    setQuizB('');
-    setQuizC('');
-    setQuizD('');
-    alert('Đã tích hợp câu hỏi Quiz trắc nghiệm thành công!');
-  };
 
   // Launch unified wizard screen
   const startBuilderForCreate = () => {
@@ -4300,10 +4247,17 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                           <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Giá bán gốc (VND) *</label>
                           <input 
                             type="number" 
+                            min="0"
                             value={price || ''}
                             onChange={(e) => {
-                              const val = e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value) || 0);
+                              const sanitized = e.target.value.replace(/\D/g, '');
+                              const val = sanitized === '' ? 0 : parseInt(sanitized, 10);
                               setPrice(val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                                e.preventDefault();
+                              }
                             }}
                             placeholder="499000"
                             className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none bg-slate-50/10 focus:border-emerald-500"
@@ -4323,13 +4277,18 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                             value={hasDiscount ? discountPercent : ''}
                             onChange={(e) => {
                               if (!hasDiscount) return;
-                              const valStr = e.target.value;
+                              const valStr = e.target.value.replace(/\D/g, '');
                               if (valStr === '') {
                                 setDiscountPercent('');
                                 return;
                               }
-                              const val = parseInt(valStr);
-                              setDiscountPercent(isNaN(val) ? '' : val);
+                              const val = parseInt(valStr, 10);
+                              setDiscountPercent(val > 99 ? 99 : val);
+                            }}
+                            onKeyDown={(e) => {
+                              if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                                e.preventDefault();
+                              }
                             }}
                             placeholder="Ví dụ: 40"
                             className={`w-full text-[11px] font-bold border rounded-xl px-3 py-2.5 focus:outline-none transition-colors ${
@@ -4455,8 +4414,15 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                       <div className="flex gap-2.5">
                         <input 
                           type="number" 
+                          min="0"
+                          max="100"
                           placeholder="Chấm điểm (0 - 100)" 
                           id={`score-val-${submission.id}`}
+                          onKeyDown={(e) => {
+                            if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           className="w-32 text-xs border border-brand-light-active pl-3 py-1.5 rounded-xl bg-white" 
                         />
                         <button 

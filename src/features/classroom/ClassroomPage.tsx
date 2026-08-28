@@ -12,6 +12,7 @@ import {
   Check,
   RotateCcw,
   X,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -207,6 +208,20 @@ export default function ClassroomPage() {
             <span>Chương trình</span>
           </button>
 
+          {/* Quick Review Button in Header */}
+          <button
+            onClick={() => setTab('reviews')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'reviews'
+                ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/20 font-black'
+                : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 hover:text-amber-200'
+            }`}
+            title="Đánh giá khóa học"
+          >
+            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+            <span className="hidden sm:inline">Đánh giá</span>
+          </button>
+
           {/* User Avatar Circle */}
           <div className="w-8 h-8 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center border border-indigo-400/40 shadow-sm">
             N
@@ -365,23 +380,36 @@ export default function ClassroomPage() {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                onClick={() => setShowCompletionModal(false)}
-                className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-extrabold transition-colors cursor-pointer"
-              >
-                Xem lại bài học
-              </button>
-
+            <div className="flex flex-col gap-2.5 pt-2">
               <button
                 onClick={() => {
                   setShowCompletionModal(false);
-                  navigate('/courses');
+                  setTab('reviews');
                 }}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black shadow-md shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <span>Khám phá khóa học khác</span>
+                <Star className="w-4 h-4 fill-slate-950 text-slate-950" />
+                <span>Đánh giá khóa học ngay</span>
               </button>
+
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <button
+                  onClick={() => setShowCompletionModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-extrabold transition-colors cursor-pointer"
+                >
+                  Xem lại bài học
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowCompletionModal(false);
+                    navigate('/courses');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>Khám phá khóa khác</span>
+                </button>
+              </div>
             </div>
 
           </div>

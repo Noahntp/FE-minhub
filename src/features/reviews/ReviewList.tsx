@@ -3,6 +3,7 @@ import { Star, ThumbsUp, MessageCircle, Send, CheckCircle2, Filter } from 'lucid
 import { Button } from '@/shared/components/ui/button';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/utils/format';
+import { useApp } from '@/app/AppContext';
 import { toast } from 'sonner';
 
 interface Review {
@@ -55,6 +56,9 @@ export function ReviewList({
   type: 'course' | 'instructor';
   onCountChange?: (count: number) => void;
 }) {
+  const { currentUser, enrolledCourseIds = [] } = useApp();
+  const isEnrolled = Boolean(currentUser && enrolledCourseIds.some((id) => String(id) === String(targetId)));
+
   const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<number | null>(null);
@@ -264,55 +268,61 @@ export function ReviewList({
         </div>
       )}
 
-      {/* Write Review Form */}
-      <form onSubmit={handleSubmitReview} className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-4">
-        <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-          <span>✍️</span> Gửi đánh giá của bạn
-        </h3>
+      {/* Write Review Form - Only for enrolled students if type === 'course' */}
+      {type === 'course' && !isEnrolled ? (
+        <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-5 text-center text-xs text-slate-500 font-medium">
+          Chỉ những học viên đã đăng ký hoặc mua khóa học mới có thể gửi đánh giá.
+        </div>
+      ) : (
+        <form onSubmit={handleSubmitReview} className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm space-y-4">
+          <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+            <span>✍️</span> Gửi đánh giá của bạn
+          </h3>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-700">Đánh giá chất lượng:</span>
-          <div className="flex gap-1 text-amber-400 cursor-pointer">
-            {[1, 2, 3, 4, 5].map((star) => {
-              const active = (hoverRating || selectedRating) >= star;
-              return (
-                <button
-                  key={star}
-                  type="button"
-                  onMouseEnter={() => setHoverRating(star)}
-                  onMouseLeave={() => setHoverRating(null)}
-                  onClick={() => setSelectedRating(star)}
-                  className="p-0.5 hover:scale-110 transition-transform cursor-pointer focus:outline-none"
-                >
-                  <Star className={`w-6 h-6 ${active ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-700">Đánh giá chất lượng:</span>
+            <div className="flex gap-1 text-amber-400 cursor-pointer">
+              {[1, 2, 3, 4, 5].map((star) => {
+                const active = (hoverRating || selectedRating) >= star;
+                return (
+                  <button
+                    key={star}
+                    type="button"
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(null)}
+                    onClick={() => setSelectedRating(star)}
+                    className="p-0.5 hover:scale-110 transition-transform cursor-pointer focus:outline-none"
+                  >
+                    <Star className={`w-6 h-6 ${active ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
+                  </button>
+                );
+              })}
+            </div>
+            <span className="text-xs font-bold text-slate-500">
+              ({hoverRating || selectedRating}/5 sao)
+            </span>
           </div>
-          <span className="text-xs font-bold text-slate-500">
-            ({hoverRating || selectedRating}/5 sao)
-          </span>
-        </div>
 
-        <textarea
-          placeholder="Chia sẻ trải nghiệm học tập và nhận xét chi tiết của bạn..."
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400 font-medium"
-          rows={3}
-        />
+          <textarea
+            placeholder="Chia sẻ trải nghiệm học tập và nhận xét chi tiết của bạn..."
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400 font-medium"
+            rows={3}
+          />
 
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-2xl px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>{isSubmitting ? 'Đang gửi...' : 'Đăng đánh giá'}</span>
-          </Button>
-        </div>
-      </form>
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-2xl px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>{isSubmitting ? 'Đang gửi...' : 'Đăng đánh giá'}</span>
+            </Button>
+          </div>
+        </form>
+      )}
 
       {/* Review List */}
       <div className="space-y-4">

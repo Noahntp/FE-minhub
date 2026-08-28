@@ -177,11 +177,47 @@ export function InstructorStudentManagement({ currentUser, coursesTaught }: Inst
                 <div className="lg:col-span-1 flex gap-2">
                   <div className="flex-1">
                     <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Min %</label>
-                    <input type="number" min="0" max="100" placeholder="0" value={studentMinProgress || ''} onChange={e => setStudentMinProgress(e.target.value ? Number(e.target.value) : undefined)} className="w-full px-2 py-2 border rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal text-xs" />
+                    <input 
+                      type="number" 
+                      min="0" 
+                      max="100" 
+                      placeholder="0" 
+                      value={studentMinProgress ?? ''} 
+                      onChange={e => {
+                        const sanitized = e.target.value.replace(/\D/g, '');
+                        if (sanitized === '') setStudentMinProgress(undefined);
+                        else {
+                          const val = parseInt(sanitized, 10);
+                          setStudentMinProgress(val > 100 ? 100 : val);
+                        }
+                      }} 
+                      onKeyDown={e => {
+                        if (['e', 'E', '+', '-', '.', ','].includes(e.key)) e.preventDefault();
+                      }}
+                      className="w-full px-2 py-2 border rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal text-xs" 
+                    />
                   </div>
                   <div className="flex-1">
                     <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">Max %</label>
-                    <input type="number" min="0" max="100" placeholder="100" value={studentMaxProgress || ''} onChange={e => setStudentMaxProgress(e.target.value ? Number(e.target.value) : undefined)} className="w-full px-2 py-2 border rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal text-xs" />
+                    <input 
+                      type="number" 
+                      min="0" 
+                      max="100" 
+                      placeholder="100" 
+                      value={studentMaxProgress ?? ''} 
+                      onChange={e => {
+                        const sanitized = e.target.value.replace(/\D/g, '');
+                        if (sanitized === '') setStudentMaxProgress(undefined);
+                        else {
+                          const val = parseInt(sanitized, 10);
+                          setStudentMaxProgress(val > 100 ? 100 : val);
+                        }
+                      }} 
+                      onKeyDown={e => {
+                        if (['e', 'E', '+', '-', '.', ','].includes(e.key)) e.preventDefault();
+                      }}
+                      className="w-full px-2 py-2 border rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal text-xs" 
+                    />
                   </div>
                 </div>
               </div>

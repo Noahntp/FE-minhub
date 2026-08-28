@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, Users, Heart, ShoppingCart, Flame, Sparkles } from 'lucide-react';
+import { Star, Users, Heart, ShoppingCart, Flame, Sparkles, GraduationCap, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
 import { useApp } from '@/app/AppContext';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 export interface HomeCourseItem {
   id: string;
@@ -14,6 +15,14 @@ export interface HomeCourseItem {
   rating: number;
   reviewCount: number;
   studentCount: string;
+  rawStudentCount?: number;
+  completedStudentCount?: number;
+  completionRate?: number;
+  averageProgress?: number;
+  hasCertificate?: boolean;
+  certificateName?: string;
+  publishedAt?: string;
+  versionTag?: string;
   instructorName: string;
   instructorAvatar: string;
   price: number;
@@ -28,11 +37,41 @@ export interface HomeCourseItem {
 interface HomeCourseCardProps {
   course: HomeCourseItem;
   tagVariant?: 'hot' | 'new' | 'discount';
+  showCompletionProgress?: boolean;
+  showProofBadge?: boolean;
 }
 
-export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
+export function HomeCourseCard({
+  course,
+  tagVariant,
+  showCompletionProgress = false,
+  showProofBadge = false,
+}: HomeCourseCardProps) {
   const navigate = useNavigate();
   const { favorites, setFavorites, currentUser } = useApp();
+
+  const releaseProofText = course.publishedAt
+    ? (course.publishedAt.startsWith('Ra mắt') || course.publishedAt.startsWith('Vừa')
+        ? course.publishedAt
+        : `Ra mắt: ${course.publishedAt}`)
+    : 'Vừa ra mắt gần đây';
+
+  const releaseVersion = course.versionTag || 'Giáo trình 2026';
+
+  const completionRate =
+    course.completionRate !== undefined && course.completionRate !== null
+      ? Math.min(100, Math.max(0, Math.round(course.completionRate)))
+      : course.completedStudentCount && course.rawStudentCount && course.rawStudentCount > 0
+      ? Math.min(100, Math.max(0, Math.round((course.completedStudentCount / course.rawStudentCount) * 100)))
+      : course.averageProgress !== undefined && course.averageProgress !== null
+      ? Math.min(100, Math.max(0, Math.round(course.averageProgress)))
+      : 80;
+
+  const completedCountDisplay = course.completedStudentCount
+    ? (course.completedStudentCount >= 1000
+        ? (course.completedStudentCount / 1000).toFixed(1).replace('.0', '') + 'K'
+        : course.completedStudentCount.toLocaleString('vi-VN'))
+    : null;
 
   const isWishlisted =
     favorites.includes(course.id) ||
@@ -118,8 +157,11 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
       {/* Thumbnail Container */}
       <Link to={`/courses/${courseTarget}`} className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100 block">
         <img
-          src={course.thumbnail}
+          src={resolveMediaUrl(course.thumbnail)}
           alt={course.title}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
+          }}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
@@ -191,6 +233,49 @@ export function HomeCourseCard({ course, tagVariant }: HomeCourseCardProps) {
               <span>{course.studentCount} học viên</span>
             </div>
           </div>
+
+          {/* Completion Progress Bar */}
+          {showCompletionProgress && (
+            <div className="mb-3 p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100/80 space-y-1.5 transition-all">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="flex items-center gap-1.5 font-bold text-slate-700">
+                  <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Tiến độ hoàn thành</span>
+                </span>
+                <span className="font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded text-[11px]">
+                  {completionRate}%
+                </span>
+              </div>
+
+              {/* Progress Track & Indicator */}
+              <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 transition-all duration-700"
+                  style={{ width: `${completionRate}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
+                <span>Tổng: <strong className="text-slate-700">{course.studentCount}</strong> học viên</span>
+                <span className="text-emerald-700 font-semibold">
+                  {completedCountDisplay ? `${completedCountDisplay} đã xong` : `${completionRate}% hoàn thành`}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Minh chứng Khóa học mới (Gọn gàng, 1 dòng thanh lịch, không bị tràn viền) */}
+          {showProofBadge && (
+            <div className="mb-3 px-2 py-1.5 rounded-lg bg-sky-50/80 border border-sky-100/90 flex items-center justify-between gap-1 text-[11px] transition-all">
+              <div className="flex items-center gap-1 font-bold text-sky-900 min-w-0">
+                <Sparkles className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                <span className="whitespace-nowrap font-bold text-[11px]">{releaseProofText}</span>
+              </div>
+              <span className="shrink-0 text-[10px] font-black text-sky-700 bg-sky-100/90 px-1.5 py-0.5 rounded border border-sky-200/60 uppercase tracking-wider shadow-2xs whitespace-nowrap">
+                2026
+              </span>
+            </div>
+          )}
 
           {/* Instructor Info */}
           <div className="flex items-center gap-2 pt-2 border-t border-slate-100">

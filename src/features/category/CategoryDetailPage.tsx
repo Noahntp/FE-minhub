@@ -9,6 +9,7 @@ import { Button } from '@/shared/components/ui/button';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { apiFetch } from '@/shared/lib/api-client';
+import { resolveMediaUrl } from '@/shared/utils/format';
 
 const CATEGORY_SLUG_ALIAS: Record<string, string> = {
   'ai-data': 'ai-va-du-lieu',
@@ -158,12 +159,12 @@ export default function CategoryDetailPage() {
       id: String(c.id),
       title: c.title || 'Khóa học chất lượng',
       level: c.level === 'beginner' ? 'Cơ bản' : c.level === 'advanced' ? 'Nâng cao' : 'Trung cấp',
-      thumbnail: c.thumbnail_url || defaultImages[imageIdx],
+      thumbnail: resolveMediaUrl(c.thumbnail_url) || defaultImages[imageIdx],
       rating: c.average_rating !== undefined && c.average_rating !== null ? Number(c.average_rating) : 0,
       reviewCount: Number(c.reviews_count || 0),
       studentCount: new Intl.NumberFormat('vi-VN').format(c.enrollments_count || 0),
       instructorName: c.instructor?.full_name || 'Giảng viên MindHub',
-      instructorAvatar: c.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+      instructorAvatar: resolveMediaUrl(c.instructor?.avatar_url) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
       price: finalPrice,
       originalPrice: originalPrice,
       discountBadge: discountBadge,
@@ -227,57 +228,34 @@ export default function CategoryDetailPage() {
         if (sortOption === 'price_desc') sortParam = 'price_desc';
         if (sortOption === 'rating') sortParam = 'rating_desc';
 
+        const extractList = (res: any): any[] => {
+          if (Array.isArray(res)) return res;
+          if (Array.isArray(res?.data?.items)) return res.data.items;
+          if (Array.isArray(res?.data)) return res.data;
+          if (Array.isArray(res?.items)) return res.items;
+          return [];
+        };
+
         let rawCourses: any[] = [];
 
         // Primary Query using category_slug=dbSlug
         let coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(dbSlug)}&sort=${sortParam}`).catch(() => null);
-        rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+        rawCourses = extractList(coursesRes);
 
         // Secondary fallback query using original slug if dbSlug was different
-        if ((!Array.isArray(rawCourses) || rawCourses.length === 0) && dbSlug !== slug) {
+        if (rawCourses.length === 0 && dbSlug !== slug) {
           coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(slug)}&sort=${sortParam}`).catch(() => null);
-          rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+          rawCourses = extractList(coursesRes);
         }
 
         // Try querying by category_id if available
-        if ((!Array.isArray(rawCourses) || rawCourses.length === 0) && meta.id) {
+        if (rawCourses.length === 0 && meta.id) {
           coursesRes = await apiFetch<any>(`/courses?category_id=${meta.id}&sort=${sortParam}`).catch(() => null);
-          rawCourses = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+          rawCourses = extractList(coursesRes);
         }
 
-        // If backend returned general list or no category filter applied on server side,
-        // strictly filter rawCourses to ensure courses match the category!
-        if (Array.isArray(rawCourses) && rawCourses.length > 0) {
-          const targetSlug = dbSlug.toLowerCase();
-          const targetOriginalSlug = slug.toLowerCase();
-          const targetTitle = (meta.title || '').toLowerCase();
-          const targetKeywords = targetOriginalSlug.replace(/^lo-trinh-/i, '').split('-').filter((k) => k.length > 2);
-
-          const matchedCourses = rawCourses.filter((c: any) => {
-            const courseCatSlug = (c.category?.slug || c.category_slug || '').toLowerCase();
-            const courseCatName = (c.category?.name || c.category_name || '').toLowerCase();
-            const courseCatId = c.category_id || c.category?.id;
-
-            if (courseCatSlug && (courseCatSlug === targetSlug || courseCatSlug === targetOriginalSlug)) return true;
-            if (meta.id && courseCatId && String(courseCatId) === String(meta.id)) return true;
-            if (courseCatName && targetTitle && (courseCatName.includes(targetTitle) || targetTitle.includes(courseCatName))) return true;
-
-            const titleLower = (c.title || '').toLowerCase();
-            const descLower = (c.description || c.short_description || '').toLowerCase();
-            if (targetKeywords.length > 0 && targetKeywords.some((kw) => titleLower.includes(kw) || descLower.includes(kw))) {
-              return true;
-            }
-
-            return false;
-          });
-
-          if (isMounted) {
-            setCourses(matchedCourses.map(mapApiCourseToHomeCourseItem));
-          }
-        } else {
-          if (isMounted) {
-            setCourses([]);
-          }
+        if (isMounted) {
+          setCourses(rawCourses.map(mapApiCourseToHomeCourseItem));
         }
       } catch (err) {
         console.warn('Unable to load courses for category from Backend API', err);
