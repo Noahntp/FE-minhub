@@ -108,20 +108,20 @@ export function StatsBarSection({ stats: apiStats }: StatsBarSectionProps) {
   return (
     <section className="py-6 bg-white border-y border-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
           {statsList.map((stat, idx) => (
             <div
               key={idx}
-              className={`p-4 sm:p-5 rounded-2xl border ${stat.bgColor} flex items-center justify-center gap-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-md`}
+              className={`p-3 sm:p-5 rounded-2xl border ${stat.bgColor} flex items-center justify-start sm:justify-center gap-2.5 sm:gap-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-md`}
             >
-              <div className="p-3 bg-white rounded-xl shadow-sm shrink-0">
+              <div className="p-2 sm:p-3 bg-white rounded-xl shadow-sm shrink-0">
                 {stat.icon}
               </div>
-              <div className="text-left">
-                <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">
+              <div className="text-left min-w-0">
+                <div className="text-lg sm:text-2xl font-black text-slate-900 leading-none truncate">
                   <CountUpNumber target={stat.target} suffix={stat.suffix} />
                 </div>
-                <div className="text-xs font-semibold text-slate-600 mt-1">
+                <div className="text-[11px] sm:text-xs font-semibold text-slate-600 mt-1 truncate">
                   {stat.label}
                 </div>
               </div>

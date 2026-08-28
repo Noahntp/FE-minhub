@@ -11,10 +11,9 @@ export default function Footer() {
           {/* Column 1: Thương hiệu / giới thiệu ngắn */}
           <div className="space-y-4">
             <div className="flex items-center text-white mb-2">
-              <div className="bg-white px-3.5 py-2 rounded-xl shadow-md border border-emerald-100/20 inline-block">
-                <img src="/mindhub-logo.png" alt="MindHub Logo" className="h-8 w-auto object-contain" />
-              </div>
+              <img src="/mindhub-logo-white.png" alt="MindHub Logo" className="h-9 w-auto object-contain" />
             </div>
+
             <p className="text-emerald-100/80 leading-relaxed text-xs font-medium">
               Hệ thống đào tạo trực tuyến thông minh kiến tạo tri thức từ việc
               rèn luyện thực tế kết hợp trợ lý AI Mentor đồng hành.

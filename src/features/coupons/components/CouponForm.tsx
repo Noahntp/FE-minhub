@@ -91,7 +91,8 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
     if (name === 'code') {
       setFormData(prev => ({ ...prev, [name]: value.replace(/\s+/g, '').toUpperCase() }));
     } else if (name === 'discount_value' || name === 'usage_limit') {
-      setFormData(prev => ({ ...prev, [name]: value !== '' ? Number(value) : undefined }));
+      const sanitized = value.replace(/\D/g, '');
+      setFormData(prev => ({ ...prev, [name]: sanitized !== '' ? Math.max(0, parseInt(sanitized, 10)) : undefined }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -261,10 +262,16 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Giá trị *</label>
             <input 
               required 
-              type="number" 
+              type="number"
+              min="0"
               name="discount_value" 
               value={formData.discount_value ?? ''} 
               onChange={handleChange} 
+              onKeyDown={(e) => {
+                if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               placeholder="Nhập giá trị" 
               className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-bold" 
             />
@@ -277,10 +284,16 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Giới hạn sử dụng</label>
             <input 
-              type="number" 
+              type="number"
+              min="0"
               name="usage_limit" 
               value={formData.usage_limit ?? ''} 
               onChange={handleChange} 
+              onKeyDown={(e) => {
+                if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               placeholder="Để trống nếu không giới hạn" 
               className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
             />

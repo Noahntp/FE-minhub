@@ -69,8 +69,17 @@ export default function SectionModal({ isOpen, onClose, onSave, initialData }: S
               <label className="block text-[10px] font-bold text-stone-600 mb-1">Thứ tự hiển thị</label>
               <input 
                 type="number" 
+                min="1"
                 value={sortOrder}
-                onChange={(e) => setSortOrder(parseInt(e.target.value) || 1)}
+                onChange={(e) => {
+                  const sanitized = e.target.value.replace(/\D/g, '');
+                  setSortOrder(sanitized === '' ? 1 : Math.max(1, parseInt(sanitized, 10)));
+                }}
+                onKeyDown={(e) => {
+                  if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 className="w-full text-[11px] font-semibold text-stone-700 border border-slate-200 rounded-xl px-3 py-2 bg-slate-50/20 focus:outline-none"
               />
             </div>
