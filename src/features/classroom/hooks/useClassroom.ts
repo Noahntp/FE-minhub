@@ -7,6 +7,19 @@ import { FALLBACK_COURSES_MAP } from '@/features/courses/hooks/useCourseDetail';
 import { resolveCourseById } from '@/features/cart/CartAndCheckout';
 import { classroomApi } from '../api';
 import { apiFetch } from '@/shared/lib/api-client';
+import bunnyVideosData from '@/shared/data/bunny_videos.json';
+
+const BUNNY_TITLE_MAP: Record<string, string> = {};
+Object.values(bunnyVideosData).forEach((vids: any) => {
+  if (Array.isArray(vids)) {
+    vids.forEach((v: any) => {
+      if (v.title && v.video_id) {
+        const normKey = v.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+        BUNNY_TITLE_MAP[normKey] = `https://iframe.mediadelivery.net/embed/724015/${v.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
+      }
+    });
+  }
+});
 
 export type TabType = 'overview' | 'qa' | 'notes' | 'resources' | 'reviews';
 
@@ -252,11 +265,10 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
 
         // 1. Resolve base course details from App Context / Local Storage
         let foundCourse: Course = resolveCourseById(courseId, courses);
+        let match: any = null;
 
         // 2. Fetch fresh course details from Backend API /courses or /courses/:id
         try {
-          let match: any = null;
-
           // A. Try direct detail API: GET /courses/:id
           try {
             const directRes = await apiFetch<any>(`/courses/${courseId}`);
@@ -286,6 +298,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
               description: match.description || match.summary || match.short_description || foundCourse.description,
               level: match.level || foundCourse.level,
               category: match.category?.name || match.category || foundCourse.category,
+              sections: match.sections || match.data?.sections || (foundCourse as any).sections,
               instructorName: inst.full_name || inst.name || match.instructor_name || foundCourse.instructorName,
               instructorAvatar: inst.avatar_url || inst.avatar || match.instructor_avatar || foundCourse.instructorAvatar,
               instructorBio: inst.bio || match.instructor_bio || (foundCourse as any).instructorBio,
@@ -341,7 +354,9 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
                     type: 'video',
                     duration: parsedDuration,
                     isPreview: Boolean(l.is_preview),
-                    videoUrl: l.video_url || l.stream_url || '',
+                    videoUrl: l.video_id
+                      ? `https://iframe.mediadelivery.net/embed/724015/${l.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`
+                      : (l.video_url || l.stream_url || ''),
                     content: l.description || l.summary,
                   };
                 })
@@ -352,7 +367,45 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
           }
         }
 
-        // 4. Fallback/Ensure tailored chapters exist for each specific course topic
+        // 4. If outline endpoint didn't return chapters, map from match.sections if present
+        const rawSecs = match?.sections || match?.data?.sections || (foundCourse as any).sections || (foundCourse as any).chapters;
+        if (apiChapters.length === 0 && Array.isArray(rawSecs) && rawSecs.length > 0) {
+          apiChapters = rawSecs.map((sec: any, idx: number) => ({
+            id: String(sec.id || `sec-${idx}`),
+            title: sec.title || sec.name || `Chương ${idx + 1}`,
+            lessons: (sec.lessons || sec.items || []).map((l: any, lIdx: number) => {
+              const lessonIdStr = String(l.id || `l-${idx}-${lIdx}`);
+              const rawDuration = l.video_duration_seconds ?? l.duration_seconds ?? l.duration ?? l.video_duration;
+              let parsedDuration = '';
+              if (typeof rawDuration === 'number' && rawDuration > 0) {
+                const m = Math.floor(rawDuration / 60);
+                const s = Math.floor(rawDuration % 60);
+                parsedDuration = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+              } else if (typeof rawDuration === 'string' && rawDuration.trim()) {
+                parsedDuration = rawDuration;
+              } else {
+                parsedDuration = '10:00';
+              }
+              const normTitle = (l.title || l.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              const directBunnyEmbed = BUNNY_TITLE_MAP[normTitle] || '';
+              const videoEmbedUrl = l.video_id
+                ? `https://iframe.mediadelivery.net/embed/724015/${l.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`
+                : (directBunnyEmbed || l.video_url || l.stream_url || '');
+
+              return {
+                id: lessonIdStr,
+                title: l.title || l.name || `Bài ${lIdx + 1}`,
+                type: 'video',
+                duration: parsedDuration,
+                isPreview: Boolean(l.is_preview || l.is_free_preview || l.isPreview),
+                videoUrl: videoEmbedUrl,
+                content: l.description || l.summary,
+              };
+            })
+          }));
+        }
+
+        // 5. Fallback/Ensure tailored chapters exist for each specific course topic
         if (apiChapters.length > 0) {
           foundCourse.chapters = apiChapters;
         } else if (!foundCourse.chapters || foundCourse.chapters.length === 0) {
