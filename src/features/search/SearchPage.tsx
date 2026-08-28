@@ -20,7 +20,8 @@ export const VI_STOPWORDS = new Set([
   'lop', 'huong', 'dan', 'tu', 'den', 'va', 'hoac', 'la', 'o', 'tai', 'trong', 'ngoai', 'cho', 'voi', 
   've', 'cac', 'nhung', 'gi', 'sao', 'nao', 'the', 'day', 'do', 'nay', 'kia', 'mot', 'hai', 'nhieu', 
   'it', 'rat', 'qua', 'lam', 'tot', 'hay', 'nen', 'se', 'da', 'dang', 'chua', 'duoc', 'bi', 'boi',
-  'co', 'giup', 'dung', 'de', 'giua', 'vao', 'ra', 'truoc', 'sau', 'khi', 'ai', 'dau', 'biet'
+  'co', 'giup', 'dung', 'de', 'giua', 'vao', 'ra', 'truoc', 'sau', 'khi', 'ai', 'dau', 'biet',
+  'lap', 'trinh', 'bai', 'giang', 'video', 'nen', 'tang', 'tu', 'hoc'
 ]);
 
 /**
@@ -393,9 +394,9 @@ export default function SearchPage() {
           const maxScore = Math.max(0, ...scored.map((c) => c.semanticScore));
 
           if (maxScore > 0) {
-            // Keep items that meet absolute threshold (>= 0.35) and relative cutoff (>= 50% of maxScore)
+            // Keep items that meet base threshold (>= 0.20) and relative cutoff (>= 40% of maxScore)
             const matched = scored.filter(
-              (c) => c.semanticScore >= 0.35 && c.semanticScore >= maxScore * 0.5
+              (c) => c.semanticScore >= 0.20 && c.semanticScore >= maxScore * 0.4
             );
             mappedList = matched.sort((a, b) => b.semanticScore - a.semanticScore);
           } else {
