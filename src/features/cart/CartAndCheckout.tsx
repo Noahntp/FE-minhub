@@ -473,6 +473,22 @@ export default function CartAndCheckout({
         throw new Error(orderRes?.message || 'Không thể tạo đơn hàng');
       }
 
+      if (activeDiscount) {
+        try {
+          await apiFetch<any>('/orders/apply-coupon', {
+            method: 'POST',
+            body: JSON.stringify({
+              order_id: Number(orderId),
+              coupon_code: activeDiscount.code,
+            }),
+          });
+        } catch (couponErr: any) {
+          console.warn('Lỗi khi áp dụng mã giảm giá:', couponErr);
+          toast.error(couponErr?.message || 'Không thể áp dụng mã giảm giá vào đơn hàng.');
+          throw couponErr;
+        }
+      }
+
       if (paymentMethod === 'sepay') {
         // 2. SePay VietQR payment info
         const sepayRes = await apiFetch<any>('/payments/sepay/create', {
