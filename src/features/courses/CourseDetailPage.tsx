@@ -43,6 +43,7 @@ import { CourseDetailSkeleton } from './components/CourseDetailSkeleton';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
+import { semanticSearchApi } from '@/services/api';
 // Mock chapters matching design
 const mockChapters = [
   {
@@ -240,25 +241,46 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (!course?.id) return;
 
-    // Fetch related courses
-    apiFetch<any>(`/courses/${course.id}/related`)
+    // Fetch AI Semantic Similar Courses & related
+    semanticSearchApi.getSimilarCourses(course.id, 4)
       .then((res) => {
-        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        const list = Array.isArray(res) ? res : (Array.isArray((res as any)?.data) ? (res as any).data : []);
         if (list.length > 0) {
           const mapped: HomeCourseItem[] = list.map((item: any) => ({
             id: String(item.slug || item.id || item.course_id),
             title: item.title || 'Khóa học liên quan',
-            level: item.level || 'Mọi trình độ',
-            thumbnail: item.thumbnail_url || item.image || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+            level: item.course_level || item.level || 'Mọi trình độ',
+            thumbnail: item.thumbnail_url ? resolveMediaUrl(item.thumbnail_url) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
             rating: Number(item.average_rating || item.rating || 4.8),
             reviewCount: Number(item.reviews_count || item.reviewCount || 120),
             enrolledCount: Number(item.enrollments_count || item.enrolledCount || 1000),
             instructorName: item.instructor?.full_name || item.instructor_name || 'Giảng viên MindHub',
-            instructorAvatar: item.instructor?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+            instructorAvatar: item.instructor?.avatar_url ? resolveMediaUrl(item.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
             price: item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : Number(item.price || 399000),
             originalPrice: item.sale_price !== null && item.sale_price !== undefined ? Number(item.price) : undefined,
+            discountBadge: item.match_percentage ? `${item.match_percentage}% Match AI` : undefined,
           }));
           setApiRelatedCourses(mapped);
+        } else {
+          // Fallback to general related endpoint
+          apiFetch<any>(`/courses/${course.id}/related`).then((relRes) => {
+            const relList = Array.isArray(relRes?.data) ? relRes.data : (Array.isArray(relRes) ? relRes : []);
+            if (relList.length > 0) {
+              setApiRelatedCourses(relList.map((item: any) => ({
+                id: String(item.slug || item.id),
+                title: item.title || 'Khóa học liên quan',
+                level: item.level || 'Mọi trình độ',
+                thumbnail: item.thumbnail_url ? resolveMediaUrl(item.thumbnail_url) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+                rating: Number(item.average_rating || 4.8),
+                reviewCount: Number(item.reviews_count || 120),
+                enrolledCount: Number(item.enrollments_count || 1000),
+                instructorName: item.instructor?.full_name || 'Giảng viên MindHub',
+                instructorAvatar: item.instructor?.avatar_url ? resolveMediaUrl(item.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+                price: item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : Number(item.price || 399000),
+                originalPrice: item.sale_price !== null && item.sale_price !== undefined ? Number(item.price) : undefined,
+              })));
+            }
+          }).catch(() => {});
         }
       })
       .catch(() => {});
