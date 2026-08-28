@@ -131,11 +131,17 @@ export const InstructorProfessional: React.FC<InstructorProfessionalProps> = ({ 
                   max="80"
                   value={formData.experience_years === null || formData.experience_years === undefined ? '' : formData.experience_years}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (!isNaN(val) && val >= 0 && val <= 80) {
-                      setFormData({ ...formData, experience_years: val });
-                    } else if (e.target.value === '') {
+                    const onlyNums = e.target.value.replace(/\D/g, '');
+                    if (onlyNums === '') {
                       setFormData({ ...formData, experience_years: '' as any });
+                    } else {
+                      const val = parseInt(onlyNums, 10);
+                      setFormData({ ...formData, experience_years: val > 80 ? 80 : val });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                      e.preventDefault();
                     }
                   }}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none font-medium text-slate-700"

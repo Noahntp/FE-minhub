@@ -836,22 +836,34 @@ export default function WithdrawalsManagement() {
               <div className="flex items-center gap-1.5 h-9">
                 <input
                   type="number"
+                  min="0"
                   placeholder="Từ"
                   value={amountMin}
                   onChange={(e) => {
-                    setAmountMin(e.target.value);
+                    setAmountMin(e.target.value.replace(/\D/g, ''));
                     setPage(1);
+                  }}
+                  onKeyDown={(e) => {
+                    if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                      e.preventDefault();
+                    }
                   }}
                   className="w-full h-9 px-2.5 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink text-ink font-mono"
                 />
                 <span className="text-mid-gray text-xs font-medium">-</span>
                 <input
                   type="number"
+                  min="0"
                   placeholder="Đến"
                   value={amountMax}
                   onChange={(e) => {
-                    setAmountMax(e.target.value);
+                    setAmountMax(e.target.value.replace(/\D/g, ''));
                     setPage(1);
+                  }}
+                  onKeyDown={(e) => {
+                    if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                      e.preventDefault();
+                    }
                   }}
                   className="w-full h-9 px-2.5 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink text-ink font-mono"
                 />

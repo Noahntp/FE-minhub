@@ -260,6 +260,14 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
     const emailTrimmed = email.trim().toLowerCase();
 
+    let expYears: number | undefined = undefined;
+    if (registerRole === 'instructor' && instructorExperience.trim() !== '') {
+      const parsed = parseInt(instructorExperience.trim(), 10);
+      if (!isNaN(parsed) && parsed >= 0) {
+        expYears = parsed;
+      }
+    }
+
     setSuccessMsg('Đang đăng ký tài khoản và gửi mã OTP xác thực...');
     authApi.register({ 
       full_name: name.trim(), 
@@ -270,7 +278,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       role: registerRole,
       expertise: registerRole === 'instructor' ? instructorSpecialty : undefined,
       bio: registerRole === 'instructor' ? instructorBio : undefined,
-      experience_years: registerRole === 'instructor' ? instructorExperience : undefined
+      experience_years: registerRole === 'instructor' ? expYears : undefined
     })
       .then((res: any) => {
         try {
@@ -760,8 +768,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       <input 
                         type="tel"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="VD: 0987 654 321"
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={(e) => {
+                          if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        placeholder="VD: 0987654321"
                         className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all shadow-none"
                         required
                       />
@@ -796,10 +809,25 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                     <div className="relative">
                       <GraduationCap className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
                       <input 
-                        type="text"
+                        type="number"
+                        min="0"
+                        max="80"
                         value={instructorExperience}
-                        onChange={(e) => setInstructorExperience(e.target.value)}
-                        placeholder="VD: Trên 5 năm kinh nghiệm, Thạc sĩ CNTT..."
+                        onChange={(e) => {
+                          const onlyNums = e.target.value.replace(/\D/g, '');
+                          if (onlyNums === '') {
+                            setInstructorExperience('');
+                          } else {
+                            const val = parseInt(onlyNums, 10);
+                            setInstructorExperience(val > 80 ? '80' : String(val));
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        placeholder="VD: 5 (nhập số năm)"
                         className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all shadow-none"
                       />
                     </div>

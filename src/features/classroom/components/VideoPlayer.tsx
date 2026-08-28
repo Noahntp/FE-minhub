@@ -98,18 +98,55 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     }
   };
 
+  const normalizedSrc = (() => {
+    if (!videoSrc) return '';
+    let url = videoSrc;
+    if (url.includes('.b-cdn.net/') && url.includes('/playlist.m3u8')) {
+      const match = url.match(/\.b-cdn\.net\/([^\/]+)\/playlist\.m3u8/);
+      if (match && match[1]) {
+        url = `https://iframe.mediadelivery.net/embed/724015/${match[1]}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
+      }
+    }
+    if (url.includes('iframe.mediadelivery.net') && !url.includes('responsive=true')) {
+      url += `${url.includes('?') ? '&' : '?'}responsive=true`;
+    }
+    return url;
+  })();
+
+  const isIframeEmbed = Boolean(
+    normalizedSrc && (
+      normalizedSrc.includes('iframe.mediadelivery.net') ||
+      normalizedSrc.includes('youtube.com') ||
+      normalizedSrc.includes('vimeo.com') ||
+      normalizedSrc.includes('/embed/')
+    )
+  );
+
   return (
-    <div className="w-full aspect-video bg-black rounded-2xl relative flex items-center justify-center overflow-hidden border border-slate-800 shadow-md">
+    <div 
+      className="w-full relative rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-xl"
+      style={{ paddingTop: '56.25%' }}
+    >
       {isLoadingVideo ? (
-        <div className="flex flex-col items-center justify-center text-slate-400 gap-3">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-3 bg-slate-950">
           <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
           <p className="text-xs font-bold text-slate-300">Đang tải luồng video bài học...</p>
         </div>
+      ) : isIframeEmbed ? (
+        <iframe
+          key={normalizedSrc}
+          src={normalizedSrc}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full border-0"
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+          allowFullScreen
+        />
       ) : videoSrc ? (
         <video
           key={videoSrc}
           controls
-          className="w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-contain bg-black"
           onEnded={onEnded}
           onTimeUpdate={handleTimeUpdate}
           autoPlay={false}
@@ -119,7 +156,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
           Trình duyệt của bạn không hỗ trợ thẻ video.
         </video>
       ) : (
-        <div className="flex flex-col items-center justify-center text-slate-400 gap-2 p-4 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-2 p-4 text-center bg-slate-950">
           <PlayCircle className="w-12 h-12 opacity-40 text-slate-500" />
           <p className="text-xs font-semibold text-slate-400">Bài học chưa có video hoặc video đang được cập nhật.</p>
         </div>
@@ -127,3 +164,4 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     </div>
   );
 }
+

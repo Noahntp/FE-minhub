@@ -1306,7 +1306,15 @@ export default function Banners() {
                       type="number"
                       min={0}
                       value={formData.sort_order}
-                      onChange={(e) => setFormData({ ...formData, sort_order: Number(e.target.value) })}
+                      onChange={(e) => {
+                        const sanitized = e.target.value.replace(/\D/g, '');
+                        setFormData({ ...formData, sort_order: sanitized === '' ? 0 : parseInt(sanitized, 10) });
+                      }}
+                      onKeyDown={(e) => {
+                        if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className="h-10 w-full rounded-xl border border-hairline bg-transparent px-3.5 text-sm outline-none focus:border-ink transition-colors"
                     />
                   </div>
