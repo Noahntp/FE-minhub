@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { Calendar as CalendarIcon, Flame, Trophy, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
+import { api } from '@/services/api';
 
 // Mock heatmap data
 const generateHeatmapData = () => {
@@ -33,10 +34,56 @@ const HEATMAP_COLORS = {
 };
 
 export default function LearningCalendarPage() {
-  const heatmapData = generateHeatmapData();
-  const currentStreak = 12;
-  const longestStreak = 24;
-  const totalHours = 45;
+  const [heatmapData, setHeatmapData] = useState<any[]>(generateHeatmapData());
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
+  const [totalHours, setTotalHours] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getActivityCalendar()
+      .then(res => {
+        if (!isMounted) return;
+        if (res && res.data) {
+          const d = res.data;
+          
+          if (d.streak) {
+             setCurrentStreak(d.streak.current_streak || 0);
+             setLongestStreak(d.streak.longest_streak || 0);
+          }
+          
+          if (Array.isArray(d.heatmap)) {
+            // Map backend heatmap to frontend format
+            let totalSeconds = 0;
+            const mapped = d.heatmap.map((h: any) => {
+              totalSeconds += (h.total_time_seconds || 0);
+              return {
+                date: new Date(h.date),
+                level: h.intensity || 0,
+                minutes: Math.floor((h.total_time_seconds || 0) / 60)
+              };
+            });
+            setTotalHours(Math.floor(totalSeconds / 3600));
+
+            // Merge with base days to ensure 30 days are visible if the backend returns fewer
+            const days = [];
+            const today = new Date();
+            for (let i = 0; i < 30; i++) {
+              const d = new Date();
+              d.setDate(today.getDate() - (29 - i));
+              const match = mapped.find((m: any) => m.date.toDateString() === d.toDateString());
+              days.push(match || { date: d, level: 0, minutes: 0 });
+            }
+            setHeatmapData(days);
+          }
+        }
+      })
+      .catch(err => {
+         console.error('Failed to load learning calendar', err);
+      });
+      
+    return () => { isMounted = false; };
+  }, []);
 
   return (
     <PageTransition>

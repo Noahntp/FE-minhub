@@ -43,101 +43,6 @@ import { CourseDetailSkeleton } from './components/CourseDetailSkeleton';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
-// Mock chapters matching design
-const mockChapters = [
-  {
-    id: 'ch1',
-    title: 'Chương 1: Giới thiệu về Python',
-    lessonCount: 6,
-    duration: '45 phút',
-    lessons: [
-      { id: '1', title: '1.1 Python là gì?', duration: '05:30', isPreview: true },
-      { id: '2', title: '1.2 Cài đặt Python và môi trường lập trình', duration: '08:15', isPreview: true },
-      { id: '3', title: '1.3 Chạy chương trình đầu tiên', duration: '04:45', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch2',
-    title: 'Chương 2: Biến và kiểu dữ liệu',
-    lessonCount: 8,
-    duration: '1 giờ 10 phút',
-    lessons: [
-      { id: '4', title: '2.1 Khai báo biến và đặt tên chuẩn', duration: '09:20', isPreview: false },
-      { id: '5', title: '2.2 Kiểu dữ liệu số (Integer, Float)', duration: '12:10', isPreview: false },
-      { id: '6', title: '2.3 Chuỗi ký tự (String) & Xử lý chuỗi', duration: '15:40', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch3',
-    title: 'Chương 3: Toán tử và biểu thức',
-    lessonCount: 7,
-    duration: '1 giờ',
-    lessons: [
-      { id: '7', title: '3.1 Toán tử số học & gán giá trị', duration: '10:00', isPreview: false },
-      { id: '8', title: '3.2 Toán tử so sánh & logic', duration: '14:30', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch4',
-    title: 'Chương 4: Cấu trúc điều kiện',
-    lessonCount: 6,
-    duration: '50 phút',
-    lessons: [
-      { id: '9', title: '4.1 Câu lệnh If - Else cơ bản', duration: '11:15', isPreview: false },
-      { id: '10', title: '4.2 Điều kiện lồng nhau & Elif', duration: '13:50', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch5',
-    title: 'Chương 5: Vòng lặp',
-    lessonCount: 7,
-    duration: '1 giờ 5 phút',
-    lessons: [
-      { id: '11', title: '5.1 Vòng lặp For và hàm range()', duration: '12:00', isPreview: false },
-      { id: '12', title: '5.2 Vòng lặp While & xử lý điều kiện dừng', duration: '14:20', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch6',
-    title: 'Chương 6: Hàm (Function) và Module trong Python',
-    lessonCount: 8,
-    duration: '1 giờ 15 phút',
-    lessons: [
-      { id: '13', title: '6.1 Định nghĩa hàm def & Tham số truyền vào', duration: '11:30', isPreview: false },
-      { id: '14', title: '6.2 Giá trị trả về Return & Scope biến', duration: '14:10', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch7',
-    title: 'Chương 7: Cấu trúc dữ liệu nâng cao (List, Dictionary, Set)',
-    lessonCount: 10,
-    duration: '1 giờ 30 phút',
-    lessons: [
-      { id: '15', title: '7.1 Thao tác với List & Tuple', duration: '15:20', isPreview: false },
-      { id: '16', title: '7.2 Dictionary & Cấu trúc JSON trong Python', duration: '18:40', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch8',
-    title: 'Chương 8: Đọc & Ghi File (File I/O) và Xử lý ngoại lệ (Exception)',
-    lessonCount: 7,
-    duration: '55 phút',
-    lessons: [
-      { id: '17', title: '8.1 Thao tác đọc ghi tệp tin TXT / CSV', duration: '13:10', isPreview: false },
-      { id: '18', title: '8.2 Khối Try - Except xử lý lỗi ứng dụng', duration: '12:45', isPreview: false },
-    ],
-  },
-  {
-    id: 'ch9',
-    title: 'Chương 9: Lập trình hướng đối tượng (OOP) & Dự án Thực tế',
-    lessonCount: 9,
-    duration: '1 giờ 40 phút',
-    lessons: [
-      { id: '19', title: '9.1 Class, Object & Kế thừa trong OOP', duration: '20:15', isPreview: false },
-      { id: '20', title: '9.2 Xây dựng phần mềm Quản lý Học viên Mini Project', duration: '25:30', isPreview: false },
-    ],
-  },
-];
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -167,34 +72,6 @@ export default function CourseDetailPage() {
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [apiFaqsList, setApiFaqsList] = useState<{ id: string | number; question: string; answer: string }[]>([]);
   const [expandedFaqs, setExpandedFaqs] = useState<Record<string | number, boolean>>({ 0: true, 1: true });
-
-  const DEFAULT_FAQS = [
-    {
-      id: 'faq-1',
-      question: 'Khóa học này phù hợp với ai và có cần kiến thức nền tảng trước không?',
-      answer: 'Khóa học được thiết kế từ cơ bản đến nâng cao. Bạn chỉ cần có máy tính cá nhân kết nối Internet và tinh thần học hỏi, không bắt buộc kinh nghiệm lập trình từ trước.',
-    },
-    {
-      id: 'faq-2',
-      question: 'Tôi có được xem lại bài giảng sau khi hoàn thành khóa học không?',
-      answer: 'Có, bạn được cấp quyền truy cập trọn đời vào toàn bộ video bài giảng, tài liệu PDF và source code mẫu của khóa học trên mọi thiết bị.',
-    },
-    {
-      id: 'faq-3',
-      question: 'Tôi có nhận được chứng chỉ sau khi hoàn thành khóa học không?',
-      answer: 'Sau khi hoàn thành 100% các bài học và bài kiểm tra cuối khóa, hệ thống MindHub sẽ tự động cấp chứng chỉ hoàn thành có mã định danh xác thực cho bạn.',
-    },
-    {
-      id: 'faq-4',
-      question: 'Nếu gặp khó khăn trong quá trình làm bài tập thì tôi hỏi ai?',
-      answer: 'Mỗi bài học đều có mục Hỏi & Đáp (Q&A) tương tác trực tiếp với Giảng viên và cộng đồng học viên MindHub để được hỗ trợ giải đáp 24/7.',
-    },
-    {
-      id: 'faq-5',
-      question: 'Chính sách hoàn tiền của MindHub như thế nào?',
-      answer: 'MindHub cam kết hoàn tiền 100% trong vòng 7 ngày đầu nếu bạn chưa học quá 20% nội dung và cảm thấy khóa học không phù hợp với mục tiêu của mình.',
-    },
-  ];
 
   const isEnrolled = Boolean(
     currentUser && (
@@ -311,7 +188,7 @@ export default function CourseDetailPage() {
 
   const displayChapters = (course?.chapters && course.chapters.length > 0)
     ? course.chapters
-    : mockChapters;
+    : [];
 
   const totalLessonsCount = displayChapters.reduce((acc, ch) => acc + (ch.lessons?.length || 0), 0);
 
@@ -815,10 +692,10 @@ export default function CourseDetailPage() {
                 label: `Đánh giá (${(totalReviewsCount || apiReviewsList.length || course.reviewCount || 0).toLocaleString()})`, 
                 targetId: 'reviews-section' 
               },
-              { 
-                id: 'faq', 
-                label: `Hỏi đáp (${(apiFaqsList.length > 0 ? apiFaqsList.length : DEFAULT_FAQS.length)})`, 
-                targetId: 'faq-section' 
+              {
+                id: 'faq',
+                label: `Hỏi đáp (${apiFaqsList.length})`,
+                targetId: 'faq-section'
               },
             ].map((tab) => (
               <button
@@ -1464,7 +1341,7 @@ export default function CourseDetailPage() {
           </div>
 
           <div className="max-w-4xl space-y-4">
-            {(apiFaqsList.length > 0 ? apiFaqsList : DEFAULT_FAQS).map((faq, idx) => {
+            {apiFaqsList.map((faq, idx) => {
               const isOpen = Boolean(expandedFaqs[faq.id] ?? expandedFaqs[idx]);
               return (
                 <div

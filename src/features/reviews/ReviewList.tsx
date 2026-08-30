@@ -17,35 +17,7 @@ interface Review {
   hasLiked?: boolean;
 }
 
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: '1',
-    userName: 'Lê Thị B',
-    userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80',
-    rating: 5,
-    content: 'Giảng viên giảng dạy rất nhiệt tình và dễ hiểu. Nội dung bám sát thực tế, có nhiều bài tập thực hành giúp củng cố kiến thức.',
-    createdAt: '2 ngày trước',
-    likes: 12
-  },
-  {
-    id: '2',
-    userName: 'Trần Văn C',
-    userAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
-    rating: 4,
-    content: 'Khóa học chất lượng tốt, tuy nhiên phần nâng cao hơi nhanh, cần xem lại nhiều lần mới hiểu được hết.',
-    createdAt: '1 tuần trước',
-    likes: 5
-  },
-  {
-    id: '3',
-    userName: 'Phạm Thị D',
-    userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
-    rating: 5,
-    content: 'Rất hài lòng với sự hỗ trợ từ giảng viên. Các câu hỏi đều được giải đáp nhanh chóng và chi tiết.',
-    createdAt: '2 tuần trước',
-    likes: 8
-  }
-];
+
 
 export function ReviewList({ 
   targetId, 
@@ -59,7 +31,7 @@ export function ReviewList({
   const { currentUser, enrolledCourseIds = [] } = useApp();
   const isEnrolled = Boolean(currentUser && enrolledCourseIds.some((id) => String(id) === String(targetId)));
 
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<number | null>(null);
 
