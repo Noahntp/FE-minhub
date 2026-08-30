@@ -9,3 +9,5 @@ coverage/
 markdown_task/
 test-results/
 archive/
+.codegraph/
+
