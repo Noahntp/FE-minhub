@@ -26,7 +26,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const numericLessonId = activeLesson ? parseInt(String(activeLesson.id).replace(/\D/g, ''), 10) : NaN;
 
   const { trackTimeUpdate, trackPauseOrSeek } = useVideoProgressTracker({
-    lessonId: activeLesson?.id,
+    lessonId: activeLesson ? String(activeLesson.id) : undefined,
   });
 
   // Helper to save video progress to both API and localStorage

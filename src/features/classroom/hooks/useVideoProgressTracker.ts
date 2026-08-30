@@ -3,7 +3,7 @@ import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { classroomApi } from '../api';
 
 export interface UseVideoProgressTrackerProps {
-  lessonId: string | undefined;
+  lessonId: string | number | undefined;
   durationSeconds?: number;
   onAutoCompleted?: () => void;
 }
