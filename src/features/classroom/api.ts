@@ -45,14 +45,23 @@ async getNextLessonNode(lessonId: string): Promise<any> {
   return apiFetch<any>(`/learn/lessons/${lessonId}/next`);
   },
 
-async saveVideoPlaybackRatio(lessonId: string, currentSeconds: number, durationSeconds?: number, isCompleted?: boolean): Promise<{ success: boolean }> {
-  devLog('Learning', `Syncing video playback bookmark: ${lessonId}`, { current_second: currentSeconds });
+async saveVideoPlaybackRatio(
+  lessonId: string, 
+  currentSeconds: number, 
+  durationSeconds?: number, 
+  isCompleted?: boolean,
+  forceDate?: string,
+  timezone?: string
+): Promise<{ success: boolean }> {
+  devLog('Learning', `Syncing video playback bookmark: ${lessonId}`, { current_second: currentSeconds, force_date: forceDate, timezone });
   return apiFetch<{ success: boolean }>(`/learn/lessons/${lessonId}/progress`, {
     method: 'PATCH',
     body: JSON.stringify({
       current_second: Math.round(currentSeconds),
       duration_second: durationSeconds ? Math.round(durationSeconds) : undefined,
       is_completed: isCompleted,
+      force_date: forceDate,
+      timezone: timezone,
     }),
   });
   },

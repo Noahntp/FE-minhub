@@ -4,6 +4,7 @@ import { PlayCircle, Loader2 } from 'lucide-react';
 import { classroomApi } from '../api';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/lib/media-url';
+import { useVideoProgressTracker } from '../hooks/useVideoProgressTracker';
 
 interface VideoPlayerProps {
   activeLesson: Lesson | null;
@@ -82,8 +83,13 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     );
   }
 
+  const { trackTimeUpdate, trackPauseOrSeek } = useVideoProgressTracker({
+    lessonId: activeLesson?.id,
+  });
+
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
+    trackTimeUpdate(video.currentTime);
     if (onTimeUpdate) {
       onTimeUpdate(video.currentTime);
     }
@@ -98,6 +104,10 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     }
   };
 
+  const handlePauseOrSeek = () => {
+    trackPauseOrSeek();
+  };
+
   return (
     <div className="w-full aspect-video bg-black rounded-2xl relative flex items-center justify-center overflow-hidden border border-slate-800 shadow-md">
       {isLoadingVideo ? (
@@ -110,7 +120,12 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
           key={videoSrc}
           controls
           className="w-full h-full object-contain"
-          onEnded={onEnded}
+          onEnded={() => {
+            handlePauseOrSeek();
+            if (onEnded) onEnded();
+          }}
+          onPause={handlePauseOrSeek}
+          onSeeked={handlePauseOrSeek}
           onTimeUpdate={handleTimeUpdate}
           autoPlay={false}
           poster="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&q=80"
