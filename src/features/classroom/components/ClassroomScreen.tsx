@@ -364,9 +364,9 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
           action_url: `/learn/${course.id}`
         };
 
-        classroomApi.saveNotification(notifItem).then(() => {
-          window.dispatchEvent(new CustomEvent('mindhub_notification_updated', { detail: notifItem }));
-        }).catch(console.error);
+        // classroomApi.saveNotification(notifItem).then(() => {
+        //   window.dispatchEvent(new CustomEvent('mindhub_notification_updated', { detail: notifItem }));
+        // }).catch(console.error);
       }
     }
   }, [Math.floor(videoTime / 10), progress.currentLessonId, course.id, activeLesson]);
