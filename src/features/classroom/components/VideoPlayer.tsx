@@ -4,6 +4,7 @@ import { PlayCircle, Loader2 } from 'lucide-react';
 import { classroomApi } from '../api';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/lib/media-url';
+import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 
 interface VideoPlayerProps {
   activeLesson: Lesson | null;
@@ -15,28 +16,54 @@ interface VideoPlayerProps {
 export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate }: VideoPlayerProps) {
   const [videoSrc, setVideoSrc] = useState<string>('');
   const [isLoadingVideo, setIsLoadingVideo] = useState<boolean>(false);
+  const [initialStartTime, setInitialStartTime] = useState<number>(0);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasTriggered90Ref = useRef(false);
+  const hasSeekedInitialRef = useRef(false);
+  const lastSavedSecondRef = useRef(0);
+
+  const numericLessonId = activeLesson ? parseInt(String(activeLesson.id).replace(/\D/g, ''), 10) : NaN;
+
+  // Helper to save video progress to both API and localStorage
+  const saveProgress = (seconds: number) => {
+    const sec = Math.floor(seconds);
+    if (sec < 0) return;
+    lastSavedSecondRef.current = sec;
+
+    if (!isNaN(numericLessonId) && numericLessonId > 0) {
+      localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(sec));
+      classroomApi.saveVideoPlaybackRatio(String(numericLessonId), sec).catch(() => {});
+    }
+  };
 
   useEffect(() => {
     hasTriggered90Ref.current = false;
+    hasSeekedInitialRef.current = false;
+    lastSavedSecondRef.current = 0;
+    setInitialStartTime(0);
+
     if (!activeLesson) {
       setVideoSrc('');
       return;
     }
 
-    // If activeLesson already has a direct valid videoUrl
-    if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb') && !activeLesson.videoUrl.includes('BigBuckBunny')) {
-      setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
-      return;
-    }
-
-    // Fetch secure video stream from Backend API for real lesson
-    const numericLessonId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
     if (!isNaN(numericLessonId) && numericLessonId > 0) {
+      // Load initial time from local storage backup
+      const localSaved = localStorage.getItem(`mindhub_video_time_${numericLessonId}`);
+      let startSec = localSaved ? parseInt(localSaved, 10) : 0;
+      if (isNaN(startSec) || startSec < 0) startSec = 0;
+      setInitialStartTime(startSec);
+
       setIsLoadingVideo(true);
       classroomApi.getSecureLessonContent(String(numericLessonId))
         .then(async (lessonData: any) => {
           const item = lessonData?.data || lessonData;
+          const backendSec = item?.progress?.current_second ?? item?.current_second;
+          if (typeof backendSec === 'number' && backendSec > 0) {
+            setInitialStartTime(backendSec);
+            localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(backendSec));
+          }
+
           const endpoint = item?.video_access_endpoint || `/learn/lessons/${numericLessonId}/video-url`;
           try {
             const streamRes = await apiFetch<any>(endpoint);
@@ -73,6 +100,23 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     }
   }, [activeLesson?.id]);
 
+  // Sync on page reload / unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (videoRef.current && !isNaN(numericLessonId) && numericLessonId > 0) {
+        const sec = Math.floor(videoRef.current.currentTime);
+        if (sec > 0) {
+          localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(sec));
+          classroomApi.saveVideoPlaybackRatio(String(numericLessonId), sec).catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [numericLessonId]);
+
   if (!activeLesson) {
     return (
       <div className="w-full aspect-video bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-slate-400 border border-slate-800">
@@ -84,17 +128,46 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
+    const curTime = video.currentTime;
     if (onTimeUpdate) {
-      onTimeUpdate(video.currentTime);
+      onTimeUpdate(curTime);
     }
+
+    // Save progress periodically every 5 seconds
+    const curSec = Math.floor(curTime);
+    if (Math.abs(curSec - lastSavedSecondRef.current) >= 5) {
+      saveProgress(curSec);
+    }
+
     if (video.duration > 0 && !hasTriggered90Ref.current) {
-      const ratio = video.currentTime / video.duration;
+      const ratio = curTime / video.duration;
       if (ratio >= 0.9) {
         hasTriggered90Ref.current = true;
         if (onProgress90) {
           onProgress90();
         }
       }
+    }
+  };
+
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = e.currentTarget;
+    if (!hasSeekedInitialRef.current && initialStartTime > 0 && initialStartTime < video.duration) {
+      video.currentTime = initialStartTime;
+      hasSeekedInitialRef.current = true;
+    }
+  };
+
+  const handlePause = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    saveProgress(e.currentTarget.currentTime);
+  };
+
+  const handleEndedInternal = () => {
+    if (videoRef.current) {
+      saveProgress(videoRef.current.duration || 0);
+    }
+    if (onEnded) {
+      onEnded();
     }
   };
 
@@ -107,8 +180,13 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
         url = `https://iframe.mediadelivery.net/embed/724015/${match[1]}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
       }
     }
-    if (url.includes('iframe.mediadelivery.net') && !url.includes('responsive=true')) {
-      url += `${url.includes('?') ? '&' : '?'}responsive=true`;
+    if (url.includes('iframe.mediadelivery.net')) {
+      if (!url.includes('responsive=true')) {
+        url += `${url.includes('?') ? '&' : '?'}responsive=true`;
+      }
+      if (initialStartTime > 0 && !url.includes('t=')) {
+        url += `&t=${Math.floor(initialStartTime)}`;
+      }
     }
     return url;
   })();
@@ -117,7 +195,6 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     normalizedSrc && (
       normalizedSrc.includes('iframe.mediadelivery.net') ||
       normalizedSrc.includes('youtube.com') ||
-      normalizedSrc.includes('vimeo.com') ||
       normalizedSrc.includes('/embed/')
     )
   );
@@ -144,11 +221,14 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
         />
       ) : videoSrc ? (
         <video
+          ref={videoRef}
           key={videoSrc}
           controls
           className="absolute inset-0 w-full h-full object-contain bg-black"
-          onEnded={onEnded}
+          onEnded={handleEndedInternal}
           onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onPause={handlePause}
           autoPlay={false}
           poster="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&q=80"
         >
@@ -164,4 +244,3 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     </div>
   );
 }
-

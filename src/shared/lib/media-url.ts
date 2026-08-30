@@ -1,16 +1,22 @@
 const SERVER_HOST = "62.171.157.22";
+const DEFAULT_FALLBACK_IMAGE = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800";
+const VALID_AI_IMAGE = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800";
 
 export function resolveMediaUrl(
   value?: string | null,
 ): string {
-  if (!value) {
-    return "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800";
+  if (!value || typeof value !== 'string' || !value.trim()) {
+    return DEFAULT_FALLBACK_IMAGE;
   }
 
   const normalized = value.trim();
 
-  if (!normalized) {
-    return "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800";
+  if (normalized.includes('photo-1677442136019')) {
+    return VALID_AI_IMAGE;
+  }
+
+  if (normalized.includes('example.com')) {
+    return DEFAULT_FALLBACK_IMAGE;
   }
 
   if (
@@ -18,6 +24,10 @@ export function resolveMediaUrl(
     normalized.startsWith("blob:")
   ) {
     return normalized;
+  }
+
+  if (!normalized.includes('/') && !normalized.includes('.')) {
+    return DEFAULT_FALLBACK_IMAGE;
   }
 
   if (

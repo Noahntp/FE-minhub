@@ -8,6 +8,7 @@ import { cn } from "@/shared/lib/utils";
 import FilterSelect, { SelectOption } from "./FilterSelect";
 import AdminPagination from "../shared/AdminPagination";
 import { config } from "@/shared/lib/api-client";
+import { autoCalculateFeaturedCoursesAdmin } from "@/services/api";
 
 // Format Helpers
 const formatDateTime = (isoString: string) => {
@@ -599,6 +600,24 @@ export default function CoursesManagement() {
     }
   };
 
+  const [calculatingFeatured, setCalculatingFeatured] = useState(false);
+
+  const handleAutoCalculateFeatured = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn hệ thống tự động tính toán và gắn nhãn Nổi bật cho Top 10 khóa học tốt nhất?")) {
+      return;
+    }
+    setCalculatingFeatured(true);
+    try {
+      const res = await autoCalculateFeaturedCoursesAdmin(10);
+      toast.success(res?.message || `Đã bật nổi bật cho ${res?.data?.total_featured || 10} khóa học xuất sắc nhất!`);
+      loadData();
+    } catch (e: any) {
+      toast.error(e.message || "Không thể tự động tính toán khóa nổi bật.");
+    } finally {
+      setCalculatingFeatured(false);
+    }
+  };
+
   const handleHideCourse = async () => {
     const { course } = hideModal;
     if (!course) return;
@@ -800,6 +819,18 @@ export default function CoursesManagement() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          {/* Auto Calculate Featured Button */}
+          <button
+            type="button"
+            onClick={handleAutoCalculateFeatured}
+            disabled={calculatingFeatured || loading}
+            className="h-9 px-3.5 flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold shrink-0 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+            title="Tự động tính toán và đặt nhãn Nổi bật cho Top 10 khóa học"
+          >
+            <span className="text-sm">⚡</span>
+            <span>{calculatingFeatured ? "Đang tính..." : "Tính khóa nổi bật"}</span>
+          </button>
+
           {/* Refresh button */}
           <button
             type="button"

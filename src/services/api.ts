@@ -2494,6 +2494,24 @@ export const ApiService = {
         });
   },
 
+  /** PATCH /admin/courses/:courseId */
+  async updateCourseFeaturedAdmin(courseId: string | number, isFeatured: boolean): Promise<any> {
+    devLog('Admin', `Update course ${courseId} is_featured to ${isFeatured}`);
+    return apiFetch<any>(`/admin/courses/${courseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_featured: isFeatured })
+    });
+  },
+
+  /** POST /admin/courses/auto-calculate-featured */
+  async autoCalculateFeaturedCoursesAdmin(limit: number = 10): Promise<any> {
+    devLog('Admin', `Auto calculate top ${limit} featured courses`);
+    return apiFetch<any>('/admin/courses/auto-calculate-featured', {
+      method: 'POST',
+      body: JSON.stringify({ limit })
+    });
+  },
+
   /** POST /contact */
   async sendContactMessage(payload: { name: string; email: string; subject: string; message: string }): Promise<{ success: boolean; message?: string }> {
   devLog('Contact', 'Gửi tin nhắn liên hệ', payload);
@@ -3293,4 +3311,8 @@ interface Section {
   title: string;
   course_id: string;
   order: number;
+}
+
+export async function autoCalculateFeaturedCoursesAdmin(limit: number = 10): Promise<any> {
+  return ApiService.autoCalculateFeaturedCoursesAdmin(limit);
 }

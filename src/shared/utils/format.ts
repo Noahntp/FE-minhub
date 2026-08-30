@@ -198,18 +198,24 @@ export async function getVideoDurationSecondsFromUrl(url: string): Promise<numbe
  * Resolve relative or absolute media path to full public media URL or backend URL
  */
 export function resolveMediaUrl(path?: string | null): string {
-  if (!path) return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
-  if (path.startsWith('blob:') || path.startsWith('data:')) return path;
-  if (/^https?:\/\//i.test(path)) {
-    if (path.includes('localhost:3000') || path.includes('127.0.0.1:3000')) {
-      return path.replace(/http:\/\/(localhost|127\.0\.0\.1):3000/i, 'http://127.0.0.1:8000');
+  const fallback = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
+  if (!path || typeof path !== 'string' || !path.trim()) return fallback;
+  const clean = path.trim();
+  if (clean.includes('photo-1677442136019')) return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800';
+  if (clean.includes('example.com')) return fallback;
+  if (clean.startsWith('blob:') || clean.startsWith('data:')) return clean;
+
+  if (!clean.includes('/') && !clean.includes('.')) return fallback;
+
+  if (/^https?:\/\//i.test(clean)) {
+    if (clean.includes('localhost:3000') || clean.includes('127.0.0.1:3000')) {
+      return clean.replace(/http:\/\/(localhost|127\.0\.0\.1):3000/i, 'http://127.0.0.1:8000');
     }
-    return path;
+    return clean;
   }
 
-  let cleanPath = path.replace(/^\/+/, '');
+  let cleanPath = clean.replace(/^\/+/, '');
 
-  // Strip accidental inner /courses/ in thumbnail paths
   if (cleanPath.startsWith('thumbnails/courses/')) {
     cleanPath = cleanPath.replace('thumbnails/courses/', 'thumbnails/');
   }
@@ -217,7 +223,6 @@ export function resolveMediaUrl(path?: string | null): string {
     cleanPath = cleanPath.replace('demo/courses/', 'thumbnails/');
   }
 
-  // If path is a mindhub-media asset (thumbnails, videos, demo)
   if (cleanPath.startsWith('thumbnails/') || cleanPath.startsWith('videos/') || cleanPath.startsWith('demo/')) {
     return `https://mindhub.io.vn/mindhub-media/${cleanPath}`;
   }

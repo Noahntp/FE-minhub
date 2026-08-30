@@ -432,7 +432,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     setProgress(prev => {
       if (!prev) return prev;
       const isAlreadyCompleted = prev.completedLessonIds.includes(lessonId);
-      let newCompletedIds: string[];
+      let newCompletedIds: (string | number)[];
 
       if (typeof forceStatus === 'boolean') {
         if (forceStatus) {

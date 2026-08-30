@@ -172,7 +172,7 @@ export function useHomepageData() {
               id: 'ai-learning-assistant',
               title: 'AI ứng dụng cho học tập cá nhân hóa',
               level: 'Mọi trình độ',
-              thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=800&q=80',
+              thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
               rating: 4.9,
               reviewCount: 110,
               studentCount: '1.1K',

@@ -881,7 +881,7 @@ export default function InstructorDashboard({
       }).catch(err => console.error("Error loading top courses:", err)),
 
       instructorApi.getInstructorUnansweredQuestions({ per_page: 3 }).then(res => {
-        const questionsList = res?.data?.list?.data || res?.data?.items || res?.data || [];
+        const questionsList = Array.isArray(res) ? res : (res?.data?.list?.data || res?.data?.items || res?.data || []);
         setUnansweredQuestions(questionsList);
       }).catch(err => console.error("Error loading unanswered questions:", err)),
 
@@ -1138,8 +1138,8 @@ export default function InstructorDashboard({
     ? parseFloat(dashboardOverview.withdraw_summary?.available_balance || '0')
     : overviewBalance;
 
-  const displayOverviewUnansweredQA = isApiMode && dashboardOverview
-    ? dashboardOverview.interaction_summary?.unanswered_questions || 0
+  const displayOverviewUnansweredQA = isApiMode
+    ? (dashboardOverview?.interaction_summary?.unanswered_questions ?? unansweredQuestions.length)
     : overviewUnansweredQA;
 
   const revenueChangePercentage = dashboardOverview?.revenue_summary?.change_percentage;
@@ -1337,6 +1337,7 @@ export default function InstructorDashboard({
           statusLabel: item.status_label,
           createdAt: item.created_at || item.createdAt,
           updatedAt: item.updated_at || item.updatedAt,
+          is_featured: Boolean(item.is_featured),
           rejectionReason: item.admin_reject_reason || item.rejectionReason,
           chapters: [],
         } as Course;
@@ -1354,6 +1355,19 @@ export default function InstructorDashboard({
       setCoursesError(err.message || "Không thể tải danh sách khóa học.");
     } finally {
       setIsCoursesLoading(false);
+    }
+  };
+
+  const handleToggleCourseFeatured = async (courseId: number | string, currentStatus: boolean) => {
+    try {
+      const newStatus = !currentStatus;
+      await instructorApi.toggleCourseFeatured(Number(courseId), newStatus);
+      setToastNotification({ message: newStatus ? 'Đã bật khóa học nổi bật!' : 'Đã tắt khóa học nổi bật!', type: 'success' });
+      setTimeout(() => setToastNotification(null), 3000);
+      loadInstructorCoursesList();
+    } catch (err: any) {
+      setToastNotification({ message: err.message || 'Không thể thay đổi trạng thái nổi bật.', type: 'error' });
+      setTimeout(() => setToastNotification(null), 4000);
     }
   };
 

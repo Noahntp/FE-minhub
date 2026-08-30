@@ -1244,5 +1244,13 @@ async exportInstructorRevenues(params?: { preset?: string; date_from?: string; d
       if (params?.course_id && params.course_id !== 'all') q.set('course_id', String(params.course_id));
       const queryString = q.toString() ? `?${q.toString()}` : '';
       return apiFetch<any>(`/instructor/revenues/export${queryString}`);
+  },
+
+  async toggleCourseFeatured(courseId: number, isFeatured: boolean): Promise<any> {
+    devLog('Instructor', `Toggle course ${courseId} featured status to ${isFeatured}`);
+    return apiFetch<any>(`/instructor/courses/${courseId}/featured`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_featured: isFeatured }),
+    });
   }
 };

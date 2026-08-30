@@ -529,7 +529,7 @@ export const INITIAL_COURSES: Course[] = [
     isFeatured: false,
     isBestseller: true,
     isNew: true,
-    image: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800',
     requirements: ['Biết sử dụng máy tính cơ bản', 'Không cần biết lập trình'],
     willLearn: [
       'Làm chủ các mô hình ngôn ngữ lớn (Gemini, Claude, GPT-4)',
@@ -1156,7 +1156,7 @@ export const INITIAL_BANNERS: Banner[] = [
     id: 'banner-2',
     title: 'Khai Phá Kỷ Nguyên Generative AI',
     subtitle: 'Tăng tốc x10 hiệu suất công việc với các kỹ năng Prompt Engineering, LLMs thực chiến cùng Giáo sư Google Brain.',
-    imageUrl: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&q=80&w=600',
+    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600',
     actionText: 'Xem khóa học AI',
     actionUrl: 'Artificial Intelligence',
     isActive: true,

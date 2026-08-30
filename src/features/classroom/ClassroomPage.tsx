@@ -330,8 +330,8 @@ export default function ClassroomPage() {
           {/* RIGHT COLUMN: CURRICULUM SIDEBAR */}
           <CurriculumSidebar
             course={course}
-            activeLessonId={activeLesson?.id || ''}
-            completedLessonIds={progress?.completedLessonIds || []}
+            activeLessonId={String(activeLesson?.id || '')}
+            completedLessonIds={(progress?.completedLessonIds || []).map(String)}
             isOpen={isSidebarOpen}
             onClose={toggleSidebar}
             onSelectLesson={selectLesson}
