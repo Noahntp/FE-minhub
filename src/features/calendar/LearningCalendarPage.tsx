@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { Calendar as CalendarIcon, Flame, Trophy, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { api } from '@/services/api';
+import { ApiService as api } from '@/services/api';
+import { DynamicAlertsBanner } from './components/DynamicAlertsBanner';
+import { RecommendedCoursesSection } from './components/RecommendedCoursesSection';
 
 // Mock heatmap data
 const generateHeatmapData = () => {
@@ -94,6 +96,9 @@ export default function LearningCalendarPage() {
             <p className="text-muted-foreground">Theo dõi thói quen học tập và duy trì streak của bạn</p>
           </div>
         </div>
+
+        {/* Dynamic Alerts Banner */}
+        <DynamicAlertsBanner />
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -188,6 +193,9 @@ export default function LearningCalendarPage() {
             <p className="text-muted-foreground">Tính năng Lịch học trực tiếp với Giảng viên đang được phát triển.</p>
           </div>
         </div>
+
+        {/* Personalized Recommended Courses */}
+        <RecommendedCoursesSection />
       </div>
     </PageTransition>
   );
