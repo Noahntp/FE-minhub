@@ -26,10 +26,11 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
 
   useEffect(() => {
     if (!course.chapters || course.chapters.length === 0) {
-      Promise.resolve().then(() => { const ApiService: any = {};
-        Promise.resolve((Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any)).then(res => {
-          if (res && Array.isArray(res)) {
-            const mappedChapters: Chapter[] = res.map((ch: any) => ({
+      setIsLoadingOutline(true);
+      classroomApi.getStudentCourseOutline(course.id)
+        .then(res => {
+          if (res && res.sections) {
+            const mappedChapters: Chapter[] = res.sections.map((ch: any) => ({
               id: String(ch.id),
               title: ch.title,
               lessons: (ch.lessons || []).map((l: any) => ({
@@ -37,41 +38,41 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
                 title: l.title,
                 type: l.lesson_type || 'video',
                 duration: l.video_duration_seconds ? `${Math.floor(l.video_duration_seconds / 60)}:${(l.video_duration_seconds % 60).toString().padStart(2, '0')}` : '10:00',
-                videoUrl: l.video_url ? resolveMediaUrl(l.video_url) : 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                videoUrl: l.video_url ? resolveMediaUrl(l.video_url) : '',
                 isPreview: l.is_preview,
                 content: l.content
               }))
             }));
             setChapters(mappedChapters);
+
+            if (res.progresses) {
+              const completedIds = Object.values(res.progresses)
+                .filter((p: any) => p.status === 'completed')
+                .map((p: any) => String(p.lesson_id));
+              
+              setProgress(prev => ({
+                ...prev,
+                completedLessonIds: completedIds,
+              }));
+            }
           }
-        }).catch(err => console.error("Failed to fetch outline", err))
+        })
+        .catch(err => console.error("Failed to fetch outline", err))
         .finally(() => setIsLoadingOutline(false));
-      });
     }
   }, [course.id, course.chapters]);
 
   // Find active chapter and lesson safely
   const allLessons: Lesson[] = (chapters || []).flatMap(c => c ? (c.lessons || []) : []);
 
-  // Manage mock progress state with local storage persistence
+  // Manage progress state with API
   const [progress, setProgress] = useState<StudentProgress>(() => {
-    const firstLessonId = (chapters && chapters?.[0] && chapters?.[0].lessons && chapters?.[0].lessons[0]) 
-      ? chapters?.[0].lessons[0].id 
-      : '';
-    const lastLessonId = localStorage.getItem(`mindhub_last_lesson_${course.id}`) || firstLessonId;
-    const completedJson = localStorage.getItem(`mindhub_completed_lessons_${course.id}`);
-    const completedIds: string[] = completedJson ? JSON.parse(completedJson) : [];
-    
     return {
       courseId: course.id,
-      currentLessonId: allLessons.some(l => l.id === lastLessonId) ? lastLessonId : firstLessonId,
-      completedLessonIds: completedIds,
-      notes: [
-        { id: 'n-1', lessonId: firstLessonId, text: 'React Compiler giúp giải phóng hoàn toàn việc viết useMemo', timestamp: '01:12', timestampSec: 72 }
-      ],
-      bookmarks: [
-        { id: 'b-1', lessonId: firstLessonId, title: 'Đoạn quan trọng về Rendering', timestampSec: 180 }
-      ],
+      currentLessonId: '',
+      completedLessonIds: [],
+      notes: [],
+      bookmarks: [],
       lastWatchedProgressSec: 0
     };
   });
@@ -84,8 +85,6 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
         setProgress(p => ({
           ...p,
           currentLessonId: firstLessonId,
-          notes: [{ id: 'n-1', lessonId: firstLessonId, text: 'React Compiler giúp giải phóng hoàn toàn việc viết useMemo', timestamp: '01:12', timestampSec: 72 }],
-          bookmarks: [{ id: 'b-1', lessonId: firstLessonId, title: 'Đoạn quan trọng về Rendering', timestampSec: 180 }]
         }));
       }
     }
@@ -102,16 +101,8 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
   const isInstructorOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'instructor';
   const hasFullCourseAccess = isEnrolled || isInstructorOrAdmin;
 
-  // Mock video state
   const [isPlaying, setIsPlaying] = useState(false);
-  const [videoTime, setVideoTime] = useState(() => {
-    const savedTime = localStorage.getItem(`mindhub_video_progress_${course.id}_${progress.currentLessonId}`);
-    if (savedTime !== null) {
-      return parseInt(savedTime, 10);
-    }
-    const isFirst = chapters?.[0]?.lessons?.[0]?.id === progress.currentLessonId;
-    return isFirst ? 45 : 0;
-  }); // in seconds
+  const [videoTime, setVideoTime] = useState(0); // in seconds
   const [videoSpeed, setVideoSpeed] = useState<number>(1.0);
   const [videoResolution, setVideoResolution] = useState<string>('Auto');
   const [totalVideoDuration, setTotalVideoDuration] = useState<number>(0);
@@ -310,7 +301,7 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
     logActivity('Vào bài học', `Chuyển sang học bài: ${target.title}`);
   };
 
-  const handleToggleComplete = (lessonId: string | number) => {
+  const handleToggleComplete = async (lessonId: string | number) => {
     const target = allLessons.find(l => l.id === lessonId);
     const isLessonFree = target?.isPreview;
     const hasAccess = hasFullCourseAccess || isLessonFree;
@@ -319,13 +310,13 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
       return;
     }
 
+    const isCompleted = progress.completedLessonIds.map(String).includes(String(lessonId));
+
+    // Optimistic UI update
     setProgress(prev => {
-      const isCompleted = prev.completedLessonIds.includes(lessonId);
       const updated = isCompleted 
-        ? prev.completedLessonIds.filter(id => id !== lessonId)
+        ? prev.completedLessonIds.filter(id => String(id) !== String(lessonId))
         : [...prev.completedLessonIds, lessonId];
-      // Save permanently
-      localStorage.setItem(`mindhub_completed_lessons_${course.id}`, JSON.stringify(updated));
 
       if (target) {
         if (isCompleted) {
@@ -337,12 +328,27 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
 
       return { ...prev, completedLessonIds: updated };
     });
+
+    try {
+      await classroomApi.markLessonAsComplete(String(lessonId));
+    } catch (e) {
+      toast.error('Không thể lưu trạng thái hoàn thành trên máy chủ.');
+      // Revert on failure
+      setProgress(prev => {
+        const updated = isCompleted 
+          ? [...prev.completedLessonIds, lessonId]
+          : prev.completedLessonIds.filter(id => String(id) !== String(lessonId));
+        return { ...prev, completedLessonIds: updated };
+      });
+    }
   };
 
-  // Save video play progress to localStorage & dispatch "learning_resume" notification
+  // Save video play progress to API & dispatch "learning_resume" notification
   useEffect(() => {
     if (progress.currentLessonId && videoTime > 0) {
-      localStorage.setItem(`mindhub_video_progress_${course.id}_${progress.currentLessonId}`, String(videoTime));
+      if (activeLesson && activeLesson.type === 'video') {
+         classroomApi.saveVideoPlaybackRatio(String(progress.currentLessonId), Math.floor(videoTime)).catch(e => console.warn('Failed to save video progress', e));
+      }
 
       if (videoTime > 10 && activeLesson) {
         const notifItem = {
@@ -358,13 +364,9 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
           action_url: `/learn/${course.id}`
         };
 
-        try {
-          const storedNotifs = JSON.parse(localStorage.getItem('mindhub_user_notifications') || '[]');
-          const filtered = storedNotifs.filter((n: any) => n.id !== notifItem.id);
-          filtered.unshift(notifItem);
-          localStorage.setItem('mindhub_user_notifications', JSON.stringify(filtered));
+        classroomApi.saveNotification(notifItem).then(() => {
           window.dispatchEvent(new CustomEvent('mindhub_notification_updated', { detail: notifItem }));
-        } catch (e) {}
+        }).catch(console.error);
       }
     }
   }, [Math.floor(videoTime / 10), progress.currentLessonId, course.id, activeLesson]);
@@ -372,13 +374,15 @@ export default function ClassroomScreen({ course, currentUser, onClose, enrolled
   // Load video play progress whenever currentLessonId changes & save as last played lesson for "Học tiếp bài gần nhất"
   useEffect(() => {
     if (progress.currentLessonId) {
-      const savedTime = localStorage.getItem(`mindhub_video_progress_${course.id}_${progress.currentLessonId}`);
-      if (savedTime !== null) {
-        setVideoTime(parseInt(savedTime, 10));
-      } else {
-        const isFirst = chapters?.[0]?.lessons?.[0]?.id === progress.currentLessonId;
-        setVideoTime(isFirst ? 45 : 0);
-      }
+      setVideoTime(0); // Reset immediately to prevent ghost time from previous lesson
+      classroomApi.getSecureLessonContent(String(progress.currentLessonId))
+        .then((res: any) => {
+          if (res && res.current_second) {
+            setVideoTime(res.current_second);
+          }
+        }).catch(err => {
+          console.warn('Could not fetch lesson current second', err);
+        });
       setIsPlaying(false);
       localStorage.setItem(`mindhub_last_lesson_${course.id}`, String(progress.currentLessonId));
     }

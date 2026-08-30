@@ -7,40 +7,7 @@ import { Input } from '@/shared/components/ui/input';
 import { apiFetch } from '@/shared/lib/api-client';
 import { toast } from 'sonner';
 
-// Mock Data for Orders
-const MOCK_ORDERS = [
-  {
-    id: 'ORD-2026-9821A',
-    date: '2026-05-15T10:30:00Z',
-    items: [
-      { id: 'course-1', title: 'Chinh Phục React 19 & Next.js 15', price: 799000 }
-    ],
-    total: 799000,
-    status: 'success',
-    paymentMethod: 'VNPay'
-  },
-  {
-    id: 'ORD-2026-7734B',
-    date: '2026-04-02T14:15:00Z',
-    items: [
-      { id: 'course-3', title: 'Figma to Code: UI/UX Masterclass', price: 599000 },
-      { id: 'course-4', title: 'Python cho Data Science', price: 899000 }
-    ],
-    total: 1498000,
-    status: 'success',
-    paymentMethod: 'Momo'
-  },
-  {
-    id: 'ORD-2026-1192C',
-    date: '2026-06-20T09:00:00Z',
-    items: [
-      { id: 'course-5', title: 'Khóa học không tồn tại', price: 500000 }
-    ],
-    total: 500000,
-    status: 'failed',
-    paymentMethod: 'Credit Card'
-  }
-];
+
 
 export default function PurchaseHistoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
