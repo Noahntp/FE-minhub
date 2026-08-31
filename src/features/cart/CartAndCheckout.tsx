@@ -243,12 +243,6 @@ export default function CartAndCheckout({
   const [showSepayModal, setShowSepayModal] = useState(false);
   const [isCheckingSepay, setIsCheckingSepay] = useState(false);
 
-  // Coupon States
-  const [couponCode, setCouponCode] = useState('');
-  const [activeDiscount, setActiveDiscount] = useState<{ code: string; percent: number } | null>(null);
-  const [couponError, setCouponError] = useState('');
-  const [couponSuccess, setCouponSuccess] = useState('');
-
   // Flow phase: 'form' | 'success'
   const [phase, setPhase] = useState<'form' | 'success'>('form');
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
@@ -262,91 +256,10 @@ export default function CartAndCheckout({
   const initialDiscountAmount = hasCourseDiscount ? originalPrice - salePrice : 0;
   const initialDiscountPercent = hasCourseDiscount && originalPrice > 0 ? Math.round((initialDiscountAmount / originalPrice) * 100) : 0;
 
-  const couponDiscountAmount = activeDiscount
-    ? Math.round((salePrice * activeDiscount.percent) / 100)
-    : 0;
-
-  const finalTotal = salePrice - couponDiscountAmount;
+  const finalTotal = salePrice;
 
   const formatVND = (num: number) => {
     return new Intl.NumberFormat('vi-VN').format(num) + 'đ';
-  };
-
-  const handleApplyCoupon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCouponError('');
-    setCouponSuccess('');
-
-    const cleanCode = couponCode.trim().toUpperCase();
-    if (!cleanCode) {
-      setCouponError('Vui lòng nhập mã giảm giá.');
-      return;
-    }
-
-    // 1. Try Backend API Coupon Validation endpoint
-    try {
-      const res = await apiFetch<any>(`/coupons/validate?code=${encodeURIComponent(cleanCode)}&course_id=${checkoutCourse.id}`);
-      const item = res?.data || res;
-      if (item && (item.code || item.discount_type || item.discount_value)) {
-        let percent = 0;
-        if (item.discount_type === 'percent') {
-          percent = Number(item.discount_value);
-        } else {
-          const val = Number(item.discount_value || 0);
-          percent = salePrice > 0 ? Math.round((val / salePrice) * 100) : 10;
-        }
-        percent = Math.min(100, Math.max(1, percent));
-        setActiveDiscount({ code: item.code || cleanCode, percent });
-        setCouponSuccess(`Đã áp dụng mã ${item.code || cleanCode}: Giảm ${percent}%`);
-        toast.success(`Đã áp dụng mã ${item.code || cleanCode}: Giảm ${percent}%`);
-        return;
-      }
-    } catch (err: any) {
-      if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
-        setCouponError(err.message);
-        toast.error(err.message);
-        return;
-      }
-    }
-
-    // 2. Check local coupons list (SYSTEM_COUPONS + localStorage)
-    const saved = localStorage.getItem('mindhub_coupons');
-    let couponsList: Coupon[] = SYSTEM_COUPONS;
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          couponsList = [...SYSTEM_COUPONS, ...parsed];
-        }
-      } catch (err) {}
-    }
-
-    const matched = couponsList.find(
-      (c) => c.code.toUpperCase() === cleanCode
-    );
-
-    if (matched) {
-      setActiveDiscount({ code: matched.code, percent: matched.discount });
-      setCouponSuccess(`Đã áp dụng mã ${matched.code}: Giảm ${matched.discount}%`);
-      toast.success(`Đã áp dụng mã ${matched.code}: Giảm ${matched.discount}%`);
-      return;
-    }
-
-    // 3. Dynamic Pattern Matching (e.g. LARAVEL50 -> 50%, REACT30 -> 30%, KHUYENMAI20 -> 20%)
-    const patternMatch = cleanCode.match(/^([A-Z0-9_\-]+?)(100|[1-9][0-9]?)$/i);
-    if (patternMatch) {
-      const extractedPercent = parseInt(patternMatch[2], 10);
-      if (extractedPercent >= 1 && extractedPercent <= 90) {
-        setActiveDiscount({ code: cleanCode, percent: extractedPercent });
-        setCouponSuccess(`Đã áp dụng mã ${cleanCode}: Giảm ${extractedPercent}%`);
-        toast.success(`Đã áp dụng mã ${cleanCode}: Giảm ${extractedPercent}%`);
-        return;
-      }
-    }
-
-    // 4. Failed
-    setCouponError('Mã giảm giá không chính xác hoặc đã hết hạn.');
-    toast.error('Mã giảm giá không chính xác hoặc đã hết hạn.');
   };
 
   const handleConfirmSepayPayment = async () => {
@@ -374,7 +287,7 @@ export default function CartAndCheckout({
             price: finalTotal,
           },
         ],
-        discountAmount: initialDiscountAmount + couponDiscountAmount,
+        discountAmount: initialDiscountAmount,
         total: finalTotal,
         status: 'success',
         paymentMethod: 'Chuyển khoản VietQR (SePay)',
@@ -475,22 +388,6 @@ export default function CartAndCheckout({
         throw new Error(orderRes?.message || 'Không thể tạo đơn hàng');
       }
 
-      if (activeDiscount) {
-        try {
-          await apiFetch<any>('/orders/apply-coupon', {
-            method: 'POST',
-            body: JSON.stringify({
-              order_id: Number(orderId),
-              coupon_code: activeDiscount.code,
-            }),
-          });
-        } catch (couponErr: any) {
-          console.warn('Lỗi khi áp dụng mã giảm giá:', couponErr);
-          toast.error(couponErr?.message || 'Không thể áp dụng mã giảm giá vào đơn hàng.');
-          throw couponErr;
-        }
-      }
-
       if (paymentMethod === 'sepay') {
         // 2. SePay VietQR payment info
         const sepayRes = await apiFetch<any>('/payments/sepay/create', {
@@ -540,7 +437,7 @@ export default function CartAndCheckout({
             price: finalTotal,
           },
         ],
-        discountAmount: initialDiscountAmount + couponDiscountAmount,
+        discountAmount: initialDiscountAmount,
         total: finalTotal,
         status: 'success',
         paymentMethod: 'Thanh toán bảo mật',
@@ -756,12 +653,6 @@ export default function CartAndCheckout({
                   <div className="flex justify-between text-slate-500 font-medium">
                     <span>Giá khóa học:</span>
                     <span className="font-bold text-slate-700">{formatVND(salePrice)}</span>
-                  </div>
-                )}
-                {activeDiscount && (
-                  <div className="flex justify-between text-emerald-600 font-semibold">
-                    <span>Voucher ({activeDiscount.code}):</span>
-                    <span>-{formatVND(couponDiscountAmount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-500 font-medium">
@@ -1255,39 +1146,7 @@ export default function CartAndCheckout({
                     </div>
                   )}
 
-                  {activeDiscount && (
-                    <div className="flex items-center justify-between text-emerald-600 font-semibold">
-                      <span>Mã giảm giá ({activeDiscount.code})</span>
-                      <span>-{formatVND(couponDiscountAmount)}</span>
-                    </div>
-                  )}
                 </div>
-
-                {/* Coupon Input Form */}
-                <form onSubmit={handleApplyCoupon} className="space-y-2 pt-1">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="Nhập mã giảm giá"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50 uppercase"
-                    />
-                    <button
-                      type="submit"
-                      className="px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 text-xs font-bold transition-colors cursor-pointer shrink-0"
-                    >
-                      Áp dụng
-                    </button>
-                  </div>
-
-                  {couponError && (
-                    <p className="text-[11px] font-semibold text-rose-600">{couponError}</p>
-                  )}
-                  {couponSuccess && (
-                    <p className="text-[11px] font-semibold text-emerald-600">{couponSuccess}</p>
-                  )}
-                </form>
 
                 {/* Subtotal & Final Total */}
                 <div className="space-y-2 border-t border-slate-100 pt-3">
