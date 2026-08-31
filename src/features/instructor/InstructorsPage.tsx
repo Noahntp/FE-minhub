@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Star, Users, BookOpen, CheckCircle2, Sparkles, ChevronLeft, ChevronRight, Filter, Award, ShieldCheck, UserPlus, ArrowRight, Tag, X } from 'lucide-react';
@@ -59,6 +59,12 @@ export default function InstructorsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [currentPage]);
 
   // Fetch real API data
   useEffect(() => {

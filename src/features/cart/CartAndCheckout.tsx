@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
@@ -145,6 +145,12 @@ export default function CartAndCheckout({
   const [checkoutCourse, setCheckoutCourse] = useState<Course>(() => {
     return resolveCourseById(initialCourseId || 'react-zero-hero', effectiveAllCourses);
   });
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [initialCourseId]);
 
   useEffect(() => {
     if (initialCourseId) {

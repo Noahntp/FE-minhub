@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { Link, useNavigate } from 'react-router-dom';
 import { homeApi } from '@/features/home/api';
 import { CountUpNumber } from '@/shared/components/ui/CountUpNumber';
@@ -29,6 +30,12 @@ export default function ServicesPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [testimonials, setTestimonials] = useState<any[]>([]);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
