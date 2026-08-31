@@ -18,6 +18,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const [videoSrc, setVideoSrc] = useState<string>('');
   const [isLoadingVideo, setIsLoadingVideo] = useState<boolean>(false);
   const [initialStartTime, setInitialStartTime] = useState<number>(0);
+  const [watermark, setWatermark] = useState<{ text: string; opacity?: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasTriggered90Ref = useRef(false);
   const hasSeekedInitialRef = useRef(false);
@@ -98,6 +99,21 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
           }
         })
         .finally(() => setIsLoadingVideo(false));
+
+      // Fetch dynamic watermark info for copyright protection
+      classroomApi.getLiveWatermarkMetadata(String(numericLessonId))
+        .then((res: any) => {
+          const wm = res?.data || res;
+          if (wm?.text) {
+            setWatermark({
+              text: wm.text,
+              opacity: wm.opacity ?? 0.25,
+            });
+          }
+        })
+        .catch(() => {
+          setWatermark(null);
+        });
     } else if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb')) {
       setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
     } else {
@@ -253,6 +269,19 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-2 p-4 text-center bg-slate-950">
           <PlayCircle className="w-12 h-12 opacity-40 text-slate-500" />
           <p className="text-xs font-semibold text-slate-400">Bài học chưa có video hoặc video đang được cập nhật.</p>
+        </div>
+      )}
+
+      {/* Watermark Overlay for Content Protection (Fixed Top-Left, Dark Submerged Text) */}
+      {watermark?.text && (
+        <div 
+          className="absolute top-2.5 left-3 sm:top-3.5 sm:left-4 pointer-events-none select-none z-20 font-mono text-[11px] sm:text-xs font-semibold text-black/40 tracking-wider"
+          style={{ 
+            opacity: watermark.opacity ?? 0.35,
+            textShadow: '0 0 1px rgba(255,255,255,0.15)'
+          }}
+        >
+          {watermark.text}
         </div>
       )}
     </div>
