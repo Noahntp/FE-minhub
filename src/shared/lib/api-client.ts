@@ -11,7 +11,7 @@ export interface ApiConfig {
 export function getNormalizedBaseUrl(rawUrl?: string): string {
   let url = (rawUrl || '').trim();
   if (!url) {
-    url = 'http://localhost:8000/api';
+    url = 'http://127.0.0.1:8000/api';
   }
   url = url.replace(/\/+$/, '');
   if (!url.endsWith('/api')) {
@@ -23,15 +23,38 @@ export function getNormalizedBaseUrl(rawUrl?: string): string {
 const initialMode = (import.meta as any).env?.VITE_API_MODE === 'mock' ? 'mock' : 'api';
 
 const initialBaseUrl = getNormalizedBaseUrl(
-  localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL
+  localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 );
 
 const config: ApiConfig = {
   mode: initialMode,
   baseUrl: initialBaseUrl,
   authToken: localStorage.getItem('mindhub_api_token') || undefined,
-  isLogEnabled: true,
+  isLogEnabled: false,
 };
+
+// In-flight request deduplication map
+const inFlightRequests = new Map<string, Promise<any>>();
+
+// Short-term in-memory cache for GET requests (TTL 20 seconds)
+interface CacheEntry {
+  data: any;
+  expiry: number;
+}
+const apiMemoryCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 20000;
+
+export function clearApiCache(endpointPrefix?: string) {
+  if (!endpointPrefix) {
+    apiMemoryCache.clear();
+  } else {
+    for (const key of apiMemoryCache.keys()) {
+      if (key.includes(endpointPrefix)) {
+        apiMemoryCache.delete(key);
+      }
+    }
+  }
+}
 
 const devLog = (category: string, action: string, payload?: any) => {
   if (config.isLogEnabled) {
@@ -42,21 +65,6 @@ const devLog = (category: string, action: string, payload?: any) => {
       'color: #10b981;',
       payload || ''
     );
-    // Append to virtual logger for developer console in dashboards
-    try {
-      const logs = JSON.parse(localStorage.getItem('mindhub_virtual_api_logs') || '[]');
-      const newLog = {
-        id: 'log-' + Date.now() + Math.random().toString(36).substr(2, 4),
-        time: new Date().toLocaleTimeString(),
-        mode: config.mode,
-        category,
-        action,
-        payload: payload ? JSON.stringify(payload, null, 2) : 'No payload',
-      };
-      localStorage.setItem('mindhub_virtual_api_logs', JSON.stringify([newLog, ...logs].slice(0, 100)));
-    } catch (e) {
-      /* ignore storage errors */
-    }
   }
 };
 
@@ -71,11 +79,7 @@ export class ApiError extends Error {
   }
 }
 
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const baseUrl = getNormalizedBaseUrl(config.baseUrl);
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-  const url = `${baseUrl}${cleanEndpoint}`;
-
+async function executeFetch<T>(url: string, options: RequestInit): Promise<T> {
   const headers = new Headers(options.headers || {});
   
   if (!(options.body instanceof FormData)) {
@@ -119,12 +123,10 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
         validationMsg = (flattened as string[]).join('. ');
       }
     }
-    const errMsg = validationMsg || errJson?.message || errJson?.error || `HTTP error! status: ${response.status}`;
-    devLog('Error Response', errMsg, { status: response.status, url });
-    throw new ApiError(errMsg, response.status, errJson?.errors);
+    const finalMessage = validationMsg || errJson?.message || `Lỗi máy chủ (${response.status})`;
+    throw new ApiError(finalMessage, response.status, errJson?.errors || errJson);
   }
 
-  // Handle No Content / Empty HTTP 204 response safely
   if (response.status === 204) {
     return { success: true } as unknown as T;
   }
@@ -143,6 +145,46 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     return json.data as T;
   }
   return json as T;
+}
+
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const baseUrl = getNormalizedBaseUrl(config.baseUrl);
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+  const url = `${baseUrl}${cleanEndpoint}`;
+  const method = (options.method || 'GET').toUpperCase();
+
+  // Mutations invalidate in-memory cache
+  if (method !== 'GET') {
+    apiMemoryCache.clear();
+    return executeFetch<T>(url, options);
+  }
+
+  // 1. Check in-memory cache
+  const cacheKey = `${url}:${config.authToken || localStorage.getItem('mindhub_api_token') || 'anon'}`;
+  const cached = apiMemoryCache.get(cacheKey);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data as T;
+  }
+
+  // 2. In-flight request deduplication
+  if (inFlightRequests.has(cacheKey)) {
+    return inFlightRequests.get(cacheKey)! as Promise<T>;
+  }
+
+  const fetchPromise = executeFetch<T>(url, options)
+    .then((data) => {
+      apiMemoryCache.set(cacheKey, {
+        data,
+        expiry: Date.now() + CACHE_TTL_MS,
+      });
+      return data;
+    })
+    .finally(() => {
+      inFlightRequests.delete(cacheKey);
+    });
+
+  inFlightRequests.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 async function apiFetchEnvelope<T>(endpoint: string, options: RequestInit = {}): Promise<{ data: T; meta?: any }> {
