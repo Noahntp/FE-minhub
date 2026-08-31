@@ -430,7 +430,6 @@ export const ApiService = {
 
   /** POST /auth/logout-all */
   async logoutAll(): Promise<{ success: boolean }> {
-      // BACKEND_MISSING
     devLog('Auth', 'Terminate all active device sessions');
     if (config.mode === 'api') {
       const res = await apiFetch<{ success: boolean }>('/auth/logout-all', { method: 'POST' });
@@ -442,7 +441,6 @@ export const ApiService = {
 
   /** POST /auth/refresh */
   async refreshToken(): Promise<{ token: string }> {
-      // BACKEND_MISSING
     devLog('Auth', 'Request Token Refresh rotation');
     if (config.mode === 'api') {
       const res = await apiFetch<{ token: string }>('/auth/refresh', { method: 'POST' });
@@ -827,7 +825,6 @@ export const ApiService = {
 
   /** POST /users/me/account-requests */
   async createAccountRequest(payload: Omit<AccountRequest, 'id' | 'timestamp' | 'status'>): Promise<AccountRequest> {
-      // BACKEND_MISSING
     devLog('Profile', 'Request account closure', payload);
     if (config.mode === 'api') {
       return apiFetch<AccountRequest>('/users/me/account-requests', {
@@ -943,6 +940,23 @@ export const ApiService = {
   async getMyLearningAlerts(): Promise<any[]> {
   devLog('Learning', 'Search for system and deadline alerts');
   return apiFetch<any[]>('/me/dynamic-alerts');
+  },
+
+  /** GET /me/activity-calendar */
+  async getActivityCalendar(month?: number, year?: number): Promise<any> {
+    devLog('Learning', 'Fetch learning activity heatmap data');
+    const params = new URLSearchParams();
+    if (month) params.append('month', month.toString());
+    if (year) params.append('year', year.toString());
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return apiFetch<any>(`/me/activity-calendar${qs}`);
+  },
+
+  /** GET /learning-logs/my */
+  async getLearningLogs(params: { per_page?: number; page?: number } = {}): Promise<any> {
+    devLog('Learning', 'Fetch learning activity history');
+    const qs = new URLSearchParams(params as any).toString();
+    return apiFetch<any>(`/learning-logs/my${qs ? '?' + qs : ''}`);
   },
 
   /** GET /me/learning-path/next */

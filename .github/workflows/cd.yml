@@ -1,0 +1,96 @@
+name: Frontend CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - develop
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy to Server
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build for Production
+      run: npm run build
+
+    - name: Prepare Deployment Variables
+      id: vars
+      run: echo "RELEASE_ID=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+
+    - name: Create Release Directory on Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          mkdir -p /var/www/mindhub-frontend/releases/${{ env.RELEASE_ID }}
+
+    - name: Upload Build Artifact (dist)
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "dist/*"
+        target: "/var/www/mindhub-frontend/releases/${{ env.RELEASE_ID }}"
+        strip_components: 1
+
+    - name: Symlink, Health Check & Rollback
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          set -e
+          APP_DIR="/var/www/mindhub-frontend"
+          RELEASE_DIR="${APP_DIR}/releases/${{ env.RELEASE_ID }}"
+          CURRENT_LINK="${APP_DIR}/current"
+          PREVIOUS_LINK="${APP_DIR}/previous"
+          
+          echo "Switching active release..."
+          if [ -L "$CURRENT_LINK" ]; then
+            ln -snf $(readlink -f $CURRENT_LINK) $PREVIOUS_LINK
+          fi
+          
+          ln -snf ${RELEASE_DIR} $CURRENT_LINK
+          
+          echo "Running Health Check..."
+          sleep 2
+          # Thay http://localhost bằng domain thực tế của frontend
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/" || echo "failed")
+          
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Health Check FAILED (Status: $HTTP_STATUS). Rolling back..."
+            if [ -L "$PREVIOUS_LINK" ]; then
+              ln -snf $(readlink -f $PREVIOUS_LINK) $CURRENT_LINK
+              echo "Rollback successful."
+            else
+              echo "No previous release to rollback to!"
+            fi
+            exit 1
+          fi
+          
+          echo "Health Check PASSED! Frontend deployed."
+          
+          # Cleanup old releases (Keep last 3)
+          ls -1dt ${APP_DIR}/releases/* | tail -n +4 | xargs -d '\n' rm -rf || true

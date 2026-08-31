@@ -5,6 +5,7 @@ import { classroomApi } from '../api';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/lib/media-url';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
+import { useVideoProgressTracker } from '../hooks/useVideoProgressTracker';
 
 interface VideoPlayerProps {
   activeLesson: Lesson | null;
@@ -23,6 +24,10 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const lastSavedSecondRef = useRef(0);
 
   const numericLessonId = activeLesson ? parseInt(String(activeLesson.id).replace(/\D/g, ''), 10) : NaN;
+
+  const { trackTimeUpdate, trackPauseOrSeek } = useVideoProgressTracker({
+    lessonId: activeLesson ? String(activeLesson.id) : undefined,
+  });
 
   // Helper to save video progress to both API and localStorage
   const saveProgress = (seconds: number) => {
@@ -129,6 +134,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
     const curTime = video.currentTime;
+    trackTimeUpdate(curTime);
     if (onTimeUpdate) {
       onTimeUpdate(curTime);
     }
@@ -159,10 +165,17 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   };
 
   const handlePause = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    trackPauseOrSeek();
+    saveProgress(e.currentTarget.currentTime);
+  };
+
+  const handleSeeked = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    trackPauseOrSeek();
     saveProgress(e.currentTarget.currentTime);
   };
 
   const handleEndedInternal = () => {
+    trackPauseOrSeek();
     if (videoRef.current) {
       saveProgress(videoRef.current.duration || 0);
     }
@@ -229,6 +242,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onPause={handlePause}
+          onSeeked={handleSeeked}
           autoPlay={false}
           poster="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&q=80"
         >
