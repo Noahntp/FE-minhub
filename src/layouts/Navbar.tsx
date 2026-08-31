@@ -486,6 +486,7 @@ export default function Navbar() {
                         src={avatarUrl} 
                         alt="Avatar" 
                         className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover bg-slate-100"
+                        referrerPolicy="no-referrer"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
                         }}
@@ -634,6 +635,7 @@ export default function Navbar() {
                     src={avatarUrl}
                     alt="Avatar"
                     className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500"
+                    referrerPolicy="no-referrer"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
                     }}
