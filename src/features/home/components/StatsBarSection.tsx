@@ -69,10 +69,10 @@ function CountUpNumber({ target, suffix = '', duration = 1600 }: { target: numbe
 }
 
 export function StatsBarSection({ stats: apiStats }: StatsBarSectionProps) {
-  const coursesNum = apiStats?.total_courses ?? 27;
-  const studentsNum = apiStats?.total_students ?? 13;
-  const reviewsNum = apiStats?.total_reviews ?? 3;
-  const instructorsNum = apiStats?.total_instructors ?? 2;
+  const coursesNum = Number(apiStats?.total_courses ?? 0);
+  const studentsNum = Number(apiStats?.total_students ?? 0);
+  const reviewsNum = Number(apiStats?.total_reviews ?? apiStats?.total_5_star_reviews ?? 0);
+  const instructorsNum = Number(apiStats?.total_instructors ?? 0);
 
   const statsList = [
     {
