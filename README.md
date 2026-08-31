@@ -135,3 +135,6 @@ Các `<type>` phổ biến:
 - `feat(auth): add login form validation`
 - `fix(header): resolve overlapping logo issue`
 - `refactor(arch): colocate components by features`
+
+## CI/CD Documentation
+Vui lòng tham khảo tài liệu [CI/CD Workflow](docs/CI-CD.md) để biết thêm về quy trình tự động hóa kiểm thử và triển khai (CI/CD) của dự án này.
