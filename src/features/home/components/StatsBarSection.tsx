@@ -6,6 +6,8 @@ interface StatsBarSectionProps {
     total_courses?: number;
     total_students?: number;
     total_reviews?: number;
+    total_5_star_reviews?: number;
+    total_all_reviews?: number;
     total_instructors?: number;
   };
 }
