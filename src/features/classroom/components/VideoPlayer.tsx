@@ -272,13 +272,13 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
         </div>
       )}
 
-      {/* Watermark Overlay for Content Protection (Fixed Top-Left, Dark Submerged Text) */}
+      {/* Watermark Overlay for Content Protection (Fixed Top-Left, Submerged High-Contrast Text) */}
       {watermark?.text && (
         <div 
-          className="absolute top-2.5 left-3 sm:top-3.5 sm:left-4 pointer-events-none select-none z-20 font-mono text-[11px] sm:text-xs font-semibold text-black/40 tracking-wider"
+          className="absolute top-2.5 left-3 sm:top-3.5 sm:left-4 pointer-events-none select-none z-[9999] font-mono text-[11px] sm:text-xs font-bold text-slate-900/40 tracking-wider transition-opacity"
           style={{ 
-            opacity: watermark.opacity ?? 0.35,
-            textShadow: '0 0 1px rgba(255,255,255,0.15)'
+            opacity: watermark.opacity ?? 0.4,
+            textShadow: '0 0 2px rgba(255,255,255,0.8), 0 1px 2px rgba(255,255,255,0.6)'
           }}
         >
           {watermark.text}

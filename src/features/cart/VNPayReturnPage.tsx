@@ -9,19 +9,37 @@ export default function VNPayReturnPage({ onNavigate }: { onNavigate: (path: str
   const [message, setMessage] = useState('Đang xử lý kết quả thanh toán...');
 
   useEffect(() => {
+    const query = window.location.search;
     const responseCode = searchParams.get('vnp_ResponseCode');
     const transactionStatus = searchParams.get('vnp_TransactionStatus');
 
-    if (responseCode === '00' || transactionStatus === '00') {
-      setStatus('success');
-      setMessage('Thanh toán thành công! Khóa học đã được thêm vào tài khoản của bạn.');
-    } else if (responseCode || transactionStatus) {
+    if (!query || (!responseCode && !transactionStatus)) {
       setStatus('failed');
-      setMessage('Thanh toán thất bại hoặc giao dịch bị hủy.');
-    } else {
-      setStatus('failed');
-      setMessage('Không tìm thấy thông tin xác thực giao dịch.');
+      setMessage('Không tìm thấy thông tin xác thực giao dịch VNPAY.');
+      return;
     }
+
+    // Call backend to verify HMAC signature and activate enrollment
+    apiFetch<any>(`/payments/vnpay-return${query}`)
+      .then((res) => {
+        const data = res?.data || res;
+        if (data?.status === 'paid' || data?.success || responseCode === '00') {
+          setStatus('success');
+          setMessage('Thanh toán VNPAY thành công! Khóa học đã được kích hoạt trong tài khoản của bạn.');
+        } else {
+          setStatus('failed');
+          setMessage(data?.message || 'Thanh toán không thành công hoặc giao dịch bị hủy.');
+        }
+      })
+      .catch(() => {
+        if (responseCode === '00' || transactionStatus === '00') {
+          setStatus('success');
+          setMessage('Thanh toán thành công! Khóa học đã được thêm vào tài khoản của bạn.');
+        } else {
+          setStatus('failed');
+          setMessage('Thanh toán thất bại hoặc giao dịch bị hủy.');
+        }
+      });
   }, [searchParams]);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
@@ -187,11 +187,91 @@ export default function CartAndCheckout({
 
   const { currentUser } = useApp();
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
+  // If user already owns this course, automatically redirect to course detail page
+  useEffect(() => {
+    if (!initialCourseId) return;
+
+    const storedIds: string[] = JSON.parse(localStorage.getItem('mindhub_enrolled_courses') || '[]');
+    const isLocalEnrolled = storedIds.some((id) => String(id) === String(initialCourseId));
+
+    if (isLocalEnrolled) {
+      toast.info('Bạn đã đăng ký khóa học này rồi. Đang chuyển tới trang chi tiết khóa học...');
+      navigate(`/courses/${initialCourseId}`, { replace: true });
+      return;
+    }
+
+    if (currentUser) {
+      apiFetch<any>('/orders/my')
+        .then((res) => {
+          const myOrders = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+          const alreadyPaid = myOrders.some(
+            (o: any) =>
+              (String(o.course_id) === String(initialCourseId) || String(o.course?.id) === String(initialCourseId)) &&
+              (o.status === 'paid' || o.payment_status === 'paid')
+          );
+          if (alreadyPaid) {
+            toast.info('Bạn đã sở hữu khóa học này rồi. Đang chuyển tới trang chi tiết khóa học...');
+            navigate(`/courses/${initialCourseId}`, { replace: true });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialCourseId, currentUser, navigate]);
+
   // Buyer Form States initialized from logged-in user
   const [buyerName, setBuyerName] = useState(() => currentUser?.full_name || currentUser?.name || '');
   const [buyerEmail, setBuyerEmail] = useState(() => currentUser?.email || '');
   const [buyerPhone, setBuyerPhone] = useState(() => currentUser?.phone || (currentUser as any)?.phone_number || '');
   const [saveInfo, setSaveInfo] = useState(true);
+
+  // Form error state & refs for auto-scroll + focus
+  const [formErrors, setFormErrors] = useState<{ name?: string; email?: string; phone?: string }>({});
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Strict Field Validator for Real-Time & Submit Checks
+  const validateField = (field: 'name' | 'email' | 'phone', value: string): string | undefined => {
+    let error: string | undefined = undefined;
+    const val = (value || '').trim();
+
+    if (field === 'name') {
+      if (!val) {
+        error = 'Vui lòng nhập họ và tên.';
+      } else if (val.length < 2) {
+        error = 'Họ và tên phải có ít nhất 2 ký tự.';
+      } else if (/\d/.test(val)) {
+        error = 'Họ và tên không được chứa chữ số.';
+      } else if (!/^[\p{L}\s'-]+$/u.test(val)) {
+        error = 'Họ và tên chỉ được chứa chữ cái (tiếng Việt/tiếng Anh).';
+      }
+    } else if (field === 'email') {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!val) {
+        error = 'Vui lòng nhập địa chỉ email.';
+      } else if (!emailRegex.test(val)) {
+        error = 'Địa chỉ email không đúng định dạng (Ví dụ: name@example.com).';
+      }
+    } else if (field === 'phone') {
+      const cleanPhone = val.replace(/\s+/g, '');
+      const vnPhoneRegex = /^(0|\+84)(3[2-9]|5[25689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$/;
+      if (!cleanPhone) {
+        error = 'Vui lòng nhập số điện thoại liên hệ.';
+      } else if (cleanPhone.length < 10) {
+        error = 'Số điện thoại phải có đúng 10 chữ số.';
+      } else if (!vnPhoneRegex.test(cleanPhone)) {
+        error = 'Số điện thoại không hợp lệ (Phải là đầu số VN: 03, 05, 07, 08, 09).';
+      }
+    }
+
+    setFormErrors((prev) => ({ ...prev, [field]: error }));
+    return error;
+  };
 
   // Fetch fresh logged in user profile from API /api/users/me
   useEffect(() => {
@@ -267,7 +347,7 @@ export default function CartAndCheckout({
     setIsCheckingSepay(true);
 
     try {
-      await apiFetch<any>('/payments/sepay/confirm', {
+      await apiFetch<any>('/payments', {
         method: 'POST',
         body: JSON.stringify({
           order_id: sepayData.order_id,
@@ -362,11 +442,28 @@ export default function CartAndCheckout({
   };
 
   const handleStartPayment = async () => {
-    if (!buyerName.trim() || !buyerEmail.trim() || !buyerPhone.trim()) {
-      toast.error('Vui lòng điền đầy đủ thông tin người mua.');
+    const nameErr = validateField('name', buyerName);
+    const emailErr = validateField('email', buyerEmail);
+    const phoneErr = validateField('phone', buyerPhone);
+
+    if (nameErr || emailErr || phoneErr) {
+      // Auto-scroll and focus to the first invalid input
+      if (nameErr && nameInputRef.current) {
+        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameInputRef.current.focus();
+      } else if (emailErr && emailInputRef.current) {
+        emailInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        emailInputRef.current.focus();
+      } else if (phoneErr && phoneInputRef.current) {
+        phoneInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneInputRef.current.focus();
+      }
+
+      toast.error('Vui lòng kiểm tra và điền chính xác thông tin người mua.');
       return;
     }
 
+    setFormErrors({});
     setIsProcessing(true);
     saveCourseToEnrolledList(checkoutCourse);
 
@@ -819,38 +916,87 @@ export default function CartAndCheckout({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Field 1: Họ và tên */}
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Họ và tên</label>
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                        Họ và tên <span className="text-rose-500">*</span>
+                      </label>
                       <input
+                        ref={nameInputRef}
                         type="text"
                         value={buyerName}
-                        onChange={(e) => setBuyerName(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
-                        placeholder="Nhập họ tên"
+                        onChange={(e) => {
+                          setBuyerName(e.target.value);
+                          if (formErrors.name) validateField('name', e.target.value);
+                        }}
+                        onBlur={() => validateField('name', buyerName)}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${
+                          formErrors.name
+                            ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/20 text-rose-900'
+                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50/50'
+                        }`}
+                        placeholder="Ví dụ: Nguyễn Văn A"
                       />
+                      {formErrors.name && (
+                        <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1">
+                          ⚠️ {formErrors.name}
+                        </p>
+                      )}
                     </div>
 
                     {/* Field 2: Email */}
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Email</label>
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                        Email <span className="text-rose-500">*</span>
+                      </label>
                       <input
+                        ref={emailInputRef}
                         type="email"
                         value={buyerEmail}
-                        onChange={(e) => setBuyerEmail(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
-                        placeholder="Nhập địa chỉ email"
+                        onChange={(e) => {
+                          setBuyerEmail(e.target.value);
+                          if (formErrors.email) validateField('email', e.target.value);
+                        }}
+                        onBlur={() => validateField('email', buyerEmail)}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${
+                          formErrors.email
+                            ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/20 text-rose-900'
+                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50/50'
+                        }`}
+                        placeholder="Ví dụ: nguyen.van.a@gmail.com"
                       />
+                      {formErrors.email && (
+                        <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1">
+                          ⚠️ {formErrors.email}
+                        </p>
+                      )}
                     </div>
 
                     {/* Field 3: Số điện thoại */}
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Số điện thoại</label>
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                        Số điện thoại <span className="text-rose-500">*</span>
+                      </label>
                       <input
-                        type="text"
+                        ref={phoneInputRef}
+                        type="tel"
                         value={buyerPhone}
-                        onChange={(e) => setBuyerPhone(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-slate-50/50"
-                        placeholder="Nhập số điện thoại"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d+]/g, '');
+                          setBuyerPhone(val);
+                          if (formErrors.phone) validateField('phone', val);
+                        }}
+                        onBlur={() => validateField('phone', buyerPhone)}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${
+                          formErrors.phone
+                            ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/20 text-rose-900'
+                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50/50'
+                        }`}
+                        placeholder="Ví dụ: 0912345678"
                       />
+                      {formErrors.phone && (
+                        <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1">
+                          ⚠️ {formErrors.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1251,6 +1397,13 @@ export default function CartAndCheckout({
                 <img
                   src={sepayData.qr_url}
                   alt="SePay VietQR Code"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    const fallbackUrl = `https://img.vietqr.io/image/MB-${sepayData.account_number}-compact2.png?amount=${sepayData.amount}&addInfo=${encodeURIComponent(sepayData.transfer_content)}&accountName=${encodeURIComponent(sepayData.account_name)}`;
+                    if (target.src !== fallbackUrl) {
+                      target.src = fallbackUrl;
+                    }
+                  }}
                   className="w-44 aspect-square object-contain rounded-xl bg-white p-2 shadow-sm border border-slate-200"
                 />
                 <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1.5">

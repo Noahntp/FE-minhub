@@ -49,6 +49,11 @@ export default function ClassroomPage() {
   // State for real-time video playback position
   const [currentVideoTime, setCurrentVideoTime] = useState<number>(0);
 
+  // Scroll to top on classroom mount or course switch
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [courseId]);
+
   // Flat list of all lessons in order
   const allLessons = useMemo(() => {
     if (!course?.chapters) return [];
