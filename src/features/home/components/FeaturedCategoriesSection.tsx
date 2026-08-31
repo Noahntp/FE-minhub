@@ -208,10 +208,10 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
               <span>Chủ đề phong phú</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Danh mục nổi bật
+              Danh mục khóa học
             </h2>
             <p className="text-sm text-slate-500 mt-1">
-              Khám phá các chủ đề học tập hot nhất được săn đón trong ngành CNTT ({categories.length}+ chủ đề)
+              Khám phá các chủ đề học tập chuyên môn trong ngành CNTT ({categories.length}+ chủ đề)
             </p>
           </div>
 
