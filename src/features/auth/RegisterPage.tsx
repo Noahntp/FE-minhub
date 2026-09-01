@@ -39,6 +39,7 @@ export default function RegisterPage() {
         onClose={() => navigate('/')}
         initialMode={initialMode}
         initialRole={initialRole}
+        initialEmail={searchParams.get('email') || ''}
         navigateTo={(path) => {
           const target = path.startsWith('/') ? path : `/${path}`;
           navigate(target, { replace: true });

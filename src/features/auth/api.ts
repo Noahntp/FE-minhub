@@ -64,9 +64,17 @@ async getGoogleRedirectUrl(): Promise<string> {
     });
   },
 
-  async verifyOtp(payload: { email: string; otp: string }): Promise<any> {
-    devLog('Auth', 'Verify OTP email/phone code', payload);
+  async verifyOtp(payload: { email?: string; phone?: string; otp: string }): Promise<any> {
+    devLog('Auth', 'Verify OTP code', payload);
     return apiFetch<any>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async resendVerifyOtp(payload: { email?: string; phone?: string; channel: 'email' | 'sms' }): Promise<any> {
+    devLog('Auth', 'Resend verify OTP code', payload);
+    return apiFetch<any>('/auth/resend-verify-otp', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
