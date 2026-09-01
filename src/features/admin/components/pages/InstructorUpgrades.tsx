@@ -14,13 +14,26 @@ const calculatePercentage = (value: number, total: number) => {
 };
 
 // User Status Dot Marker
-function UpgradeStatusMarker({ status }: { status: string }) {
+function UpgradeStatusMarker({
+  status,
+  isResubmission,
+}: {
+  status: string;
+  isResubmission?: boolean;
+}) {
   if (status === "pending") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning select-none">
-        <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
-        Chờ xử lý
-      </span>
+      <div className="flex flex-col gap-1 items-start">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning select-none">
+          <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
+          Chờ xử lý
+        </span>
+        {isResubmission && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 select-none shadow-2xs">
+            Nộp lại
+          </span>
+        )}
+      </div>
     );
   } else if (status === "approved") {
     return (
@@ -845,12 +858,21 @@ export default function InstructorUpgrades() {
     const { type, user, reason } = confirmModal;
     if (!user) return;
 
+    if (type === "reject" && (!reason || !reason.trim())) {
+      setConfirmModal((prev) => ({
+        ...prev,
+        error: "Vui lòng nhập lý do từ chối để học viên nắm thông tin.",
+      }));
+      toast.error("Vui lòng nhập lý do từ chối hồ sơ.");
+      return;
+    }
+
     try {
       let res: any;
       if (type === "approve") {
         res = await upgradesApi.approveUpgradeRequest(user.user.id);
       } else if (type === "reject") {
-        res = await upgradesApi.rejectUpgradeRequest(user.user.id, reason);
+        res = await upgradesApi.rejectUpgradeRequest(user.user.id, reason?.trim());
       }
 
       if (res && res.success) {
@@ -2683,7 +2705,10 @@ export default function InstructorUpgrades() {
 
                       {/* Status */}
                       <td className="p-3.5">
-                        <UpgradeStatusMarker status={item.application_status} />
+                        <UpgradeStatusMarker
+                          status={item.application_status}
+                          isResubmission={item.is_resubmission}
+                        />
                       </td>
 
                       {/* Actions */}
@@ -2788,6 +2813,12 @@ export default function InstructorUpgrades() {
                       ) : (
                         <span className="px-2 py-0.5 text-[9px] font-semibold text-danger-brick border border-danger-brick/20 bg-danger-brick-soft/20 rounded">
                           Bị từ chối
+                        </span>
+                      )}
+
+                      {activeDetailUser.is_resubmission && (
+                        <span className="px-2 py-0.5 text-[9px] font-semibold text-sky-700 border border-sky-200 bg-sky-50 rounded">
+                          Hồ sơ nộp lại
                         </span>
                       )}
                     </div>
@@ -3198,7 +3229,7 @@ export default function InstructorUpgrades() {
                 htmlFor="reject-upgrade-reason"
                 className="block text-xs font-semibold text-ink mb-1"
               >
-                Lý do từ chối (tùy chọn)
+                Lý do từ chối <span className="text-danger-brick">*</span>
               </label>
               <textarea
                 id="reject-upgrade-reason"
@@ -3208,11 +3239,20 @@ export default function InstructorUpgrades() {
                   setConfirmModal((prev) => ({
                     ...prev,
                     reason: e.target.value,
+                    error: "",
                   }))
                 }
-                placeholder="Nhập lý do từ chối (ví dụ: Cần bổ sung chứng chỉ, thông tin tài khoản chưa khớp...)"
-                className="w-full p-2.5 text-xs bg-canvas border border-hairline rounded-lg focus:ring-2 focus:ring-rose-100 focus:border-rose-400 outline-none text-ink resize-none font-medium"
+                placeholder="Nhập chi tiết lý do từ chối (bắt buộc: ví dụ thiếu chứng chỉ sư phạm, kinh nghiệm chưa phù hợp...)"
+                className={cn(
+                  "w-full p-2.5 text-xs bg-canvas border rounded-lg focus:ring-2 outline-none text-ink resize-none font-medium transition-all",
+                  confirmModal.error
+                    ? "border-danger-brick focus:ring-rose-200 focus:border-danger-brick"
+                    : "border-hairline focus:ring-rose-100 focus:border-rose-400"
+                )}
               />
+              <p className="text-[10px] text-mid-gray mt-1">
+                Lý do này sẽ được gửi tới học viên để hướng dẫn hoàn thiện lại hồ sơ.
+              </p>
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
               <button
@@ -3233,7 +3273,13 @@ export default function InstructorUpgrades() {
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                disabled={!confirmModal.reason?.trim()}
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] transition-all border-none shadow-sm cursor-pointer",
+                  confirmModal.reason?.trim()
+                    ? "bg-danger-brick text-white hover:opacity-90"
+                    : "bg-danger-brick/40 text-white/70 cursor-not-allowed"
+                )}
               >
                 Xác nhận từ chối
               </button>
