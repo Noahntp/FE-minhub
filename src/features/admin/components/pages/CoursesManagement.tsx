@@ -512,13 +512,38 @@ export default function CoursesManagement() {
     perPageParam,
   ]);
 
-  // Sync open drawer on mount if query open_course_id is present
+  const loadCourseDetail = async (courseId: number) => {
+    setDetailLoading(true);
+    setIsDrawerOpen(true);
+    try {
+      const res = await coursesApi.getCourse(courseId);
+      if (res && res.success) {
+        setActiveDetailCourse(res.data);
+      } else {
+        toast.error(res ? res.message : "Không tìm thấy chi tiết khóa học.");
+        closeDetailDrawer();
+      }
+    } catch (e) {
+      toast.error("Lỗi kết nối tải thông tin chi tiết.");
+      closeDetailDrawer();
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
   useEffect(() => {
     const cid = searchParams.get("open_course_id");
     if (cid) {
       const courseId = Number(cid);
-      if (courseId) {
-        openDetailDrawer(courseId);
+      if (courseId && (!activeDetailCourse || activeDetailCourse.id !== courseId)) {
+        loadCourseDetail(courseId);
+      }
+    } else {
+      // Khi nhấn Browser Back mà URL không còn open_course_id -> Đóng Drawer ngay lập tức
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        setActiveDetailCourse(null);
       }
     }
   }, [searchParams]);
@@ -541,36 +566,21 @@ export default function CoursesManagement() {
     }
   }, [activeDetailCourse]);
 
-  const openDetailDrawer = async (courseId: number) => {
-    setDetailLoading(true);
-    setIsDrawerOpen(true);
-    // write to url search params open_course_id
+  const openDetailDrawer = (courseId: number) => {
+    // Đẩy open_course_id vào History Stack (push) để Back #1 đóng Drawer
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("open_course_id", String(courseId));
     setSearchParams(nextParams);
-
-    try {
-      const res = await coursesApi.getCourse(courseId);
-      if (res && res.success) {
-        setActiveDetailCourse(res.data);
-      } else {
-        toast.error(res ? res.message : "Không tìm thấy chi tiết khóa học.");
-        closeDetailDrawer();
-      }
-    } catch (e) {
-      toast.error("Lỗi kết nối tải thông tin chi tiết.");
-      closeDetailDrawer();
-    } finally {
-      setDetailLoading(false);
-    }
+    loadCourseDetail(courseId);
   };
 
   const closeDetailDrawer = () => {
     setIsDrawerOpen(false);
     setActiveDetailCourse(null);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("open_course_id");
-    setSearchParams(nextParams);
+    if (searchParams.has("open_course_id")) {
+      // Lùi lại 1 history entry để quay về danh sách, không tạo entry rác
+      navigate(-1);
+    }
   };
 
   // Actions

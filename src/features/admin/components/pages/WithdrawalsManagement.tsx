@@ -279,37 +279,37 @@ export default function WithdrawalsManagement() {
     }
   };
 
-  useEffect(() => {
-    if (selectedWithdrawalId !== null) {
-      loadDetail(selectedWithdrawalId);
-      // Sync URL
-      const nextParams = new URLSearchParams(searchParams);
-      if (nextParams.get('open_withdrawal_id') !== String(selectedWithdrawalId)) {
-        nextParams.set('open_withdrawal_id', String(selectedWithdrawalId));
-        setSearchParams(nextParams, { replace: true });
-      }
-    } else {
-      setDetail(null);
-      // Cleanup URL
-      if (searchParams.has('open_withdrawal_id')) {
-        const nextParams = new URLSearchParams(searchParams);
-        nextParams.delete('open_withdrawal_id');
-        setSearchParams(nextParams, { replace: true });
-      }
-    }
-  }, [selectedWithdrawalId]);
-
-  // Handle deep link
+  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
   useEffect(() => {
     const openId = searchParams.get('open_withdrawal_id');
-    if (openId && selectedWithdrawalId === null) {
-      setSelectedWithdrawalId(Number(openId));
+    if (openId) {
+      const wid = Number(openId);
+      if (wid && selectedWithdrawalId !== wid) {
+        setSelectedWithdrawalId(wid);
+        loadDetail(wid);
+      }
+    } else {
+      if (selectedWithdrawalId !== null) {
+        setSelectedWithdrawalId(null);
+        setDetail(null);
+      }
     }
   }, [searchParams]);
+
+  const openWithdrawalDrawer = (id: number) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('open_withdrawal_id', String(id));
+    setSearchParams(nextParams);
+    setSelectedWithdrawalId(id);
+    loadDetail(id);
+  };
 
   const closeDrawer = () => {
     setSelectedWithdrawalId(null);
     setDetail(null);
+    if (searchParams.has('open_withdrawal_id')) {
+      navigate(-1);
+    }
   };
 
   // --- Actions handlers ---
@@ -1089,7 +1089,7 @@ export default function WithdrawalsManagement() {
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedWithdrawalId(item.id)}
+                      onClick={() => openWithdrawalDrawer(item.id)}
                       className="hover:bg-canvas/60 transition-colors cursor-pointer group"
                     >
                       <td className="py-3.5 px-3 font-mono font-bold text-ink whitespace-nowrap">

@@ -482,11 +482,30 @@ export default function UsersManagement() {
     per_page,
   ]);
 
-  // Handle open drawer from query parameters (dashboard deep linking)
+  const loadUserDetail = async (userId: number) => {
+    try {
+      const res = await usersApi.getUser(userId);
+      if (res && res.success) {
+        setActiveDetailUser(res.data);
+        setIsDrawerOpen(true);
+      } else {
+        toast.error(res ? res.message : "Không thể lấy thông tin người dùng.");
+        closeDetailDrawer();
+      }
+    } catch (e) {
+      toast.error("Lỗi khi tải chi tiết người dùng.");
+      closeDetailDrawer();
+    }
+  };
+
+  // Handle open drawer from query parameters (dashboard deep linking and browser Back)
   useEffect(() => {
     const openId = Number(searchParams.get("open_user_id"));
     if (openId && openId > 0 && activeDetailUser?.id !== openId) {
-      openDetailDrawer(openId);
+      loadUserDetail(openId);
+    } else if (!openId && isDrawerOpen) {
+      setIsDrawerOpen(false);
+      setActiveDetailUser(null);
     }
   }, [searchParams]);
 
@@ -525,34 +544,21 @@ export default function UsersManagement() {
   };
 
   // Action drawer triggers
-  const openDetailDrawer = async (userId: number) => {
+  const openDetailDrawer = (userId: number) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("open_user_id", String(userId));
       return next;
-    }, { replace: true });
-
-    try {
-      const res = await usersApi.getUser(userId);
-      if (res && res.success) {
-        setActiveDetailUser(res.data);
-        setIsDrawerOpen(true);
-      } else {
-        toast.error(res ? res.message : "Không thể lấy thông tin người dùng.");
-      }
-    } catch (e) {
-      toast.error("Lỗi khi tải chi tiết người dùng.");
-    }
+    });
+    loadUserDetail(userId);
   };
 
   const closeDetailDrawer = () => {
     setIsDrawerOpen(false);
     setActiveDetailUser(null);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete("open_user_id");
-      return next;
-    }, { replace: true });
+    if (searchParams.has("open_user_id")) {
+      navigate(-1);
+    }
   };
 
   const handleOpenEditModal = (user: any) => {

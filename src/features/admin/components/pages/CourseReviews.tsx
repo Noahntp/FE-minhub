@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Filter, RotateCcw } from 'lucide-react';
 import {
   getCourseReviews,
@@ -93,6 +94,9 @@ function ReviewStatusMarker({ status }: { status: string }) {
 }
 
 export default function CourseReviews() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   // Ref to results section for auto-scrolling
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -703,6 +707,22 @@ export default function CourseReviews() {
     setAppliedFilters(prev => ({ ...prev, sort: compatibilitySort }));
   };
 
+  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
+  useEffect(() => {
+    const openCourseId = parseInt(searchParams.get("open_course_id") || "0");
+    if (openCourseId > 0) {
+      if (activeCourseId !== openCourseId) {
+        handleOpenDrawer(openCourseId);
+      }
+    } else {
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        setActiveCourseId(null);
+        setDrawerData(null);
+      }
+    }
+  }, [searchParams]);
+
   // Drawer handlers
   const handleOpenDrawer = async (courseId: number) => {
     if (drawerLoading && activeCourseId === courseId) return;
@@ -713,9 +733,9 @@ export default function CourseReviews() {
     setActiveCourseId(courseId);
     setDrawerData(null);
 
-    const url = new URL(window.location.href);
-    url.searchParams.set("open_course_id", String(courseId));
-    window.history.replaceState({}, "", url.toString());
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("open_course_id", String(courseId));
+    setSearchParams(nextParams);
 
     try {
       const res = await getCourseReview(courseId);
@@ -747,10 +767,8 @@ export default function CourseReviews() {
     setActiveCourseId(null);
     setDrawerData(null);
 
-    const url = new URL(window.location.href);
-    if (url.searchParams.has("open_course_id")) {
-      url.searchParams.delete("open_course_id");
-      window.history.replaceState({}, "", url.toString());
+    if (searchParams.has("open_course_id")) {
+      navigate(-1);
     }
   };
 
@@ -797,6 +815,7 @@ export default function CourseReviews() {
         message: res.message || "Khóa học đã được duyệt thành công.",
       });
       setDbVersion((v) => v + 1);
+      window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
     } catch (err: any) {
       console.error("Lỗi duyệt khóa học:", err);
       const status = err.status || err?.data?.status;
@@ -811,6 +830,7 @@ export default function CourseReviews() {
         setIsApproveModalOpen(false);
         handleCloseDrawer();
         setDbVersion((v) => v + 1);
+        window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
       } else {
         showToast({
           type: "error",
@@ -847,17 +867,16 @@ export default function CourseReviews() {
 
     setSubmittingAction(true);
     try {
-      const res = await rejectCourse(actionCourseId, {
-        admin_reject_reason: reason,
-      });
+      const res = await rejectCourse(actionCourseId, { admin_reject_reason: reason });
       setIsRejectModalOpen(false);
       handleCloseDrawer();
       showToast({
         type: "success",
         title: "Đã từ chối khóa học",
-        message: res.message || "Khóa học đã được gửi lại để giảng viên chỉnh sửa.",
+        message: res.message || "Đã gửi thông báo từ chối đến giảng viên.",
       });
       setDbVersion((v) => v + 1);
+      window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
     } catch (err: any) {
       console.error("Lỗi từ chối khóa học:", err);
       const status = err.status || err?.data?.status;
@@ -872,6 +891,7 @@ export default function CourseReviews() {
         setIsRejectModalOpen(false);
         handleCloseDrawer();
         setDbVersion((v) => v + 1);
+        window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
       } else {
         showToast({
           type: "error",

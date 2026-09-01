@@ -298,14 +298,14 @@ export default function InstructorUpgrades() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setIsDrawerOpen(false);
+        closeDetailDrawer();
         setConfirmModal({ open: false, type: "", user: null, error: "" });
         setActiveColumnMenu(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isDrawerOpen, searchParams]);
 
   // Update query parameters helper
   const updateFilters = (newFilters: Record<string, any>) => {
@@ -601,8 +601,23 @@ export default function InstructorUpgrades() {
     });
   };
 
-  // Open Drawer trigger
-  const openDetailDrawer = async (userId: number) => {
+  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
+  useEffect(() => {
+    const openId = searchParams.get("open_upgrade_id");
+    if (openId) {
+      const uid = Number(openId);
+      if (uid && (!activeDetailUser || activeDetailUser.user?.id !== uid)) {
+        loadDetailUser(uid);
+      }
+    } else {
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        setActiveDetailUser(null);
+      }
+    }
+  }, [searchParams]);
+
+  const loadDetailUser = async (userId: number) => {
     try {
       const res = await upgradesApi.getUpgradeRequest(userId);
       if (res && res.success) {
@@ -611,9 +626,27 @@ export default function InstructorUpgrades() {
         setIsDrawerOpen(true);
       } else {
         toast.error(res ? res.message : "Không thể lấy chi tiết hồ sơ.");
+        closeDetailDrawer();
       }
     } catch (e) {
       toast.error("Lỗi khi kết nối chi tiết hồ sơ.");
+      closeDetailDrawer();
+    }
+  };
+
+  // Open Drawer trigger
+  const openDetailDrawer = (userId: number) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("open_upgrade_id", String(userId));
+    setSearchParams(nextParams);
+    loadDetailUser(userId);
+  };
+
+  const closeDetailDrawer = () => {
+    setIsDrawerOpen(false);
+    setActiveDetailUser(null);
+    if (searchParams.has("open_upgrade_id")) {
+      navigate(-1);
     }
   };
 
@@ -635,6 +668,7 @@ export default function InstructorUpgrades() {
         setConfirmModal({ open: false, type: "", user: null, error: "" });
         setIsDrawerOpen(false);
         loadData();
+        window.dispatchEvent(new CustomEvent("mindhub-admin-task-updated"));
       } else {
         toast.error(res ? res.message : "Thao tác thất bại.");
         setConfirmModal((prev) => ({
@@ -2488,7 +2522,7 @@ export default function InstructorUpgrades() {
       {isDrawerOpen && activeDetailUser && (
         <>
           <div
-            onClick={() => setIsDrawerOpen(false)}
+            onClick={closeDetailDrawer}
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
           />
           <div
@@ -2502,7 +2536,7 @@ export default function InstructorUpgrades() {
               </h2>
               <button
                 type="button"
-                onClick={() => setIsDrawerOpen(false)}
+                onClick={closeDetailDrawer}
                 className="p-1.5 hover:bg-canvas rounded-full text-mid-gray hover:text-ink transition-colors cursor-pointer bg-transparent border-none"
               >
                 <svg

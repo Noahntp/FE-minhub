@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   getOrders,
@@ -13,6 +13,7 @@ import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
 
 export default function OrdersManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   // --- States ---
   const [items, setItems] = useState<any[]>([]);
@@ -133,14 +134,44 @@ export default function OrdersManagement() {
     loadData();
   }, [page, perPage, status, paymentStatus, search, datePreset, dateFrom, dateTo]);
 
-  // Handle deep link order detail if open_order_id query param is present
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const openOrderId = params.get("open_order_id");
-    if (openOrderId) {
-      handleOpenDrawer(Number(openOrderId));
+  const loadOrderDetail = async (orderId: number) => {
+    setDetailLoading(true);
+    setSelectedOrder(null);
+    setActiveTab('overview');
+    setDrawerOpen(true);
+
+    try {
+      const res = await getOrder(orderId);
+      if (res && res.success) {
+        setSelectedOrder(res.data);
+      } else {
+        toast.error("Không thể lấy chi tiết đơn hàng.");
+        handleCloseDrawer();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi tải chi tiết đơn hàng.");
+      handleCloseDrawer();
+    } finally {
+      setDetailLoading(false);
     }
-  }, []);
+  };
+
+  // Handle deep link order detail and sync on Browser Back/Forward
+  useEffect(() => {
+    const openOrderId = searchParams.get("open_order_id");
+    if (openOrderId) {
+      const oid = Number(openOrderId);
+      if (oid && (!selectedOrder || selectedOrder.id !== oid)) {
+        loadOrderDetail(oid);
+      }
+    } else {
+      if (drawerOpen) {
+        setDrawerOpen(false);
+        setSelectedOrder(null);
+      }
+    }
+  }, [searchParams]);
 
   // --- Actions ---
   const handleApplyFilters = (e: React.FormEvent) => {
@@ -209,42 +240,20 @@ export default function OrdersManagement() {
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
-  const handleOpenDrawer = async (orderId: number) => {
-    setDetailLoading(true);
-    setSelectedOrder(null);
-    setActiveTab('overview');
-    setDrawerOpen(true);
-
-    // Sync URL param
-    const url = new URL(window.location.href);
-    url.searchParams.set("open_order_id", String(orderId));
-    window.history.replaceState({}, "", url.toString());
-
-    try {
-      const res = await getOrder(orderId);
-      if (res && res.success) {
-        setSelectedOrder(res.data);
-      } else {
-        toast.error("Không thể lấy chi tiết đơn hàng.");
-        handleCloseDrawer();
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Lỗi khi tải chi tiết đơn hàng.");
-      handleCloseDrawer();
-    } finally {
-      setDetailLoading(false);
-    }
+  const handleOpenDrawer = (orderId: number) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("open_order_id", String(orderId));
+    setSearchParams(nextParams);
+    loadOrderDetail(orderId);
   };
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
     setSelectedOrder(null);
 
-    // Remove URL param
-    const url = new URL(window.location.href);
-    url.searchParams.delete("open_order_id");
-    window.history.replaceState({}, "", url.toString());
+    if (searchParams.has("open_order_id")) {
+      navigate(-1);
+    }
   };
 
   const handleCopyCode = (code: string) => {
