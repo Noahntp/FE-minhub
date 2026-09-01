@@ -84,6 +84,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   // OTP Channel & Resend countdown states
   const [otpChannel, setOtpChannel] = useState<'email' | 'sms'>('email');
   const [resendCountdown, setResendCountdown] = useState<number>(60);
+  const otpBoxRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Countdown timer for resending OTP (60s)
   useEffect(() => {
@@ -97,6 +98,61 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       if (interval) clearInterval(interval);
     };
   }, [resendCountdown]);
+
+  const handleOtpBoxChange = (index: number, val: string) => {
+    const cleanDigits = val.replace(/\D/g, '');
+    if (!cleanDigits) {
+      const chars = (verificationCode || '').padEnd(6, ' ').split('');
+      chars[index] = ' ';
+      setVerificationCode(chars.join('').trimEnd());
+      return;
+    }
+
+    if (cleanDigits.length > 1) {
+      const pasted = cleanDigits.slice(0, 6);
+      setVerificationCode(pasted);
+      const nextFocus = Math.min(pasted.length - 1, 5);
+      otpBoxRefs.current[nextFocus]?.focus();
+      return;
+    }
+
+    const digit = cleanDigits[0];
+    const chars = (verificationCode || '').padEnd(6, ' ').split('');
+    chars[index] = digit;
+    const nextCode = chars.join('').replace(/\s+$/, '');
+    setVerificationCode(nextCode);
+
+    if (index < 5) {
+      otpBoxRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (!verificationCode[index] && index > 0) {
+        otpBoxRefs.current[index - 1]?.focus();
+        const chars = (verificationCode || '').padEnd(6, ' ').split('');
+        chars[index - 1] = ' ';
+        setVerificationCode(chars.join('').trimEnd());
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      otpBoxRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      e.preventDefault();
+      otpBoxRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted) {
+      setVerificationCode(pasted);
+      const nextFocus = Math.min(pasted.length - 1, 5);
+      otpBoxRefs.current[nextFocus]?.focus();
+    }
+  };
 
   // Cuộn thông minh đến ô nhập liệu bị lỗi đầu tiên
   const scrollToFirstError = (errors: Record<string, string>) => {
@@ -475,14 +531,20 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           localStorage.removeItem('mindhub_pending_verify_email');
           localStorage.removeItem('mindhub_pending_verify_phone');
         } catch (e) {}
-        setSuccessMsg(
-          otpChannel === 'sms'
-            ? 'Xác thực tài khoản qua Số điện thoại thành công! Đang chuyển tới Đăng nhập...'
-            : 'Xác thực tài khoản qua Email thành công! Đang chuyển tới Đăng nhập...'
-        );
+        if (registerRole === 'instructor') {
+          setSuccessMsg(
+            'Xác thực OTP thành công! Hồ sơ đăng ký Giảng viên của bạn đã được tiếp nhận và đang trong quá trình xét duyệt (dự kiến 1–3 ngày làm việc). Bạn có thể đăng nhập sau khi Admin phê duyệt.'
+          );
+        } else {
+          setSuccessMsg(
+            otpChannel === 'sms'
+              ? 'Xác thực tài khoản qua Số điện thoại thành công! Đang chuyển tới Đăng nhập...'
+              : 'Xác thực tài khoản qua Email thành công! Đang chuyển tới Đăng nhập...'
+          );
+        }
         setTimeout(() => {
           handleModeChange('login');
-        }, 1000);
+        }, 2500);
       })
       .catch((err: any) => {
         setIsSubmitting(false);
@@ -951,7 +1013,19 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       id="register-input-password"
                       type="password"
                       value={password}
-                      onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({...prev, password: ''})) }}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPassword(val);
+                        setFieldErrors(prev => {
+                          const updated = { ...prev };
+                          if (val.length >= 8) delete updated.password;
+                          if (confirmPassword && val === confirmPassword) delete updated.confirmPassword;
+                          return updated;
+                        });
+                        if (errorMsg && (errorMsg.includes('Mật khẩu') || errorMsg.includes('mật khẩu'))) {
+                          setErrorMsg('');
+                        }
+                      }}
                       onBlur={() => {
                         const err = validatePassword(password);
                         if (err) setFieldErrors(prev => ({...prev, password: err}));
@@ -974,7 +1048,18 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       id="register-input-confirm-password"
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({...prev, confirmPassword: ''})) }}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setConfirmPassword(val);
+                        setFieldErrors(prev => {
+                          const updated = { ...prev };
+                          if (val === password) delete updated.confirmPassword;
+                          return updated;
+                        });
+                        if (errorMsg && (errorMsg.includes('Mật khẩu') || errorMsg.includes('mật khẩu'))) {
+                          setErrorMsg('');
+                        }
+                      }}
                       onBlur={() => {
                         if (password && confirmPassword && password !== confirmPassword) {
                           setFieldErrors(prev => ({...prev, confirmPassword: 'Mật khẩu xác nhận không trùng khớp.'}));
@@ -1002,23 +1087,22 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       Số điện thoại xác thực liên hệ <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
+                      <Phone className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                       <input 
                         id="register-input-phone"
                         type="tel"
                         value={phone}
-                        onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setFieldErrors(prev => ({...prev, phone: ''})) }}
+                        onChange={(e) => { 
+                          setPhone(e.target.value); 
+                          setFieldErrors(prev => ({...prev, phone: ''}));
+                          if (errorMsg && errorMsg.includes('điện thoại')) setErrorMsg('');
+                        }}
                         onBlur={() => {
                           const err = validatePhone(phone);
                           if (err) setFieldErrors(prev => ({...prev, phone: err}));
                         }}
-                        onKeyDown={(e) => {
-                          if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
-                            e.preventDefault();
-                          }
-                        }}
-                        placeholder="VD: 0987654321"
-                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-1 bg-white transition-all shadow-none ${fieldErrors.phone ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50' : 'border-stone-250 focus:ring-emerald-500/20 focus:border-emerald-500'}`}
+                        placeholder="VD: 0901234567"
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.phone ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                         required
                       />
                     </div>
@@ -1027,86 +1111,82 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
                   <div>
                     <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      Lĩnh vực Giảng dạy chuyên môn
+                      Chuyên môn đào tạo chính
                     </label>
                     <div className="relative">
-                      <Briefcase className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
+                      <Briefcase className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                       <select
                         value={instructorSpecialty}
                         onChange={(e) => setInstructorSpecialty(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all appearance-none cursor-pointer"
+                        className="w-full pl-9 pr-8 py-2 border border-stone-250 rounded-xl text-xs bg-white focus:ring-1 focus:ring-brand-normal focus:outline-none appearance-none cursor-pointer"
                       >
-                        <option value="Development">Phát triển phần mềm (Software Development)</option>
-                        <option value="Design">Thiết kế & Sáng tạo (UI/UX, Graphic)</option>
-                        <option value="Marketing">Truyền thông & Marketing Digital</option>
-                        <option value="Artificial Intelligence">Trí tuệ nhân tạo (AI & Data Science)</option>
-                        <option value="Business & Startup">Khởi nghiệp & Quản trị Kinh doanh</option>
+                        <option value="Development">Lập trình & Công nghệ phần mềm</option>
+                        <option value="Business">Kinh doanh & Khởi nghiệp số</option>
+                        <option value="Design">Thiết kế đồ họa & Trải nghiệm UI/UX</option>
+                        <option value="Marketing">Digital Marketing & Truyền thông</option>
+                        <option value="Data Science">Khoa học Dữ liệu & AI/Machine Learning</option>
+                        <option value="Language">Ngoại ngữ & Luyện thi chứng chỉ</option>
                       </select>
-                      <ChevronDown className="w-4 h-4 text-stone-400 absolute right-3 top-2.5 pointer-events-none z-10" />
+                      <ChevronDown className="absolute right-3 top-3 w-3.5 h-3.5 text-stone-400 pointer-events-none" />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      Số năm kinh nghiệm giảng dạy
+                      Số năm kinh nghiệm giảng dạy / làm việc
                     </label>
                     <div className="relative">
-                      <GraduationCap className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
+                      <GraduationCap className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                       <input 
                         type="number"
                         min="0"
                         max="80"
                         value={instructorExperience}
-                        onChange={(e) => {
-                          const onlyNums = e.target.value.replace(/\D/g, '');
-                          if (onlyNums === '') {
-                            setInstructorExperience('');
-                          } else {
-                            const val = parseInt(onlyNums, 10);
-                            setInstructorExperience(val > 80 ? '80' : String(val));
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
-                            e.preventDefault();
-                          }
-                        }}
-                        placeholder="VD: 5 (nhập số năm)"
-                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all shadow-none"
+                        onChange={(e) => setInstructorExperience(e.target.value)}
+                        placeholder="VD: 5 (năm)"
+                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal focus:outline-none"
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      Tiểu sử tóm tắt (Giới thiệu bản thân)
+                      Tiểu sử & Giới thiệu ngắn về bản thân <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <FileText className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
+                      <FileText className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                       <textarea
                         id="register-input-bio"
+                        rows={3}
                         value={instructorBio}
-                        onChange={(e) => {
-                          setInstructorBio(e.target.value);
-                          setFieldErrors((prev) => ({ ...prev, bio: '' }));
+                        onChange={(e) => { 
+                          setInstructorBio(e.target.value); 
+                          if (e.target.value.length >= 30) {
+                            setFieldErrors(prev => ({...prev, bio: ''}));
+                          }
                         }}
-                        placeholder="Hãy viết vài dòng giới thiệu năng lực chuyên môn và các dự án tiêu biểu của Thầy Cô..."
-                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white h-20 resize-none transition-all shadow-none ${
-                          fieldErrors.bio ? 'border-red-500 bg-red-50' : 'border-stone-250'
-                        }`}
+                        onBlur={() => {
+                          if (instructorBio && instructorBio.trim().length > 0 && instructorBio.trim().length < 30) {
+                            setFieldErrors(prev => ({...prev, bio: 'Tiểu sử giới thiệu bản thân cần ít nhất 30 ký tự để Admin xét duyệt.'}));
+                          }
+                        }}
+                        placeholder="Mô tả kinh nghiệm, thành tựu hoặc định hướng khóa học bạn muốn giảng dạy (tối thiểu 30 ký tự)..."
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.bio ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
+                        required
                       />
                     </div>
-                    {fieldErrors.bio && (
-                      <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.bio}</p>
-                    )}
+                    {fieldErrors.bio && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.bio}</p>}
+                    <p className="text-[10px] text-stone-500 mt-1">
+                      Đã nhập: {instructorBio.trim().length}/30 ký tự tối thiểu
+                    </p>
                   </div>
                 </div>
               )}
 
-               <div className="flex items-start gap-2 bg-stone-50 p-3 rounded-xl border">
+              <div className="flex items-start gap-2 pt-1">
                 <input 
-                  type="checkbox"
-                  id="agree"
+                  type="checkbox" 
+                  id="agree" 
                   checked={agreedToTerms}
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
                   className="mt-1 shadow-sm rounded border-stone-300 text-[#8b5e3c] focus:ring-[#8b5e3c] cursor-pointer"
@@ -1142,9 +1222,23 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
               <button 
                 type="submit"
-                className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex justify-center items-center gap-2 shadow"
+                disabled={isSubmitting}
+                className="w-full bg-[#432c28] hover:bg-black text-white font-bold py-3 px-4 rounded-xl text-xs transition-all flex justify-center items-center gap-2 shadow cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <UserPlus className="w-4 h-4" /> Đăng Ký Tài Khoản & Gửi OTP Xác Thực
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white shrink-0" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang gửi thông tin đăng ký...</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    <span>Đăng Ký Tài Khoản & Gửi OTP Xác Thực</span>
+                  </>
+                )}
               </button>
 
               <div className="relative my-2.5 flex items-center justify-center">
@@ -1155,7 +1249,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               <button 
                 type="button"
                 onClick={handleGoogleRegister}
-                className="w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2"
+                className="w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.74 14.89 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.6 2.79C6.01 7.23 8.79 5.04 12 5.04z" />
@@ -1169,7 +1263,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               <div className="text-center pt-2 border-t border-stone-105 mt-2">
                 <p className="text-xs text-stone-505">
                   Đã có tài khoản thành viên?{' '}
-                  <button type="button" onClick={() => handleModeChange('login')} className="text-[#8b5e3c] font-black hover:underline">
+                  <button type="button" onClick={() => handleModeChange('login')} className="text-[#8b5e3c] font-black hover:underline cursor-pointer">
                     Quay về Đăng nhập
                   </button>
                 </p>
@@ -1326,43 +1420,36 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 )}
               </div>
 
+              {/* 6 Individual Interactive OTP Input Boxes */}
               <div className="py-2 space-y-3">
-                <div className="flex justify-center items-center gap-2 sm:gap-2.5 relative my-2">
+                <div className="flex justify-center items-center gap-2 sm:gap-2.5 my-2">
                   {Array.from({ length: 6 }).map((_, idx) => {
                     const digit = verificationCode[idx] || '';
-                    const isCurrent = verificationCode.length === idx;
                     const isFilled = Boolean(digit);
                     return (
-                      <div
+                      <input
                         key={idx}
-                        onClick={() => {
-                          const inputEl = document.getElementById('otp-real-input');
-                          if (inputEl) inputEl.focus();
+                        ref={(el) => {
+                          otpBoxRefs.current[idx] = el;
                         }}
-                        className={`w-11 h-13 sm:w-12 sm:h-14 rounded-xl border-2 flex items-center justify-center text-xl sm:text-2xl font-mono font-black transition-all cursor-pointer select-none shadow-sm ${
-                          isCurrent
-                            ? 'border-emerald-600 ring-4 ring-emerald-500/20 bg-emerald-50/50 text-emerald-950 scale-105'
-                            : isFilled
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
-                            : 'border-slate-200 bg-slate-50/50 text-slate-300 hover:border-emerald-300'
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpBoxChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                        onPaste={handleOtpPaste}
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                        className={`w-11 h-13 sm:w-12 sm:h-14 rounded-xl border-2 text-center text-xl sm:text-2xl font-mono font-black transition-all cursor-pointer shadow-sm focus:outline-none ${
+                          isFilled
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20'
+                            : 'border-slate-200 bg-slate-50/50 text-slate-800 hover:border-emerald-300 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20'
                         }`}
-                      >
-                        {digit || <span className="text-slate-300 font-light text-sm">•</span>}
-                      </div>
+                        autoFocus={idx === 0}
+                      />
                     );
                   })}
-                  <input 
-                    id="otp-real-input"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    autoFocus
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    required
-                  />
                 </div>
 
                 {verificationCode && (
@@ -1377,7 +1464,20 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 disabled={isSubmitting}
                 className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex justify-center items-center gap-1.5"
               >
-                <Check className="w-4 h-4" /> Xác Thực và Kích Hoạt Tài Khoản
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white shrink-0" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang kích hoạt tài khoản...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Xác Thực và Kích Hoạt Tài Khoản</span>
+                  </>
+                )}
               </button>
 
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
