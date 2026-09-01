@@ -193,9 +193,9 @@ export default function Topbar({
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-2.5 md:gap-3">
+      <div className="flex items-center gap-2.5 md:gap-3 relative">
         {/* Notification Button & Dropdown */}
-        <div className="relative" ref={notificationRef}>
+        <div ref={notificationRef}>
           <button 
             type="button" 
             onClick={() => setNotificationOpen(!notificationOpen)}
@@ -212,7 +212,7 @@ export default function Topbar({
 
           {/* Notification Dropdown Panel */}
           {notificationOpen && (
-            <div className="absolute right-0 top-12 z-50 w-[380px] max-w-[calc(100vw-24px)] bg-paper border border-hairline rounded-xl shadow-xl flex flex-col overflow-hidden origin-top-right animate-scaleUp">
+            <div className="absolute right-0 top-12 z-50 w-[380px] max-w-[calc(100vw-32px)] bg-paper border border-hairline rounded-xl shadow-2xl flex flex-col overflow-hidden origin-top-right animate-scaleUp">
               {/* Header */}
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-hairline bg-canvas/40">
                 <div className="flex items-center gap-2.5">
