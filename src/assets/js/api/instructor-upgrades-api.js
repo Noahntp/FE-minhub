@@ -93,12 +93,14 @@ export async function approveUpgradeRequest(userId) {
 /**
  * Từ chối yêu cầu nâng cấp (Giữ nguyên role learner)
  */
-export async function rejectUpgradeRequest(userId) {
+export async function rejectUpgradeRequest(userId, reason = null) {
     const uId = parseInt(userId);
     if (!USE_MOCK_DATA) {
         try {
             const envelope = await apiFetchEnvelope(`${API_BASE_URL}/${uId}/reject`, {
-                method: "PATCH"
+                method: "PATCH",
+                body: reason ? JSON.stringify({ reason }) : undefined,
+                headers: reason ? { "Content-Type": "application/json" } : undefined,
             });
             return {
                 success: true,

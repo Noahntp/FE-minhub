@@ -41,11 +41,11 @@ function UpgradeStatusMarker({ status }: { status: string }) {
 
 // User Payout Status Dot Marker
 function PayoutStatusMarker({ status }: { status: string }) {
-  if (status === "active") {
+  if (status === "active" || status === "verified") {
     return (
       <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-success select-none">
         <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0"></span>
-        Đã kích hoạt
+        Đã xác thực
       </span>
     );
   } else if (status === "pending_verification") {
@@ -269,11 +269,13 @@ export default function InstructorUpgrades() {
     type: "approve" | "reject" | "";
     user: any | null;
     error?: string;
+    reason?: string;
   }>({
     open: false,
     type: "",
     user: null,
     error: "",
+    reason: "",
   });
 
   // Close menus on outside click
@@ -586,7 +588,7 @@ export default function InstructorUpgrades() {
     const missingPayoutCount = pendingItems.filter(
       (r) =>
         !r.payout_account ||
-        r.payout_account.status !== "active" ||
+        (r.payout_account.status !== "active" && r.payout_account.status !== "verified") ||
         !r.payout_account.account_name ||
         !r.payout_account.account_number_masked,
     ).length;
@@ -652,7 +654,7 @@ export default function InstructorUpgrades() {
 
   // Action submit triggers
   const handleConfirmSubmit = async () => {
-    const { type, user } = confirmModal;
+    const { type, user, reason } = confirmModal;
     if (!user) return;
 
     try {
@@ -660,12 +662,12 @@ export default function InstructorUpgrades() {
       if (type === "approve") {
         res = await upgradesApi.approveUpgradeRequest(user.user.id);
       } else if (type === "reject") {
-        res = await upgradesApi.rejectUpgradeRequest(user.user.id);
+        res = await upgradesApi.rejectUpgradeRequest(user.user.id, reason);
       }
 
       if (res && res.success) {
         toast.success(res.message || "Thực hiện thành công.");
-        setConfirmModal({ open: false, type: "", user: null, error: "" });
+        setConfirmModal({ open: false, type: "", user: null, error: "", reason: "" });
         setIsDrawerOpen(false);
         loadData();
         window.dispatchEvent(new CustomEvent("mindhub-admin-task-updated"));
@@ -677,7 +679,7 @@ export default function InstructorUpgrades() {
         }));
       }
     } catch (e) {
-      toast.error("Có lỗi xảy ra trong quá trình phê duyệt.");
+      toast.error("Có lỗi xảy ra trong quá trình xử lý.");
     }
   };
 
@@ -2926,7 +2928,9 @@ export default function InstructorUpgrades() {
                 <span
                   className={cn(
                     "font-semibold",
-                    confirmModal.user?.payout_account?.status === "active"
+                    confirmModal.user?.payout_account?.status === "active" ||
+                    confirmModal.user?.payout_account?.status === "verified" ||
+                    confirmModal.user?.payout_account?.status === "pending_verification"
                       ? "text-success"
                       : "text-danger-brick",
                   )}
@@ -2999,10 +3003,31 @@ export default function InstructorUpgrades() {
                 </span>
               </div>
               {confirmModal.error && (
-                <p className="text-[10px] text-danger-brick mt-1">
+                <p className="text-[10px] text-danger-brick mt-1 font-medium">
                   {confirmModal.error}
                 </p>
               )}
+            </div>
+            <div>
+              <label
+                htmlFor="reject-upgrade-reason"
+                className="block text-xs font-semibold text-ink mb-1"
+              >
+                Lý do từ chối (tùy chọn)
+              </label>
+              <textarea
+                id="reject-upgrade-reason"
+                rows={3}
+                value={confirmModal.reason || ""}
+                onChange={(e) =>
+                  setConfirmModal((prev) => ({
+                    ...prev,
+                    reason: e.target.value,
+                  }))
+                }
+                placeholder="Nhập lý do từ chối (ví dụ: Cần bổ sung chứng chỉ, thông tin tài khoản chưa khớp...)"
+                className="w-full p-2.5 text-xs bg-canvas border border-hairline rounded-lg focus:ring-2 focus:ring-rose-100 focus:border-rose-400 outline-none text-ink resize-none font-medium"
+              />
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
               <button
@@ -3013,6 +3038,7 @@ export default function InstructorUpgrades() {
                     type: "",
                     user: null,
                     error: "",
+                    reason: "",
                   })
                 }
                 className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
