@@ -29,7 +29,8 @@ export default function SearchPage() {
 
   useEffect(() => {
     let isMounted = true;
-    const fetchSearchResults = async () => {
+    const timeoutId = setTimeout(() => {
+      const fetchSearchResults = async () => {
       try {
         setIsLoading(true);
         const res = await apiFetch<any>(`/courses?search=${encodeURIComponent(query)}`);
@@ -92,10 +93,12 @@ export default function SearchPage() {
         if (isMounted) setIsLoading(false);
       }
     };
-
     fetchSearchResults();
+    }, 500);
+
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
     };
   }, [query, sortOption]);
 

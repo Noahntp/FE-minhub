@@ -41,6 +41,7 @@ export function CourseReviewModal({
     if (isOpen) {
       setRating(initialRating || 5);
       setComment(initialComment || '');
+      setIsSubmitting(false);
     }
   }, [isOpen, initialRating, initialComment]);
 
