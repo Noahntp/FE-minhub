@@ -1246,6 +1246,62 @@ async exportInstructorRevenues(params?: { preset?: string; date_from?: string; d
       return apiFetch<any>(`/instructor/revenues/export${queryString}`);
   },
 
+  async exportInstructorRevenuesBlob(params?: { preset?: string; date_from?: string; date_to?: string; course_id?: string | number }): Promise<Blob> {
+    devLog('Instructor', 'Export revenues list to CSV Blob', params);
+    const q = new URLSearchParams();
+    if (params?.preset) q.set('preset', String(params.preset));
+    if (params?.date_from) q.set('date_from', String(params.date_from));
+    if (params?.date_to) q.set('date_to', String(params.date_to));
+    if (params?.course_id && params.course_id !== 'all') q.set('course_id', String(params.course_id));
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+
+    const baseUrl = config.baseUrl || 'http://127.0.0.1:8000/api';
+    const cleanBase = baseUrl.replace(/\/+$/, '');
+    const token = config.authToken || localStorage.getItem('mindhub_api_token') || localStorage.getItem('token') || '';
+
+    const response = await fetch(`${cleanBase}/instructor/revenues/export${queryString}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'text/csv, */*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Không thể xuất báo cáo doanh thu (Mã lỗi: ${response.status})`);
+    }
+    return response.blob();
+  },
+
+  async exportInstructorLearnersBlob(params?: { course_id?: string | number; status?: string; preset?: string; date_from?: string; date_to?: string; search?: string }): Promise<Blob> {
+    devLog('Instructor', 'Export learners list to CSV Blob', params);
+    const q = new URLSearchParams();
+    if (params?.course_id && params.course_id !== 'all') q.set('course_id', String(params.course_id));
+    if (params?.status && params.status !== 'all') q.set('status', String(params.status));
+    if (params?.preset && params.preset !== '30d') q.set('preset', String(params.preset));
+    if (params?.date_from) q.set('date_from', String(params.date_from));
+    if (params?.date_to) q.set('date_to', String(params.date_to));
+    if (params?.search) q.set('search', String(params.search));
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+
+    const baseUrl = config.baseUrl || 'http://127.0.0.1:8000/api';
+    const cleanBase = baseUrl.replace(/\/+$/, '');
+    const token = config.authToken || localStorage.getItem('mindhub_api_token') || localStorage.getItem('token') || '';
+
+    const response = await fetch(`${cleanBase}/instructor/learners/export${queryString}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'text/csv, */*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Không thể xuất báo cáo học viên (Mã lỗi: ${response.status})`);
+    }
+    return response.blob();
+  },
+
   async toggleCourseFeatured(courseId: number, isFeatured: boolean): Promise<any> {
     devLog('Instructor', `Toggle course ${courseId} featured status to ${isFeatured}`);
     return apiFetch<any>(`/instructor/courses/${courseId}/featured`, {

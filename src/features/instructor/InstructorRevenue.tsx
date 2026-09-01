@@ -322,22 +322,22 @@ export const InstructorRevenue: React.FC<InstructorRevenueProps> = ({ instructor
     setExporting(true);
     try {
       const queryApiParams = buildRevenueQueryParams(filters);
-      const res: any = await instructorApi.exportInstructorRevenues(queryApiParams);
+      const blob = await instructorApi.exportInstructorRevenuesBlob(queryApiParams);
 
-      if (res instanceof Blob || typeof res === 'string') {
-        const blob = res instanceof Blob ? res : new Blob([res], { type: 'text/csv;charset=utf-8;' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `doanh-thu-${filters.dateFrom || 'report'}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }
+      const dateStr = filters.dateFrom && filters.dateTo ? `${filters.dateFrom}-den-${filters.dateTo}` : (filters.dateFrom || 'bao-cao-doanh-thu');
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `doanh-thu-${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
       showToast('Xuất báo cáo doanh thu CSV thành công.');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to export CSV:', err);
-      showToast('Xuất báo cáo thất bại.', 'error');
+      showToast(err?.message || 'Xuất báo cáo thất bại.', 'error');
     } finally {
       setExporting(false);
     }
