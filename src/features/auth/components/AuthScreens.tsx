@@ -6,6 +6,7 @@ import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
 import { authApi } from '@/features/auth/api';
 import { getDashboardRouteByRole } from '@/router/routes';
+import { validateEmail, validatePassword, validatePhone, extractApiErrors } from '@/shared/utils/validate';
 
 const DB_SEED_ACCOUNTS = [
   { id: 'db-1', name: 'Student Test', email: 'learner1@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
@@ -65,6 +66,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   const [verificationCode, setVerificationCode] = useState('');
   const [errorMsg, setErrorMsg] = useState(initialErrorMsg || '');
   const [successMsg, setSuccessMsg] = useState(initialSuccessMsg || '');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -164,8 +166,24 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     e.preventDefault();
     if (isSubmitting) return;
 
-    if (!email || !password) {
-      setErrorMsg('Vui lòng nhập đầy đủ email và mật khẩu.');
+    setFieldErrors({});
+    let hasError = false;
+    const newFieldErrors: Record<string, string> = {};
+
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      newFieldErrors.email = emailErr;
+      hasError = true;
+    }
+    const passErr = validatePassword(password);
+    if (passErr) {
+      newFieldErrors.password = passErr;
+      hasError = true;
+    }
+
+    if (hasError) {
+      setFieldErrors(newFieldErrors);
+      setErrorMsg('Vui lòng kiểm tra lại các trường không hợp lệ.');
       return;
     }
     
@@ -192,7 +210,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       .catch(err => {
         setIsSubmitting(false);
         setSuccessMsg('');
-        setErrorMsg(mapAuthError(err));
+        const extracted = extractApiErrors(err);
+        if (Object.keys(extracted).length > 0) {
+          setFieldErrors(extracted);
+          setErrorMsg('Dữ liệu đăng nhập không hợp lệ.');
+        } else {
+          setErrorMsg(mapAuthError(err));
+        }
       });
   };
 
@@ -241,16 +265,41 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) {
-      setErrorMsg('Vui lòng điền đủ các thông tin bắt buộc.');
-      return;
+    if (isSubmitting) return;
+
+    setFieldErrors({});
+    let hasError = false;
+    const newFieldErrors: Record<string, string> = {};
+
+    if (!name || name.trim() === '') {
+      newFieldErrors.name = 'Họ tên không được để trống.';
+      hasError = true;
     }
-    if (registerRole === 'instructor' && !phone.trim()) {
-      setErrorMsg('Vui lòng nhập số điện thoại xác thực liên hệ.');
-      return;
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      newFieldErrors.email = emailErr;
+      hasError = true;
+    }
+    const passErr = validatePassword(password);
+    if (passErr) {
+      newFieldErrors.password = passErr;
+      hasError = true;
     }
     if (password !== confirmPassword) {
-      setErrorMsg('Mật khẩu nhập lại không trùng khớp.');
+      newFieldErrors.confirmPassword = 'Mật khẩu nhập lại không trùng khớp.';
+      hasError = true;
+    }
+    if (registerRole === 'instructor') {
+      const phoneErr = validatePhone(phone);
+      if (phoneErr) {
+        newFieldErrors.phone = phoneErr;
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
+      setFieldErrors(newFieldErrors);
+      setErrorMsg('Vui lòng kiểm tra lại các trường không hợp lệ.');
       return;
     }
     if (!agreedToTerms) {
@@ -268,6 +317,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       }
     }
 
+    setIsSubmitting(true);
     setSuccessMsg('Đang đăng ký tài khoản và gửi mã OTP xác thực...');
     authApi.register({ 
       full_name: name.trim(), 
@@ -281,6 +331,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       experience_years: registerRole === 'instructor' ? expYears : undefined
     })
       .then((res: any) => {
+        setIsSubmitting(false);
         try {
           localStorage.removeItem('mindhub_user_notifications');
           localStorage.removeItem('mindhub_purchased_courses_data');
@@ -302,8 +353,15 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         handleModeChange('verify-email');
       })
       .catch(err => {
+        setIsSubmitting(false);
         setSuccessMsg('');
-        setErrorMsg(mapAuthError(err));
+        const extracted = extractApiErrors(err);
+        if (Object.keys(extracted).length > 0) {
+          setFieldErrors(extracted);
+          setErrorMsg('Dữ liệu đăng ký không hợp lệ.');
+        } else {
+          setErrorMsg(mapAuthError(err));
+        }
       });
   };
 
@@ -552,12 +610,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       <input 
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({...prev, email: ''})) }}
                         placeholder="VD: student@gmail.com..."
-                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal focus:outline-none bg-stone-50/50"
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none bg-stone-50/50 ${fieldErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-stone-250 focus:ring-brand-normal'}`}
                         required
                       />
                     </div>
+                    {fieldErrors.email && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.email}</p>}
                   </div>
 
                   <div>
@@ -576,9 +635,9 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       <input 
                         type={showPassword ? 'text' : 'password'}
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({...prev, password: ''})) }}
                         placeholder="••••••••"
-                        className="w-full pl-9 pr-9 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal focus:outline-none bg-stone-50/50"
+                        className={`w-full pl-9 pr-9 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none bg-stone-50/50 ${fieldErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-stone-250 focus:ring-brand-normal'}`}
                         required
                       />
                       <button 
@@ -589,6 +648,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    {fieldErrors.password && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.password}</p>}
                   </div>
                 </div>
 
@@ -697,12 +757,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                     <input 
                       type="text"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => { setName(e.target.value); setFieldErrors(prev => ({...prev, name: ''})) }}
                       placeholder="VD: Nguyễn Văn A"
-                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.name ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
                     />
                   </div>
+                  {fieldErrors.name && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.name}</p>}
                 </div>
 
                 <div>
@@ -712,12 +773,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                     <input 
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({...prev, email: ''})) }}
                       placeholder="VD: name@gmail.com"
-                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.email ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
                     />
                   </div>
+                  {fieldErrors.email && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.email}</p>}
                 </div>
 
                 <div>
@@ -727,12 +789,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                     <input 
                       type="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({...prev, password: ''})) }}
                       placeholder="••••••••"
-                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.password ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
                     />
                   </div>
+                  {fieldErrors.password && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.password}</p>}
                 </div>
 
                 <div>
@@ -742,12 +805,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                     <input 
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({...prev, confirmPassword: ''})) }}
                       placeholder="••••••••"
-                      className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs focus:ring-1 focus:ring-brand-normal"
+                      className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.confirmPassword ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
                     />
                   </div>
+                  {fieldErrors.confirmPassword && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.confirmPassword}</p>}
                 </div>
               </div>
 
@@ -768,17 +832,18 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       <input 
                         type="tel"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setFieldErrors(prev => ({...prev, phone: ''})) }}
                         onKeyDown={(e) => {
                           if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
                             e.preventDefault();
                           }
                         }}
                         placeholder="VD: 0987654321"
-                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all shadow-none"
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-1 bg-white transition-all shadow-none ${fieldErrors.phone ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50' : 'border-stone-250 focus:ring-emerald-500/20 focus:border-emerald-500'}`}
                         required
                       />
                     </div>
+                    {fieldErrors.phone && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.phone}</p>}
                   </div>
 
                   <div>

@@ -438,6 +438,7 @@ export const InstructorWithdrawal: React.FC<InstructorWithdrawalProps> = () => {
   // Step 1: Request Early Withdrawal OTP
   const handleRequestEarlyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (requestingOtp) return;
     const amountNum = Number(earlyAmount);
     if (!amountNum || isNaN(amountNum)) {
       setEarlyFormError('Vui lòng nhập số tiền hợp lệ.');
