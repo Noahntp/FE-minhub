@@ -1,4 +1,5 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
+import { toast } from "sonner";
 import {
   BrowserRouter,
   Routes,
@@ -321,6 +322,15 @@ function AppRoutes() {
     } catch (e) {}
     navigate("/login", { replace: true });
   };
+
+  useEffect(() => {
+    const handleUnauthorized = (e: any) => {
+      toast.error(e.detail?.message || "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      handleLogout();
+    };
+    window.addEventListener("mindhub-auth-unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("mindhub-auth-unauthorized", handleUnauthorized);
+  }, []);
 
   const handleLoginSuccess = (user: any) => {
     setIsLoggedIn(true);
