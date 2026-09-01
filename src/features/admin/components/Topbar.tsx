@@ -8,8 +8,7 @@ import {
   ArrowDownToLine, 
   CreditCard, 
   ChevronRight, 
-  CheckCircle2,
-  ExternalLink 
+  CheckCircle2
 } from 'lucide-react';
 
 interface TopbarProps {
@@ -213,44 +212,33 @@ export default function Topbar({
 
           {/* Notification Dropdown Panel */}
           {notificationOpen && (
-            <div className="absolute right-0 top-12 z-50 w-80 sm:w-96 bg-paper border border-hairline rounded-xl shadow-xl flex flex-col overflow-hidden origin-top-right animate-scaleUp">
+            <div className="absolute right-0 top-12 z-50 w-[380px] max-w-[calc(100vw-24px)] bg-paper border border-hairline rounded-xl shadow-xl flex flex-col overflow-hidden origin-top-right animate-scaleUp">
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-hairline bg-canvas/40">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-hairline bg-canvas/40">
+                <div className="flex items-center gap-2.5">
                   <Bell className="w-4 h-4 text-ink" />
-                  <span className="text-sm font-bold text-ink">Nhiệm vụ cần xử lý</span>
+                  <span className="text-sm font-bold text-ink tracking-tight">Nhiệm vụ cần xử lý</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {totalPending > 0 ? (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                      {totalPending} việc tồn đọng
-                    </span>
-                  ) : (
-                    <span className="text-[11px] font-medium text-emerald-600 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Hoàn tất
-                    </span>
-                  )}
-                  {/* Close button X */}
-                  <button
-                    type="button"
-                    onClick={() => setNotificationOpen(false)}
-                    className="p-1 rounded-md text-mid-gray hover:text-ink hover:bg-canvas transition-colors border-none cursor-pointer"
-                    aria-label="Đóng thông báo"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                {/* Close button X */}
+                <button
+                  type="button"
+                  onClick={() => setNotificationOpen(false)}
+                  className="p-1 rounded-lg text-mid-gray hover:text-ink hover:bg-canvas transition-colors border-none cursor-pointer"
+                  aria-label="Đóng thông báo"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
               {/* Items List */}
-              <div className="max-h-[380px] overflow-y-auto divide-y divide-hairline">
+              <div className="max-h-[400px] overflow-y-auto divide-y divide-hairline">
                 {totalPending === 0 ? (
-                  <div className="p-6 text-center text-mid-gray">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                    <p className="text-xs font-semibold text-ink">Tuyệt vời! Không có nhiệm vụ nào cần xử lý.</p>
-                    <p className="text-[11px] text-mid-gray mt-1">Hệ thống đang hoạt động ổn định và trơn tru.</p>
+                  <div className="py-10 px-6 text-center text-mid-gray">
+                    <CheckCircle2 className="w-9 h-9 text-emerald-500 mx-auto mb-2.5 opacity-85" />
+                    <p className="text-xs font-semibold text-ink">Không có nhiệm vụ nào cần xử lý</p>
+                    <p className="text-[11px] text-mid-gray mt-1">Tất cả công việc đã được giải quyết xong.</p>
                   </div>
                 ) : (
                   notificationList
@@ -261,41 +249,24 @@ export default function Topbar({
                         <button
                           key={item.id}
                           onClick={() => handleNavigateAction(item.url)}
-                          className="w-full flex items-start gap-3 p-3.5 text-left hover:bg-canvas/80 transition-colors border-none cursor-pointer bg-paper"
+                          className="w-full flex items-center gap-3.5 px-5 py-4 text-left hover:bg-canvas/70 transition-colors border-none cursor-pointer bg-paper group"
                         >
-                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.iconBg}`}>
-                            <Icon className="w-4 h-4" />
+                          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${item.iconBg}`}>
+                            <Icon className="w-4.5 h-4.5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-xs font-semibold text-ink truncate">{item.title}</span>
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${item.badgeBg}`}>
-                                {item.count} chờ xử lý
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-mid-gray mt-0.5 line-clamp-2">
-                              Có <strong className="text-ink font-semibold">{item.count}</strong> {item.desc}
+                            <span className="text-xs font-semibold text-ink group-hover:text-blue-600 transition-colors block truncate">
+                              {item.title} ({item.count})
+                            </span>
+                            <p className="text-[11px] text-mid-gray mt-0.5 leading-relaxed line-clamp-2">
+                              {item.desc}
                             </p>
                           </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-mid-gray/50 shrink-0 self-center" />
+                          <ChevronRight className="w-4 h-4 text-mid-gray/40 group-hover:text-ink shrink-0 transition-colors" />
                         </button>
                       );
                     })
                 )}
-              </div>
-
-              {/* Footer */}
-              <div className="p-2 border-t border-hairline bg-canvas/30 text-center">
-                <button
-                  onClick={() => {
-                    setNotificationOpen(false);
-                    navigate('/admin/dashboard');
-                  }}
-                  className="text-[11px] font-semibold text-ink hover:text-emerald-700 transition-colors inline-flex items-center gap-1 cursor-pointer bg-transparent border-none py-1"
-                >
-                  <span>Xem chi tiết trên Dashboard</span>
-                  <ExternalLink className="w-3 h-3" />
-                </button>
               </div>
             </div>
           )}

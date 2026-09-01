@@ -39,11 +39,21 @@ export default function Sidebar({
         isCollapsed ? 'sidebar-collapsed' : ''
       } ${mobileOpen ? 'mobile-open translate-x-0' : '-translate-x-full'}`}
     >
-      {/* Sidebar Header (Logo) */}
+      {/* Sidebar Header */}
       <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-hairline sidebar-logo-container">
-        <button onClick={() => window.location.href = '/'} className="flex items-center gap-2 group cursor-pointer bg-transparent border-none">
-          <img src="/mindhub-logo.png" alt="MindHub Admin Logo" className="h-10 w-auto object-contain shrink-0" />
-          <span className="text-[10px] font-extrabold tracking-wider uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 sidebar-logo-text">Admin</span>
+        <button 
+          onClick={() => onTabChange('dashboard')} 
+          type="button"
+          className="flex items-center gap-2.5 group cursor-pointer bg-transparent border-none p-0 select-none text-left"
+          title="Về Dashboard"
+        >
+          <div className="h-8 w-8 rounded-lg bg-ink text-white flex items-center justify-center font-bold text-sm tracking-tight shrink-0 shadow-sm group-hover:bg-ink/90 transition-colors">
+            M
+          </div>
+          <div className="flex flex-col sidebar-logo-text min-w-0">
+            <span className="text-xs font-bold text-ink tracking-tight leading-none truncate">MindHub</span>
+            <span className="text-[9px] font-semibold text-mid-gray tracking-wider uppercase leading-none mt-1">Admin Panel</span>
+          </div>
         </button>
         {/* Close Mobile Sidebar (Mobile Only) */}
         <button onClick={onCloseMobile} type="button" className="rounded-full border border-hairline p-1.5 hover:bg-paper lg:hidden transition-colors" aria-label="Đóng Menu">
