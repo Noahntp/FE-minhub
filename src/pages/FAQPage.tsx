@@ -10,6 +10,7 @@ import {
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
 import { toast } from 'sonner';
+import { useHomepageData } from '@/features/home/hooks/useHomepageData';
 
 export interface FAQItem {
   id: string;
@@ -98,6 +99,9 @@ export default function FAQPage() {
   const [openFaqIds, setOpenFaqIds] = useState<Record<string, boolean>>({ 'faq-pay-1': true });
   const [votedMap, setVotedMap] = useState<Record<string, 'up' | 'down'>>({});
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
+  const { data: homeData } = useHomepageData();
+  
+  const faqBanner = homeData?.banners?.find(b => b.position === 'faq_hero')?.image_url || '/faq-hero-illustration.png';
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -416,7 +420,7 @@ export default function FAQPage() {
                 {/* Glass Illustration Frame */}
                 <div className="relative rounded-3xl bg-slate-900/70 border border-slate-700/60 p-3 shadow-2xl backdrop-blur-xl overflow-hidden group">
                   <img 
-                    src="/faq-hero-illustration.png" 
+                    src={faqBanner} 
                     alt="MindHub FAQ Support Assistant Illustration" 
                     className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-500"
                   />

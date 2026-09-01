@@ -23,6 +23,7 @@ import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeC
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/utils/format';
+import { useHomepageData } from '@/features/home/hooks/useHomepageData';
 
 // Sample mock categories with count matching design mockup
 const CATEGORY_FILTERS = [
@@ -204,7 +205,10 @@ export default function CourseListPage() {
   const [selectedMinRating, setSelectedMinRating] = useState<number | null>(null);
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
   const [selectedDurations, setSelectedDurations] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  
+  const { data: homeData } = useHomepageData();
+  const coursesBanner = homeData?.banners?.find(b => b.position === 'courses_hero')?.image_url || '/courses-hero-illustration.png';
   const [currentPage, setCurrentPage] = useState(1);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
@@ -644,10 +648,10 @@ export default function CourseListPage() {
 
                 {/* Glass Container */}
                 <div className="relative rounded-3xl bg-slate-900/80 border border-emerald-500/40 p-3 shadow-2xl backdrop-blur-xl overflow-hidden group">
-                  <img
-                    src="/courses-hero-illustration.png"
-                    alt="MindHub Learning 3D Illustration"
-                    className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-500"
+                  <img 
+                    src={coursesBanner}
+                    alt="MindHub Explore Courses Illustration" 
+                    className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-700"
                   />
 
                   {/* Floating Overlay Badge 1 */}

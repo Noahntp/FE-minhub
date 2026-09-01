@@ -13,6 +13,7 @@ export interface HomepageData {
   testimonials?: any[];
   vouchers?: any[];
   stats?: any;
+  banners?: any[];
 }
 
 function formatStudentCount(count: number): string {
@@ -146,6 +147,7 @@ export function useHomepageData() {
                 total_instructors: 0,
                 total_reviews: 0,
             },
+            banners: Array.isArray(res?.banners) ? res.banners : [],
           });
         }
       } catch (err: any) {
