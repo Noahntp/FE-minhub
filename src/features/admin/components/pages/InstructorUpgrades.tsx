@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { RotateCcw, Filter, X } from "lucide-react";
+import { RotateCcw, Filter, X, Gem, Award } from "lucide-react";
 import * as upgradesApi from "@/assets/js/api/instructor-upgrades-api.js";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
@@ -63,6 +63,194 @@ function PayoutStatusMarker({ status }: { status: string }) {
       </span>
     );
   }
+}
+
+// User Avatar with fallback letter
+function UserAvatar({
+  fullName,
+  avatarUrl,
+  size = "md",
+}: {
+  fullName?: string;
+  avatarUrl?: string | null;
+  size?: "sm" | "md" | "lg";
+}) {
+  const [hasError, setHasError] = useState(false);
+  const firstLetter = fullName ? fullName.charAt(0).toUpperCase() : "U";
+
+  const sizeClasses = {
+    sm: "h-7 w-7 text-[10px]",
+    md: "h-8 w-8 text-xs",
+    lg: "h-12 w-12 text-base",
+  }[size];
+
+  if (avatarUrl && !hasError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={fullName || "User Avatar"}
+        onError={() => setHasError(true)}
+        className={cn(
+          sizeClasses,
+          "rounded-full object-cover shrink-0 border border-hairline/80 shadow-2xs select-none",
+        )}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        sizeClasses,
+        "flex items-center justify-center rounded-full bg-canvas text-mid-gray font-bold select-none border border-hairline/60 shrink-0",
+      )}
+    >
+      {firstLetter}
+    </div>
+  );
+}
+
+// Cấp hạng / Huy chương
+function RankBadge({ rank }: { rank?: string }) {
+  const r = (rank || "").toLowerCase().trim();
+  if (r === "diamond" || r === "kim cương") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-cyan-700 bg-cyan-50 border border-cyan-200 select-none shadow-2xs">
+        <Gem className="w-3 h-3 text-cyan-500 fill-cyan-400/30 shrink-0 animate-pulse" />
+        Diamond
+      </span>
+    );
+  }
+  if (r === "gold" || r === "vàng") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 select-none shadow-2xs">
+        <Award className="w-3 h-3 text-amber-500 fill-amber-400/40 shrink-0" />
+        Gold
+      </span>
+    );
+  }
+  if (r === "silver" || r === "bạc") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 select-none shadow-2xs">
+        <Award className="w-3 h-3 text-slate-400 fill-slate-300/40 shrink-0" />
+        Silver
+      </span>
+    );
+  }
+  if (r === "bronze" || r === "đồng") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-900 bg-orange-50 border border-orange-200 select-none shadow-2xs">
+        <Award className="w-3 h-3 text-amber-700 fill-amber-600/40 shrink-0" />
+        Bronze
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] text-mid-gray/80 font-medium">
+      {rank || "Chưa phân cấp"}
+    </span>
+  );
+}
+
+// Ngân hàng nội bộ và Logo Badge
+const getBankDetails = (providerName: string) => {
+  const p = (providerName || "").trim();
+  const lower = p.toLowerCase();
+
+  if (lower.includes("vietcombank") || lower === "vcb") {
+    return {
+      shortName: "Vietcombank",
+      badgeColor: "bg-emerald-700 text-white border-emerald-800",
+      code: "VCB",
+    };
+  }
+  if (lower.includes("techcombank") || lower === "tcb") {
+    return {
+      shortName: "Techcombank",
+      badgeColor: "bg-red-600 text-white border-red-700",
+      code: "TCB",
+    };
+  }
+  if (lower.includes("mb") || lower.includes("quân đội")) {
+    return {
+      shortName: "MB Bank",
+      badgeColor: "bg-blue-700 text-white border-blue-800",
+      code: "MB",
+    };
+  }
+  if (lower.includes("vpbank") || lower.includes("vp bank")) {
+    return {
+      shortName: "VPBank",
+      badgeColor: "bg-emerald-600 text-white border-emerald-700",
+      code: "VPB",
+    };
+  }
+  if (lower.includes("acb") || lower.includes("á châu")) {
+    return {
+      shortName: "ACB",
+      badgeColor: "bg-sky-600 text-white border-sky-700",
+      code: "ACB",
+    };
+  }
+  if (lower.includes("bidv")) {
+    return {
+      shortName: "BIDV",
+      badgeColor: "bg-teal-700 text-white border-teal-800",
+      code: "BIDV",
+    };
+  }
+  if (lower.includes("agribank")) {
+    return {
+      shortName: "Agribank",
+      badgeColor: "bg-amber-800 text-white border-amber-900",
+      code: "VBA",
+    };
+  }
+  if (lower.includes("tpbank") || lower.includes("tiên phong")) {
+    return {
+      shortName: "TPBank",
+      badgeColor: "bg-purple-700 text-white border-purple-800",
+      code: "TPB",
+    };
+  }
+  if (lower.includes("momo")) {
+    return {
+      shortName: "MoMo",
+      badgeColor: "bg-pink-600 text-white border-pink-700",
+      code: "MoMo",
+    };
+  }
+  if (lower.includes("zalopay")) {
+    return {
+      shortName: "ZaloPay",
+      badgeColor: "bg-blue-500 text-white border-blue-600",
+      code: "Zalo",
+    };
+  }
+  return {
+    shortName: p || "Ngân hàng",
+    badgeColor: "bg-slate-700 text-white border-slate-800",
+    code: p ? p.substring(0, 3).toUpperCase() : "NH",
+  };
+};
+
+function BankBadge({ provider }: { provider?: string }) {
+  const bank = getBankDetails(provider || "");
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className={cn(
+          "inline-flex items-center justify-center h-4 px-1 rounded text-[8px] font-black uppercase tracking-wider select-none shrink-0 shadow-2xs border",
+          bank.badgeColor,
+        )}
+      >
+        {bank.code}
+      </span>
+      <span className="font-semibold text-ink text-xs truncate">
+        {bank.shortName}
+      </span>
+    </div>
+  );
 }
 
 // Common experience colors helper mapping (7-8px dot)
@@ -2384,9 +2572,11 @@ export default function InstructorUpgrades() {
                       {/* Subscriber Name Card */}
                       <td className="p-3.5 pl-5">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-mid-gray font-bold text-xs select-none">
-                            {firstLetter}
-                          </div>
+                          <UserAvatar
+                            fullName={item.user?.full_name}
+                            avatarUrl={item.user?.avatar_url}
+                            size="md"
+                          />
                           <div className="min-w-0">
                             <div className="font-bold text-ink text-sm sm:text-xs leading-tight flex items-center">
                               {item.user?.full_name}
@@ -2439,9 +2629,9 @@ export default function InstructorUpgrades() {
                         </div>
                       </td>
 
-                      {/* Experience (Beautiful inline dot layout) */}
+                      {/* Experience & Rank (Medal + Years) */}
                       <td className="p-3.5">
-                        <div className="flex flex-col gap-0.5 justify-center">
+                        <div className="flex flex-col gap-1 justify-center">
                           <div
                             className={cn(
                               "font-semibold flex items-center gap-1.5 text-xs select-none",
@@ -2454,10 +2644,10 @@ export default function InstructorUpgrades() {
                                 expColor.bg,
                               )}
                             ></span>
-                            {item.instructor_profile?.experience_years} năm
+                            {item.instructor_profile?.experience_years ?? 0} năm KN
                           </div>
-                          <div className="text-[10px] text-mid-gray/80 font-medium pl-3.5">
-                            {item.instructor_profile?.level || "Chưa phân cấp"}
+                          <div>
+                            <RankBadge rank={item.instructor_profile?.level || item.instructor_profile?.instructor_rank} />
                           </div>
                         </div>
                       </td>
@@ -2465,17 +2655,15 @@ export default function InstructorUpgrades() {
                       {/* Payout Account */}
                       <td className="p-3.5">
                         {item.payout_account ? (
-                          <div>
-                            <div className="font-medium text-ink">
-                              {item.payout_account.provider}
-                            </div>
-                            <div className="text-[10px] text-mid-gray mt-0.5">
+                          <div className="space-y-1">
+                            <BankBadge provider={item.payout_account.provider} />
+                            <div className="text-[10px] text-mid-gray truncate max-w-[150px]">
                               {item.payout_account.account_name}
                             </div>
-                            <div className="text-[10px] font-mono text-mid-gray mt-0.5 font-medium tracking-wide">
+                            <div className="text-[10px] font-mono text-mid-gray font-medium tracking-wide">
                               {item.payout_account.account_number_masked}
                             </div>
-                            <div className="mt-0.5">
+                            <div>
                               <PayoutStatusMarker
                                 status={item.payout_account.status}
                               />
@@ -2562,11 +2750,11 @@ export default function InstructorUpgrades() {
               {/* Header profile card */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white font-bold text-lg shrink-0 select-none">
-                    {activeDetailUser.user?.full_name
-                      ? activeDetailUser.user.full_name.charAt(0).toUpperCase()
-                      : "U"}
-                  </div>
+                  <UserAvatar
+                    fullName={activeDetailUser.user?.full_name}
+                    avatarUrl={activeDetailUser.user?.avatar_url}
+                    size="lg"
+                  />
                   <div className="space-y-0.5">
                     <h3 className="text-base font-semibold text-ink flex items-center">
                       {activeDetailUser.user?.full_name}
@@ -2673,7 +2861,7 @@ export default function InstructorUpgrades() {
                       {activeDetailUser.instructor_profile?.expertise || "---"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-mid-gray">
                       Kinh nghiệm giảng dạy:
                     </span>
@@ -2682,12 +2870,11 @@ export default function InstructorUpgrades() {
                       năm kinh nghiệm
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-mid-gray">Phân cấp chuyên môn:</span>
-                    <span className="font-semibold text-ink">
-                      {activeDetailUser.instructor_profile?.level ||
-                        "Chưa phân cấp"}
-                    </span>
+                    <div>
+                      <RankBadge rank={activeDetailUser.instructor_profile?.level || activeDetailUser.instructor_profile?.instructor_rank} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2710,13 +2897,11 @@ export default function InstructorUpgrades() {
                 </div>
                 {activeDetailUser.payout_account ? (
                   <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-mid-gray">
-                        Phương thức thanh toán:
+                        Ngân hàng thụ hưởng:
                       </span>
-                      <span className="font-bold text-ink">
-                        {activeDetailUser.payout_account.provider}
-                      </span>
+                      <BankBadge provider={activeDetailUser.payout_account.provider} />
                     </div>
                     <div className="flex justify-between">
                       <span className="text-mid-gray">Tên chủ tài khoản:</span>
