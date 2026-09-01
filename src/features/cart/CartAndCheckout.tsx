@@ -349,7 +349,7 @@ export default function CartAndCheckout({
   };
 
   const handleConfirmSepayPayment = async () => {
-    if (!sepayData) return;
+    if (!sepayData || isCheckingSepay) return;
     setIsCheckingSepay(true);
 
     try {
@@ -448,6 +448,8 @@ export default function CartAndCheckout({
   };
 
   const handleStartPayment = async () => {
+    if (isProcessing) return;
+
     const nameErr = validateField('name', buyerName);
     const emailErr = validateField('email', buyerEmail);
     const phoneErr = validateField('phone', buyerPhone);
@@ -1037,11 +1039,11 @@ export default function CartAndCheckout({
                   
                   {/* Option 1: SePay VietQR (Chuyển khoản VietQR tự động) */}
                   <div
-                    onClick={() => setPaymentMethod('sepay')}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                    onClick={() => !isProcessing && setPaymentMethod('sepay')}
+                    className={`p-4 rounded-xl border transition-all ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300'} flex items-center justify-between gap-4 ${
                       paymentMethod === 'sepay'
                         ? 'border-emerald-600 bg-emerald-50/20 ring-1 ring-emerald-600'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                        : 'border-slate-200 bg-white'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
@@ -1070,11 +1072,11 @@ export default function CartAndCheckout({
 
                   {/* Option 2: Cổng thanh toán VNPAY */}
                   <div
-                    onClick={() => setPaymentMethod('vnpay')}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                    onClick={() => !isProcessing && setPaymentMethod('vnpay')}
+                    className={`p-4 rounded-xl border transition-all ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300'} flex items-center justify-between gap-4 ${
                       paymentMethod === 'vnpay'
                         ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                        : 'border-slate-200 bg-white'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
@@ -1098,11 +1100,11 @@ export default function CartAndCheckout({
 
                   {/* Option 2: Thẻ ATM nội địa */}
                   <div
-                    onClick={() => setPaymentMethod('bank')}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                    onClick={() => !isProcessing && setPaymentMethod('bank')}
+                    className={`p-4 rounded-xl border transition-all ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300'} flex items-center justify-between gap-4 ${
                       paymentMethod === 'bank'
                         ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                        : 'border-slate-200 bg-white'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
