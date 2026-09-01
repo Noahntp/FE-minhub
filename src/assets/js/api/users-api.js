@@ -173,3 +173,39 @@ export async function deleteUser(id) {
         }
     }
 }
+
+/**
+ * Xử lý hàng loạt tài khoản người dùng (Khóa / Mở khóa / Kích hoạt)
+ */
+export async function bulkUserAction(payload) {
+    if (!USE_MOCK) {
+        try {
+            const envelope = await apiFetchEnvelope(`${API_BASE_URL}/bulk-action`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            return {
+                success: true,
+                message: envelope.message || "Thao tác hàng loạt thành công.",
+                data: envelope.data
+            };
+        } catch (error) {
+            console.error("Lỗi khi xử lý hàng loạt người dùng:", error);
+            if (error.status === 422 && error.errors) {
+                return {
+                    success: false,
+                    message: error.message || "Dữ liệu không hợp lệ.",
+                    errors: error.errors,
+                    error_code: 422
+                };
+            }
+            return {
+                success: false,
+                message: error.message || "Lỗi khi xử lý hàng loạt người dùng.",
+                error_code: error.status || 500
+            };
+        }
+    }
+}
+

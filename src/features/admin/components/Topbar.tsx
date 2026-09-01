@@ -52,9 +52,9 @@ export default function Topbar({
   });
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
-  const fetchBacklog = async () => {
+  const fetchBacklog = async (showLoadingState = false) => {
     try {
-      setLoadingNotifications(true);
+      if (showLoadingState) setLoadingNotifications(true);
       const res = await adminApi.getDashboardOverview();
       // Handle unwrapped API response (res.action_required) and wrapped response (res.data.action_required)
       const actions = (res && res.action_required) || (res && res.data && res.data.action_required);
@@ -69,19 +69,45 @@ export default function Topbar({
     } catch (err) {
       console.warn('Could not load notification backlog:', err);
     } finally {
-      setLoadingNotifications(false);
+      if (showLoadingState) setLoadingNotifications(false);
     }
   };
 
   useEffect(() => {
-    fetchBacklog();
+    // Initial fetch with loading spinner
+    fetchBacklog(true);
 
+    // 1. Realtime Background Polling every 15 seconds
+    const pollInterval = setInterval(() => {
+      // Only poll when page is visible to save battery & network
+      if (document.visibilityState === 'visible') {
+        fetchBacklog(false);
+      }
+    }, 15000);
+
+    // 2. Realtime Event Listener for task updates across admin pages
     const handleTaskUpdated = () => {
-      fetchBacklog();
+      fetchBacklog(false);
     };
     window.addEventListener('mindhub-admin-task-updated', handleTaskUpdated);
+
+    // 3. Tab Visibility Change & Window Focus triggers immediate update
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchBacklog(false);
+      }
+    };
+    const handleFocus = () => {
+      fetchBacklog(false);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
     return () => {
+      clearInterval(pollInterval);
       window.removeEventListener('mindhub-admin-task-updated', handleTaskUpdated);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
@@ -105,6 +131,15 @@ export default function Topbar({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const handleToggleNotifications = () => {
+    const nextState = !notificationOpen;
+    setNotificationOpen(nextState);
+    if (nextState) {
+      // Refresh backlog on open panel
+      fetchBacklog(false);
+    }
+  };
 
   const handleNavigateAction = (url: string) => {
     setNotificationOpen(false);
@@ -198,7 +233,7 @@ export default function Topbar({
         <div ref={notificationRef}>
           <button 
             type="button" 
-            onClick={() => setNotificationOpen(!notificationOpen)}
+            onClick={handleToggleNotifications}
             className="relative flex items-center justify-center h-9 w-9 rounded-full border border-hairline hover:bg-canvas text-ink transition-colors cursor-pointer" 
             aria-label="Xem thông báo nhiệm vụ cần xử lý"
           >
