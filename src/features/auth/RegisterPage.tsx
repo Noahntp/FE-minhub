@@ -11,9 +11,11 @@ export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const { setCurrentUser, setIsLoggedIn } = useApp();
 
+  const savedRole = localStorage.getItem('mindhub_pending_verify_role');
   const isInstructorRole = 
     searchParams.get('role') === 'instructor' || 
-    location.pathname.includes('/instructor');
+    location.pathname.includes('/instructor') ||
+    savedRole === 'instructor';
 
   const initialRole = isInstructorRole ? 'instructor' : 'student';
 

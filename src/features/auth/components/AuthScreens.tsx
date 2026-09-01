@@ -1,6 +1,6 @@
 import { ApiError } from "@/shared/lib/api-client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Database, User, Shield, Lock, Mail, Phone, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X, Briefcase, GraduationCap, FileText, ChevronDown } from 'lucide-react';
+import { Database, User, Shield, Lock, Mail, Phone, Eye, EyeOff, UserPlus, LogIn, Key, Compass, AlertCircle, Coffee, Check, Users, Award, Globe, X, Briefcase, GraduationCap, FileText, ChevronDown, Clock } from 'lucide-react';
 import { User as UserType, normalizeUser } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
@@ -74,7 +74,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Instructor specific registration fields
-  const [registerRole, setRegisterRole] = useState<'student' | 'instructor'>(initialRole);
+  const [registerRole, setRegisterRole] = useState<'student' | 'instructor'>(() => {
+    if (initialRole === 'instructor') return 'instructor';
+    const savedRole = localStorage.getItem('mindhub_pending_verify_role');
+    if (savedRole === 'instructor' || savedRole === 'student') return savedRole;
+    return initialRole || 'student';
+  });
+  const [isVerifiedInstructorPending, setIsVerifiedInstructorPending] = useState(false);
   const [phone, setPhone] = useState(() => localStorage.getItem('mindhub_pending_verify_phone') || '');
   const [instructorSpecialty, setInstructorSpecialty] = useState('Development');
   const [instructorBio, setInstructorBio] = useState('');
@@ -456,6 +462,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           localStorage.removeItem('mindhub_purchased_courses_data');
           localStorage.removeItem('mindhub_enrolled_courses');
           localStorage.setItem('mindhub_pending_verify_email', emailTrimmed);
+          localStorage.setItem('mindhub_pending_verify_role', registerRole);
           if (phone.trim()) {
             localStorage.setItem('mindhub_pending_verify_phone', phone.trim());
           }
@@ -525,26 +532,30 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       phone: phone.trim() || undefined,
       otp: verificationCode.trim() 
     })
-      .then(() => {
+      .then((res: any) => {
         setIsSubmitting(false);
+        const resolvedRole = res?.data?.user?.role || res?.user?.role || registerRole || localStorage.getItem('mindhub_pending_verify_role');
+
         try {
           localStorage.removeItem('mindhub_pending_verify_email');
           localStorage.removeItem('mindhub_pending_verify_phone');
+          localStorage.removeItem('mindhub_pending_verify_role');
         } catch (e) {}
-        if (registerRole === 'instructor') {
-          setSuccessMsg(
-            'Xác thực OTP thành công! Hồ sơ đăng ký Giảng viên của bạn đã được tiếp nhận và đang trong quá trình xét duyệt (dự kiến 1–3 ngày làm việc). Bạn có thể đăng nhập sau khi Admin phê duyệt.'
-          );
+
+        if (resolvedRole === 'instructor') {
+          setIsVerifiedInstructorPending(true);
+          setErrorMsg('');
+          setSuccessMsg('');
         } else {
           setSuccessMsg(
             otpChannel === 'sms'
               ? 'Xác thực tài khoản qua Số điện thoại thành công! Đang chuyển tới Đăng nhập...'
               : 'Xác thực tài khoản qua Email thành công! Đang chuyển tới Đăng nhập...'
           );
+          setTimeout(() => {
+            handleModeChange('login');
+          }, 1800);
         }
-        setTimeout(() => {
-          handleModeChange('login');
-        }, 2500);
       })
       .catch((err: any) => {
         setIsSubmitting(false);
@@ -579,8 +590,9 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         phone: phone.trim() || undefined,
         channel: channelToUse,
       });
-      if (res?.otp_code) {
-        setVerificationCode(res.otp_code);
+      const otpCode = res?.otp_code || res?.data?.otp_code;
+      if (otpCode) {
+        setVerificationCode(otpCode);
       }
       setResendCountdown(60);
       if (overrideChannel) {
@@ -1241,24 +1253,28 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 )}
               </button>
 
-              <div className="relative my-2.5 flex items-center justify-center">
-                <div className="absolute inset-0 h-px bg-stone-200 flex items-center"></div>
-                <span className="relative bg-white px-2.5 text-[10px] text-stone-400 font-mono">HOẶC GHI DANH NHANH</span>
-              </div>
+              {registerRole !== 'instructor' && (
+                <>
+                  <div className="relative my-2.5 flex items-center justify-center">
+                    <div className="absolute inset-0 h-px bg-stone-200 flex items-center"></div>
+                    <span className="relative bg-white px-2.5 text-[10px] text-stone-400 font-mono">HOẶC GHI DANH NHANH</span>
+                  </div>
 
-              <button 
-                type="button"
-                onClick={handleGoogleRegister}
-                className="w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.74 14.89 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.6 2.79C6.01 7.23 8.79 5.04 12 5.04z" />
-                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.73-2.38 3.58l3.63 2.81c2.13-1.97 3.78-4.87 3.78-8.49z" />
-                  <path fill="#FBBC05" d="M5.05 10.29c-.24-.73-.38-1.5-.38-2.29s.14-1.56.38-2.29L1.45 2.92C.53 4.75 0 6.81 0 9s.53 4.25 1.45 6.08l3.6-2.79z" />
-                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.09 7.96-2.96l-3.63-2.81c-1.1.74-2.51 1.18-4.33 1.18-3.21 0-5.99-2.19-6.95-5.25l-3.6 2.79C3.39 20.35 7.35 23 12 23z" />
-                </svg>
-                Đăng ký thành viên bằng tài khoản Google
-              </button>
+                  <button 
+                    type="button"
+                    onClick={handleGoogleRegister}
+                    className="w-full border border-stone-200 hover:bg-stone-50 text-stone-700 font-medium py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#EA4335" d="M12 5.04c1.62 0 3.08.56 4.22 1.65l3.15-3.15C17.45 1.74 14.89 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.6 2.79C6.01 7.23 8.79 5.04 12 5.04z" />
+                      <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.46c-.28 1.48-1.12 2.73-2.38 3.58l3.63 2.81c2.13-1.97 3.78-4.87 3.78-8.49z" />
+                      <path fill="#FBBC05" d="M5.05 10.29c-.24-.73-.38-1.5-.38-2.29s.14-1.56.38-2.29L1.45 2.92C.53 4.75 0 6.81 0 9s.53 4.25 1.45 6.08l3.6-2.79z" />
+                      <path fill="#34A853" d="M12 23c3.24 0 5.97-1.09 7.96-2.96l-3.63-2.81c-1.1.74-2.51 1.18-4.33 1.18-3.21 0-5.99-2.19-6.95-5.25l-3.6 2.79C3.39 20.35 7.35 23 12 23z" />
+                    </svg>
+                    Đăng ký thành viên bằng tài khoản Google
+                  </button>
+                </>
+              )}
 
               <div className="text-center pt-2 border-t border-stone-105 mt-2">
                 <p className="text-xs text-stone-505">
@@ -1273,240 +1289,296 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
           {/* EMAIL & SMS OTP VERIFICATION MODE */}
           {mode === 'verify-email' && (
-            <form onSubmit={handleVerify} className="space-y-4 text-center max-w-sm mx-auto py-4">
-              {/* Channel Selector Tab ALWAYS visible */}
-              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpChannel('email');
-                    setErrorMsg('');
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    otpChannel === 'email'
-                      ? 'bg-white text-emerald-800 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Mail className="w-4 h-4 text-emerald-600" /> Xác thực qua Email
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpChannel('sms');
-                    setErrorMsg('');
-                    if (!phone.trim()) {
-                      setIsEditingContact(true);
-                    }
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    otpChannel === 'sms'
-                      ? 'bg-white text-emerald-800 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Phone className="w-4 h-4 text-emerald-600" /> Nhập OTP qua SMS
-                </button>
-              </div>
-
-              <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
-                {otpChannel === 'sms' ? <Phone className="w-7 h-7" /> : <Mail className="w-7 h-7" />}
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-black text-slate-900">
-                  {otpChannel === 'sms' ? 'Xác thực OTP qua Số điện thoại (SMS)' : 'Xác thực OTP qua Email'}
-                </h3>
-                
-                {/* Contact info or Edit form */}
-                {otpChannel === 'sms' ? (
-                  !phone.trim() || isEditingContact ? (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-xs text-slate-600">Vui lòng nhập số điện thoại để nhận mã xác thực SMS:</p>
-                      <div className="flex gap-1.5 justify-center max-w-xs mx-auto">
-                        <input
-                          type="tel"
-                          placeholder="Ví dụ: 0901234567"
-                          value={phone}
-                          onChange={(e) => {
-                            setPhone(e.target.value);
-                            localStorage.setItem('mindhub_pending_verify_phone', e.target.value);
-                          }}
-                          className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none bg-white font-medium"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!phone.trim()) {
-                              setErrorMsg('Vui lòng nhập số điện thoại hợp lệ.');
-                              return;
-                            }
-                            setIsEditingContact(false);
-                            handleResendVerifyOtp('sms');
-                          }}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer"
-                        >
-                          Gửi mã SMS
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-1">
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                        Mã OTP bảo vệ 6 chữ số đã được gửi tới SĐT:
-                      </p>
-                      <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-900 my-1">
-                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{phone}</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingContact(true)}
-                          className="text-emerald-700 hover:underline text-[11px] font-extrabold ml-1 cursor-pointer"
-                        >
-                          [Đổi SĐT]
-                        </button>
-                      </div>
-                    </div>
-                  )
-                ) : (
-                  !email.trim() || isEditingContact ? (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-xs text-slate-600">Vui lòng nhập email đăng ký của bạn để xác thực:</p>
-                      <div className="flex gap-1.5 justify-center max-w-xs mx-auto">
-                        <input
-                          type="email"
-                          placeholder="email@example.com"
-                          value={email}
-                          onChange={(e) => {
-                            setEmail(e.target.value);
-                            localStorage.setItem('mindhub_pending_verify_email', e.target.value);
-                          }}
-                          className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none bg-white font-medium"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!email.trim()) {
-                              setErrorMsg('Vui lòng nhập email hợp lệ.');
-                              return;
-                            }
-                            setIsEditingContact(false);
-                            handleResendVerifyOtp('email');
-                          }}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer"
-                        >
-                          Gửi mã Email
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-1">
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                        Mã OTP bảo vệ 6 chữ số đã được gửi tới email:
-                      </p>
-                      <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-900 my-1">
-                        <Mail className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{email}</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingContact(true)}
-                          className="text-emerald-700 hover:underline text-[11px] font-extrabold ml-1 cursor-pointer"
-                        >
-                          [Đổi Email]
-                        </button>
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-
-              {/* 6 Individual Interactive OTP Input Boxes */}
-              <div className="py-2 space-y-3">
-                <div className="flex justify-center items-center gap-2 sm:gap-2.5 my-2">
-                  {Array.from({ length: 6 }).map((_, idx) => {
-                    const digit = verificationCode[idx] || '';
-                    const isFilled = Boolean(digit);
-                    return (
-                      <input
-                        key={idx}
-                        ref={(el) => {
-                          otpBoxRefs.current[idx] = el;
-                        }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) => handleOtpBoxChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        onPaste={handleOtpPaste}
-                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                        className={`w-11 h-13 sm:w-12 sm:h-14 rounded-xl border-2 text-center text-xl sm:text-2xl font-mono font-black transition-all cursor-pointer shadow-sm focus:outline-none ${
-                          isFilled
-                            ? 'border-emerald-500 bg-emerald-50 text-emerald-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20'
-                            : 'border-slate-200 bg-slate-50/50 text-slate-800 hover:border-emerald-300 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20'
-                        }`}
-                        autoFocus={idx === 0}
-                      />
-                    );
-                  })}
+            isVerifiedInstructorPending ? (
+              <div className="space-y-4 text-center max-w-sm mx-auto py-4 animate-fade-in">
+                <div className="w-16 h-16 bg-emerald-50 border-2 border-emerald-300 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 shadow-sm">
+                  <Check className="w-9 h-9 stroke-[3]" />
                 </div>
 
-                {verificationCode && (
-                  <p className="text-[11px] text-slate-500 font-semibold">
-                    Mã OTP đang nhập: <b className="font-mono text-emerald-700 font-black tracking-widest">{verificationCode}</b>
+                <div className="space-y-1.5">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    Hồ sơ đang chờ Ban Quản Trị xét duyệt
+                  </span>
+                  <h3 className="text-lg font-black text-stone-900">
+                    Xác Thực OTP Thành Công!
+                  </h3>
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    Yêu cầu đăng ký <b>Đối tác Giảng viên</b> của bạn đã được tiếp nhận thành công vào hệ thống MindHub.
                   </p>
-                )}
+                </div>
+
+                <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-left space-y-3 shadow-xs">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-amber-950">Thời gian xét duyệt dự kiến:</p>
+                      <p className="text-amber-800 leading-relaxed">
+                        Hồ sơ sẽ được Quản trị viên (Admin) xem xét và phê duyệt trong vòng <b>1 – 3 ngày làm việc</b>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-amber-200/60 pt-2.5 flex items-start gap-3">
+                    <Award className="w-5 h-5 text-[#8b5e3c] shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-stone-900">Hướng dẫn sau khi được duyệt:</p>
+                      <p className="text-stone-600 leading-relaxed">
+                        Sau khi hồ sơ được duyệt, bạn chỉ cần dùng đúng Email (<b className="font-mono text-stone-900">{email}</b>) và Mật khẩu vừa tạo để đăng nhập vào trang Giảng viên.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsVerifiedInstructorPending(false);
+                      handleModeChange('login');
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-[#432c28] hover:bg-black text-white font-bold text-xs transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>Đã hiểu — Về trang Đăng nhập</span>
+                  </button>
+                </div>
               </div>
+            ) : (
+              <form onSubmit={handleVerify} className="space-y-4 text-center max-w-sm mx-auto py-4">
+                {/* Channel Selector Tab ALWAYS visible */}
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpChannel('email');
+                      setErrorMsg('');
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      otpChannel === 'email'
+                        ? 'bg-white text-emerald-800 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Mail className="w-4 h-4 text-emerald-600" /> Xác thực qua Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpChannel('sms');
+                      setErrorMsg('');
+                      if (!phone.trim()) {
+                        setIsEditingContact(true);
+                      }
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      otpChannel === 'sms'
+                        ? 'bg-white text-emerald-800 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Phone className="w-4 h-4 text-emerald-600" /> Nhập OTP qua SMS
+                  </button>
+                </div>
 
-              <button 
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex justify-center items-center gap-1.5"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white shrink-0" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Đang kích hoạt tài khoản...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Xác Thực và Kích Hoạt Tài Khoản</span>
-                  </>
-                )}
-              </button>
+                <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+                  {otpChannel === 'sms' ? <Phone className="w-7 h-7" /> : <Mail className="w-7 h-7" />}
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    {otpChannel === 'sms' ? 'Xác thực OTP qua Số điện thoại (SMS)' : 'Xác thực OTP qua Email'}
+                  </h3>
+                  
+                  {/* Contact info or Edit form */}
+                  {otpChannel === 'sms' ? (
+                    !phone.trim() || isEditingContact ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-slate-600">Vui lòng nhập số điện thoại để nhận mã xác thực SMS:</p>
+                        <div className="flex gap-1.5 justify-center max-w-xs mx-auto">
+                          <input
+                            type="tel"
+                            placeholder="Ví dụ: 0901234567"
+                            value={phone}
+                            onChange={(e) => {
+                              setPhone(e.target.value);
+                              localStorage.setItem('mindhub_pending_verify_phone', e.target.value);
+                            }}
+                            className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none bg-white font-medium"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!phone.trim()) {
+                                setErrorMsg('Vui lòng nhập số điện thoại hợp lệ.');
+                                return;
+                              }
+                              setIsEditingContact(false);
+                              handleResendVerifyOtp('sms');
+                            }}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer"
+                          >
+                            Gửi mã SMS
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-1">
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                          Mã OTP bảo vệ 6 chữ số đã được gửi tới SĐT:
+                        </p>
+                        <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-900 my-1">
+                          <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{phone}</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingContact(true)}
+                            className="text-emerald-700 hover:underline text-[11px] font-extrabold ml-1 cursor-pointer"
+                          >
+                            [Đổi SĐT]
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    !email.trim() || isEditingContact ? (
+                      <div className="mt-2 space-y-2">
+                        <p className="text-xs text-slate-600">Vui lòng nhập email đăng ký của bạn để xác thực:</p>
+                        <div className="flex gap-1.5 justify-center max-w-xs mx-auto">
+                          <input
+                            type="email"
+                            placeholder="email@example.com"
+                            value={email}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              localStorage.setItem('mindhub_pending_verify_email', e.target.value);
+                            }}
+                            className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none bg-white font-medium"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!email.trim()) {
+                                setErrorMsg('Vui lòng nhập email hợp lệ.');
+                                return;
+                              }
+                              setIsEditingContact(false);
+                              handleResendVerifyOtp('email');
+                            }}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer"
+                          >
+                            Gửi mã Email
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-1">
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                          Mã OTP bảo vệ 6 chữ số đã được gửi tới email:
+                        </p>
+                        <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-900 my-1">
+                          <Mail className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingContact(true)}
+                            className="text-emerald-700 hover:underline text-[11px] font-extrabold ml-1 cursor-pointer"
+                          >
+                            [Đổi Email]
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => handleResendVerifyOtp()}
-                  disabled={resendingEmail || resendCountdown > 0}
-                  className={`font-bold transition-colors ${
-                    resendCountdown > 0
-                      ? 'text-slate-400 cursor-not-allowed'
-                      : 'text-emerald-700 hover:underline cursor-pointer'
-                  }`}
-                >
-                  {resendingEmail
-                    ? 'Đang gửi lại...'
-                    : resendCountdown > 0
-                    ? `Gửi lại sau (${resendCountdown}s)`
-                    : 'Gửi lại mã OTP mới'}
-                </button>
+                {/* 6 Individual Interactive OTP Input Boxes */}
+                <div className="py-2 space-y-3">
+                  <div className="flex justify-center items-center gap-2 sm:gap-2.5 my-2">
+                    {Array.from({ length: 6 }).map((_, idx) => {
+                      const digit = verificationCode[idx] || '';
+                      const isFilled = Boolean(digit);
+                      return (
+                        <input
+                          key={idx}
+                          ref={(el) => {
+                            otpBoxRefs.current[idx] = el;
+                          }}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpBoxChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                          onPaste={handleOtpPaste}
+                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                          className={`w-11 h-13 sm:w-12 sm:h-14 rounded-xl border-2 text-center text-xl sm:text-2xl font-mono font-black transition-all cursor-pointer shadow-sm focus:outline-none ${
+                            isFilled
+                              ? 'border-emerald-500 bg-emerald-50 text-emerald-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20'
+                              : 'border-slate-200 bg-slate-50/50 text-slate-800 hover:border-emerald-300 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20'
+                          }`}
+                          autoFocus={idx === 0}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {verificationCode && (
+                    <p className="text-[11px] text-slate-500 font-semibold">
+                      Mã OTP đang nhập: <b className="font-mono text-emerald-700 font-black tracking-widest">{verificationCode}</b>
+                    </p>
+                  )}
+                </div>
 
                 <button 
-                  type="button" 
-                  onClick={() => handleModeChange('login')} 
-                  className="text-slate-500 hover:text-slate-900 hover:underline cursor-pointer"
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex justify-center items-center gap-1.5"
                 >
-                  Quay lại Đăng nhập
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Đang kích hoạt tài khoản...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Xác Thực và Kích Hoạt Tài Khoản</span>
+                    </>
+                  )}
                 </button>
-              </div>
-            </form>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => handleResendVerifyOtp()}
+                    disabled={resendingEmail || resendCountdown > 0}
+                    className={`font-bold transition-colors ${
+                      resendCountdown > 0
+                        ? 'text-slate-400 cursor-not-allowed'
+                        : 'text-emerald-700 hover:underline cursor-pointer'
+                    }`}
+                  >
+                    {resendingEmail
+                      ? 'Đang gửi lại...'
+                      : resendCountdown > 0
+                      ? `Gửi lại sau (${resendCountdown}s)`
+                      : 'Gửi lại mã OTP mới'}
+                  </button>
+
+                  <button 
+                    type="button" 
+                    onClick={() => handleModeChange('login')} 
+                    className="text-slate-500 hover:text-slate-900 hover:underline cursor-pointer"
+                  >
+                    Quay lại Đăng nhập
+                  </button>
+                </div>
+              </form>
+            )
           )}
 
           {/* FORGOT PASSWORD MODE */}
