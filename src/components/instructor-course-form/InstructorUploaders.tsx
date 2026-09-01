@@ -126,7 +126,27 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
   const activeBlobUrlRef = useRef<string | null>(null);
 
   const currentDisplayUrl = previewBlobUrl || value;
-  const resolvedVideoUrl = resolveMediaUrl(currentDisplayUrl);
+  
+  // Do not use the image fallback for videos
+  let resolvedVideoUrl = '';
+  if (currentDisplayUrl && currentDisplayUrl.trim() !== '') {
+    resolvedVideoUrl = resolveMediaUrl(currentDisplayUrl);
+    if (resolvedVideoUrl.includes('images.unsplash.com')) {
+      resolvedVideoUrl = currentDisplayUrl; 
+    }
+  }
+
+  // Convert YouTube links to embed links if necessary
+  const isYouTube = resolvedVideoUrl && (resolvedVideoUrl.includes('youtube.com') || resolvedVideoUrl.includes('youtu.be'));
+  const getYoutubeEmbedUrl = (url: string) => {
+    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const match = url.match(ytRegex);
+    return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : url;
+  };
+  
+  if (isYouTube) {
+    resolvedVideoUrl = getYoutubeEmbedUrl(resolvedVideoUrl);
+  }
 
   // Call video.load() when resolved URL changes
   React.useEffect(() => {
@@ -230,29 +250,41 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
         {resolvedVideoUrl ? (
           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
             <div className="aspect-video max-h-32 bg-black rounded-lg overflow-hidden border">
-              <video 
-                ref={videoRef}
-                key={resolvedVideoUrl}
-                controls 
-                preload="metadata"
-                playsInline
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  const v = e.currentTarget;
-                  console.error('[Video Error Details]', {
-                    networkState: v.networkState,
-                    readyState: v.readyState,
-                    error: v.error ? { code: v.error.code, message: v.error.message } : null,
-                    src: resolvedVideoUrl,
-                  });
-                }}
-              >
-                <source 
-                  src={resolvedVideoUrl} 
-                  type={resolvedVideoUrl.endsWith('.webm') ? 'video/webm' : resolvedVideoUrl.endsWith('.mov') ? 'video/quicktime' : 'video/mp4'} 
-                />
-                Trình duyệt không hỗ trợ phát định dạng video này.
-              </video>
+              {isYouTube ? (
+                <iframe
+                  key={resolvedVideoUrl}
+                  src={resolvedVideoUrl}
+                  title="YouTube video player"
+                  className="w-full h-full object-contain"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              ) : (
+                <video 
+                  ref={videoRef}
+                  key={resolvedVideoUrl}
+                  controls 
+                  preload="metadata"
+                  playsInline
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const v = e.currentTarget;
+                    console.error('[Video Error Details]', {
+                      networkState: v.networkState,
+                      readyState: v.readyState,
+                      error: v.error ? { code: v.error.code, message: v.error.message } : null,
+                      src: resolvedVideoUrl,
+                    });
+                  }}
+                >
+                  <source 
+                    src={resolvedVideoUrl} 
+                    type={resolvedVideoUrl.endsWith('.webm') ? 'video/webm' : resolvedVideoUrl.endsWith('.mov') ? 'video/quicktime' : 'video/mp4'} 
+                  />
+                  Trình duyệt không hỗ trợ phát định dạng video này.
+                </video>
+              )}
             </div>
             <div className="flex items-center justify-between gap-2 border-t pt-2">
               <button 
