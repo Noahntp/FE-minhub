@@ -11,13 +11,13 @@ export const validateEmail = (email: string): string | null => {
 
 export const validatePassword = (password: string): string | null => {
   if (!password || password.trim() === '') return 'Mật khẩu không được để trống.';
-  if (password.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự.';
+  if (password.length < 8) return 'Mật khẩu phải có ít nhất 8 ký tự.';
   return null;
 };
 
 export const validatePhone = (phone: string): string | null => {
   if (!phone || phone.trim() === '') return 'Số điện thoại không được để trống.';
-  if (!PHONE_REGEX.test(phone)) return 'Số điện thoại không hợp lệ (VD: 0912345678).';
+  if (!PHONE_REGEX.test(phone)) return 'Số điện thoại không đúng định dạng (VD: 0987654321).';
   return null;
 };
 
@@ -28,7 +28,7 @@ export const validatePhone = (phone: string): string | null => {
 export const extractApiErrors = (err: any): Record<string, string> => {
   const fieldErrors: Record<string, string> = {};
   
-  if (err instanceof ApiError && err.errors) {
+  if (err instanceof ApiError && err.errors && typeof err.errors === 'object') {
     Object.keys(err.errors).forEach((key) => {
       const msgs = err.errors[key];
       if (Array.isArray(msgs) && msgs.length > 0) {
@@ -37,6 +37,15 @@ export const extractApiErrors = (err: any): Record<string, string> => {
         fieldErrors[key] = msgs;
       }
     });
+  }
+  
+  // Phân tích bổ sung từ error message nếu err.errors chưa có trường tương ứng
+  const msg = err?.message || '';
+  if (!fieldErrors.email && (msg.includes('Email') || msg.includes('email'))) {
+    fieldErrors.email = msg;
+  }
+  if (!fieldErrors.phone && (msg.includes('Số điện thoại') || msg.includes('phone'))) {
+    fieldErrors.phone = msg;
   }
   
   return fieldErrors;

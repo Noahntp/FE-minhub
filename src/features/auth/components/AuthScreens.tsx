@@ -271,8 +271,8 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     let hasError = false;
     const newFieldErrors: Record<string, string> = {};
 
-    if (!name || name.trim() === '') {
-      newFieldErrors.name = 'Họ tên không được để trống.';
+    if (!name || name.trim().length < 2) {
+      newFieldErrors.name = 'Họ và tên phải có ít nhất 2 ký tự.';
       hasError = true;
     }
     const emailErr = validateEmail(email);
@@ -286,7 +286,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       hasError = true;
     }
     if (password !== confirmPassword) {
-      newFieldErrors.confirmPassword = 'Mật khẩu nhập lại không trùng khớp.';
+      newFieldErrors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp.';
       hasError = true;
     }
     if (registerRole === 'instructor') {
@@ -295,15 +295,19 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         newFieldErrors.phone = phoneErr;
         hasError = true;
       }
+      if (instructorBio && instructorBio.trim().length > 0 && instructorBio.trim().length < 30) {
+        newFieldErrors.bio = 'Tiểu sử giới thiệu bản thân cần ít nhất 30 ký tự để Admin xét duyệt.';
+        hasError = true;
+      }
     }
 
     if (hasError) {
       setFieldErrors(newFieldErrors);
-      setErrorMsg('Vui lòng kiểm tra lại các trường không hợp lệ.');
+      setErrorMsg('Vui lòng kiểm tra lại các trường thông tin không hợp lệ.');
       return;
     }
     if (!agreedToTerms) {
-      setErrorMsg('Bạn cần đồng ý với điều khoản sử dụng.');
+      setErrorMsg('Bạn cần đồng ý với các điều khoản và chính sách sử dụng để tiếp tục.');
       return;
     }
 
@@ -751,13 +755,20 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-stone-605 mb-1">Họ và Tên</label>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">
+                    Họ và Tên <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                     <input 
                       type="text"
                       value={name}
                       onChange={(e) => { setName(e.target.value); setFieldErrors(prev => ({...prev, name: ''})) }}
+                      onBlur={() => {
+                        if (!name || name.trim().length < 2) {
+                          setFieldErrors(prev => ({...prev, name: 'Họ và tên phải có ít nhất 2 ký tự.'}));
+                        }
+                      }}
                       placeholder="VD: Nguyễn Văn A"
                       className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.name ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
@@ -767,13 +778,19 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-stone-605 mb-1">Địa chỉ Email</label>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">
+                    Địa chỉ Email <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                     <input 
                       type="email"
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({...prev, email: ''})) }}
+                      onBlur={() => {
+                        const err = validateEmail(email);
+                        if (err) setFieldErrors(prev => ({...prev, email: err}));
+                      }}
                       placeholder="VD: name@gmail.com"
                       className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.email ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
@@ -783,13 +800,19 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-stone-605 mb-1">Mật khẩu bảo mật</label>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">
+                    Mật khẩu bảo mật (tối thiểu 8 ký tự) <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                     <input 
                       type="password"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); setFieldErrors(prev => ({...prev, password: ''})) }}
+                      onBlur={() => {
+                        const err = validatePassword(password);
+                        if (err) setFieldErrors(prev => ({...prev, password: err}));
+                      }}
                       placeholder="••••••••"
                       className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.password ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
@@ -799,13 +822,20 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-stone-605 mb-1">Nhập lại mật khẩu</label>
+                  <label className="block text-xs font-semibold text-stone-605 mb-1">
+                    Nhập lại mật khẩu <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                     <input 
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors(prev => ({...prev, confirmPassword: ''})) }}
+                      onBlur={() => {
+                        if (password && confirmPassword && password !== confirmPassword) {
+                          setFieldErrors(prev => ({...prev, confirmPassword: 'Mật khẩu xác nhận không trùng khớp.'}));
+                        }
+                      }}
                       placeholder="••••••••"
                       className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.confirmPassword ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
@@ -833,6 +863,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                         type="tel"
                         value={phone}
                         onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setFieldErrors(prev => ({...prev, phone: ''})) }}
+                        onBlur={() => {
+                          const err = validatePhone(phone);
+                          if (err) setFieldErrors(prev => ({...prev, phone: err}));
+                        }}
                         onKeyDown={(e) => {
                           if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
                             e.preventDefault();
@@ -906,11 +940,19 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       <FileText className="w-4 h-4 text-stone-400 absolute left-3 top-2.5 pointer-events-none z-10" />
                       <textarea
                         value={instructorBio}
-                        onChange={(e) => setInstructorBio(e.target.value)}
+                        onChange={(e) => {
+                          setInstructorBio(e.target.value);
+                          setFieldErrors((prev) => ({ ...prev, bio: '' }));
+                        }}
                         placeholder="Hãy viết vài dòng giới thiệu năng lực chuyên môn và các dự án tiêu biểu của Thầy Cô..."
-                        className="w-full pl-9 pr-3 py-2 border border-stone-250 rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white h-20 resize-none transition-all shadow-none"
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white h-20 resize-none transition-all shadow-none ${
+                          fieldErrors.bio ? 'border-red-500 bg-red-50' : 'border-stone-250'
+                        }`}
                       />
                     </div>
+                    {fieldErrors.bio && (
+                      <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.bio}</p>
+                    )}
                   </div>
                 </div>
               )}
