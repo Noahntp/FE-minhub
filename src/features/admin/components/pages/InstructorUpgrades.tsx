@@ -23,16 +23,21 @@ function UpgradeStatusMarker({
 }) {
   if (status === "pending") {
     return (
-      <div className="flex flex-col gap-1 items-start">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning select-none">
-          <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
-          Chờ xử lý
-        </span>
-        {isResubmission && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 select-none shadow-2xs">
-            Nộp lại
+      <div className="flex flex-col gap-1 items-start select-none">
+        <div className="inline-flex items-center gap-1.5 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
+            Chờ xử lý
           </span>
-        )}
+          {isResubmission && (
+            <span
+              className="text-[11px] font-bold text-danger-brick tracking-tight"
+              title="Hồ sơ được học viên chỉnh sửa và nộp lại sau khi bị từ chối"
+            >
+              (Nộp lại)
+            </span>
+          )}
+        </div>
       </div>
     );
   } else if (status === "approved") {
@@ -2681,15 +2686,21 @@ export default function InstructorUpgrades() {
                             ></span>
                             {item.instructor_profile?.experience_years ?? 0} năm KN
                           </div>
-                          <div>
-                            <RankBadge rank={item.instructor_profile?.level || item.instructor_profile?.instructor_rank} />
-                          </div>
+                          {item.application_status === "approved" ? (
+                            <div>
+                              <RankBadge rank={item.instructor_profile?.level || item.instructor_profile?.instructor_rank} />
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-mid-gray/70 font-normal">
+                              Chưa xếp hạng
+                            </div>
+                          )}
                         </div>
                       </td>
 
                       {/* Payout Account */}
                       <td className="p-3.5">
-                        {item.payout_account ? (
+                        {item.application_status === "approved" && item.payout_account ? (
                           <div className="space-y-1">
                             <BankBadge provider={item.payout_account.provider} />
                             <div className="text-[10px] text-mid-gray truncate max-w-[150px]">
@@ -2830,8 +2841,8 @@ export default function InstructorUpgrades() {
                       )}
 
                       {activeDetailUser.is_resubmission && (
-                        <span className="px-2 py-0.5 text-[9px] font-semibold text-sky-700 border border-sky-200 bg-sky-50 rounded">
-                          Hồ sơ nộp lại
+                        <span className="px-2 py-0.5 text-[9px] font-bold text-danger-brick border border-danger-brick/30 bg-danger-brick/10 rounded">
+                          (Nộp lại)
                         </span>
                       )}
                     </div>
@@ -2917,7 +2928,13 @@ export default function InstructorUpgrades() {
                   <div className="flex justify-between items-center">
                     <span className="text-mid-gray">Phân cấp chuyên môn:</span>
                     <div>
-                      <RankBadge rank={activeDetailUser.instructor_profile?.level || activeDetailUser.instructor_profile?.instructor_rank} />
+                      {activeDetailUser.application_status === "approved" ? (
+                        <RankBadge rank={activeDetailUser.instructor_profile?.level || activeDetailUser.instructor_profile?.instructor_rank} />
+                      ) : (
+                        <span className="text-[11px] text-mid-gray font-normal italic">
+                          Chưa xếp hạng (Chờ duyệt)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2929,7 +2946,7 @@ export default function InstructorUpgrades() {
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
                     Tài khoản nhận tiền
                   </h4>
-                  {activeDetailUser.payout_account && (
+                  {activeDetailUser.application_status === "approved" && activeDetailUser.payout_account && (
                     <button
                       type="button"
                       onClick={() => navigate(`/admin/payout-accounts?open_payout_account_id=${activeDetailUser.payout_account.id}`)}
@@ -2939,7 +2956,7 @@ export default function InstructorUpgrades() {
                     </button>
                   )}
                 </div>
-                {activeDetailUser.payout_account ? (
+                {activeDetailUser.application_status === "approved" && activeDetailUser.payout_account ? (
                   <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
                     <div className="flex justify-between items-center">
                       <span className="text-mid-gray">
@@ -3023,8 +3040,8 @@ export default function InstructorUpgrades() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-[6px] border border-hairline bg-surface-alt p-4 text-center italic text-mid-gray/60">
-                    Chưa bổ sung thông tin tài khoản nhận tiền.
+                  <div className="rounded-[6px] border border-hairline bg-surface-alt p-4 text-center italic text-mid-gray/70">
+                    Chưa liên kết
                   </div>
                 )}
               </div>
@@ -3145,28 +3162,13 @@ export default function InstructorUpgrades() {
               <div className="flex justify-between">
                 <span className="text-mid-gray">Kinh nghiệm:</span>
                 <span className="font-semibold text-ink">
-                  {confirmModal.user?.instructor_profile?.experience_years} năm
-                  (
-                  {confirmModal.user?.instructor_profile?.level ||
-                    "Chưa phân cấp"}
-                  )
+                  {confirmModal.user?.instructor_profile?.experience_years ?? 0} năm kinh nghiệm
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-mid-gray">Tài khoản nhận tiền:</span>
-                <span
-                  className={cn(
-                    "font-semibold",
-                    confirmModal.user?.payout_account?.status === "active" ||
-                    confirmModal.user?.payout_account?.status === "verified" ||
-                    confirmModal.user?.payout_account?.status === "pending_verification"
-                      ? "text-success"
-                      : "text-danger-brick",
-                  )}
-                >
-                  {confirmModal.user?.payout_account
-                    ? `Đã liên kết (${confirmModal.user.payout_account.provider})`
-                    : "Chưa liên kết"}
+                <span className="font-semibold text-mid-gray/70 italic">
+                  Chưa liên kết
                 </span>
               </div>
               {confirmModal.error && (
