@@ -18,28 +18,28 @@ interface LearnerRoutesProps {
   handleLogout: () => void;
 }
 
-export const LearnerRoutes = ({ isLoggedIn, currentUser, setCurrentUser, navigateTo, handleLogout }: LearnerRoutesProps) => {
+const ProtectedRouteWrapper = ({ isLoggedIn, children }: { isLoggedIn: boolean, children: React.ReactNode }) => {
   const location = useLocation();
+  return isLoggedIn ? <>{children}</> : <Navigate to="/login" state={{ from: location.pathname }} replace />;
+};
 
-  const protectedRoute = (element: React.ReactNode) => {
-    return isLoggedIn ? element : <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  };
+export const LearnerRoutes = ({ isLoggedIn, currentUser, setCurrentUser, navigateTo, handleLogout }: LearnerRoutesProps) => {
 
   return (
     <>
       {/* Learning & Classroom */}
-      <Route path="/learn/:courseId" element={protectedRoute(<ClassroomPage />)} />
-      <Route path="/learning/:courseId" element={protectedRoute(<ClassroomPage />)} />
-      <Route path="/lessons/:courseId" element={protectedRoute(<ClassroomPage />)} />
-      <Route path="/learn/lessons/:courseId" element={protectedRoute(<ClassroomPage />)} />
+      <Route path="/learn/:courseId" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><ClassroomPage /></ProtectedRouteWrapper>} />
+      <Route path="/learning/:courseId" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><ClassroomPage /></ProtectedRouteWrapper>} />
+      <Route path="/lessons/:courseId" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><ClassroomPage /></ProtectedRouteWrapper>} />
+      <Route path="/learn/lessons/:courseId" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><ClassroomPage /></ProtectedRouteWrapper>} />
       
       {/* Dashboard & Profile */}
-      <Route path="/my-courses" element={protectedRoute(<MyCoursesPage />)} />
-      <Route path="/favorites" element={protectedRoute(<FavoritesPage />)} />
-      <Route path="/achievements" element={protectedRoute(<AchievementsPage />)} />
-      <Route path="/notifications" element={protectedRoute(<NotificationPage />)} />
-      <Route path="/certificates" element={protectedRoute(<CertificateCenterPage />)} />
-      <Route path="/purchase-history" element={protectedRoute(<PurchaseHistoryPage />)} />
+      <Route path="/my-courses" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><MyCoursesPage /></ProtectedRouteWrapper>} />
+      <Route path="/favorites" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><FavoritesPage /></ProtectedRouteWrapper>} />
+      <Route path="/achievements" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><AchievementsPage /></ProtectedRouteWrapper>} />
+      <Route path="/notifications" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><NotificationPage /></ProtectedRouteWrapper>} />
+      <Route path="/certificates" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><CertificateCenterPage /></ProtectedRouteWrapper>} />
+      <Route path="/purchase-history" element={<ProtectedRouteWrapper isLoggedIn={isLoggedIn}><PurchaseHistoryPage /></ProtectedRouteWrapper>} />
       
       <Route path="/settings" element={<Navigate to="/profile" replace />} />
       <Route path="/profile/:userId?" element={

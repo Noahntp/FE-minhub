@@ -57,15 +57,18 @@ const CartCheckoutPageWrapper = () => {
   );
 };
 
-export const CartRoutes = () => {
+const VNPayReturnPageWrapper = () => {
   const navigate = useNavigate();
   const navigateTo = (path: string) => navigate(path.startsWith('/') ? path : `/${path}`);
+  return <VNPayReturnPage onNavigate={navigateTo} />;
+};
 
+export const CartRoutes = () => {
   return (
     <>
       <Route path="/cart" element={<CartCheckoutPageWrapper />} />
       <Route path="/checkout" element={<CartCheckoutPageWrapper />} />
-      <Route path="/vnpay-return" element={<VNPayReturnPage onNavigate={navigateTo} />} />
+      <Route path="/vnpay-return" element={<VNPayReturnPageWrapper />} />
     </>
   );
 };
