@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Star, Users, Heart, ShoppingCart, Flame, Sparkles, GraduationCap, Clock } from 'lucide-react';
+import { Star, Users, Heart, ShoppingCart, Flame, Sparkles, GraduationCap, Clock, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
 import { useApp } from '@/app/AppContext';
@@ -48,7 +48,19 @@ export function HomeCourseCard({
   showProofBadge = false,
 }: HomeCourseCardProps) {
   const navigate = useNavigate();
-  const { favorites, setFavorites, currentUser } = useApp();
+  const { favorites, setFavorites, currentUser, isLoggedIn, enrolledCourseIds } = useApp();
+
+  const isEnrolled = Boolean(
+    currentUser &&
+    ((course as any)?.is_enrolled ||
+      (course as any)?.isEnrolled ||
+      enrolledCourseIds?.some(
+        (id) =>
+          String(id) === String(course.id) ||
+          String(id) === String((course as any).slug) ||
+          String(id) === String(course.realId)
+      ))
+  );
 
   const releaseProofText = course.publishedAt
     ? (course.publishedAt.startsWith('Ra mắt') || course.publishedAt.startsWith('Vừa')
@@ -65,7 +77,7 @@ export function HomeCourseCard({
       ? Math.min(100, Math.max(0, Math.round((course.completedStudentCount / course.rawStudentCount) * 100)))
       : course.averageProgress !== undefined && course.averageProgress !== null
       ? Math.min(100, Math.max(0, Math.round(course.averageProgress)))
-      : 80;
+      : null;
 
   const completedCountDisplay = course.completedStudentCount
     ? (course.completedStudentCount >= 1000
@@ -93,6 +105,12 @@ export function HomeCourseCard({
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!isLoggedIn) {
+      toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
+      navigate('/auth');
+      return;
+    }
 
     if (currentUser?.role === 'admin') {
       toast.error('Tài khoản Quản trị viên (Admin) không sử dụng danh sách yêu thích.');
@@ -134,8 +152,19 @@ export function HomeCourseCard({
     e.preventDefault();
     e.stopPropagation();
 
+    if (!isLoggedIn) {
+      toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
+      navigate('/auth');
+      return;
+    }
+
     if (currentUser?.role === 'admin') {
       toast.error('Tài khoản Quản trị viên (Admin) không thực hiện mua khóa học.');
+      return;
+    }
+
+    if (isEnrolled) {
+      navigate(`/learn/${courseTarget}`);
       return;
     }
 
@@ -235,7 +264,7 @@ export function HomeCourseCard({
           </div>
 
           {/* Completion Progress Bar */}
-          {showCompletionProgress && (
+          {showCompletionProgress && completionRate !== null && (
             <div className="mb-3 p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100/80 space-y-1.5 transition-all">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="flex items-center gap-1.5 font-bold text-slate-700">
@@ -317,13 +346,23 @@ export function HomeCourseCard({
           </div>
 
           {/* Nút Mua ngay / Học ngay (Chuẩn Full Width Không Vỡ Chữ) */}
-          <button
-            onClick={handleBuyNow}
-            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span>{course.isFree ? 'Đăng ký học ngay' : 'Mua ngay'}</span>
-          </button>
+          {isEnrolled ? (
+            <button
+              onClick={handleBuyNow}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-slate-900/20 active:scale-[0.98] transition-all"
+            >
+              <PlayCircle className="w-4 h-4" />
+              <span>Vào học</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleBuyNow}
+              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span>{course.isFree ? 'Đăng ký học ngay' : 'Mua ngay'}</span>
+            </button>
+          )}
 
         </div>
       </div>

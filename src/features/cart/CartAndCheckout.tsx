@@ -835,7 +835,7 @@ export default function CartAndCheckout({
                   1. Khóa học
                 </h2>
 
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex flex-col sm:flex-row items-start gap-4">
                     {/* Course Thumbnail */}
                     <div className="relative w-full sm:w-44 aspect-video rounded-xl overflow-hidden shrink-0 bg-slate-900 border border-slate-200/60">
@@ -1213,11 +1213,11 @@ export default function CartAndCheckout({
               {/* BOTTOM NAVIGATION ACTIONS */}
               <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={() => navigate('/cart')}
+                  onClick={() => navigate(-1)}
                   className="px-5 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-extrabold inline-flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>Quay lại giỏ hàng</span>
+                  <span>Quay lại</span>
                 </button>
 
                 <div className="flex items-center gap-4">
@@ -1240,7 +1240,7 @@ export default function CartAndCheckout({
             </div>
 
             {/* RIGHT COLUMN: SIDEBAR ORDER SUMMARY */}
-            <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
+            <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6 lg:mt-[40px]">
               
               <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-5">
                 
@@ -1250,16 +1250,16 @@ export default function CartAndCheckout({
                     Đơn hàng của bạn
                   </h3>
                   <button
-                    onClick={() => navigate('/cart')}
+                    onClick={() => navigate(-1)}
                     className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
                   >
-                    Sửa giỏ hàng
+                    Đổi khóa học
                   </button>
                 </div>
 
                 {/* Selected Item Preview */}
                 <div className="flex items-center gap-3">
-                  <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center">
+                  <div className="w-20 aspect-video rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-100 flex items-center justify-center">
                     <img
                       src={resolveImageUrl(checkoutCourse.image)}
                       alt={checkoutCourse.title}
@@ -1306,7 +1306,7 @@ export default function CartAndCheckout({
                 <div className="space-y-2 border-t border-slate-100 pt-3">
                   <div className="flex items-center justify-between text-xs font-medium text-slate-600">
                     <span>Tạm tính</span>
-                    <span className="font-bold text-slate-900">{formatVND(finalTotal)}</span>
+                    <span className="font-bold text-slate-900">{formatVND(salePrice)}</span>
                   </div>
 
                   <div className="flex items-start justify-between pt-2 border-t border-slate-100">

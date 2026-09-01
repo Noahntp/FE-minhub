@@ -360,27 +360,10 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     if (!newNote.trim() || !activeLesson?.id) return;
     const noteText = newNote.trim();
     const timeSeconds = parseMMSSToSeconds(customNoteTime);
-    const timeFormatted = formatSecondsToMMSS(timeSeconds);
 
+    // Prevent double clicks by clearing input synchronously
+    setNewNote('');
     setIsSubmittingNote(true);
-
-    const newNoteObj = {
-      id: 'local-' + Date.now(),
-      time: timeFormatted,
-      note_time_second: timeSeconds,
-      text: noteText,
-      date: 'Vừa xong',
-    };
-
-    const storageKey = `mindhub_notes_list_${course?.id || 'c1'}_${activeLesson.id}`;
-
-    setSavedNotes((prev) => {
-      const updated = [newNoteObj, ...prev];
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
 
     try {
       const numericId = getNumericLessonId(activeLesson.id);
@@ -388,10 +371,9 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
       toast.success('Đã lưu ghi chú bài học thành công!');
       fetchNotesData();
     } catch (err: any) {
-      console.warn('API add note note:', err?.message);
-      toast.success('Đã lưu ghi chú bài học thành công!');
+      console.warn('API add note error:', err?.message);
+      toast.error('Có lỗi xảy ra khi lưu ghi chú!');
     } finally {
-      setNewNote('');
       setIsTimeManuallyEdited(false);
       setIsSubmittingNote(false);
     }

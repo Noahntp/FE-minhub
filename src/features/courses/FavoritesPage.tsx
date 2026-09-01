@@ -179,7 +179,7 @@ export default function FavoritesPage() {
   const [isLevelOpen, setIsLevelOpen] = useState(true);
   const [isPriceOpen, setIsPriceOpen] = useState(true);
 
-  const { favorites, setFavorites } = useApp();
+  const { favorites, setFavorites, isLoggedIn } = useApp();
 
   // Fetch categories from API /api/categories
   useEffect(() => {
@@ -736,6 +736,11 @@ export default function FavoritesPage() {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (!isLoggedIn) {
+                                    toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
+                                    navigate('/auth');
+                                    return;
+                                  }
                                   const isFree = Boolean((course as any).isFree || Number(course.price || 0) === 0);
                                   if (isFree) {
                                     toast.success(`Đăng ký tham gia thành công khóa học miễn phí: ${course.title}`);
