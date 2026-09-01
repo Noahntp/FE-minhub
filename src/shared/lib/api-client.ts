@@ -109,6 +109,10 @@ async function executeFetch<T>(url: string, options: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('mindhub-auth-unauthorized', { detail: { message: 'Phiên đăng nhập đã hết hạn' } }));
+    }
+    
     const errText = await response.text();
     let errJson;
     try {
@@ -134,6 +138,10 @@ async function executeFetch<T>(url: string, options: RequestInit): Promise<T> {
   const json = await response.json();
   // Unwrap Laravel ApiResponse envelope: { success, data, message }
   if (json && typeof json === 'object' && 'data' in json && 'success' in json) {
+    if (json.success === false) {
+      throw new ApiError(json.message || 'Yêu cầu không thể hoàn thành', response.status === 200 ? 400 : response.status, json.errors);
+    }
+    
     if (json.data && typeof json.data === 'object') {
       if (json.pagination && !(json.data as any).pagination) {
         (json.data as any).pagination = json.pagination;
