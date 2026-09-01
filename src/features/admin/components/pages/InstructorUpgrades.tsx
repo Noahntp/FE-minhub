@@ -510,6 +510,19 @@ export default function InstructorUpgrades() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isDrawerOpen, searchParams]);
 
+  // Auto smart scroll down to list section when status or open_upgrade_id is in URL
+  useEffect(() => {
+    if (statusParam || searchParams.has("status") || searchParams.has("open_upgrade_id")) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById("upgrade-list-section");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [statusParam, searchParams]);
+
   // Update query parameters helper
   const updateFilters = (newFilters: Record<string, any>) => {
     const nextParams = new URLSearchParams(searchParams);

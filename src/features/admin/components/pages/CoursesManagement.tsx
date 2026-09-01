@@ -512,6 +512,18 @@ export default function CoursesManagement() {
     perPageParam,
   ]);
 
+  // Auto smart scroll down to courses table when status or open_course_id is present
+  useEffect(() => {
+    if (statusParam || searchParams.has("status") || searchParams.has("open_course_id")) {
+      const timer = setTimeout(() => {
+        if (tableRef.current) {
+          tableRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [statusParam, searchParams]);
+
   const loadCourseDetail = async (courseId: number) => {
     setDetailLoading(true);
     setIsDrawerOpen(true);

@@ -64,7 +64,7 @@ export default function PayoutAccounts() {
   const [perPage, setPerPage] = useState(20);
   const [search, setSearch] = useState('');
   const [provider, setProvider] = useState('all');
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState(searchParams.get('status') || 'all');
 
   // Handle clicking on stat cards to filter and scroll
   const handleFilterClick = (newStatus: string, label: string) => {
@@ -182,8 +182,24 @@ export default function PayoutAccounts() {
     }
   };
 
-  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
+  // Sync open drawer & URL status on mount and on browser Back/Forward (searchParams change)
   useEffect(() => {
+    const urlStatus = searchParams.get('status');
+    if (urlStatus && urlStatus !== status) {
+      setStatus(urlStatus);
+      setPage(1);
+    }
+
+    if (urlStatus || searchParams.has('open_payout_account_id')) {
+      const timer = setTimeout(() => {
+        const section = document.getElementById('payout-accounts-list-section');
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+
     const openId = searchParams.get('open_payout_account_id');
     if (openId) {
       const pid = Number(openId);
