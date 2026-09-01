@@ -66,6 +66,7 @@ export default function CourseDetailPage() {
     setEnrolledCourseIds,
     openTrialModal,
     currentUser,
+    isLoggedIn,
   } = useApp();
   const [activeTab, setActiveTab] = useState<
     "overview" | "curriculum" | "instructor" | "reviews" | "faq"
@@ -280,6 +281,13 @@ export default function CourseDetailPage() {
 
   const handleAddToCart = () => {
     if (!course) return;
+    if (!isLoggedIn) {
+      toast.error(
+        "Vui lòng đăng nhập để thực hiện chức năng này.",
+      );
+      navigate("/auth");
+      return;
+    }
     if (currentUser?.role === "admin") {
       toast.error(
         "Tài khoản Quản trị viên (Admin) không thực hiện mua khóa học.",
@@ -295,6 +303,13 @@ export default function CourseDetailPage() {
 
   const handleEnrollNow = () => {
     if (!course) return;
+    if (!isLoggedIn) {
+      toast.error(
+        "Vui lòng đăng nhập để thực hiện chức năng này.",
+      );
+      navigate("/auth");
+      return;
+    }
     if (currentUser?.role === "admin") {
       toast.error(
         "Tài khoản Quản trị viên (Admin) không thực hiện mua khóa học hoặc tham gia học.",
@@ -322,6 +337,13 @@ export default function CourseDetailPage() {
 
   const handleToggleWishlist = async () => {
     if (!course) return;
+    if (!isLoggedIn) {
+      toast.error(
+        "Vui lòng đăng nhập để thực hiện chức năng này.",
+      );
+      navigate("/auth");
+      return;
+    }
     if (currentUser?.role === "admin") {
       toast.error(
         "Tài khoản Quản trị viên (Admin) không sử dụng danh sách yêu thích.",

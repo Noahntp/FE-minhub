@@ -2,8 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Flame } from 'lucide-react';
 import { HomeCourseCard, HomeCourseItem } from './HomeCourseCard';
+import { useApp } from '@/app/AppContext';
 
 export function FeaturedCoursesSection({ courses }: { courses: HomeCourseItem[] }) {
+  const { isLoggedIn } = useApp();
   if (!courses || courses.length === 0) return null;
 
   return (
@@ -41,7 +43,7 @@ export function FeaturedCoursesSection({ courses }: { courses: HomeCourseItem[] 
               key={course.id}
               course={course}
               tagVariant="hot"
-              showCompletionProgress={true}
+              showCompletionProgress={isLoggedIn}
             />
           ))}
         </div>
