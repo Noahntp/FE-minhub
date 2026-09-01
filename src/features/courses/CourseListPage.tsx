@@ -207,8 +207,8 @@ export default function CourseListPage() {
   const [selectedDurations, setSelectedDurations] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>('newest');
   
-  const { data: homeData } = useHomepageData();
-  const coursesBanner = homeData?.banners?.find(b => b.position === 'courses_hero')?.image_url || '/courses-hero-illustration.png';
+  const { data: homeData, isLoading } = useHomepageData();
+  const coursesBanner = homeData?.banners?.find(b => b.position === 'courses_hero')?.image_url || 'https://res.cloudinary.com/hcoy6dgr/image/upload/v1788251128/mindhub/banners/courses_hero.jpg';
   const [currentPage, setCurrentPage] = useState(1);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 

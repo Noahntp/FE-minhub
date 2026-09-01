@@ -99,9 +99,9 @@ export default function FAQPage() {
   const [openFaqIds, setOpenFaqIds] = useState<Record<string, boolean>>({ 'faq-pay-1': true });
   const [votedMap, setVotedMap] = useState<Record<string, 'up' | 'down'>>({});
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
-  const { data: homeData } = useHomepageData();
+  const { data: homeData, isLoading: homeIsLoading } = useHomepageData();
   
-  const faqBanner = homeData?.banners?.find(b => b.position === 'faq_hero')?.image_url || '/faq-hero-illustration.png';
+  const faqBanner = homeData?.banners?.find(b => b.position === 'faq_hero')?.image_url || 'https://res.cloudinary.com/hcoy6dgr/image/upload/v1788251134/mindhub/banners/faq_hero.jpg';
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
