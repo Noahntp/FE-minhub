@@ -284,6 +284,7 @@ function AppRoutes() {
     enrolledCourseIds,
     courses,
     favorites,
+    isInitializingAuth,
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -346,6 +347,10 @@ function AppRoutes() {
     }
   };
 
+  if (isInitializingAuth) {
+    return <PageLoader />;
+  }
+
   return (
     <AnimatePresence mode="wait">
       <Suspense fallback={<PageLoader />}>
@@ -372,12 +377,12 @@ function AppRoutes() {
             {/* Course Discovery & Learning */}
             <Route path="/courses/:courseId" element={<CourseDetailPage />} />
             <Route path="/courses" element={<CourseListPage />} />
-            <Route path="/learn/:courseId" element={<ClassroomPage />} />
-            <Route path="/learning/:courseId" element={<ClassroomPage />} />
-            <Route path="/lessons/:courseId" element={<ClassroomPage />} />
+            <Route path="/learn/:courseId" element={isLoggedIn ? <ClassroomPage /> : <Navigate to="/login" state={{ from: location.pathname }} replace />} />
+            <Route path="/learning/:courseId" element={isLoggedIn ? <ClassroomPage /> : <Navigate to="/login" state={{ from: location.pathname }} replace />} />
+            <Route path="/lessons/:courseId" element={isLoggedIn ? <ClassroomPage /> : <Navigate to="/login" state={{ from: location.pathname }} replace />} />
             <Route
               path="/learn/lessons/:courseId"
-              element={<ClassroomPage />}
+              element={isLoggedIn ? <ClassroomPage /> : <Navigate to="/login" state={{ from: location.pathname }} replace />}
             />
             <Route path="/category/:slug" element={<CategoryDetailPage />} />
             <Route path="/roadmaps" element={<RoadmapsPage />} />

@@ -20,6 +20,7 @@ interface AppContextType {
   setCurrentUser: React.Dispatch<React.SetStateAction<UserType>>;
   isLoggedIn: boolean;
   setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
+  isInitializingAuth: boolean;
   courses: Course[];
   setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
   favorites: string[];
@@ -70,13 +71,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('mindhub_is_logged_in');
-      return stored === null || stored === 'undefined' || stored === 'null'
-        ? true
-        : stored === 'true';
+      return stored === 'true';
     } catch (e) {
       return true;
     }
   });
+
+  const [isInitializingAuth, setIsInitializingAuth] = useState<boolean>(true);
 
   // Fetch fresh profile from Backend database on app mount/reload if token exists
   useEffect(() => {
@@ -108,10 +109,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               } catch (e) {}
               return updated;
             });
+            setIsLoggedIn(true);
+            localStorage.setItem('mindhub_is_logged_in', 'true');
           }
         })
         .catch(err => {
           console.warn('Could not fetch fresh user profile on app load:', err);
+          setIsLoggedIn(false);
+          setCurrentUser(INITIAL_USER);
+          localStorage.removeItem('mindhub_api_token');
+          localStorage.removeItem('mindhub_is_logged_in');
+          localStorage.removeItem('mindhub_current_user');
+        })
+        .finally(() => {
+          setIsInitializingAuth(false);
         });
 
       apiFetch<any>('/me/courses')
@@ -127,6 +138,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         })
         .catch(() => {});
+    } else {
+      setIsInitializingAuth(false);
     }
   }, []);
 
@@ -200,6 +213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUser,
         isLoggedIn,
         setIsLoggedIn,
+        isInitializingAuth,
         courses,
         setCourses,
         favorites,

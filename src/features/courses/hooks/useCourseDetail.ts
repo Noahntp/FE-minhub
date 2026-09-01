@@ -231,53 +231,17 @@ export function useCourseDetail(courseId: string | undefined): UseCourseDetailRe
         };
       }
 
-      // 4. Dynamic generic fallback for any unknown ID
+      // 4. If not found, throw error instead of dynamic fallback
       if (!foundCourse) {
-        const cleanTitle = courseId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        foundCourse = {
-          id: courseId,
-          title: cleanTitle,
-          subtitle: `Khóa học ${cleanTitle} từ cơ bản đến nâng cao cho người mới bắt đầu.`,
-          description: `<p>Khóa học ${cleanTitle} mang lại nền tảng vững chắc và giúp bạn làm chủ công nghệ nhanh chóng.</p>`,
-          category: 'Development',
-          subcategory: 'Web Development',
-          instructorId: 'inst-1',
-          instructorName: 'Nguyễn Văn A',
-          instructorTitle: 'Giảng viên MindHub',
-          instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-          instructorBio: 'Chuyên gia giàu kinh nghiệm tại MindHub.',
-          price: 499000,
-          salePrice: 299000,
-          rating: 4.8,
-          reviewCount: 950,
-          enrolledCount: 8600,
-          completionRate: 85,
-          isFeatured: true,
-          isBestseller: true,
-          isNew: false,
-          image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&q=80',
-          requirements: ['Máy tính cá nhân', 'Kiến thức cơ bản'],
-          willLearn: [
-            `Làm chủ kiến thức cốt lõi của ${cleanTitle}`,
-            'Thực hành làm dự án thực tế',
-            'Tự tin áp dụng vào công việc hàng ngày'
-          ],
-          status: 'active',
-          chapters: [
-            {
-              id: 'ch1',
-              title: 'Chương 1: Giới thiệu khóa học',
-              lessons: [
-                { id: '1', title: '1.1 Khái niệm cơ bản', type: 'video', duration: '08:00', isPreview: true },
-                { id: '2', title: '1.2 Hướng dẫn thực hành', type: 'video', duration: '14:20', isPreview: true }
-              ]
-            }
-          ]
-        };
+        if (isMounted) {
+          setError(new Error('Course not found'));
+          setIsLoading(false);
+        }
+        return;
       }
 
       if (isMounted) {
-        setCourse(foundCourse);
+        setCourse(foundCourse as Course);
         setIsLoading(false);
       }
     }

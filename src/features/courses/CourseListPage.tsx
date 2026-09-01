@@ -196,7 +196,7 @@ const ALL_COURSES_DATA: HomeCourseItem[] = [
 ];
 
 export default function CourseListPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -239,7 +239,46 @@ export default function CourseListPage() {
     if (coupon) {
       toast.success(`Đã tự động kích hoạt mã ưu đãi ${coupon.toUpperCase()} (-50%) cho bạn!`);
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync state back to URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    
+    if (selectedCategories.length > 0) {
+      params.set('category', selectedCategories.join(','));
+      params.delete('categories');
+    } else {
+      params.delete('category');
+      params.delete('categories');
+    }
+    
+    if (selectedPriceType !== 'all') {
+      params.set('priceType', selectedPriceType);
+    } else {
+      params.delete('priceType');
+      params.delete('free');
+    }
+
+    if (sortBy !== 'newest') {
+      params.set('sort', sortBy);
+    } else {
+      params.delete('sort');
+    }
+    
+    if (activeSearch) {
+      params.set('search', activeSearch);
+    } else {
+      params.delete('search');
+      params.delete('query');
+      params.delete('q');
+    }
+
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [selectedCategories, selectedPriceType, sortBy, activeSearch]);
 
   // Accordion Section Expand States
   const [accordionOpen, setAccordionOpen] = useState({
