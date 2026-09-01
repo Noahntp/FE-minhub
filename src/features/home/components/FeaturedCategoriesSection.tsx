@@ -3,11 +3,22 @@ import { Link } from 'react-router-dom';
 import { 
   Code, Globe, Server, Monitor, Cpu, Cloud, 
   Smartphone, ShieldCheck, Database, Palette, 
-  Gamepad2, ChevronLeft, ChevronRight, ArrowRight, Sparkles 
+  Gamepad2, ChevronLeft, ChevronRight, ArrowRight, Sparkles,
+  LucideIcon
 } from 'lucide-react';
 
 interface FeaturedCategoriesSectionProps {
   categories?: any[];
+}
+
+interface CategoryDisplayItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  coursesCount: string;
+  icon: LucideIcon;
+  bgColor: string;
+  slug: string;
 }
 
 export function FeaturedCategoriesSection({ categories: apiCategories }: FeaturedCategoriesSectionProps) {
@@ -15,14 +26,61 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const defaultCategories = [
+  const categoryPresets: { icon: LucideIcon; bgColor: string }[] = [
+    {
+      icon: Code,
+      bgColor: 'bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-100/80 group-hover:border-emerald-200',
+    },
+    {
+      icon: Globe,
+      bgColor: 'bg-blue-50 text-blue-600 border-blue-100 group-hover:bg-blue-100/80 group-hover:border-blue-200',
+    },
+    {
+      icon: Server,
+      bgColor: 'bg-amber-50 text-amber-600 border-amber-100 group-hover:bg-amber-100/80 group-hover:border-amber-200',
+    },
+    {
+      icon: Monitor,
+      bgColor: 'bg-indigo-50 text-indigo-600 border-indigo-100 group-hover:bg-indigo-100/80 group-hover:border-indigo-200',
+    },
+    {
+      icon: Cpu,
+      bgColor: 'bg-teal-50 text-teal-600 border-teal-100 group-hover:bg-teal-100/80 group-hover:border-teal-200',
+    },
+    {
+      icon: Cloud,
+      bgColor: 'bg-sky-50 text-sky-600 border-sky-100 group-hover:bg-sky-100/80 group-hover:border-sky-200',
+    },
+    {
+      icon: Smartphone,
+      bgColor: 'bg-purple-50 text-purple-600 border-purple-100 group-hover:bg-purple-100/80 group-hover:border-purple-200',
+    },
+    {
+      icon: ShieldCheck,
+      bgColor: 'bg-rose-50 text-rose-600 border-rose-100 group-hover:bg-rose-100/80 group-hover:border-rose-200',
+    },
+    {
+      icon: Database,
+      bgColor: 'bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-100/80 group-hover:border-cyan-200',
+    },
+    {
+      icon: Palette,
+      bgColor: 'bg-pink-50 text-pink-600 border-pink-100 group-hover:bg-pink-100/80 group-hover:border-pink-200',
+    },
+    {
+      icon: Gamepad2,
+      bgColor: 'bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-100/80 group-hover:border-orange-200',
+    },
+  ];
+
+  const defaultCategories: CategoryDisplayItem[] = [
     {
       id: 'programming',
       title: 'Lập trình',
       subtitle: 'Nền tảng & tư duy',
       coursesCount: '142 khóa',
-      icon: <Code className="w-5 h-5 text-emerald-600" />,
-      bgColor: 'bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white',
+      icon: Code,
+      bgColor: categoryPresets[0].bgColor,
       slug: 'lap-trinh',
     },
     {
@@ -30,8 +88,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'Web Development',
       subtitle: 'Xây dựng website',
       coursesCount: '215 khóa',
-      icon: <Globe className="w-5 h-5 text-blue-600" />,
-      bgColor: 'bg-blue-50 text-blue-600 border-blue-100 group-hover:bg-blue-600 group-hover:text-white',
+      icon: Globe,
+      bgColor: categoryPresets[1].bgColor,
       slug: 'web-development',
     },
     {
@@ -39,8 +97,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'Backend',
       subtitle: 'Xử lý server, API',
       coursesCount: '98 khóa',
-      icon: <Server className="w-5 h-5 text-amber-600" />,
-      bgColor: 'bg-amber-50 text-amber-600 border-amber-100 group-hover:bg-amber-600 group-hover:text-white',
+      icon: Server,
+      bgColor: categoryPresets[2].bgColor,
       slug: 'backend',
     },
     {
@@ -48,8 +106,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'Frontend',
       subtitle: 'Giao diện người dùng',
       coursesCount: '130 khóa',
-      icon: <Monitor className="w-5 h-5 text-indigo-600" />,
-      bgColor: 'bg-indigo-50 text-indigo-600 border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white',
+      icon: Monitor,
+      bgColor: categoryPresets[3].bgColor,
       slug: 'frontend',
     },
     {
@@ -57,8 +115,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'AI & Dữ liệu',
       subtitle: 'AI, ML, Data Science',
       coursesCount: '86 khóa',
-      icon: <Cpu className="w-5 h-5 text-teal-600" />,
-      bgColor: 'bg-teal-50 text-teal-600 border-teal-100 group-hover:bg-teal-600 group-hover:text-white',
+      icon: Cpu,
+      bgColor: categoryPresets[4].bgColor,
       slug: 'ai-data',
     },
     {
@@ -66,8 +124,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'DevOps & Cloud',
       subtitle: 'Triển khai & vận hành',
       coursesCount: '64 khóa',
-      icon: <Cloud className="w-5 h-5 text-sky-600" />,
-      bgColor: 'bg-sky-50 text-sky-600 border-sky-100 group-hover:bg-sky-600 group-hover:text-white',
+      icon: Cloud,
+      bgColor: categoryPresets[5].bgColor,
       slug: 'devops',
     },
     {
@@ -75,8 +133,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'Lập trình Mobile',
       subtitle: 'iOS, Android, React Native',
       coursesCount: '75 khóa',
-      icon: <Smartphone className="w-5 h-5 text-purple-600" />,
-      bgColor: 'bg-purple-50 text-purple-600 border-purple-100 group-hover:bg-purple-600 group-hover:text-white',
+      icon: Smartphone,
+      bgColor: categoryPresets[6].bgColor,
       slug: 'mobile-app',
     },
     {
@@ -84,8 +142,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'An toàn thông tin',
       subtitle: 'Bảo mật & Hacking',
       coursesCount: '42 khóa',
-      icon: <ShieldCheck className="w-5 h-5 text-rose-600" />,
-      bgColor: 'bg-rose-50 text-rose-600 border-rose-100 group-hover:bg-rose-600 group-hover:text-white',
+      icon: ShieldCheck,
+      bgColor: categoryPresets[7].bgColor,
       slug: 'cyber-security',
     },
     {
@@ -93,8 +151,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'Cơ sở dữ liệu',
       subtitle: 'SQL, NoSQL, Optimization',
       coursesCount: '58 khóa',
-      icon: <Database className="w-5 h-5 text-cyan-600" />,
-      bgColor: 'bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-600 group-hover:text-white',
+      icon: Database,
+      bgColor: categoryPresets[8].bgColor,
       slug: 'database',
     },
     {
@@ -102,8 +160,8 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'Thiết kế UI/UX',
       subtitle: 'Figma, Product Design',
       coursesCount: '91 khóa',
-      icon: <Palette className="w-5 h-5 text-pink-600" />,
-      bgColor: 'bg-pink-50 text-pink-600 border-pink-100 group-hover:bg-pink-600 group-hover:text-white',
+      icon: Palette,
+      bgColor: categoryPresets[9].bgColor,
       slug: 'ui-ux-design',
     },
     {
@@ -111,38 +169,10 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
       title: 'Lập trình Game',
       subtitle: 'Unity, Unreal Engine',
       coursesCount: '39 khóa',
-      icon: <Gamepad2 className="w-5 h-5 text-orange-600" />,
-      bgColor: 'bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-600 group-hover:text-white',
+      icon: Gamepad2,
+      bgColor: categoryPresets[10].bgColor,
       slug: 'game-development',
     },
-  ];
-
-  const icons = [
-    <Code className="w-5 h-5 transition-colors" />,
-    <Globe className="w-5 h-5 transition-colors" />,
-    <Server className="w-5 h-5 transition-colors" />,
-    <Monitor className="w-5 h-5 transition-colors" />,
-    <Cpu className="w-5 h-5 transition-colors" />,
-    <Cloud className="w-5 h-5 transition-colors" />,
-    <Smartphone className="w-5 h-5 transition-colors" />,
-    <ShieldCheck className="w-5 h-5 transition-colors" />,
-    <Database className="w-5 h-5 transition-colors" />,
-    <Palette className="w-5 h-5 transition-colors" />,
-    <Gamepad2 className="w-5 h-5 transition-colors" />
-  ];
-
-  const bgColors = [
-    'bg-emerald-50 text-emerald-600 border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white',
-    'bg-blue-50 text-blue-600 border-blue-100 group-hover:bg-blue-600 group-hover:text-white',
-    'bg-amber-50 text-amber-600 border-amber-100 group-hover:bg-amber-600 group-hover:text-white',
-    'bg-indigo-50 text-indigo-600 border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white',
-    'bg-teal-50 text-teal-600 border-teal-100 group-hover:bg-teal-600 group-hover:text-white',
-    'bg-sky-50 text-sky-600 border-sky-100 group-hover:bg-sky-600 group-hover:text-white',
-    'bg-purple-50 text-purple-600 border-purple-100 group-hover:bg-purple-600 group-hover:text-white',
-    'bg-rose-50 text-rose-600 border-rose-100 group-hover:bg-rose-600 group-hover:text-white',
-    'bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-600 group-hover:text-white',
-    'bg-pink-50 text-pink-600 border-pink-100 group-hover:bg-pink-600 group-hover:text-white',
-    'bg-orange-50 text-orange-600 border-orange-100 group-hover:bg-orange-600 group-hover:text-white',
   ];
 
   const cleanSubtitle = (desc?: string) => {
@@ -151,16 +181,19 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
     return cleaned || 'Chủ đề phong phú';
   };
 
-  const categories = Array.isArray(apiCategories) && apiCategories.length > 0
-    ? apiCategories.map((cat, idx) => ({
-        id: String(cat.id || cat.slug || idx),
-        title: cat.name || 'Danh mục',
-        subtitle: cleanSubtitle(cat.description),
-        coursesCount: `${cat.courses_count ?? 0} khóa`,
-        icon: icons[idx % icons.length],
-        bgColor: bgColors[idx % bgColors.length],
-        slug: cat.slug || '',
-      }))
+  const categories: CategoryDisplayItem[] = Array.isArray(apiCategories) && apiCategories.length > 0
+    ? apiCategories.map((cat, idx) => {
+        const preset = categoryPresets[idx % categoryPresets.length];
+        return {
+          id: String(cat.id || cat.slug || idx),
+          title: cat.name || 'Danh mục',
+          subtitle: cleanSubtitle(cat.description),
+          coursesCount: `${cat.courses_count ?? 0} khóa`,
+          icon: preset.icon,
+          bgColor: preset.bgColor,
+          slug: cat.slug || '',
+        };
+      })
     : defaultCategories;
 
   const checkScrollState = () => {
@@ -253,36 +286,39 @@ export function FeaturedCategoriesSection({ categories: apiCategories }: Feature
             className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory py-3 -mx-1 px-1 scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                to={`/category/${cat.slug}`}
-                className="group flex-none w-[185px] sm:w-[210px] lg:w-[225px] snap-start bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-200 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-3 rounded-2xl border ${cat.bgColor} transition-all duration-300 shadow-sm flex items-center justify-center shrink-0`}>
-                      {cat.icon}
+            {categories.map((cat) => {
+              const IconComponent = cat.icon;
+              return (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.slug}`}
+                  className="group flex-none w-[185px] sm:w-[210px] lg:w-[225px] snap-start bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-200 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`p-3 rounded-2xl border ${cat.bgColor} transition-all duration-300 shadow-sm flex items-center justify-center shrink-0`}>
+                        <IconComponent className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors shrink-0">
+                        {cat.coursesCount}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors shrink-0">
-                      {cat.coursesCount}
-                    </span>
+
+                    <h3 className="font-extrabold text-slate-900 text-sm sm:text-base group-hover:text-emerald-600 transition-colors line-clamp-1 truncate" title={cat.title}>
+                      {cat.title}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium mt-1 line-clamp-1 truncate" title={cat.subtitle}>
+                      {cat.subtitle}
+                    </p>
                   </div>
 
-                  <h3 className="font-extrabold text-slate-900 text-sm sm:text-base group-hover:text-emerald-600 transition-colors line-clamp-1 truncate" title={cat.title}>
-                    {cat.title}
-                  </h3>
-                  <p className="text-[11px] text-slate-500 font-medium mt-1 line-clamp-1 truncate" title={cat.subtitle}>
-                    {cat.subtitle}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">
-                  <span className="truncate">Khám phá ngay</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform shrink-0" />
-                </div>
-              </Link>
-            ))}
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-400 group-hover:text-emerald-600 transition-colors">
+                    <span className="truncate">Khám phá ngay</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform shrink-0" />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
         </div>
