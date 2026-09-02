@@ -3014,9 +3014,15 @@ export default function UsersManagement() {
                         Quản trị viên
                       </span>
                     ) : activeDetailUser.role === "instructor" ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-success-soft text-success border border-success/20">
-                        Giảng viên
-                      </span>
+                      activeDetailUser.has_pending_upgrade ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                          Giảng viên (Chờ duyệt)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-success-soft text-success border border-success/20">
+                          Giảng viên
+                        </span>
+                      )
                     ) : (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-canvas border border-hairline text-mid-gray">
                         Học viên
@@ -3031,6 +3037,32 @@ export default function UsersManagement() {
                   </div>
                 </div>
               </div>
+
+              {/* Upgrade Request Banner */}
+              {activeDetailUser.has_pending_upgrade && (
+                <div className="rounded-[8px] border border-amber-300 bg-amber-50/90 p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <span>Có hồ sơ Giảng viên chờ duyệt</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 leading-snug">
+                      Tài khoản này đang nộp đơn xin nâng cấp lên Giảng viên.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeDetailDrawer();
+                      navigate(`/admin/instructor-upgrades?open_upgrade_id=${activeDetailUser.id}`);
+                    }}
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-[6px] bg-amber-600 hover:bg-amber-700 text-white shrink-0 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
+                  >
+                    <span>Duyệt hồ sơ</span>
+                    <span aria-hidden="true">&rarr;</span>
+                  </button>
+                </div>
+              )}
 
               {/* General Information Section */}
               <div className="space-y-3">
@@ -3069,20 +3101,20 @@ export default function UsersManagement() {
                   <div className="flex justify-between">
                     <span className="text-mid-gray">Trạng thái:</span>
                     <span className="font-medium text-ink">
-                      {activeDetailUser.status === "active"
-                        ? "Đang hoạt động"
-                        : activeDetailUser.status === "inactive"
+                      {activeDetailUser.status === "locked" || activeDetailUser.locked
+                        ? "Đã khóa"
+                        : activeDetailUser.status === "inactive" || !activeDetailUser.last_login_at
                           ? "Không hoạt động"
-                          : "Đã khóa"}
+                          : "Đang hoạt động"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-mid-gray">Trạng thái hiệu lực:</span>
                     <span className="font-medium text-ink">
-                      {activeDetailUser.effective_status === "locked"
+                      {activeDetailUser.effective_status === "locked" || activeDetailUser.locked
                         ? "Bị khóa"
-                        : activeDetailUser.effective_status === "inactive"
-                          ? "Vô hiệu hóa"
+                        : activeDetailUser.effective_status === "inactive" || !activeDetailUser.last_login_at
+                          ? "Không hoạt động (Chưa đăng nhập)"
                           : "Bình thường"}
                     </span>
                   </div>
@@ -3159,48 +3191,66 @@ export default function UsersManagement() {
 
             {/* Footer actions inside drawer */}
             <div className="p-4 border-t border-hairline bg-surface-alt flex flex-wrap gap-2 justify-end shrink-0">
-              <button
-                type="button"
-                onClick={() => handleOpenEditModal(activeDetailUser)}
-                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
-              >
-                Chỉnh sửa
-              </button>
-              {activeDetailUser.id !== CURRENT_ADMIN_ID && (
+              {activeDetailUser.has_pending_upgrade ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeDetailDrawer();
+                    navigate(`/admin/instructor-upgrades?open_upgrade_id=${activeDetailUser.id}`);
+                  }}
+                  className="px-5 py-2 text-xs font-bold rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all cursor-pointer border-none flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Duyệt hồ sơ</span>
+                </button>
+              ) : (
                 <>
-                  {activeDetailUser.locked ||
-                  activeDetailUser.status === "locked" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditModal(activeDetailUser)}
+                    className="px-4 py-1.5 text-xs font-semibold rounded-full bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                  >
+                    Chỉnh sửa
+                  </button>
+                  {activeDetailUser.id !== CURRENT_ADMIN_ID && (
+                    <>
+                      {activeDetailUser.locked ||
+                      activeDetailUser.status === "locked" ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleQuickAction("unlock", activeDetailUser)
+                          }
+                          className="px-4 py-1.5 text-xs font-semibold rounded-full bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                        >
+                          Mở khóa
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleQuickAction("lock", activeDetailUser)
+                          }
+                          className="px-4 py-1.5 text-xs font-semibold rounded-full bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                        >
+                          Khóa tài khoản
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {activeDetailUser.id === CURRENT_ADMIN_ID && (
                     <button
                       type="button"
-                      onClick={() =>
-                        handleQuickAction("unlock", activeDetailUser)
-                      }
-                      className="px-4 py-1.5 text-xs font-semibold rounded-full bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
-                    >
-                      Mở khóa
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleQuickAction("lock", activeDetailUser)
-                      }
-                      className="px-4 py-1.5 text-xs font-semibold rounded-full bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                      disabled
+                      title="Bạn không thể tự khóa tài khoản của chính mình."
+                      className="px-4 py-1.5 text-xs font-semibold rounded-full bg-mid-gray/25 text-mid-gray cursor-not-allowed border-none"
                     >
                       Khóa tài khoản
                     </button>
                   )}
                 </>
-              )}
-              {activeDetailUser.id === CURRENT_ADMIN_ID && (
-                <button
-                  type="button"
-                  disabled
-                  title="Bạn không thể tự khóa tài khoản của chính mình."
-                  className="px-4 py-1.5 text-xs font-semibold rounded-full bg-mid-gray/25 text-mid-gray cursor-not-allowed border-none"
-                >
-                  Khóa tài khoản
-                </button>
               )}
             </div>
           </div>
