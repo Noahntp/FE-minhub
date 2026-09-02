@@ -36,7 +36,8 @@ export interface HomeCourseItem {
 
 interface HomeCourseCardProps {
   course: HomeCourseItem;
-  tagVariant?: 'hot' | 'new' | 'discount';
+  tagVariant?: 'hot' | 'new' | 'discount' | 'none';
+  hideThumbnailTag?: boolean;
   showCompletionProgress?: boolean;
   showProofBadge?: boolean;
 }
@@ -44,6 +45,7 @@ interface HomeCourseCardProps {
 export function HomeCourseCard({
   course,
   tagVariant,
+  hideThumbnailTag = false,
   showCompletionProgress = false,
   showProofBadge = false,
 }: HomeCourseCardProps) {
@@ -89,16 +91,23 @@ export function HomeCourseCard({
     favorites.includes(course.id) ||
     (course.realId ? favorites.includes(String(course.realId)) : false);
 
-  // Determine which single tag to show on top-left of thumbnail
+  // Bỏ toàn bộ nhãn trên thumbnail nếu hideThumbnailTag = true hoặc tagVariant = 'none'
   const effectiveVariant =
-    tagVariant ||
-    (course.isHot
-      ? 'hot'
-      : course.isNew
-      ? 'new'
-      : course.discountBadge
-      ? 'discount'
-      : undefined);
+    hideThumbnailTag || tagVariant === 'none'
+      ? undefined
+      : tagVariant ||
+        (course.isHot
+          ? 'hot'
+          : course.isNew
+          ? 'new'
+          : course.discountBadge
+          ? 'discount'
+          : undefined);
+
+  // Chỉ hiển thị số học viên, lượt đánh giá và rating khi có dữ liệu ý nghĩa (> 0)
+  const hasRatings = Boolean(course.reviewCount && course.reviewCount > 0 && course.rating && course.rating > 0);
+  const hasStudents = Boolean(course.rawStudentCount && course.rawStudentCount > 0);
+  const hasMeaningfulStats = hasRatings || hasStudents;
 
   const courseTarget = (course as any).slug || course.id;
 
@@ -249,47 +258,30 @@ export function HomeCourseCard({
             </h3>
           </Link>
 
-          {/* Rating & Students */}
-          <div className="flex items-center gap-3 text-xs text-slate-500 mb-3">
-            <div className="flex items-center gap-1">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span className="font-bold text-slate-700">{course.rating.toFixed(1)}</span>
-              <span className="text-slate-400">({course.reviewCount})</span>
+          {/* Rating & Students - Chỉ hiển thị khi có dữ liệu đủ ý nghĩa (> 0), ẩn nếu chưa có */}
+          {hasMeaningfulStats ? (
+            <div className="flex items-center gap-2.5 text-xs text-slate-500 mb-3 min-h-[1.25rem] flex-wrap">
+              {hasRatings && (
+                <div className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                  <span className="font-bold text-slate-700">{course.rating.toFixed(1)}</span>
+                  <span className="text-slate-400">({course.reviewCount})</span>
+                </div>
+              )}
+              {hasRatings && hasStudents && <span className="text-slate-300">•</span>}
+              {hasStudents && (
+                <div className="flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>{course.studentCount} học viên</span>
+                </div>
+              )}
             </div>
-            <span className="text-slate-300">•</span>
-            <div className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-slate-400" />
-              <span>{course.studentCount} học viên</span>
-            </div>
-          </div>
-
-          {/* Completion Progress Bar */}
-          {showCompletionProgress && completionRate !== null && (
-            <div className="mb-3 p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100/80 space-y-1.5 transition-all">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="flex items-center gap-1.5 font-bold text-slate-700">
-                  <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Tiến độ hoàn thành</span>
-                </span>
-                <span className="font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded text-[11px]">
-                  {completionRate}%
-                </span>
-              </div>
-
-              {/* Progress Track & Indicator */}
-              <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 transition-all duration-700"
-                  style={{ width: `${completionRate}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
-                <span>Tổng: <strong className="text-slate-700">{course.studentCount}</strong> học viên</span>
-                <span className="text-emerald-700 font-semibold">
-                  {completedCountDisplay ? `${completedCountDisplay} đã xong` : `${completionRate}% hoàn thành`}
-                </span>
-              </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-3 min-h-[1.25rem]">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50/90 border border-emerald-100 px-2 py-0.5 rounded-md">
+                <Sparkles className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>Khóa học mới xuất bản</span>
+              </span>
             </div>
           )}
 
@@ -317,6 +309,36 @@ export function HomeCourseCard({
               {course.instructorName}
             </span>
           </div>
+
+          {/* Completion Progress Bar - Vị trí: ngay bên dưới thông tin Giảng viên, trước phần giá và nút hành động */}
+          {showCompletionProgress && (
+            <div className="mt-2.5 p-2 rounded-xl bg-slate-50/90 border border-slate-200/80 space-y-1.5 transition-all">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="flex items-center gap-1.5 font-bold text-slate-700">
+                  <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{isEnrolled ? 'Tiến độ học tập của bạn' : 'Tiến độ hoàn thành'}</span>
+                </span>
+                <span className="font-black text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded text-[11px]">
+                  {completionRate ?? 0}%
+                </span>
+              </div>
+
+              {/* Progress Track & Color Bar */}
+              <div className="w-full h-1.5 bg-slate-200/90 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 transition-all duration-700"
+                  style={{ width: `${Math.min(100, Math.max(completionRate ?? 0, 4))}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
+                <span>Tổng: <strong className="text-slate-700">{course.studentCount}</strong> học viên</span>
+                <span className="text-emerald-700 font-semibold">
+                  {completedCountDisplay ? `${completedCountDisplay} đã xong` : `${completionRate ?? 0}% hoàn thành`}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bottom Section: Price & Action */}

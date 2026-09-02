@@ -46,7 +46,8 @@ export function NewCoursesSection({ courses }: { courses: HomeCourseItem[] }) {
             <HomeCourseCard
               key={course.id}
               course={course}
-              tagVariant="new"
+              tagVariant="none"
+              hideThumbnailTag={true}
               showProofBadge={true}
             />
           ))}

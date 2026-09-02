@@ -64,10 +64,12 @@ export function mapApiCourseToHomeCourseItem(c: any): HomeCourseItem {
 
   const rawEnrollments = Number(c.enrollments_count || 0);
   const completedEnrollments = Number(c.completed_enrollments_count || 0);
-  const avgProgress = Number(c.average_progress_percent || 0);
+  const avgProgress = Number(c.progress_percent ?? c.average_progress_percent ?? 0);
 
   let completionRate: number | undefined = undefined;
-  if (c.completion_rate !== undefined && c.completion_rate !== null) {
+  if (c.progress_percent !== undefined && c.progress_percent !== null) {
+    completionRate = Number(c.progress_percent);
+  } else if (c.completion_rate !== undefined && c.completion_rate !== null) {
     completionRate = Number(c.completion_rate);
   } else if (rawEnrollments > 0 && completedEnrollments > 0) {
     completionRate = Math.round((completedEnrollments / rawEnrollments) * 100);

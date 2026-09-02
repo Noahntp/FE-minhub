@@ -42,8 +42,9 @@ export function FeaturedCoursesSection({ courses }: { courses: HomeCourseItem[] 
             <HomeCourseCard
               key={course.id}
               course={course}
-              tagVariant="hot"
-              showCompletionProgress={isLoggedIn}
+              tagVariant="none"
+              hideThumbnailTag={true}
+              showCompletionProgress={true}
             />
           ))}
         </div>
