@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const isInstructorRole = 
     searchParams.get('role') === 'instructor' || 
     location.pathname.includes('/instructor') ||
+    location.pathname.includes('/become-instructor') ||
     savedRole === 'instructor';
 
   const initialRole = isInstructorRole ? 'instructor' : 'student';

@@ -30,6 +30,7 @@ export const PublicAuthRoutes = () => {
     <>
       <Route path="/login" element={<AuthGuestGuard><LoginPage /></AuthGuestGuard>} />
       <Route path="/register" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
+      <Route path="/become-instructor" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
       <Route path="/instructor/register" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
       <Route path="/instructors/register" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
       <Route path="/verify-email" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
