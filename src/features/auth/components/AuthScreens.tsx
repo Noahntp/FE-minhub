@@ -6,7 +6,7 @@ import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { SYSTEM_ROLE_USERS } from '@/shared/data';
 import { authApi } from '@/features/auth/api';
 import { getDashboardRouteByRole } from '@/router/routes';
-import { validateEmail, validatePassword, validatePhone, extractApiErrors } from '@/shared/utils/validate';
+import { validateEmail, validatePassword, validatePhone, isPhoneIdentifier, validateEmailOrPhone, extractApiErrors } from '@/shared/utils/validate';
 
 const DB_SEED_ACCOUNTS = [
   { id: 'db-1', name: 'Student Test', email: 'learner1@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
@@ -39,6 +39,14 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   // Wrapper for setMode to also update URL if navigateTo is provided
   const handleModeChange = (newMode: 'login' | 'register' | 'verify-email' | 'forgot-password' | 'reset-password') => {
     setMode(newMode);
+    setErrorMsg('');
+    setFieldErrors({});
+    if (newMode === 'register') {
+      setVerificationCode('');
+      setVerifyUrl(null);
+      setPassword('');
+      setConfirmPassword('');
+    }
     if (navigateTo) {
       if (newMode === 'reset-password') {
         const params = new URLSearchParams();
@@ -73,6 +81,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+
   // Instructor specific registration fields
   const [registerRole, setRegisterRole] = useState<'student' | 'instructor'>(() => {
     if (initialRole === 'instructor') return 'instructor';
@@ -88,7 +97,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   const [isEditingContact, setIsEditingContact] = useState(false);
 
   // OTP Channel & Resend countdown states
-  const [otpChannel, setOtpChannel] = useState<'email' | 'sms'>('email');
+  const [otpChannel, setOtpChannel] = useState<'email' | 'sms'>(() => {
+    const saved = localStorage.getItem('mindhub_pending_verify_channel');
+    return saved === 'sms' ? 'sms' : 'email';
+  });
   const [resendCountdown, setResendCountdown] = useState<number>(60);
   const otpBoxRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -276,7 +288,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     return err.message || 'Không thể kết nối đến máy chủ Backend.';
   };
 
-  // Perform standard login simulator with structural email verification block
+  // Perform standard login simulator with structural email/phone verification block
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -285,11 +297,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     let hasError = false;
     const newFieldErrors: Record<string, string> = {};
 
-    const emailErr = validateEmail(email);
-    if (emailErr) {
-      newFieldErrors.email = emailErr;
+    const trimmedInput = email.trim();
+    const loginErr = validateEmailOrPhone(trimmedInput);
+    if (loginErr) {
+      newFieldErrors.email = loginErr;
       hasError = true;
     }
+
     const passErr = validatePassword(password);
     if (passErr) {
       newFieldErrors.password = passErr;
@@ -302,12 +316,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       return;
     }
     
-    const emailTrimmed = email.trim().toLowerCase();
-    
     setIsSubmitting(true);
     setSuccessMsg('Đang đăng nhập...');
     setErrorMsg('');
-    authApi.login({ email: emailTrimmed, password })
+    authApi.login({ email: trimmedInput, password })
       .then(res => {
         const rawUser = res.user || res;
         const apiUser = normalizeUser({
@@ -387,7 +399,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     e.preventDefault();
     if (isSubmitting) return;
 
+    // 1. Xoá toàn bộ thông báo lỗi cũ
+    setErrorMsg('');
     setFieldErrors({});
+
     let hasError = false;
     const newFieldErrors: Record<string, string> = {};
 
@@ -395,21 +410,17 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       newFieldErrors.name = 'Họ và tên phải có ít nhất 2 ký tự.';
       hasError = true;
     }
-    const emailErr = validateEmail(email);
-    if (emailErr) {
-      newFieldErrors.email = emailErr;
-      hasError = true;
-    }
-    const passErr = validatePassword(password);
-    if (passErr) {
-      newFieldErrors.password = passErr;
-      hasError = true;
-    }
-    if (password !== confirmPassword) {
-      newFieldErrors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp.';
-      hasError = true;
-    }
+
+    const rawIdentifier = email.trim();
+    let emailToSubmit: string | undefined = undefined;
+    let phoneToSubmit: string | undefined = undefined;
+
     if (registerRole === 'instructor') {
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        newFieldErrors.email = emailErr;
+        hasError = true;
+      }
       const phoneErr = validatePhone(phone);
       if (phoneErr) {
         newFieldErrors.phone = phoneErr;
@@ -419,14 +430,32 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
         newFieldErrors.bio = 'Tiểu sử giới thiệu bản thân cần ít nhất 30 ký tự để Admin xét duyệt.';
         hasError = true;
       }
+      emailToSubmit = email.trim().toLowerCase();
+      phoneToSubmit = phone.trim();
+    } else {
+      // Học viên: tự động phân biệt Email hay Số điện thoại từ ô nhập
+      const idErr = validateEmailOrPhone(rawIdentifier);
+      if (idErr) {
+        newFieldErrors.email = idErr;
+        hasError = true;
+      } else if (isPhoneIdentifier(rawIdentifier)) {
+        phoneToSubmit = rawIdentifier;
+        setPhone(rawIdentifier);
+      } else {
+        emailToSubmit = rawIdentifier.toLowerCase();
+      }
     }
 
-    if (hasError) {
-      setFieldErrors(newFieldErrors);
-      setErrorMsg('Vui lòng kiểm tra lại các trường thông tin không hợp lệ.');
-      scrollToFirstError(newFieldErrors);
-      return;
+    const passErr = validatePassword(password);
+    if (passErr) {
+      newFieldErrors.password = passErr;
+      hasError = true;
     }
+    if (password !== confirmPassword) {
+      newFieldErrors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp.';
+      hasError = true;
+    }
+
     if (!agreedToTerms) {
       setErrorMsg('Bạn cần đồng ý với các điều khoản và chính sách sử dụng để tiếp tục.');
       const agreeEl = document.getElementById('agree');
@@ -437,7 +466,20 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       return;
     }
 
-    const emailTrimmed = email.trim().toLowerCase();
+    if (hasError) {
+      setFieldErrors(newFieldErrors);
+      setErrorMsg('Vui lòng kiểm tra lại các trường thông tin không hợp lệ.');
+      scrollToFirstError(newFieldErrors);
+      return;
+    }
+
+    // Xoá sạch toàn bộ lỗi cũ và trạng thái OTP cũ trước khi bắt đầu đăng ký mới
+    setErrorMsg('');
+    setFieldErrors({});
+    setVerificationCode('');
+    setVerifyUrl(null);
+    setIsSubmitting(true);
+    setSuccessMsg('Đang đăng ký tài khoản...');
 
     let expYears: number | undefined = undefined;
     if (registerRole === 'instructor' && instructorExperience.trim() !== '') {
@@ -447,12 +489,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       }
     }
 
-    setIsSubmitting(true);
-    setSuccessMsg('Đang đăng ký tài khoản và gửi mã OTP xác thực...');
     authApi.register({ 
       full_name: name.trim(), 
-      email: emailTrimmed, 
-      phone: phone.trim() || undefined,
+      email: emailToSubmit, 
+      phone: phoneToSubmit,
       password,
       password_confirmation: confirmPassword,
       role: registerRole,
@@ -462,16 +502,28 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     })
       .then((res: any) => {
         setIsSubmitting(false);
+        const resolvedChannel: 'email' | 'sms' = res?.channel || (phoneToSubmit && !emailToSubmit ? 'sms' : 'email');
+        setOtpChannel(resolvedChannel);
+
         try {
           localStorage.removeItem('mindhub_user_notifications');
           localStorage.removeItem('mindhub_purchased_courses_data');
           localStorage.removeItem('mindhub_enrolled_courses');
-          localStorage.setItem('mindhub_pending_verify_email', emailTrimmed);
           localStorage.setItem('mindhub_pending_verify_role', registerRole);
-          if (phone.trim()) {
-            localStorage.setItem('mindhub_pending_verify_phone', phone.trim());
+          localStorage.setItem('mindhub_pending_verify_channel', resolvedChannel);
+          if (resolvedChannel === 'sms') {
+            localStorage.setItem('mindhub_pending_verify_phone', phoneToSubmit || '');
+            localStorage.removeItem('mindhub_pending_verify_email');
+          } else {
+            localStorage.setItem('mindhub_pending_verify_email', emailToSubmit || '');
+            if (registerRole === 'instructor') {
+              localStorage.setItem('mindhub_pending_verify_phone', phoneToSubmit || '');
+            } else {
+              localStorage.removeItem('mindhub_pending_verify_phone');
+            }
           }
         } catch (e) {}
+
         setPassword('');
         setConfirmPassword('');
         setErrorMsg('');
@@ -482,9 +534,10 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           setVerificationCode(res.otp_code);
         }
         setResendCountdown(60);
-        setOtpChannel('email');
         setSuccessMsg(
-          'Đăng ký tài khoản thành công! Mã OTP xác thực 6 chữ số đã được gửi tới email ' + emailTrimmed + '.'
+          resolvedChannel === 'sms'
+            ? 'Đăng ký tài khoản thành công! Mã OTP xác thực 6 chữ số đã được gửi tới số điện thoại ' + phoneToSubmit + '.'
+            : 'Đăng ký tài khoản thành công! Mã OTP xác thực 6 chữ số đã được gửi tới email ' + emailToSubmit + '.'
         );
         handleModeChange('verify-email');
       })
@@ -519,7 +572,6 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           ? 'Vui lòng cung cấp số điện thoại đã đăng ký để xác thực OTP.'
           : 'Vui lòng cung cấp địa chỉ email đã đăng ký để xác thực OTP.'
       );
-      setIsEditingContact(true);
       return;
     }
 
@@ -533,17 +585,19 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     setSuccessMsg('Đang kích hoạt tài khoản trong hệ thống...');
 
     authApi.verifyOtp({ 
-      email: email.trim().toLowerCase() || undefined, 
-      phone: phone.trim() || undefined,
+      email: otpChannel === 'email' ? email.trim().toLowerCase() : undefined, 
+      phone: otpChannel === 'sms' ? phone.trim() : undefined,
       otp: verificationCode.trim() 
     })
       .then((res: any) => {
         setIsSubmitting(false);
         const resolvedRole = res?.data?.user?.role || res?.user?.role || registerRole || localStorage.getItem('mindhub_pending_verify_role');
+        const registeredAccount = otpChannel === 'sms' ? phone.trim() : email.trim();
 
         try {
           localStorage.removeItem('mindhub_pending_verify_email');
           localStorage.removeItem('mindhub_pending_verify_phone');
+          localStorage.removeItem('mindhub_pending_verify_channel');
           localStorage.removeItem('mindhub_pending_verify_role');
         } catch (e) {}
 
@@ -557,9 +611,17 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               ? 'Xác thực tài khoản qua Số điện thoại thành công! Đang chuyển tới Đăng nhập...'
               : 'Xác thực tài khoản qua Email thành công! Đang chuyển tới Đăng nhập...'
           );
+          // Điền sẵn thông tin tài khoản vừa đăng ký vào ô đăng nhập
+          setEmail(registeredAccount);
+          setPassword('');
+          setConfirmPassword('');
+          setVerificationCode('');
+          setErrorMsg('');
+
           setTimeout(() => {
             handleModeChange('login');
-          }, 1800);
+            setSuccessMsg('Xác thực tài khoản thành công! Vui lòng nhập mật khẩu để đăng nhập.');
+          }, 1200);
         }
       })
       .catch((err: any) => {
@@ -827,14 +889,16 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-stone-605 mb-1">Địa chỉ Email</label>
+                    <label className="block text-xs font-semibold text-stone-605 mb-1">
+                      Tài khoản (Email hoặc Số điện thoại)
+                    </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
                       <input 
-                        type="email"
+                        type="text"
                         value={email}
                         onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({...prev, email: ''})) }}
-                        placeholder="VD: student@gmail.com..."
+                        placeholder="VD: name@gmail.com hoặc 0901234567"
                         className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none bg-stone-50/50 ${fieldErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-stone-250 focus:ring-brand-normal'}`}
                         required
                       />
@@ -943,7 +1007,11 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               <div className="flex bg-stone-100 p-1 rounded-xl border border-stone-200">
                 <button
                   type="button"
-                  onClick={() => setRegisterRole('student')}
+                  onClick={() => {
+                    setRegisterRole('student');
+                    setErrorMsg('');
+                    setFieldErrors({});
+                  }}
                   className={`flex-1 text-center py-1.5 text-xs font-bold rounded-lg transition-all ${
                     registerRole === 'student'
                       ? 'bg-white text-[#432c28] shadow-sm'
@@ -954,7 +1022,11 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRegisterRole('instructor')}
+                  onClick={() => {
+                    setRegisterRole('instructor');
+                    setErrorMsg('');
+                    setFieldErrors({});
+                  }}
                   className={`flex-1 text-center py-1.5 text-xs font-bold rounded-lg transition-all ${
                     registerRole === 'instructor'
                       ? 'bg-[#432c28] text-white shadow-sm'
@@ -999,26 +1071,61 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-605 mb-1">
-                    Địa chỉ Email <span className="text-red-500">*</span>
+                    {registerRole === 'instructor' ? 'Địa chỉ Email' : 'Email hoặc Số điện thoại'}{' '}
+                    <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                    {registerRole !== 'instructor' && isPhoneIdentifier(email) ? (
+                      <Phone className="absolute left-3 top-2.5 w-4 h-4 text-emerald-600 transition-colors" />
+                    ) : (
+                      <Mail className="absolute left-3 top-2.5 w-4 h-4 text-stone-400 transition-colors" />
+                    )}
                     <input 
                       id="register-input-email"
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); setFieldErrors(prev => ({...prev, email: ''})) }}
                       onBlur={() => {
-                        const err = validateEmail(email);
-                        if (err) setFieldErrors(prev => ({...prev, email: err}));
+                        if (registerRole === 'instructor') {
+                          const err = validateEmail(email);
+                          if (err) setFieldErrors(prev => ({...prev, email: err}));
+                        } else {
+                          const err = validateEmailOrPhone(email);
+                          if (err) setFieldErrors(prev => ({...prev, email: err}));
+                        }
                       }}
-                      placeholder="VD: name@gmail.com"
+                      placeholder={registerRole === 'instructor' ? 'VD: name@gmail.com' : 'VD: name@gmail.com hoặc 0901234567'}
                       className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.email ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
                       required
                     />
                   </div>
                   {fieldErrors.email && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.email}</p>}
                 </div>
+
+                {registerRole === 'instructor' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-605 mb-1">
+                      Số điện thoại liên hệ <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-2.5 w-4 h-4 text-stone-400" />
+                      <input 
+                        id="register-input-phone"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => { setPhone(e.target.value); setFieldErrors(prev => ({...prev, phone: ''})) }}
+                        onBlur={() => {
+                          const err = validatePhone(phone);
+                          if (err) setFieldErrors(prev => ({...prev, phone: err}));
+                        }}
+                        placeholder="VD: 0901234567"
+                        className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:ring-1 focus:outline-none ${fieldErrors.phone ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-stone-250 focus:ring-brand-normal'}`}
+                        required
+                      />
+                    </div>
+                    {fieldErrors.phone && <p className="text-red-500 text-[10px] mt-1 font-medium">{fieldErrors.phone}</p>}
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-stone-605 mb-1">
@@ -1350,151 +1457,47 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               </div>
             ) : (
               <form onSubmit={handleVerify} className="space-y-4 text-center max-w-sm mx-auto py-4">
-                {/* Channel Selector Tab ALWAYS visible */}
-                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOtpChannel('email');
-                      setErrorMsg('');
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      otpChannel === 'email'
-                        ? 'bg-white text-emerald-800 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Mail className="w-4 h-4 text-emerald-600" /> Xác thực qua Email
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOtpChannel('sms');
-                      setErrorMsg('');
-                      if (!phone.trim()) {
-                        setIsEditingContact(true);
-                      }
-                    }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      otpChannel === 'sms'
-                        ? 'bg-white text-emerald-800 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Phone className="w-4 h-4 text-emerald-600" /> Nhập OTP qua SMS
-                  </button>
-                </div>
-
-                <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
-                  {otpChannel === 'sms' ? <Phone className="w-7 h-7" /> : <Mail className="w-7 h-7" />}
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    {otpChannel === 'sms' ? 'Xác thực OTP qua Số điện thoại (SMS)' : 'Xác thực OTP qua Email'}
-                  </h3>
-                  
-                  {/* Contact info or Edit form */}
-                  {otpChannel === 'sms' ? (
-                    !phone.trim() || isEditingContact ? (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-xs text-slate-600">Vui lòng nhập số điện thoại để nhận mã xác thực SMS:</p>
-                        <div className="flex gap-1.5 justify-center max-w-xs mx-auto">
-                          <input
-                            type="tel"
-                            placeholder="Ví dụ: 0901234567"
-                            value={phone}
-                            onChange={(e) => {
-                              setPhone(e.target.value);
-                              localStorage.setItem('mindhub_pending_verify_phone', e.target.value);
-                            }}
-                            className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none bg-white font-medium"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!phone.trim()) {
-                                setErrorMsg('Vui lòng nhập số điện thoại hợp lệ.');
-                                return;
-                              }
-                              setIsEditingContact(false);
-                              handleResendVerifyOtp('sms');
-                            }}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer"
-                          >
-                            Gửi mã SMS
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
+                {otpChannel === 'sms' ? (
+                  <>
+                    <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+                      <Phone className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900">
+                        Xác thực OTP qua Số điện thoại (SMS)
+                      </h3>
                       <div className="mt-1">
                         <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                          Mã OTP bảo vệ 6 chữ số đã được gửi tới SĐT:
+                          Mã OTP xác thực 6 chữ số đã được gửi tới số điện thoại:
                         </p>
                         <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-900 my-1">
                           <Phone className="w-3.5 h-3.5 text-emerald-600" />
                           <span>{phone}</span>
-                          <button
-                            type="button"
-                            onClick={() => setIsEditingContact(true)}
-                            className="text-emerald-700 hover:underline text-[11px] font-extrabold ml-1 cursor-pointer"
-                          >
-                            [Đổi SĐT]
-                          </button>
                         </div>
                       </div>
-                    )
-                  ) : (
-                    !email.trim() || isEditingContact ? (
-                      <div className="mt-2 space-y-2">
-                        <p className="text-xs text-slate-600">Vui lòng nhập email đăng ký của bạn để xác thực:</p>
-                        <div className="flex gap-1.5 justify-center max-w-xs mx-auto">
-                          <input
-                            type="email"
-                            placeholder="email@example.com"
-                            value={email}
-                            onChange={(e) => {
-                              setEmail(e.target.value);
-                              localStorage.setItem('mindhub_pending_verify_email', e.target.value);
-                            }}
-                            className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:border-emerald-500 focus:outline-none bg-white font-medium"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!email.trim()) {
-                                setErrorMsg('Vui lòng nhập email hợp lệ.');
-                                return;
-                              }
-                              setIsEditingContact(false);
-                              handleResendVerifyOtp('email');
-                            }}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer"
-                          >
-                            Gửi mã Email
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+                      <Mail className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900">
+                        Xác thực OTP qua Email
+                      </h3>
                       <div className="mt-1">
                         <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                          Mã OTP bảo vệ 6 chữ số đã được gửi tới email:
+                          Mã OTP xác thực 6 chữ số đã được gửi tới địa chỉ email:
                         </p>
                         <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-900 my-1">
                           <Mail className="w-3.5 h-3.5 text-emerald-600" />
                           <span>{email}</span>
-                          <button
-                            type="button"
-                            onClick={() => setIsEditingContact(true)}
-                            className="text-emerald-700 hover:underline text-[11px] font-extrabold ml-1 cursor-pointer"
-                          >
-                            [Đổi Email]
-                          </button>
                         </div>
                       </div>
-                    )
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
 
                 {/* 6 Individual Interactive OTP Input Boxes */}
                 <div className="py-2 space-y-3">
@@ -1559,7 +1562,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
                   <button
                     type="button"
-                    onClick={() => handleResendVerifyOtp()}
+                    onClick={() => handleResendVerifyOtp(otpChannel)}
                     disabled={resendingEmail || resendCountdown > 0}
                     className={`font-bold transition-colors ${
                       resendCountdown > 0
@@ -1571,7 +1574,9 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
                       ? 'Đang gửi lại...'
                       : resendCountdown > 0
                       ? `Gửi lại sau (${resendCountdown}s)`
-                      : 'Gửi lại mã OTP mới'}
+                      : otpChannel === 'sms'
+                      ? 'Gửi lại mã OTP qua SMS'
+                      : 'Gửi lại mã OTP qua Email'}
                   </button>
 
                   <button 

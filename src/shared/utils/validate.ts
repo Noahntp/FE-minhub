@@ -21,6 +21,24 @@ export const validatePhone = (phone: string): string | null => {
   return null;
 };
 
+export const isPhoneIdentifier = (val: string): boolean => {
+  const clean = val.trim();
+  if (!clean) return false;
+  return /^(0|\+84)/.test(clean) || (!clean.includes('@') && /^[0-9+ ]+$/.test(clean));
+};
+
+export const validateEmailOrPhone = (value: string): string | null => {
+  if (!value || value.trim() === '') return 'Vui lòng nhập Email hoặc Số điện thoại.';
+  const trimmed = value.trim();
+  if (isPhoneIdentifier(trimmed)) {
+    return validatePhone(trimmed);
+  }
+  if (!EMAIL_REGEX.test(trimmed)) {
+    return 'Email hoặc Số điện thoại không đúng định dạng.';
+  }
+  return null;
+};
+
 /**
  * Mảng lỗi trả về từ API dạng { errors: { email: ["..."], name: ["..."] } } 
  * sẽ được bóc tách ra Record<string, string> cho frontend form error.
