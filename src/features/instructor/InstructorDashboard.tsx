@@ -688,7 +688,7 @@ export default function InstructorDashboard({
   const [discountPercent, setDiscountPercent] = useState<number | ''>('');
   const [discountAmount, setDiscountAmount] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number>(350000);
-  const [image, setImage] = useState('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800');
+  const [image, setImage] = useState('');
   const [requirements, setRequirements] = useState<string[]>(['Có máy tính cá nhân kết nối Internet']);
   const [newRequirement, setNewRequirement] = useState('');
   const [slug, setSlug] = useState('');
@@ -707,6 +707,7 @@ export default function InstructorDashboard({
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [step1Errors, setStep1Errors] = useState<Record<string, string>>({});
   const [step2Errors, setStep2Errors] = useState<Record<string, string>>({});
+  const [step3Errors, setStep3Errors] = useState<Record<string, string>>({});
   const [submitErrorModalState, setSubmitErrorModalState] = useState<{
     isOpen: boolean;
     title?: string;
@@ -1453,6 +1454,12 @@ export default function InstructorDashboard({
         : numPrice;
 
       const normalizedLvl = level === 'expert' ? 'advanced' : level;
+      const cleanDescription = (description || '')
+        .trim()
+        .replace(/(?:<div>\s*<br\s*\/?>\s*<\/div>|<p>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>\s*)+$/gi, '')
+        .trim();
+      const cleanImage = (image || '').trim();
+      const cleanIntroVideo = (introVideoUrl || '').trim();
 
       const payload: Record<string, any> = {
         title: title.trim(),
@@ -1462,15 +1469,15 @@ export default function InstructorDashboard({
         language: language || 'vi',
         subtitle: subtitle.trim() || title.trim(),
         short_description: subtitle.trim() || title.trim(),
-        description: description || '',
+        description: cleanDescription,
         price: numPrice >= COURSE_PRICING_CONFIG.MIN_PRICE ? numPrice : (numPrice > 0 ? numPrice : 0),
         has_discount: Boolean(hasDiscount),
         discount_percent: hasDiscount && currentDP >= 1 && currentDP <= maxPercent ? currentDP : null,
         sale_price: hasDiscount ? calcFinalPrice : null,
-        image: image || '',
-        thumbnail_url: image || undefined,
-        introVideoUrl: introVideoUrl || '',
-        intro_video_url: introVideoUrl || undefined,
+        image: cleanImage,
+        thumbnail_url: cleanImage || undefined,
+        introVideoUrl: cleanIntroVideo,
+        intro_video_url: cleanIntroVideo || undefined,
         requirements: Array.isArray(requirements) ? requirements.filter(Boolean) : [],
         willLearn: Array.isArray(willLearn) ? willLearn.filter(Boolean) : [],
         outcomes: Array.isArray(willLearn) ? willLearn.filter(Boolean) : [],
@@ -1850,7 +1857,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     setHasDiscount(false);
     setDiscountPercent('');
     setSalePrice(500000);
-    setImage('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800');
+    setImage('');
     setRequirements(['Có máy tính cá nhân kết nối Internet']);
     setWillLearn(['Lập trình thành thạo ngôn ngữ ứng dụng với thực tế']);
     setChapters([]);
@@ -1939,8 +1946,8 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           setDiscountAmount('');
           setSalePrice(loadedPrice);
         }
-        setImage(detail.thumbnail_url || courseObj?.image || '');
-        setIntroVideoUrl(detail.intro_video_url || courseObj?.introVideoUrl || '');
+        setImage(detail.thumbnail_url || '');
+        setIntroVideoUrl(detail.intro_video_url || '');
         setSlug(detail.slug || courseObj?.slug || '');
         setIsManualSlug(true);
 
@@ -1984,7 +1991,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         const newlyCompleted: number[] = [];
         if (detail.title && detail.slug) newlyCompleted.push(1);
         if (loadedPrice >= COURSE_PRICING_CONFIG.MIN_PRICE) newlyCompleted.push(2);
-        if (detail.thumbnail_url) newlyCompleted.push(3);
+        if (detail.thumbnail_url && typeof detail.thumbnail_url === 'string' && detail.thumbnail_url.trim()) newlyCompleted.push(3);
         setCompletedSteps(prev => Array.from(new Set([...prev, ...newlyCompleted])));
 
         // Load full course curriculum (sections & lessons) from Backend content API
@@ -4198,6 +4205,19 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             };
           };
 
+          const validateStep3 = () => {
+            const errs: Record<string, string> = {};
+            const cleanImg = (image || '').trim();
+            if (!cleanImg) {
+              errs.image = 'Vui lòng tải lên ảnh hoặc nhập liên kết ảnh bìa khóa học (Thumbnail).';
+            }
+            setStep3Errors(errs);
+            return {
+              isValid: Object.keys(errs).length === 0,
+              errors: errs,
+            };
+          };
+
           const formatVNDInput = (val: number | string | '') => {
             if (val === '' || val === null || val === undefined) return '';
             const num = typeof val === 'number' ? val : parseInt(String(val).replace(/\D/g, ''), 10);
@@ -4248,6 +4268,19 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 }
                 return;
               }
+            } else if (builderStep === 3) {
+              const { isValid, errors: valErrors } = validateStep3();
+              if (!isValid) {
+                const el = document.getElementById('focus-thumbnail') || document.querySelector('[data-focus-id="thumbnail"]');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('ring-2', 'ring-red-400', 'ring-offset-2', 'rounded-xl', 'transition-all', 'duration-300');
+                  setTimeout(() => {
+                    el.classList.remove('ring-2', 'ring-red-400', 'ring-offset-2');
+                  }, 1500);
+                }
+                return;
+              }
             }
 
             // Save to DB before advancing step
@@ -4286,6 +4319,9 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 if (!isValid) return;
               } else if (builderStep === 2) {
                 const { isValid } = validateStep2();
+                if (!isValid) return;
+              } else if (builderStep === 3) {
+                const { isValid } = validateStep3();
                 if (!isValid) return;
               }
             }
@@ -4892,9 +4928,15 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 {builderStep === 3 && (
                   <CourseMediaStep 
                     image={image}
-                    setImage={setImage}
+                    setImage={(val) => {
+                      setImage(val);
+                      if (val.trim() && step3Errors.image) {
+                        setStep3Errors(prev => ({ ...prev, image: '' }));
+                      }
+                    }}
                     introVideoUrl={introVideoUrl}
                     setIntroVideoUrl={setIntroVideoUrl}
+                    imageError={step3Errors.image}
                   />
                 )}
 

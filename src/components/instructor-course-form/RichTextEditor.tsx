@@ -123,11 +123,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, [updateActiveStates]);
 
+  // Set default paragraph separator to <p>
+  useEffect(() => {
+    try {
+      document.execCommand('defaultParagraphSeparator', false, 'p');
+    } catch {}
+  }, []);
+
   const handleInput = () => {
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
-      // Clean up empty paragraph tags
-      const cleanHtml = html === '<p><br></p>' || html === '<br>' ? '' : html;
+      // Clean up empty paragraph tags or bare br
+      const plain = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+      let cleanHtml = (!plain && !html.includes('<img')) ? '' : html;
+      if (cleanHtml) {
+        // Strip trailing empty breaks/divs
+        cleanHtml = cleanHtml.replace(/(?:<div>\s*<br\s*\/?>\s*<\/div>|<p>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>\s*)+$/gi, '').trim();
+      }
       isInternalUpdate.current = true;
       onChange(cleanHtml);
       updateActiveStates();

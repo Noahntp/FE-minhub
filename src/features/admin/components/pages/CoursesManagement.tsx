@@ -2225,13 +2225,14 @@ export default function CoursesManagement() {
                       <h4 className="text-[10px] font-bold text-mid-gray uppercase tracking-wider">
                         Mô tả đầy đủ
                       </h4>
-                      <p
-                        className="text-ink leading-relaxed text-justify whitespace-pre-line"
+                      <div
+                        className="text-ink text-xs leading-relaxed text-justify prose prose-sm max-w-none [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-emerald-500 [&_blockquote]:pl-3 [&_blockquote]:italic [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-bold [&_h3]:text-xs [&_h3]:font-bold"
                         id="detail-desc"
-                      >
-                        {activeDetailCourse.description ||
-                          "Không có nội dung mô tả chi tiết."}
-                      </p>
+                        dangerouslySetInnerHTML={{
+                          __html: activeDetailCourse.description ||
+                            '<span class="text-mid-gray">Không có nội dung mô tả chi tiết.</span>',
+                        }}
+                      />
                     </div>
                     <div className="space-y-1.5 pt-2">
                       <h4 className="text-[10px] font-bold text-mid-gray uppercase tracking-wider">

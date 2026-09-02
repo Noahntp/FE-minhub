@@ -366,7 +366,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     setSubcategory('');
     setPrice(500000);
     setSalePrice(350000);
-    setImage('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800');
+    setImage('');
     setRequirements(['Có máy tính cá nhân kết nối Internet']);
     setWillLearn(['Lập trình thành thạo ngôn ngữ ứng dụng với thực tế']);
     setChapters([]);
