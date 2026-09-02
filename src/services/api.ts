@@ -1672,13 +1672,22 @@ export const ApiService = {
         title: payload.title || 'Khóa học chưa đặt tên',
       };
       if (payload.slug) backendPayload.slug = payload.slug;
-      if (payload.category_id || payload.categoryId) {
-        backendPayload.category_ids = [Number(payload.category_id || payload.categoryId)];
+      if (payload.category_ids && Array.isArray(payload.category_ids)) {
+        backendPayload.category_ids = payload.category_ids.map(Number).filter((n: number) => !isNaN(n) && n > 0);
+      } else if (payload.category_id || payload.categoryId) {
+        const catInt = Number(payload.category_id || payload.categoryId);
+        if (!isNaN(catInt) && catInt > 0) backendPayload.category_ids = [catInt];
       }
-      if (payload.level) backendPayload.level = payload.level;
+      const rawLevel = payload.course_level || payload.level;
+      if (rawLevel) {
+        const normalizedLevel = rawLevel === 'expert' ? 'advanced' : rawLevel;
+        if (['beginner', 'intermediate', 'advanced', 'all_levels'].includes(normalizedLevel)) {
+          backendPayload.course_level = normalizedLevel;
+        }
+      }
       if (payload.language) backendPayload.language = payload.language;
-      if (payload.subtitle || payload.short_description) {
-        backendPayload.short_description = payload.subtitle ?? payload.short_description;
+      if (payload.subtitle !== undefined || payload.short_description !== undefined) {
+        backendPayload.short_description = payload.short_description ?? payload.subtitle;
       }
       if (payload.description) backendPayload.description = payload.description;
       if (payload.price !== undefined || payload.original_price !== undefined) {
@@ -1726,14 +1735,23 @@ export const ApiService = {
       const backendPayload: any = {};
       if (payload.title !== undefined) backendPayload.title = payload.title;
       if (payload.slug !== undefined) backendPayload.slug = payload.slug || undefined;
-      if (payload.category_id !== undefined || payload.categoryId !== undefined) {
+      if (payload.category_ids && Array.isArray(payload.category_ids)) {
+        backendPayload.category_ids = payload.category_ids.map(Number).filter((n: number) => !isNaN(n) && n > 0);
+      } else if (payload.category_id !== undefined || payload.categoryId !== undefined) {
         const catId = payload.category_id || payload.categoryId;
-        if (catId) backendPayload.category_ids = [Number(catId)];
+        const catInt = Number(catId);
+        if (!isNaN(catInt) && catInt > 0) backendPayload.category_ids = [catInt];
       }
-      if (payload.level !== undefined) backendPayload.level = payload.level;
+      const rawLevel = payload.course_level ?? payload.level;
+      if (rawLevel !== undefined) {
+        const normalizedLevel = rawLevel === 'expert' ? 'advanced' : rawLevel;
+        if (['beginner', 'intermediate', 'advanced', 'all_levels'].includes(normalizedLevel)) {
+          backendPayload.course_level = normalizedLevel;
+        }
+      }
       if (payload.language !== undefined) backendPayload.language = payload.language;
       if (payload.subtitle !== undefined || payload.short_description !== undefined) {
-        backendPayload.short_description = payload.subtitle ?? payload.short_description;
+        backendPayload.short_description = payload.short_description ?? payload.subtitle;
       }
       if (payload.description !== undefined) backendPayload.description = payload.description;
       if (payload.price !== undefined || payload.original_price !== undefined) {

@@ -73,6 +73,8 @@ import { InstructorTopCourses } from './InstructorTopCourses';
 import { CouponManagement } from '@/features/coupons/index';
 import CourseMediaStep from '@/components/instructor-course-form/CourseMediaStep';
 import CourseCurriculumStep from '@/components/instructor-course-form/CourseCurriculumStep';
+import RichTextEditor from '@/components/instructor-course-form/RichTextEditor';
+import LanguageSelect from '@/components/instructor-course-form/LanguageSelect';
 import StudentManagement from './components/StudentManagement';
 import InstructorProfilePage from '@/components/instructor-ui/InstructorProfilePage';
 
@@ -1442,14 +1444,17 @@ export default function InstructorDashboard({
           ? Math.round((Number(price) * (100 - calcDiscountPercent)) / 100)
           : Number(price);
 
+        const normalizedLvl = level === 'expert' ? 'advanced' : level;
         const payload = {
           title: title.trim(),
           slug: slug.trim() || undefined,
           category_id: validCategoryInt,
           category_ids: [validCategoryInt],
-          level,
+          course_level: normalizedLvl,
+          level: normalizedLvl,
           language,
           subtitle,
+          short_description: subtitle || title.trim(),
           description,
           original_price: Number(price) || 0,
           price: Number(price) || 0,
@@ -1458,9 +1463,12 @@ export default function InstructorDashboard({
           sale_price: calcFinalPrice,
           salePrice: calcFinalPrice,
           image,
+          thumbnail_url: image || undefined,
           introVideoUrl,
+          intro_video_url: introVideoUrl || undefined,
           requirements,
           willLearn,
+          outcomes: willLearn,
         };
 
         if (editingCourseId) {
@@ -1787,7 +1795,18 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     setTitle('');
     setSubtitle('');
     setDescription('');
-    setCategory(dbCategories.length > 0 ? String(dbCategories[0].id) : '1');
+    
+    // Suggest category based on instructor expertise if matching
+    let initialCatId = dbCategories.length > 0 ? String(dbCategories[0].id) : '1';
+    if (currentUser?.expertise && dbCategories.length > 0) {
+      const exp = currentUser.expertise.toLowerCase();
+      const matched = dbCategories.find((c: any) => exp.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(exp));
+      if (matched) {
+        initialCatId = String(matched.id);
+      }
+    }
+    setCategory(initialCatId);
+
     setSubcategory('');
     setPrice(500000);
     setHasDiscount(false);
@@ -1883,7 +1902,11 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         setIntroVideoUrl(detail.intro_video_url || courseObj?.introVideoUrl || '');
         setSlug(detail.slug || courseObj?.slug || '');
         setIsManualSlug(true);
-        setLevel(detail.level || courseObj?.level || 'beginner');
+
+        const rawLvl = detail.course_level || detail.level || courseObj?.level || 'beginner';
+        const normalizedLvl = rawLvl === 'expert' ? 'advanced' : rawLvl;
+        setLevel(normalizedLvl);
+
         setLanguage(detail.language || courseObj?.language || 'vi');
 
         let reqs = courseObj?.requirements || [];
@@ -2028,12 +2051,14 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           ? Math.round((Number(price) * (100 - currentDiscountPercent)) / 100)
           : Number(price);
 
+        const normalizedLvl = level === 'expert' ? 'advanced' : (level || 'beginner');
         const payload = {
           title: title.trim(),
           slug: slug.trim() || undefined,
           category_id: validCategoryInt,
           category_ids: [validCategoryInt],
-          level: level || 'beginner',
+          course_level: normalizedLvl,
+          level: normalizedLvl,
           language: language || 'vi',
           short_description: subtitle || title.trim(),
           subtitle: subtitle || title.trim(),
@@ -4035,26 +4060,19 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
               <div className="flex justify-between items-center select-none pb-2 border-b border-slate-100">
                 <button 
                   onClick={() => {
-                    if (window.confirm('Quay lại danh sách khóa học và bỏ qua tất cả chưa lưu?')) setActiveTab('courses');
+                    if (window.confirm('Quay lại danh sách khóa học và bỏ qua tất cả thay đổi chưa lưu?')) setActiveTab('courses');
                   }}
                   className="text-[10px] font-black text-stone-450 hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   &larr; Quay lại khóa học
                 </button>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-3xs">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isSavingDraft ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
-                    <span className="text-stone-550 font-bold text-[9.5px]">
-                      {isSavingDraft ? 'Đang tự động lưu nháp...' : lastSavedTime ? `Đã tự động lưu nháp lúc ${lastSavedTime}` : 'Đã tự động lưu nháp'}
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200/80 rounded-full shadow-3xs">
+                    <div className={`w-2 h-2 rounded-full ${isSavingDraft ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
+                    <span className="text-stone-600 font-bold text-[10px]">
+                      {isSavingDraft ? 'Đang tự động lưu nháp...' : lastSavedTime ? `Đã tự động lưu nháp lúc ${lastSavedTime}` : 'Hệ thống tự động lưu nháp'}
                     </span>
                   </div>
-                  <button 
-                    onClick={handleSaveDraft}
-                    disabled={isSavingDraft}
-                    className="border border-[#10b981] text-[#10b981] hover:bg-emerald-50 disabled:opacity-50 px-4 py-1.5 rounded-xl font-bold text-[10.5px] cursor-pointer shadow-3xs transition-all"
-                  >
-                    {isSavingDraft ? 'Đang lưu...' : 'Lưu nháp'}
-                  </button>
                 </div>
               </div>
 
@@ -4145,7 +4163,15 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
                     <div className="grid grid-cols-3 gap-4">
                       <div id="focus-category" data-focus-id="category">
-                        <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Danh mục *</label>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="block text-[10.5px] font-bold text-stone-600">Danh mục *</label>
+                          <span 
+                            title="Danh mục do Quản trị viên quản lý. Khóa học của bạn sẽ được Admin phân loại chính xác khi phê duyệt nếu chưa có danh mục phù hợp."
+                            className="text-[9.5px] font-bold text-emerald-600 hover:text-emerald-700 cursor-help"
+                          >
+                            Chưa có danh mục phù hợp?
+                          </span>
+                        </div>
                         <select 
                           value={category}
                           onChange={(e) => setCategory(e.target.value)}
@@ -4170,21 +4196,17 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                           onChange={(e) => setLevel(e.target.value)}
                           className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
                         >
-                          <option value="beginner">Cơ bản</option>
-                          <option value="intermediate">Trung cấp</option>
-                          <option value="expert">Nâng cao</option>
+                          <option value="beginner">Cơ bản (Beginner)</option>
+                          <option value="intermediate">Trung cấp (Intermediate)</option>
+                          <option value="advanced">Nâng cao (Advanced)</option>
+                          <option value="all_levels">Mọi cấp độ (All Levels)</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Ngôn ngữ *</label>
-                        <select 
-                          value={language}
-                          onChange={(e) => setLanguage(e.target.value)}
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
-                        >
-                          <option value="vi">Tiếng Việt</option>
-                          <option value="en">Tiếng Anh</option>
-                        </select>
+                        <LanguageSelect 
+                          value={language} 
+                          onChange={setLanguage} 
+                        />
                       </div>
                     </div>
 
@@ -4201,12 +4223,11 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
                     <div id="focus-description" data-focus-id="description">
                       <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Mô tả chi tiết *</label>
-                      <textarea 
-                        rows={6}
+                      <RichTextEditor
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Soạn nội dung chi tiết bài học..."
-                        className="w-full text-[11px] font-medium text-stone-700 border border-slate-200 rounded-xl p-3 bg-slate-50/20 focus:outline-none"
+                        onChange={setDescription}
+                        placeholder="Soạn thảo mục tiêu, cấu trúc nội dung và bài học chi tiết..."
+                        minHeight="220px"
                       />
                     </div>
                   </div>
@@ -4375,17 +4396,10 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                   </button>
 
                   <div className="flex gap-2">
-                    <button 
-                      type="button"
-                      onClick={handleSaveDraft}
-                      className="border border-[#10b981] text-[#10b981] hover:bg-emerald-50 px-4 py-2 rounded-xl font-bold cursor-pointer"
-                    >
-                      Lưu nháp
-                    </button>
                     <button
                       type="button"
                       onClick={handleNext}
-                      className="bg-[#10b981] hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-xl flex items-center gap-1 cursor-pointer select-none"
+                      className="bg-[#10b981] hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-xl flex items-center gap-1 cursor-pointer select-none shadow-3xs transition-all"
                     >
                       Tiếp theo &rarr;
                     </button>

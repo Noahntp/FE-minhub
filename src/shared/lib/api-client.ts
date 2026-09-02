@@ -255,6 +255,64 @@ interface Section {
   order: number;
 }
 
+export function uploadFileWithProgress<T = any>(
+  endpoint: string,
+  formData: FormData,
+  onProgress?: (percent: number) => void
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const baseUrl = getNormalizedBaseUrl(config.baseUrl);
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+    const url = `${baseUrl}${cleanEndpoint}`;
+    const xhr = new XMLHttpRequest();
+    const effectiveToken = config.authToken || localStorage.getItem('mindhub_api_token');
+
+    xhr.open('POST', url);
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (effectiveToken) {
+      xhr.setRequestHeader('Authorization', `Bearer ${effectiveToken}`);
+    }
+
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) {
+          const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+          onProgress(percent);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const json = JSON.parse(xhr.responseText);
+          const data = (json && typeof json === 'object' && 'data' in json) ? json.data : json;
+          resolve(data as T);
+        } catch {
+          resolve(xhr.responseText as unknown as T);
+        }
+      } else {
+        let errJson: any;
+        try {
+          errJson = JSON.parse(xhr.responseText);
+        } catch {}
+        const message = errJson?.message || `Lỗi tải lên tệp tin (${xhr.status})`;
+        reject(new ApiError(message, xhr.status, errJson?.errors));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new ApiError('Lỗi kết nối mạng khi tải lên tệp tin.', 0));
+    };
+
+    xhr.ontimeout = () => {
+      reject(new ApiError('Quá thời gian chờ khi tải lên tệp tin.', 0));
+    };
+
+    xhr.send(formData);
+  });
+}
+
 export const setAuthToken = (token: string | null) => {
   if (token) {
     config.authToken = token;
@@ -266,3 +324,4 @@ export const setAuthToken = (token: string | null) => {
 };
 
 export { apiFetch, apiFetchEnvelope, devLog, config };
+

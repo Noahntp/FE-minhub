@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Upload, X, Film, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, X, Film, FileText, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { instructorApi } from '@/features/instructor/api';
 import { getVideoDurationSecondsFromFile, resolveMediaUrl } from '@/shared/utils/format';
 
@@ -12,13 +12,16 @@ interface UploaderProps {
 // 1. Image Uploader
 export const InstructorImageUploader: React.FC<UploaderProps> = ({ value, onChange, label }) => {
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastFileRef = useRef<File | null>(null);
 
   const resolvedImageUrl = previewUrl || resolveMediaUrl(value);
 
   const processFile = async (file: File) => {
+    lastFileRef.current = file;
     setError(null);
     const allowedMimes = ['image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/webp'];
     const hasValidExt = /\.(jpg|jpeg|png|webp)$/i.test(file.name);
@@ -37,8 +40,14 @@ export const InstructorImageUploader: React.FC<UploaderProps> = ({ value, onChan
 
     try {
       setUploading(true);
-      const res = await instructorApi.uploadInstructorFile(file, 'course_thumbnail');
+      setProgress(0);
+      const res = await instructorApi.uploadInstructorFileWithProgress(
+        file, 
+        'course_thumbnail',
+        (pct) => setProgress(pct)
+      );
       if (res && res.url) {
+        setProgress(100);
         onChange(res.url);
         if (localBlobUrl) {
           URL.revokeObjectURL(localBlobUrl);
@@ -73,23 +82,41 @@ export const InstructorImageUploader: React.FC<UploaderProps> = ({ value, onChan
     }
   };
 
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (lastFileRef.current) {
+      processFile(lastFileRef.current);
+    }
+  };
+
   return (
     <div className="space-y-2 text-left">
       {label && <label className="block text-[10.5px] font-bold text-stone-600 mb-1">{label}</label>}
       <div 
         onClick={() => fileInputRef.current?.click()}
-        className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 cursor-pointer transition-all"
+        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+          uploading ? 'border-emerald-300 bg-emerald-50/20 pointer-events-none' : 'border-slate-200 hover:bg-slate-50'
+        }`}
       >
         {resolvedImageUrl ? (
           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
             <img src={resolvedImageUrl} alt="Preview" className="w-full max-h-32 object-cover rounded-lg border" />
-            <button 
-              type="button" 
-              onClick={() => onChange('')}
-              className="text-rose-500 hover:underline font-bold text-[10px] cursor-pointer"
-            >
-              Xóa ảnh
-            </button>
+            <div className="flex items-center justify-between pt-1">
+              <button 
+                type="button" 
+                onClick={() => fileInputRef.current?.click()}
+                className="text-emerald-700 hover:underline font-bold text-[10px] cursor-pointer"
+              >
+                Thay đổi ảnh
+              </button>
+              <button 
+                type="button" 
+                onClick={() => onChange('')}
+                className="text-rose-500 hover:underline font-bold text-[10px] cursor-pointer"
+              >
+                Xóa ảnh
+              </button>
+            </div>
           </div>
         ) : (
           <div className="py-2">
@@ -106,13 +133,47 @@ export const InstructorImageUploader: React.FC<UploaderProps> = ({ value, onChan
           accept="image/*" 
         />
       </div>
-      {uploading && <div className="text-[9.5px] text-emerald-600 font-bold">Đang tải ảnh lên...</div>}
-      {error && <div className="text-[9.5px] text-rose-500 font-bold">{error}</div>}
+
+      {uploading && (
+        <div className="space-y-1 bg-emerald-50/70 border border-emerald-200 rounded-lg p-2.5">
+          <div className="flex justify-between text-[10px] font-bold text-stone-700">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+              {progress >= 100 ? 'Đang xử lý trên máy chủ...' : `Đang tải ảnh lên... ${progress}%`}
+            </span>
+            <span className="text-emerald-600 font-black">{progress}%</span>
+          </div>
+          <div className="w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className="bg-emerald-500 h-full rounded-full transition-all duration-200" 
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center justify-between text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">
+          <div className="flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+          {lastFileRef.current && (
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[9.5px] font-extrabold cursor-pointer"
+            >
+              <RefreshCw className="w-3 h-3" /> Thử lại
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-// 2. Video Uploader
+// 2. Video Uploader (Real Progress + Retry)
 export const InstructorVideoUploader: React.FC<UploaderProps & { 
   type: 'course_intro_video' | 'lesson_video';
   onDurationExtracted?: (seconds: number) => void;
@@ -124,6 +185,7 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const activeBlobUrlRef = useRef<string | null>(null);
+  const lastFileRef = useRef<File | null>(null);
 
   const currentDisplayUrl = previewBlobUrl || value;
   
@@ -149,14 +211,14 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
   }
 
   // Call video.load() when resolved URL changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (videoRef.current && resolvedVideoUrl) {
       videoRef.current.load();
     }
   }, [resolvedVideoUrl]);
 
   // Clean up blob URL on unmount or before creating new one
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);
@@ -171,17 +233,20 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
       activeBlobUrlRef.current = null;
     }
     setPreviewBlobUrl(null);
+    lastFileRef.current = null;
+    setError(null);
     onChange('');
   };
 
   const processFile = async (file: File) => {
+    lastFileRef.current = file;
     setError(null);
-    if (!['video/mp4', 'video/quicktime', 'video/webm'].includes(file.type)) {
+    if (!['video/mp4', 'video/quicktime', 'video/webm'].includes(file.type) && !/\.(mp4|mov|webm)$/i.test(file.name)) {
       setError('Chỉ chấp nhận định dạng MP4, MOV hoặc WEBM.');
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      setError('Dung lượng video không được vượt quá 100MB.');
+    if (file.size > 200 * 1024 * 1024) {
+      setError('Dung lượng video không được vượt quá 200MB.');
       return;
     }
 
@@ -201,13 +266,15 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
 
     try {
       setUploading(true);
-      setProgress(10);
-      const progressTimer = setInterval(() => {
-        setProgress((prev) => (prev >= 90 ? 90 : prev + 15));
-      }, 200);
+      setProgress(0);
 
-      const res = await instructorApi.uploadInstructorFile(file, type);
-      clearInterval(progressTimer);
+      // Real progress tracking from XMLHttpRequest upload
+      const res = await instructorApi.uploadInstructorFileWithProgress(
+        file, 
+        type, 
+        (pct) => setProgress(pct)
+      );
+
       setProgress(100);
 
       // Once backend upload succeeds, switch to Backend URL and revoke blob URL
@@ -228,15 +295,27 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
       setPreviewBlobUrl(null);
       setUploading(false);
 
+      let msg = 'Tải video thất bại. Vui lòng thử lại.';
+      if (e?.status === 413) {
+        msg = 'Video vượt quá dung lượng cho phép của máy chủ (tối đa 200MB).';
+      } else if (e?.status === 422) {
+        msg = e.message || 'Định dạng video không hợp lệ.';
+      } else if (e?.message) {
+        msg = e.message;
+      }
+
+      setError(msg);
       if (!value) {
-        // Create Mode (no initial video existed)
         onChange('');
         if (onDurationExtracted) onDurationExtracted(0);
-        setError('Tải video thất bại. Vui lòng chọn lại video.');
-      } else {
-        // Edit Mode (keep previous video URL)
-        setError('Tải video mới thất bại. Video hiện tại vẫn được giữ nguyên.');
       }
+    }
+  };
+
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (lastFileRef.current) {
+      processFile(lastFileRef.current);
     }
   };
 
@@ -244,12 +323,16 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
     <div className="space-y-2 text-left">
       {label && <label className="block text-[10.5px] font-bold text-stone-600 mb-1">{label}</label>}
       <div 
-        onClick={() => fileInputRef.current?.click()}
-        className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:bg-slate-50 cursor-pointer transition-all"
+        onClick={() => {
+          if (!uploading) fileInputRef.current?.click();
+        }}
+        className={`border-2 border-dashed rounded-xl p-4 text-center transition-all ${
+          uploading ? 'border-emerald-300 bg-emerald-50/20 cursor-wait' : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
+        }`}
       >
         {resolvedVideoUrl ? (
           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-            <div className="aspect-video max-h-32 bg-black rounded-lg overflow-hidden border">
+            <div className="aspect-video max-h-36 bg-black rounded-lg overflow-hidden border">
               {isYouTube ? (
                 <iframe
                   key={resolvedVideoUrl}
@@ -259,7 +342,7 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
-                ></iframe>
+                />
               ) : (
                 <video 
                   ref={videoRef}
@@ -268,15 +351,6 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
                   preload="metadata"
                   playsInline
                   className="w-full h-full object-contain"
-                  onError={(e) => {
-                    const v = e.currentTarget;
-                    console.error('[Video Error Details]', {
-                      networkState: v.networkState,
-                      readyState: v.readyState,
-                      error: v.error ? { code: v.error.code, message: v.error.message } : null,
-                      src: resolvedVideoUrl,
-                    });
-                  }}
                 >
                   <source 
                     src={resolvedVideoUrl} 
@@ -289,15 +363,17 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
             <div className="flex items-center justify-between gap-2 border-t pt-2">
               <button 
                 type="button" 
+                disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-lg font-bold text-[10px] cursor-pointer transition-colors"
+                className="text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1 rounded-lg font-bold text-[10px] cursor-pointer transition-colors disabled:opacity-50"
               >
                 Thay đổi video
               </button>
               <button 
                 type="button" 
+                disabled={uploading}
                 onClick={handleClearVideo}
-                className="text-rose-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-rose-200 px-3 py-1 rounded-lg font-bold text-[10px] cursor-pointer transition-colors"
+                className="text-rose-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-rose-200 px-3 py-1 rounded-lg font-bold text-[10px] cursor-pointer transition-colors disabled:opacity-50"
               >
                 Xóa video
               </button>
@@ -307,7 +383,7 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
           <div className="py-2">
             <Film className="w-6 h-6 text-stone-400 mx-auto mb-1" />
             <p className="text-[10px] text-stone-500 font-bold">Kéo thả file video hoặc Click chọn</p>
-            <p className="text-[8.5px] text-stone-400">MP4, MOV, WEBM tối đa 100MB</p>
+            <p className="text-[8.5px] text-stone-400">MP4, MOV, WEBM tối đa 200MB</p>
           </div>
         )}
         <input 
@@ -318,20 +394,47 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
           accept="video/*" 
         />
       </div>
+
       {uploading && (
-        <div className="space-y-1">
-          <div className="flex justify-between text-[9px] font-bold text-stone-500">
-            <span>Đang tải video...</span>
-            <span className="text-emerald-600">{progress}%</span>
+        <div className="space-y-1.5 bg-emerald-50/70 border border-emerald-200 rounded-lg p-2.5">
+          <div className="flex justify-between items-center text-[10px] font-bold text-stone-700">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+              {progress >= 100 ? 'Đang xử lý trên máy chủ...' : `Đang tải video lên... ${progress}%`}
+            </span>
+            <span className="text-emerald-700 font-black">{progress}%</span>
+          </div>
+          <div className="w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className="bg-emerald-500 h-full rounded-full transition-all duration-150" 
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
       )}
-      {error && <div className="text-[9.5px] text-rose-500 font-bold">{error}</div>}
+
+      {error && (
+        <div className="flex items-center justify-between text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">
+          <div className="flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+          {lastFileRef.current && (
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[9.5px] font-extrabold cursor-pointer shrink-0 ml-2"
+            >
+              <RefreshCw className="w-3 h-3" /> Thử lại
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-// 3. Asset Uploader
+// 3. Asset Uploader (Real Progress + Retry)
 interface AssetUploaderProps {
   onAssetUploaded: (asset: { file_url: string; file_name: string; file_type: string; file_size: number; file?: File }) => void;
   label?: string;
@@ -339,10 +442,13 @@ interface AssetUploaderProps {
 
 export const InstructorAssetUploader: React.FC<AssetUploaderProps> = ({ onAssetUploaded, label }) => {
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastFileRef = useRef<File | null>(null);
 
   const processFile = async (file: File) => {
+    lastFileRef.current = file;
     setError(null);
 
     const allowedExts = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'csv', 'zip', 'rar', '7z', 'jpg', 'jpeg', 'png', 'webp'];
@@ -360,7 +466,13 @@ export const InstructorAssetUploader: React.FC<AssetUploaderProps> = ({ onAssetU
 
     try {
       setUploading(true);
-      const res = await instructorApi.uploadInstructorFile(file, 'lesson_asset');
+      setProgress(0);
+      const res = await instructorApi.uploadInstructorFileWithProgress(
+        file, 
+        'lesson_asset',
+        (pct) => setProgress(pct)
+      );
+      setProgress(100);
       onAssetUploaded({
         file,
         file_url: res.url,
@@ -391,6 +503,13 @@ export const InstructorAssetUploader: React.FC<AssetUploaderProps> = ({ onAssetU
     }
   };
 
+  const handleRetry = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (lastFileRef.current) {
+      processFile(lastFileRef.current);
+    }
+  };
+
   return (
     <div className="space-y-1.5 text-left">
       {label && <label className="block text-[10.5px] font-bold text-stone-600 mb-1">{label}</label>}
@@ -400,7 +519,8 @@ export const InstructorAssetUploader: React.FC<AssetUploaderProps> = ({ onAssetU
         disabled={uploading}
         className="w-full bg-[#f0fdf4] hover:bg-[#e6f4ea] text-[#10b981] border border-emerald-100 py-2 rounded-xl text-[10px] font-extrabold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
       >
-        <Upload className="w-3.5 h-3.5" /> {uploading ? 'Đang đính kèm...' : 'Tải tài liệu đính kèm'}
+        <Upload className="w-3.5 h-3.5" /> 
+        {uploading ? `Đang tải đính kèm (${progress}%)...` : 'Tải tài liệu đính kèm'}
       </button>
       <input 
         type="file" 
@@ -409,7 +529,28 @@ export const InstructorAssetUploader: React.FC<AssetUploaderProps> = ({ onAssetU
         className="hidden" 
         accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.zip,.rar,.7z,.jpg,.jpeg,.png,.webp"
       />
-      {error && <div className="text-[9.5px] text-rose-500 font-bold bg-rose-50 p-2 rounded-lg border border-rose-200 mt-1">{error}</div>}
+      {uploading && (
+        <div className="w-full bg-emerald-100 rounded-full h-1 overflow-hidden mt-1">
+          <div 
+            className="bg-emerald-500 h-full rounded-full transition-all duration-150" 
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+      {error && (
+        <div className="flex items-center justify-between text-[9.5px] text-rose-500 font-bold bg-rose-50 p-2 rounded-lg border border-rose-200 mt-1">
+          <span>{error}</span>
+          {lastFileRef.current && (
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[9px] font-extrabold cursor-pointer shrink-0 ml-2"
+            >
+              Thử lại
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

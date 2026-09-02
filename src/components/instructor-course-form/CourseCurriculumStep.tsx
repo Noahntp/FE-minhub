@@ -80,6 +80,89 @@ export default function CourseCurriculumStep({
   // Collapse/Expand state for chapters
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
+  // Drag & Drop states
+  const [draggedSectionIdx, setDraggedSectionIdx] = useState<number | null>(null);
+  const [dragOverSectionIdx, setDragOverSectionIdx] = useState<number | null>(null);
+  const [draggedLessonInfo, setDraggedLessonInfo] = useState<{ sectionId: string | number; lessonIdx: number } | null>(null);
+  const [dragOverLessonInfo, setDragOverLessonInfo] = useState<{ sectionId: string | number; lessonIdx: number } | null>(null);
+
+  // Section Drag & Drop handlers
+  const handleSectionDragStart = (e: React.DragEvent, sIdx: number) => {
+    e.dataTransfer.setData('text/plain', `section:${sIdx}`);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedSectionIdx(sIdx);
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent, sIdx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverSectionIdx !== sIdx) {
+      setDragOverSectionIdx(sIdx);
+    }
+  };
+
+  const handleSectionDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (draggedSectionIdx === null || draggedSectionIdx === targetIdx) {
+      setDraggedSectionIdx(null);
+      setDragOverSectionIdx(null);
+      return;
+    }
+    setChapters(prev => {
+      const updated = [...prev];
+      const [moved] = updated.splice(draggedSectionIdx, 1);
+      updated.splice(targetIdx, 0, moved);
+      return updated.map((ch, idx) => ({ ...ch, sort_order: idx + 1 }));
+    });
+    setDraggedSectionIdx(null);
+    setDragOverSectionIdx(null);
+  };
+
+  // Lesson Drag & Drop handlers
+  const handleLessonDragStart = (e: React.DragEvent, sectionId: string | number, lIdx: number) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain', `lesson:${sectionId}:${lIdx}`);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedLessonInfo({ sectionId, lessonIdx: lIdx });
+  };
+
+  const handleLessonDragOver = (e: React.DragEvent, sectionId: string | number, lIdx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverLessonInfo?.sectionId !== sectionId || dragOverLessonInfo?.lessonIdx !== lIdx) {
+      setDragOverLessonInfo({ sectionId, lessonIdx: lIdx });
+    }
+  };
+
+  const handleLessonDrop = (e: React.DragEvent, targetSectionId: string | number, targetLIdx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!draggedLessonInfo) {
+      setDraggedLessonInfo(null);
+      setDragOverLessonInfo(null);
+      return;
+    }
+
+    setChapters(prev => {
+      const next = prev.map(ch => ({ ...ch, lessons: [...(ch.lessons || [])] }));
+      const sourceSec = next.find(s => String(s.id) === String(draggedLessonInfo.sectionId));
+      const targetSec = next.find(s => String(s.id) === String(targetSectionId));
+      if (!sourceSec || !targetSec) return prev;
+
+      const [moved] = sourceSec.lessons.splice(draggedLessonInfo.lessonIdx, 1);
+      targetSec.lessons.splice(targetLIdx, 0, moved);
+
+      return next.map(ch => ({
+        ...ch,
+        lessons: (ch.lessons || []).map((les: any, idx: number) => ({ ...les, sort_order: idx + 1 }))
+      }));
+    });
+
+    setDraggedLessonInfo(null);
+    setDragOverLessonInfo(null);
+  };
+
   // Derive active section & lesson using robust ID comparison
   const selectedSection = chapters.find(ch => String(ch.id) === String(activeSectionId)) || null;
   const selectedLesson = selectedSection?.lessons?.find((les: any) => String(les.id) === String(activeLessonId)) || null;
@@ -497,24 +580,44 @@ export default function CourseCurriculumStep({
             ) : (
               chapters.map((chapter, sIdx) => {
                 const isCollapsed = !!collapsedSections[String(chapter.id)];
+                const isSectionDraggedOver = dragOverSectionIdx === sIdx && draggedSectionIdx !== null && draggedSectionIdx !== sIdx;
+
                 return (
                   <div 
                     key={chapter.id || sIdx} 
-                    className="border border-slate-100/90 rounded-xl p-3 bg-slate-50/20 space-y-2 instructor-section-card relative"
+                    onDragOver={(e) => handleSectionDragOver(e, sIdx)}
+                    onDrop={(e) => handleSectionDrop(e, sIdx)}
+                    className={`border rounded-xl p-3 bg-slate-50/20 space-y-2 instructor-section-card relative transition-all ${
+                      isSectionDraggedOver 
+                        ? 'border-emerald-500 bg-emerald-50/30 scale-[1.01]' 
+                        : 'border-slate-200/80 hover:border-slate-300'
+                    }`}
                   >
                     
                     {/* Chapter Header */}
                     <div className="flex justify-between items-center group/chapter">
-                      <button 
-                        type="button"
-                        onClick={() => toggleCollapse(chapter.id)}
-                        className="flex items-center gap-1.5 text-left min-w-0 flex-1 hover:text-emerald-700 select-none cursor-pointer focus:outline-none"
-                      >
-                        {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
-                        <span className="font-extrabold text-stone-850 truncate text-[11px] select-none">
-                          Chương {sIdx + 1}: {chapter.title}
-                        </span>
-                      </button>
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        {/* Drag Handle */}
+                        <div
+                          draggable
+                          onDragStart={(e) => handleSectionDragStart(e, sIdx)}
+                          className="p-1 text-stone-300 hover:text-stone-600 cursor-grab active:cursor-grabbing rounded transition-colors"
+                          title="Kéo thả để sắp xếp lại chương"
+                        >
+                          <GripVertical className="w-3.5 h-3.5" />
+                        </div>
+
+                        <button 
+                          type="button"
+                          onClick={() => toggleCollapse(chapter.id)}
+                          className="flex items-center gap-1.5 text-left min-w-0 flex-1 hover:text-emerald-700 select-none cursor-pointer focus:outline-none"
+                        >
+                          {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                          <span className="font-extrabold text-stone-850 truncate text-[11px] select-none">
+                            Chương {sIdx + 1}: {chapter.title}
+                          </span>
+                        </button>
+                      </div>
                       
                       <div className="flex items-center gap-1.5 ml-2 shrink-0">
                         <button
@@ -569,21 +672,37 @@ export default function CourseCurriculumStep({
                           const isSelected = String(chapter.id) === String(activeSectionId) && String(lesson.id) === String(activeLessonId);
                           const lessonSec = Number(lesson.video_duration_seconds ?? lesson.duration_seconds ?? lesson.duration ?? 0);
                           const durationStr = formatDuration(lessonSec);
+                          const isLessonDraggedOver = dragOverLessonInfo?.sectionId === chapter.id && dragOverLessonInfo?.lessonIdx === lIdx;
                           
                           return (
                             <div 
                               key={lesson.id || lIdx}
+                              onDragOver={(e) => handleLessonDragOver(e, chapter.id, lIdx)}
+                              onDrop={(e) => handleLessonDrop(e, chapter.id, lIdx)}
                               onClick={() => {
                                 setActiveSectionId(chapter.id);
                                 setActiveLessonId(lesson.id);
                               }}
                               className={`flex justify-between items-center px-2 py-2 rounded-lg cursor-pointer transition-all instructor-lesson-row group/lesson relative border ${
-                                isSelected 
-                                  ? 'bg-[#e6f4ea] border-emerald-500/50 text-emerald-800 shadow-3xs font-bold' 
-                                  : 'hover:bg-slate-50/70 border-transparent text-stone-650'
+                                isLessonDraggedOver
+                                  ? 'border-emerald-500 bg-emerald-50/50 scale-[1.01]'
+                                  : isSelected 
+                                    ? 'bg-[#e6f4ea] border-emerald-500/50 text-emerald-800 shadow-3xs font-bold' 
+                                    : 'hover:bg-slate-50/70 border-transparent text-stone-650'
                               }`}
                             >
-                              <span className="flex items-center gap-1.5 truncate flex-1 min-w-0 pr-1.5">
+                              <div className="flex items-center gap-1 truncate flex-1 min-w-0 pr-1.5">
+                                {/* Lesson Drag Handle */}
+                                <div
+                                  draggable
+                                  onDragStart={(e) => handleLessonDragStart(e, chapter.id, lIdx)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-0.5 text-stone-300 hover:text-stone-600 cursor-grab active:cursor-grabbing rounded transition-colors shrink-0"
+                                  title="Kéo thả sắp xếp bài học"
+                                >
+                                  <GripVertical className="w-3 h-3" />
+                                </div>
+
                                 {lesson.lesson_type === 'video' ? (
                                   <Video className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                                 ) : (
@@ -592,7 +711,7 @@ export default function CourseCurriculumStep({
                                 <span className="truncate text-[10.5px]">
                                   {sIdx + 1}.{lIdx + 1} {lesson.title}
                                 </span>
-                              </span>
+                              </div>
                               
                               <div className="flex items-center gap-2 shrink-0 ml-1">
                                 {Boolean(lesson.is_preview) && (
