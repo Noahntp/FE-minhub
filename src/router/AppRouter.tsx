@@ -73,16 +73,16 @@ function AppRoutes() {
           {/* Main Layout Routes (Navbar + Footer) */}
           <Route element={<MainLayout />}>
             {PublicMainRoutes()}
-            {LearnerRoutes({ isLoggedIn, currentUser, setCurrentUser, navigateTo, handleLogout })}
+            {LearnerRoutes({ currentUser, setCurrentUser, navigateTo, handleLogout })}
             {InstructorMainRoutes({ currentUser })}
             {CartRoutes()}
           </Route>
 
           {/* Instructor Workspace (No Main Navbar/Footer) */}
-          {InstructorWorkspaceRoutes({ isLoggedIn, currentUser })}
+          {InstructorWorkspaceRoutes()}
 
           {/* Admin Workspace */}
-          {AdminRoutes({ isLoggedIn, currentUser })}
+          {AdminRoutes()}
 
           {/* Error Pages */}
           <Route path="/403" element={<ForbiddenPage />} />

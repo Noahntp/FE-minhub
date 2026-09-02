@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import AuthScreens from './components/AuthScreens';
 import { User } from '@/shared/types';
 import { useApp } from '@/app/AppContext';
-import { getDashboardRouteByRole } from '@/router/routes';
+import { getDashboardRouteByRole, resolvePostLoginRedirect } from '@/router/routes';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export default function LoginPage() {
     localStorage.setItem('mindhub_current_user', JSON.stringify(user));
     localStorage.setItem('mindhub_is_logged_in', 'true');
     const from = location.state?.from;
-    const targetPath = from ? from : getDashboardRouteByRole(user.role);
+    const targetPath = resolvePostLoginRedirect(user.role, from);
     navigate(targetPath, { replace: true });
   };
 

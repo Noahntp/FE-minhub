@@ -71,9 +71,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('mindhub_is_logged_in');
-      return stored === 'true';
+      const token = localStorage.getItem('mindhub_api_token') || localStorage.getItem('token');
+      return stored === 'true' && !!token;
     } catch (e) {
-      return true;
+      return false;
     }
   });
 
@@ -81,12 +82,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Fetch fresh profile from Backend database on app mount/reload if token exists
   useEffect(() => {
-    const token = localStorage.getItem('mindhub_api_token');
+    const token = localStorage.getItem('mindhub_api_token') || localStorage.getItem('token');
     if (token) {
       apiFetch<any>('/users/me')
         .then(res => {
           const profileData = res?.data || res;
           if (profileData) {
+            const role = profileData.role || 'learner';
             setCurrentUser(prev => {
               const updated = {
                 ...prev,
@@ -99,7 +101,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 expertise: profileData.expertise ?? prev?.expertise,
                 avatar: profileData.avatar_url || profileData.avatar || prev?.avatar,
                 avatar_url: profileData.avatar_url || profileData.avatar || prev?.avatar_url,
-                role: profileData.role || prev?.role
+                role: role
               };
               if (JSON.stringify(updated) === JSON.stringify(prev)) {
                 return prev;
@@ -111,6 +113,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
             setIsLoggedIn(true);
             localStorage.setItem('mindhub_is_logged_in', 'true');
+
+            // Only fetch learner courses if user is a learner
+            if (role === 'learner' || role === 'student') {
+              apiFetch<any>('/me/courses')
+                .then((courseRes) => {
+                  const list = Array.isArray(courseRes) ? courseRes : (courseRes?.data || []);
+                  if (Array.isArray(list)) {
+                    const ids = list
+                      .map((item: any) => String(item.course_id || item.course?.id || item.course?.slug || item.id))
+                      .filter(Boolean);
+                    if (ids.length > 0) {
+                      setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
+                    }
+                  }
+                })
+                .catch(() => {});
+            }
           }
         })
         .catch(err => {
@@ -118,27 +137,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setIsLoggedIn(false);
           setCurrentUser(INITIAL_USER);
           localStorage.removeItem('mindhub_api_token');
+          localStorage.removeItem('token');
           localStorage.removeItem('mindhub_is_logged_in');
           localStorage.removeItem('mindhub_current_user');
         })
         .finally(() => {
           setIsInitializingAuth(false);
         });
-
-      apiFetch<any>('/me/courses')
-        .then((res) => {
-          const list = Array.isArray(res) ? res : (res?.data || []);
-          if (Array.isArray(list)) {
-            const ids = list
-              .map((item: any) => String(item.course_id || item.course?.id || item.course?.slug || item.id))
-              .filter(Boolean);
-            if (ids.length > 0) {
-              setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
-            }
-          }
-        })
-        .catch(() => {});
     } else {
+      setIsLoggedIn(false);
       setIsInitializingAuth(false);
     }
   }, []);

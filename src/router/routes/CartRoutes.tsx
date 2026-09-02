@@ -63,12 +63,35 @@ const VNPayReturnPageWrapper = () => {
   return <VNPayReturnPage onNavigate={navigateTo} />;
 };
 
+import { PublicStorefrontGuard } from '../RouteGuards';
+
 export const CartRoutes = () => {
   return (
     <>
-      <Route path="/cart" element={<CartCheckoutPageWrapper />} />
-      <Route path="/checkout" element={<CartCheckoutPageWrapper />} />
-      <Route path="/vnpay-return" element={<VNPayReturnPageWrapper />} />
+      <Route
+        path="/cart"
+        element={
+          <PublicStorefrontGuard>
+            <CartCheckoutPageWrapper />
+          </PublicStorefrontGuard>
+        }
+      />
+      <Route
+        path="/checkout"
+        element={
+          <PublicStorefrontGuard>
+            <CartCheckoutPageWrapper />
+          </PublicStorefrontGuard>
+        }
+      />
+      <Route
+        path="/vnpay-return"
+        element={
+          <PublicStorefrontGuard>
+            <VNPayReturnPageWrapper />
+          </PublicStorefrontGuard>
+        }
+      />
     </>
   );
 };

@@ -1,19 +1,20 @@
 import React from 'react';
-import { Route, Navigate } from 'react-router-dom';
+import { Route } from 'react-router-dom';
+import { WorkspaceRouteGuard } from '../RouteGuards';
 
 const AdminDashboard = React.lazy(() => import('@/features/admin/AdminDashboard').then((m) => ({ default: m.default })));
 
-interface AdminRoutesProps {
-  isLoggedIn: boolean;
-  currentUser: any;
-}
-
-export const AdminRoutes = ({ isLoggedIn, currentUser }: AdminRoutesProps) => {
-  const isAdmin = isLoggedIn && currentUser?.role === 'admin';
-
+export const AdminRoutes = () => {
   return (
     <>
-      <Route path="/admin/*" element={isAdmin ? <AdminDashboard /> : <Navigate to="/" replace />} />
+      <Route
+        path="/admin/*"
+        element={
+          <WorkspaceRouteGuard allowedRole="admin">
+            <AdminDashboard />
+          </WorkspaceRouteGuard>
+        }
+      />
     </>
   );
 };

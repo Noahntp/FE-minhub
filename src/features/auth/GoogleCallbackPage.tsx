@@ -57,8 +57,8 @@ export default function GoogleCallbackPage() {
           localStorage.setItem('mindhub_current_user', JSON.stringify(userObj));
 
           toast.success('Đăng nhập bằng Google thành công!');
-          // Navigate to homepage '/' after Google login as requested
-          navigate('/', { replace: true });
+          const targetPath = getDashboardRouteByRole(userObj.role);
+          navigate(targetPath, { replace: true });
         })
         .catch((err) => {
           console.error('Fetch user error after Google OAuth:', err);

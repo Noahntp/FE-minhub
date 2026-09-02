@@ -12,10 +12,7 @@ const PageLoader = () => (
   </div>
 );
 
-interface InstructorRoutesProps {
-  isLoggedIn: boolean;
-  currentUser: any;
-}
+import { WorkspaceRouteGuard, PublicStorefrontGuard } from '../RouteGuards';
 
 // Wrapper for Instructor Courses
 const InstructorCoursesPageWrapper = ({ currentUser }: { currentUser: any }) => {
@@ -42,18 +39,44 @@ const InstructorCoursesPageWrapper = ({ currentUser }: { currentUser: any }) => 
 
 export const InstructorMainRoutes = ({ currentUser }: { currentUser: any }) => (
   <>
-    <Route path="/instructors/:instructorId" element={<InstructorProfilePage />} />
-    <Route path="/instructors/:instructorId/courses" element={<InstructorCoursesPageWrapper currentUser={currentUser} />} />
+    <Route
+      path="/instructors/:instructorId"
+      element={
+        <PublicStorefrontGuard>
+          <InstructorProfilePage />
+        </PublicStorefrontGuard>
+      }
+    />
+    <Route
+      path="/instructors/:instructorId/courses"
+      element={
+        <PublicStorefrontGuard>
+          <InstructorCoursesPageWrapper currentUser={currentUser} />
+        </PublicStorefrontGuard>
+      }
+    />
   </>
 );
 
-export const InstructorWorkspaceRoutes = ({ isLoggedIn, currentUser }: InstructorRoutesProps) => {
-  const isInstructor = isLoggedIn && (currentUser?.role === 'instructor' || currentUser?.role === 'admin');
-
+export const InstructorWorkspaceRoutes = () => {
   return (
     <>
-      <Route path="/instructor/*" element={isInstructor ? <InstructorDashboard /> : <Navigate to="/my-courses" replace />} />
-      <Route path="/instructor/:instructorId/*" element={isInstructor ? <InstructorDashboard /> : <Navigate to="/my-courses" replace />} />
+      <Route
+        path="/instructor/*"
+        element={
+          <WorkspaceRouteGuard allowedRole="instructor">
+            <InstructorDashboard />
+          </WorkspaceRouteGuard>
+        }
+      />
+      <Route
+        path="/instructor/:instructorId/*"
+        element={
+          <WorkspaceRouteGuard allowedRole="instructor">
+            <InstructorDashboard />
+          </WorkspaceRouteGuard>
+        }
+      />
     </>
   );
 };

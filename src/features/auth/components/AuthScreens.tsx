@@ -315,8 +315,9 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           isEmailVerified: true
         });
         saveToHistory(apiUser);
-        onLoginSuccess(apiUser);
-        if (navigateTo) {
+        if (onLoginSuccess) {
+          onLoginSuccess(apiUser);
+        } else if (navigateTo) {
           navigateTo(getDashboardRouteByRole(apiUser.role));
         } else {
           onClose();
@@ -337,10 +338,13 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
 
   const handleHistoryClick = (userObj: UserType) => {
     saveToHistory(userObj);
-    onLoginSuccess(userObj);
-    onClose();
-    if (navigateTo) {
-      navigateTo(getDashboardRouteByRole(userObj.role));
+    if (onLoginSuccess) {
+      onLoginSuccess(userObj);
+    } else {
+      onClose();
+      if (navigateTo) {
+        navigateTo(getDashboardRouteByRole(userObj.role));
+      }
     }
   };
 
@@ -357,8 +361,9 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           isEmailVerified: true
         });
         saveToHistory(apiUser);
-        onLoginSuccess(apiUser);
-        if (navigateTo) {
+        if (onLoginSuccess) {
+          onLoginSuccess(apiUser);
+        } else if (navigateTo) {
           navigateTo(getDashboardRouteByRole(apiUser.role));
         } else {
           onClose();

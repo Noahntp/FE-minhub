@@ -1,5 +1,6 @@
 import React from 'react';
 import { Route, Navigate } from 'react-router-dom';
+import { AuthGuestGuard, PublicStorefrontGuard } from '../RouteGuards';
 
 // Lazy Loaded Pages
 const HomePage = React.lazy(() => import('@/features/home/HomePage').then((m) => ({ default: m.default })));
@@ -27,14 +28,14 @@ const GoogleCallbackPage = React.lazy(() => import('@/features/auth/GoogleCallba
 export const PublicAuthRoutes = () => {
   return (
     <>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/instructor/register" element={<RegisterPage />} />
-      <Route path="/instructors/register" element={<RegisterPage />} />
-      <Route path="/verify-email" element={<RegisterPage />} />
-      <Route path="/auth/verify-email" element={<RegisterPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/login" element={<AuthGuestGuard><LoginPage /></AuthGuestGuard>} />
+      <Route path="/register" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
+      <Route path="/instructor/register" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
+      <Route path="/instructors/register" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
+      <Route path="/verify-email" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
+      <Route path="/auth/verify-email" element={<AuthGuestGuard><RegisterPage /></AuthGuestGuard>} />
+      <Route path="/forgot-password" element={<AuthGuestGuard><ForgotPasswordPage /></AuthGuestGuard>} />
+      <Route path="/reset-password" element={<AuthGuestGuard><ResetPasswordPage /></AuthGuestGuard>} />
       <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
       <Route path="/dashboard" element={<Navigate to="/" replace />} />
     </>
@@ -44,24 +45,24 @@ export const PublicAuthRoutes = () => {
 export const PublicMainRoutes = () => {
   return (
     <>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<PublicStorefrontGuard><HomePage /></PublicStorefrontGuard>} />
       
       {/* Course Discovery */}
-      <Route path="/courses/:courseId" element={<CourseDetailPage />} />
-      <Route path="/courses" element={<CourseListPage />} />
-      <Route path="/category/:slug" element={<CategoryDetailPage />} />
-      <Route path="/roadmaps" element={<RoadmapsPage />} />
-      <Route path="/roadmaps/:roadmapId" element={<RoadmapDetailPage />} />
-      <Route path="/instructors" element={<InstructorsPage />} />
-      <Route path="/search" element={<SearchPage />} />
+      <Route path="/courses/:courseId" element={<PublicStorefrontGuard><CourseDetailPage /></PublicStorefrontGuard>} />
+      <Route path="/courses" element={<PublicStorefrontGuard><CourseListPage /></PublicStorefrontGuard>} />
+      <Route path="/category/:slug" element={<PublicStorefrontGuard><CategoryDetailPage /></PublicStorefrontGuard>} />
+      <Route path="/roadmaps" element={<PublicStorefrontGuard><RoadmapsPage /></PublicStorefrontGuard>} />
+      <Route path="/roadmaps/:roadmapId" element={<PublicStorefrontGuard><RoadmapDetailPage /></PublicStorefrontGuard>} />
+      <Route path="/instructors" element={<PublicStorefrontGuard><InstructorsPage /></PublicStorefrontGuard>} />
+      <Route path="/search" element={<PublicStorefrontGuard><SearchPage /></PublicStorefrontGuard>} />
 
       {/* Legal & Static Pages */}
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/services" element={<ServicesPage />} />
-      <Route path="/contact" element={<ContactPage />} />
-      <Route path="/legal" element={<LegalPage />} />
-      <Route path="/faq" element={<FAQPage />} />
-      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/about" element={<PublicStorefrontGuard><AboutPage /></PublicStorefrontGuard>} />
+      <Route path="/services" element={<PublicStorefrontGuard><ServicesPage /></PublicStorefrontGuard>} />
+      <Route path="/contact" element={<PublicStorefrontGuard><ContactPage /></PublicStorefrontGuard>} />
+      <Route path="/legal" element={<PublicStorefrontGuard><LegalPage /></PublicStorefrontGuard>} />
+      <Route path="/faq" element={<PublicStorefrontGuard><FAQPage /></PublicStorefrontGuard>} />
+      <Route path="/pricing" element={<PublicStorefrontGuard><PricingPage /></PublicStorefrontGuard>} />
       <Route path="/privacy" element={<Navigate to="/legal" replace />} />
     </>
   );
