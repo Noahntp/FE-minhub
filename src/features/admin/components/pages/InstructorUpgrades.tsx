@@ -476,12 +476,14 @@ export default function InstructorUpgrades() {
     user: any | null;
     error?: string;
     reason?: string;
+    submitting?: boolean;
   }>({
     open: false,
     type: "",
     user: null,
     error: "",
     reason: "",
+    submitting: false,
   });
 
   // Close menus on outside click
@@ -873,8 +875,8 @@ export default function InstructorUpgrades() {
 
   // Action submit triggers
   const handleConfirmSubmit = async () => {
-    const { type, user, reason } = confirmModal;
-    if (!user) return;
+    const { type, user, reason, submitting } = confirmModal;
+    if (!user || submitting) return;
 
     if (type === "reject" && (!reason || !reason.trim())) {
       setConfirmModal((prev) => ({
@@ -884,6 +886,8 @@ export default function InstructorUpgrades() {
       toast.error("Vui lòng nhập lý do từ chối hồ sơ.");
       return;
     }
+
+    setConfirmModal((prev) => ({ ...prev, submitting: true, error: "" }));
 
     try {
       let res: any;
@@ -895,7 +899,7 @@ export default function InstructorUpgrades() {
 
       if (res && res.success) {
         toast.success(res.message || "Thực hiện thành công.");
-        setConfirmModal({ open: false, type: "", user: null, error: "", reason: "" });
+        setConfirmModal({ open: false, type: "", user: null, error: "", reason: "", submitting: false });
         setIsDrawerOpen(false);
         loadData();
         window.dispatchEvent(new CustomEvent("mindhub-admin-task-updated"));
@@ -903,11 +907,17 @@ export default function InstructorUpgrades() {
         toast.error(res ? res.message : "Thao tác thất bại.");
         setConfirmModal((prev) => ({
           ...prev,
+          submitting: false,
           error: res ? res.message : "Lỗi hệ thống.",
         }));
       }
-    } catch (e) {
-      toast.error("Có lỗi xảy ra trong quá trình xử lý.");
+    } catch (e: any) {
+      toast.error(e?.message || "Có lỗi xảy ra trong quá trình xử lý.");
+      setConfirmModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: e?.message || "Có lỗi xảy ra.",
+      }));
     }
   };
 
@@ -3184,24 +3194,44 @@ export default function InstructorUpgrades() {
             <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
               <button
                 type="button"
+                disabled={confirmModal.submitting}
                 onClick={() =>
                   setConfirmModal({
                     open: false,
                     type: "",
                     user: null,
                     error: "",
+                    reason: "",
+                    submitting: false,
                   })
                 }
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink transition-colors",
+                  confirmModal.submitting ? "opacity-50 cursor-not-allowed" : "hover:bg-hairline cursor-pointer"
+                )}
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
+                disabled={confirmModal.submitting}
                 onClick={handleConfirmSubmit}
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-success text-white transition-all border-none flex items-center justify-center gap-2 min-w-[130px]",
+                  confirmModal.submitting ? "opacity-80 cursor-wait" : "hover:opacity-90 cursor-pointer shadow-sm"
+                )}
               >
-                Xác nhận duyệt
+                {confirmModal.submitting ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang phê duyệt...</span>
+                  </>
+                ) : (
+                  <span>Xác nhận duyệt</span>
+                )}
               </button>
             </div>
           </div>
@@ -3253,6 +3283,7 @@ export default function InstructorUpgrades() {
               <textarea
                 id="reject-upgrade-reason"
                 rows={3}
+                disabled={confirmModal.submitting}
                 value={confirmModal.reason || ""}
                 onChange={(e) =>
                   setConfirmModal((prev) => ({
@@ -3264,6 +3295,7 @@ export default function InstructorUpgrades() {
                 placeholder="Nhập chi tiết lý do từ chối (bắt buộc: ví dụ thiếu chứng chỉ sư phạm, kinh nghiệm chưa phù hợp...)"
                 className={cn(
                   "w-full p-2.5 text-xs bg-canvas border rounded-lg focus:ring-2 outline-none text-ink resize-none font-medium transition-all",
+                  confirmModal.submitting ? "opacity-60 cursor-not-allowed" : "",
                   confirmModal.error
                     ? "border-danger-brick focus:ring-rose-200 focus:border-danger-brick"
                     : "border-hairline focus:ring-rose-100 focus:border-rose-400"
@@ -3276,6 +3308,7 @@ export default function InstructorUpgrades() {
             <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
               <button
                 type="button"
+                disabled={confirmModal.submitting}
                 onClick={() =>
                   setConfirmModal({
                     open: false,
@@ -3283,24 +3316,40 @@ export default function InstructorUpgrades() {
                     user: null,
                     error: "",
                     reason: "",
+                    submitting: false,
                   })
                 }
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink transition-colors",
+                  confirmModal.submitting ? "opacity-50 cursor-not-allowed" : "hover:bg-hairline cursor-pointer"
+                )}
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                disabled={!confirmModal.reason?.trim()}
+                disabled={confirmModal.submitting || !confirmModal.reason?.trim()}
                 className={cn(
-                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] transition-all border-none shadow-sm cursor-pointer",
-                  confirmModal.reason?.trim()
-                    ? "bg-danger-brick text-white hover:opacity-90"
-                    : "bg-danger-brick/40 text-white/70 cursor-not-allowed"
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] transition-all border-none shadow-sm flex items-center justify-center gap-2 min-w-[130px]",
+                  confirmModal.submitting
+                    ? "bg-danger-brick/80 text-white cursor-wait"
+                    : confirmModal.reason?.trim()
+                      ? "bg-danger-brick text-white hover:opacity-90 cursor-pointer"
+                      : "bg-danger-brick/40 text-white/70 cursor-not-allowed"
                 )}
               >
-                Xác nhận từ chối
+                {confirmModal.submitting ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang từ chối...</span>
+                  </>
+                ) : (
+                  <span>Xác nhận từ chối</span>
+                )}
               </button>
             </div>
           </div>
