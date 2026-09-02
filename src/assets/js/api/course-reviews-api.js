@@ -63,6 +63,8 @@ export async function getCourseReviews(params = {}) {
   if (params.per_page) query.per_page = params.per_page;
   if (params.search) query.search = params.search;
   if (params.category_id) query.category_id = params.category_id;
+  if (params.status && params.status !== 'all') query.status = params.status;
+  if (params.reviewed_date) query.reviewed_date = params.reviewed_date;
   if (params.date_from) query.date_from = params.date_from;
   if (params.date_to) query.date_to = params.date_to;
 

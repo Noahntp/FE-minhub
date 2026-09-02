@@ -701,6 +701,7 @@ export default function InstructorDashboard({
   const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
+  const [step1Errors, setStep1Errors] = useState<Record<string, string>>({});
   const [submitErrorModalState, setSubmitErrorModalState] = useState<{
     isOpen: boolean;
     title?: string;
@@ -3940,15 +3941,16 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             setAutosaveError(null);
             try {
               const selectedCatInt = parseInt(String(category), 10);
+              const isUncategorizedPending = category === 'none_pending';
               const validCategoryInt = (Number.isInteger(selectedCatInt) && selectedCatInt > 0)
                 ? selectedCatInt
-                : (dbCategories.length > 0 ? (parseInt(String(dbCategories[0].id), 10) || 1) : 1);
+                : (isUncategorizedPending ? null : (dbCategories.length > 0 ? (parseInt(String(dbCategories[0].id), 10) || 1) : 1));
 
               const payload = {
                 title: title.trim(),
                 slug: slug.trim() || undefined,
-                category_id: validCategoryInt,
-                category_ids: [validCategoryInt],
+                category_id: validCategoryInt || undefined,
+                category_ids: validCategoryInt ? [validCategoryInt] : [],
                 level: level || 'beginner',
                 language: language || 'vi',
                 short_description: subtitle || title.trim(),
@@ -4035,10 +4037,89 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             }
           };
 
+          const validateStep1 = () => {
+            const errs: Record<string, string> = {};
+
+            // Title
+            if (!title.trim()) {
+              errs.title = 'Vui lòng nhập tiêu đề khóa học.';
+            } else if (title.trim().length < 5) {
+              errs.title = 'Tiêu đề khóa học phải có ít nhất 5 ký tự.';
+            } else if (title.trim().length > 100) {
+              errs.title = 'Tiêu đề khóa học không được vượt quá 100 ký tự.';
+            }
+
+            // Slug
+            if (!slug.trim()) {
+              errs.slug = 'Vui lòng nhập slug đường dẫn.';
+            } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())) {
+              errs.slug = 'Slug chỉ gồm chữ thường không dấu, số và dấu gạch nối (vd: lap-trinh-python).';
+            }
+
+            // Category
+            if (!category || category === '') {
+              errs.category = 'Vui lòng chọn danh mục hoặc chọn "Chưa có danh mục phù hợp".';
+            }
+
+            // Level
+            if (!['beginner', 'intermediate', 'advanced', 'all_levels'].includes(level)) {
+              errs.level = 'Vui lòng chọn cấp độ khóa học.';
+            }
+
+            // Language
+            if (!language || !language.trim()) {
+              errs.language = 'Vui lòng chọn ngôn ngữ giảng dạy.';
+            }
+
+            // Short description
+            if (!subtitle.trim()) {
+              errs.short_description = 'Vui lòng nhập mô tả ngắn khóa học.';
+            } else if (subtitle.trim().length < 10) {
+              errs.short_description = 'Mô tả ngắn phải có ít nhất 10 ký tự.';
+            } else if (subtitle.trim().length > 500) {
+              errs.short_description = 'Mô tả ngắn không được vượt quá 500 ký tự.';
+            }
+
+            // Description
+            const plainDesc = description.replace(/<[^>]+>/g, '').trim();
+            if (!plainDesc) {
+              errs.description = 'Vui lòng nhập mô tả chi tiết khóa học.';
+            } else if (plainDesc.length < 20) {
+              errs.description = 'Mô tả chi tiết phải có ít nhất 20 ký tự.';
+            }
+
+            setStep1Errors(errs);
+            return {
+              isValid: Object.keys(errs).length === 0,
+              errors: errs,
+            };
+          };
+
           const handleNext = () => {
-            if (builderStep === 1 && !title.trim()) {
-              alert('Vui lòng điền Tiêu đề khóa học trước khi sang bước tiếp theo.');
-              return;
+            if (builderStep === 1) {
+              const { isValid, errors: valErrors } = validateStep1();
+              if (!isValid) {
+                const orderedFieldKeys = ['title', 'slug', 'category', 'level', 'language', 'short_description', 'description'];
+                const firstErrorKey = orderedFieldKeys.find(key => valErrors[key]);
+
+                if (firstErrorKey) {
+                  const el = document.getElementById(`focus-${firstErrorKey}`) || document.querySelector(`[data-focus-id="${firstErrorKey}"]`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const focusable = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.tagName === 'BUTTON'
+                      ? el
+                      : el.querySelector('input, textarea, select, button, [contenteditable="true"]');
+                    if (focusable && typeof (focusable as HTMLElement).focus === 'function') {
+                      (focusable as HTMLElement).focus();
+                    }
+                    el.classList.add('ring-2', 'ring-red-400', 'ring-offset-2', 'rounded-xl', 'transition-all', 'duration-300');
+                    setTimeout(() => {
+                      el.classList.remove('ring-2', 'ring-red-400', 'ring-offset-2');
+                    }, 1500);
+                  }
+                }
+                return;
+              }
             }
             if (builderStep < 4) setBuilderStep(builderStep + 1);
           };
@@ -4133,6 +4214,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                           onChange={(e) => {
                             const val = e.target.value.slice(0, 100);
                             setTitle(val);
+                            if (step1Errors.title) setStep1Errors(prev => ({ ...prev, title: '' }));
                             if (!isManualSlug) {
                               const slugified = val.toLowerCase()
                                 .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -4140,13 +4222,21 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                                 .replace(/[^a-z0-9\s-]/g, "")
                                 .trim().replace(/\s+/g, "-");
                               setSlug(slugified);
+                              if (step1Errors.slug) setStep1Errors(prev => ({ ...prev, slug: '' }));
                             }
                           }}
                           placeholder="Lập trình Python cơ bản cho người mới bắt đầu"
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none focus:border-emerald-500"
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none transition-colors ${
+                            step1Errors.title ? 'border-red-400 focus:border-red-500 bg-red-50/10' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         />
+                        {step1Errors.title && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.title}
+                          </p>
+                        )}
                       </div>
-                      <div>
+                      <div id="focus-slug" data-focus-id="slug">
                         <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Slug (đường dẫn) *</label>
                         <input 
                           type="text" 
@@ -4154,10 +4244,18 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                           onChange={(e) => {
                             setSlug(e.target.value);
                             setIsManualSlug(true);
+                            if (step1Errors.slug) setStep1Errors(prev => ({ ...prev, slug: '' }));
                           }}
                           placeholder="lap-trinh-python-co-ban-cho-nguoi-moi-bat-dau"
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none focus:border-emerald-500"
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none transition-colors ${
+                            step1Errors.slug ? 'border-red-400 focus:border-red-500 bg-red-50/10' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         />
+                        {step1Errors.slug && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.slug}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -4166,16 +4264,21 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                         <div className="flex justify-between items-center mb-1.5">
                           <label className="block text-[10.5px] font-bold text-stone-600">Danh mục *</label>
                           <span 
-                            title="Danh mục do Quản trị viên quản lý. Khóa học của bạn sẽ được Admin phân loại chính xác khi phê duyệt nếu chưa có danh mục phù hợp."
+                            title="Khóa học chưa có danh mục sẽ được Quản trị viên phân loại chính xác khi phê duyệt."
                             className="text-[9.5px] font-bold text-emerald-600 hover:text-emerald-700 cursor-help"
                           >
-                            Chưa có danh mục phù hợp?
+                            Đề xuất danh mục?
                           </span>
                         </div>
                         <select 
                           value={category}
-                          onChange={(e) => setCategory(e.target.value)}
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                          onChange={(e) => {
+                            setCategory(e.target.value);
+                            if (step1Errors.category) setStep1Errors(prev => ({ ...prev, category: '' }));
+                          }}
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-white focus:outline-none cursor-pointer transition-colors ${
+                            step1Errors.category ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         >
                           {dbCategories.length > 0 ? (
                             dbCategories.map((cat: any) => (
@@ -4187,25 +4290,47 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                               <option value="2">Trí tuệ nhân tạo (AI)</option>
                             </>
                           )}
+                          <option value="none_pending" className="text-amber-700 font-bold bg-amber-50">
+                            ⚠️ Chưa có danh mục phù hợp (Admin phân loại khi duyệt)
+                          </option>
                         </select>
+                        {step1Errors.category && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.category}
+                          </p>
+                        )}
                       </div>
-                      <div>
+                      <div id="focus-level" data-focus-id="level">
                         <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Cấp độ *</label>
                         <select 
                           value={level}
-                          onChange={(e) => setLevel(e.target.value)}
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                          onChange={(e) => {
+                            setLevel(e.target.value);
+                            if (step1Errors.level) setStep1Errors(prev => ({ ...prev, level: '' }));
+                          }}
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-white focus:outline-none cursor-pointer transition-colors ${
+                            step1Errors.level ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         >
                           <option value="beginner">Cơ bản (Beginner)</option>
                           <option value="intermediate">Trung cấp (Intermediate)</option>
                           <option value="advanced">Nâng cao (Advanced)</option>
                           <option value="all_levels">Mọi cấp độ (All Levels)</option>
                         </select>
+                        {step1Errors.level && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.level}
+                          </p>
+                        )}
                       </div>
-                      <div>
+                      <div id="focus-language" data-focus-id="language">
                         <LanguageSelect 
                           value={language} 
-                          onChange={setLanguage} 
+                          onChange={(langCode) => {
+                            setLanguage(langCode);
+                            if (step1Errors.language) setStep1Errors(prev => ({ ...prev, language: '' }));
+                          }}
+                          error={step1Errors.language}
                         />
                       </div>
                     </div>
@@ -4215,19 +4340,33 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                       <textarea 
                         rows={2}
                         value={subtitle}
-                        onChange={(e) => setSubtitle(e.target.value)}
+                        onChange={(e) => {
+                          setSubtitle(e.target.value);
+                          if (step1Errors.short_description) setStep1Errors(prev => ({ ...prev, short_description: '' }));
+                        }}
                         placeholder="Khóa học giúp bạn nắm vững kiến thức nền tảng Python từ cơ bản đến thực hành..."
-                        className="w-full text-[11px] font-medium text-stone-700 border border-slate-200 rounded-xl p-3 bg-slate-50/20 focus:outline-none"
+                        className={`w-full text-[11px] font-medium text-stone-700 border rounded-xl p-3 bg-slate-50/20 focus:outline-none transition-colors ${
+                          step1Errors.short_description ? 'border-red-400 focus:border-red-500 bg-red-50/10' : 'border-slate-200 focus:border-emerald-500'
+                        }`}
                       />
+                      {step1Errors.short_description && (
+                        <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {step1Errors.short_description}
+                        </p>
+                      )}
                     </div>
 
                     <div id="focus-description" data-focus-id="description">
                       <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Mô tả chi tiết *</label>
                       <RichTextEditor
                         value={description}
-                        onChange={setDescription}
+                        onChange={(val) => {
+                          setDescription(val);
+                          if (step1Errors.description) setStep1Errors(prev => ({ ...prev, description: '' }));
+                        }}
                         placeholder="Soạn thảo mục tiêu, cấu trúc nội dung và bài học chi tiết..."
                         minHeight="220px"
+                        error={step1Errors.description}
                       />
                     </div>
                   </div>

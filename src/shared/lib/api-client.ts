@@ -155,10 +155,25 @@ async function executeFetch<T>(url: string, options: RequestInit): Promise<T> {
   return json as T;
 }
 
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+function buildUrlWithQuery(endpoint: string, options?: RequestInit & { query?: Record<string, any>; params?: Record<string, any> }): string {
   const baseUrl = getNormalizedBaseUrl(config.baseUrl);
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
-  const url = `${baseUrl}${cleanEndpoint}`;
+  const queryObj = options?.query || options?.params;
+  if (!queryObj || typeof queryObj !== 'object') {
+    return `${baseUrl}${cleanEndpoint}`;
+  }
+  const searchParams = new URLSearchParams();
+  Object.entries(queryObj).forEach(([key, val]) => {
+    if (val !== undefined && val !== null && val !== '') {
+      searchParams.append(key, String(val));
+    }
+  });
+  const qs = searchParams.toString();
+  return qs ? `${baseUrl}${cleanEndpoint}${cleanEndpoint.includes('?') ? '&' : '?'}${qs}` : `${baseUrl}${cleanEndpoint}`;
+}
+
+async function apiFetch<T>(endpoint: string, options: RequestInit & { query?: Record<string, any>; params?: Record<string, any> } = {}): Promise<T> {
+  const url = buildUrlWithQuery(endpoint, options);
   const method = (options.method || 'GET').toUpperCase();
 
   // Mutations invalidate in-memory cache
@@ -195,8 +210,8 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   return fetchPromise;
 }
 
-async function apiFetchEnvelope<T>(endpoint: string, options: RequestInit = {}): Promise<{ data: T; meta?: any }> {
-  const url = `${config.baseUrl}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+async function apiFetchEnvelope<T>(endpoint: string, options: RequestInit & { query?: Record<string, any>; params?: Record<string, any> } = {}): Promise<{ data: T; meta?: any }> {
+  const url = buildUrlWithQuery(endpoint, options);
   const headers = new Headers(options.headers || {});
   
   if (!(options.body instanceof FormData)) {

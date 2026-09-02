@@ -567,6 +567,8 @@ export default function CourseReviews() {
     setFormSort('submitted_desc');
     setFormDateFrom('');
     setFormDateTo('');
+    setStatusFilter('all');
+    setReviewedDateFilter('');
 
     setSortBy('submitted_at');
     setSortDirection('desc');
@@ -1055,11 +1057,11 @@ export default function CourseReviews() {
         <button
           type="button"
           onClick={() => handleCardClick('all')}
-          aria-pressed={statusFilter === ''}
+          aria-pressed={statusFilter === 'all' || (!statusFilter && !reviewedDateFilter)}
           aria-label="Lọc tất cả hồ sơ kiểm duyệt"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-indigo-500",
-            statusFilter === ''
+            (statusFilter === 'all' || (!statusFilter && !reviewedDateFilter))
               ? "border-indigo-500 bg-indigo-50/30 ring-1 ring-indigo-500/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
@@ -1084,11 +1086,11 @@ export default function CourseReviews() {
         <button
           type="button"
           onClick={() => handleCardClick('pending')}
-          aria-pressed={statusFilter === 'pending'}
+          aria-pressed={statusFilter === 'pending' || statusFilter === 'pending_review'}
           aria-label="Lọc hồ sơ chờ duyệt"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-warning",
-            statusFilter === 'pending'
+            (statusFilter === 'pending' || statusFilter === 'pending_review')
               ? "border-warning bg-warning-soft/10 ring-1 ring-warning/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
@@ -1128,11 +1130,11 @@ export default function CourseReviews() {
         <button
           type="button"
           onClick={() => handleCardClick('approved_today')}
-          aria-pressed={statusFilter === 'approved' && reviewedDateFilter === 'today'}
+          aria-pressed={(statusFilter === 'approved' || statusFilter === 'published') && reviewedDateFilter === 'today'}
           aria-label="Lọc hồ sơ đã duyệt hôm nay"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-success",
-            (statusFilter === 'approved' && reviewedDateFilter === 'today')
+            ((statusFilter === 'approved' || statusFilter === 'published') && reviewedDateFilter === 'today')
               ? "border-success bg-success-soft/10 ring-1 ring-success/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
@@ -1661,7 +1663,21 @@ export default function CourseReviews() {
 
                       {/* 2. Danh mục */}
                       <td className="p-3 text-mid-gray font-medium">
-                        {(item as any).category_name || (item as any).category?.name || 'N/A'}
+                        {(() => {
+                          const catName = (item as any).category_name || (item as any).category?.name || '';
+                          const isUnassigned = !catName || catName === 'N/A' || catName.includes('Chưa phân loại') || Boolean((item as any).category_unassigned);
+                          if (isUnassigned) {
+                            return (
+                              <span 
+                                title="Giảng viên đề xuất danh mục mới - Cần Admin phân loại khi kiểm duyệt"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-help"
+                              >
+                                ⚠️ Chưa có danh mục
+                              </span>
+                            );
+                          }
+                          return <span className="text-ink font-semibold">{catName}</span>;
+                        })()}
                       </td>
 
                       {/* 3. Mô tả ngắn */}
