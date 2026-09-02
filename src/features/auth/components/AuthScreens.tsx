@@ -41,7 +41,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     setMode(newMode);
     setErrorMsg('');
     setFieldErrors({});
-    if (newMode === 'register') {
+    if (newMode === 'register' || newMode === 'forgot-password') {
       setVerificationCode('');
       setVerifyUrl(null);
       setPassword('');
@@ -80,9 +80,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-
-  // Instructor specific registration fields
+  const registeredPasswordRef = useRef<string>('');
   const [registerRole, setRegisterRole] = useState<'student' | 'instructor'>(() => {
     if (initialRole === 'instructor') return 'instructor';
     const savedRole = localStorage.getItem('mindhub_pending_verify_role');
@@ -480,6 +478,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     setVerifyUrl(null);
     setIsSubmitting(true);
     setSuccessMsg('Đang đăng ký tài khoản...');
+    registeredPasswordRef.current = password;
 
     let expYears: number | undefined = undefined;
     if (registerRole === 'instructor' && instructorExperience.trim() !== '') {
@@ -524,7 +523,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           }
         } catch (e) {}
 
-        setPassword('');
+        // Giữ lại mật khẩu trong registeredPasswordRef để tự điền ở màn Đăng nhập
         setConfirmPassword('');
         setErrorMsg('');
         if (res?.verify_url) {
@@ -611,17 +610,23 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
               ? 'Xác thực tài khoản qua Số điện thoại thành công! Đang chuyển tới Đăng nhập...'
               : 'Xác thực tài khoản qua Email thành công! Đang chuyển tới Đăng nhập...'
           );
-          // Điền sẵn thông tin tài khoản vừa đăng ký vào ô đăng nhập
+          const pwdToPrefill = registeredPasswordRef.current || password;
+          // Điền sẵn cả tài khoản và mật khẩu vừa tạo vào ô đăng nhập
           setEmail(registeredAccount);
-          setPassword('');
+          setPassword(pwdToPrefill);
           setConfirmPassword('');
           setVerificationCode('');
           setErrorMsg('');
 
           setTimeout(() => {
-            handleModeChange('login');
-            setSuccessMsg('Xác thực tài khoản thành công! Vui lòng nhập mật khẩu để đăng nhập.');
-          }, 1200);
+            setMode('login');
+            if (navigateTo) navigateTo('login');
+            setEmail(registeredAccount);
+            setPassword(pwdToPrefill);
+            setErrorMsg('');
+            setFieldErrors({});
+            setSuccessMsg('Xác thực tài khoản thành công! Thông tin đăng nhập đã được điền sẵn.');
+          }, 1000);
         }
       })
       .catch((err: any) => {

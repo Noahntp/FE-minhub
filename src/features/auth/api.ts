@@ -17,6 +17,8 @@ async register(payload: any): Promise<{ user: User; token: string; verify_url?: 
     } else {
       delete cleanPayload.experience_years;
     }
+    if (!cleanPayload.email) delete cleanPayload.email;
+    if (!cleanPayload.phone) delete cleanPayload.phone;
 
     const res = await apiFetch<any>(endpoint, {
       method: 'POST',
