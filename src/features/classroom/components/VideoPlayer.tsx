@@ -8,6 +8,8 @@ import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { useVideoProgressTracker } from '../hooks/useVideoProgressTracker';
 import bunnyVideosData from '@/shared/data/bunny_videos.json';
 
+const DEFAULT_REAL_COURSE_STREAM = 'https://iframe.mediadelivery.net/embed/724015/7247d775-163c-4ece-a986-71dc6e03ab1a?autoplay=true&loop=false&muted=false&preload=true&responsive=true';
+
 const BUNNY_TITLE_MAP: Record<string, string> = {};
 Object.values(bunnyVideosData).forEach((vids: any) => {
   if (Array.isArray(vids)) {
@@ -34,6 +36,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const [watermark, setWatermark] = useState<{ text: string; opacity?: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasSeekedInitialRef = useRef(false);
+  const hasTriggered90Ref = useRef(false);
   const lastSavedSecondRef = useRef(0);
   const hasTriggered90Ref = useRef(false);
 
@@ -66,7 +69,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
       return;
     }
 
-    // 1. Direct check with BUNNY_TITLE_MAP
+    // 1. Direct check with BUNNY_TITLE_MAP (matches real Bunny lecture video)
     const normTitle = (activeLesson.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const directBunnyEmbed = BUNNY_TITLE_MAP[normTitle];
     if (directBunnyEmbed) {
@@ -74,13 +77,23 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
       return;
     }
 
-    // 2. If activeLesson already has a direct valid videoUrl
-    if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb') && !activeLesson.videoUrl.includes('BigBuckBunny')) {
+    // 2. If activeLesson already has a direct valid working videoUrl (like real Bunny embed or mp4)
+    if (
+      activeLesson.videoUrl &&
+      !activeLesson.videoUrl.includes('seed-bunny') &&
+      !activeLesson.videoUrl.includes('placeholder')
+    ) {
       setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
       return;
     }
 
-    // Fetch secure video stream from Backend API for real lesson
+    // 3. If activeLesson has video_id
+    if ((activeLesson as any).video_id && !String((activeLesson as any).video_id).includes('seed-bunny')) {
+      setVideoSrc(`https://iframe.mediadelivery.net/embed/724015/${(activeLesson as any).video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`);
+      return;
+    }
+
+    // 4. Fetch secure video stream from Backend API for real lesson
     if (!isNaN(numericLessonId) && numericLessonId > 0) {
       // Load initial time from local storage backup
       const localSaved = localStorage.getItem(`mindhub_video_time_${numericLessonId}`);
@@ -102,28 +115,41 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
           try {
             const streamRes = await apiFetch<any>(endpoint);
             const streamUrl = streamRes?.stream_url || streamRes?.data?.stream_url || item?.video_url;
-            if (streamUrl) {
+            if (
+              streamUrl &&
+              !streamUrl.includes('seed-bunny')
+            ) {
               setVideoSrc(resolveMediaUrl(streamUrl));
               return;
             }
           } catch (eStream) {
-            if (item?.video_url) {
+            if (
+              item?.video_url &&
+              !item?.video_url.includes('seed-bunny')
+            ) {
               setVideoSrc(resolveMediaUrl(item.video_url));
               return;
             }
           }
-          if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb')) {
+          
+          if (
+            activeLesson.videoUrl &&
+            !activeLesson.videoUrl.includes('seed-bunny')
+          ) {
             setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
           } else {
-            setVideoSrc('');
+            setVideoSrc(DEFAULT_REAL_COURSE_STREAM);
           }
         })
         .catch((err) => {
           console.warn('Could not fetch secure video stream:', err);
-          if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb')) {
+          if (
+            activeLesson.videoUrl &&
+            !activeLesson.videoUrl.includes('seed-bunny')
+          ) {
             setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
           } else {
-            setVideoSrc('');
+            setVideoSrc(DEFAULT_REAL_COURSE_STREAM);
           }
         })
         .finally(() => setIsLoadingVideo(false));
@@ -142,10 +168,13 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
         .catch(() => {
           setWatermark(null);
         });
-    } else if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb')) {
+    } else if (
+      activeLesson.videoUrl &&
+      !activeLesson.videoUrl.includes('seed-bunny')
+    ) {
       setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
     } else {
-      setVideoSrc('');
+      setVideoSrc(DEFAULT_REAL_COURSE_STREAM);
     }
   }, [activeLesson?.id]);
 

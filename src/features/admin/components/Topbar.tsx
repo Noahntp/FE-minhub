@@ -63,6 +63,7 @@ export default function Topbar({
           pending_course_reviews: Number(actions.pending_course_reviews || 0),
           pending_instructor_upgrades: Number(actions.pending_instructor_upgrades || 0),
           pending_withdrawals: Number(actions.pending_withdrawals || 0),
+          pending_payout_accounts: Number(actions.pending_payout_accounts || 0),
         });
       }
     } catch (err) {
