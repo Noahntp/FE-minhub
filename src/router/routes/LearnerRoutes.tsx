@@ -18,15 +18,21 @@ interface LearnerRoutesProps {
   handleLogout: () => void;
 }
 
-export const LearnerRoutes = ({ currentUser, setCurrentUser, navigateTo, handleLogout }: LearnerRoutesProps) => {
+export const LearnerClassroomRoutes = () => {
   return (
     <>
-      {/* Learning & Classroom */}
+      {/* Learning & Classroom (Dedicated Fullscreen Classroom Interface) */}
       <Route path="/learn/:courseId" element={<LearnerProtectedGuard><ClassroomPage /></LearnerProtectedGuard>} />
       <Route path="/learning/:courseId" element={<LearnerProtectedGuard><ClassroomPage /></LearnerProtectedGuard>} />
       <Route path="/lessons/:courseId" element={<LearnerProtectedGuard><ClassroomPage /></LearnerProtectedGuard>} />
       <Route path="/learn/lessons/:courseId" element={<LearnerProtectedGuard><ClassroomPage /></LearnerProtectedGuard>} />
-      
+    </>
+  );
+};
+
+export const LearnerMainRoutes = ({ currentUser, setCurrentUser, navigateTo, handleLogout }: LearnerRoutesProps) => {
+  return (
+    <>
       {/* Dashboard & Profile */}
       <Route path="/my-courses" element={<LearnerProtectedGuard><MyCoursesPage /></LearnerProtectedGuard>} />
       <Route path="/favorites" element={<LearnerProtectedGuard><FavoritesPage /></LearnerProtectedGuard>} />
@@ -46,6 +52,15 @@ export const LearnerRoutes = ({ currentUser, setCurrentUser, navigateTo, handleL
           />
         </LearnerProtectedGuard>
       } />
+    </>
+  );
+};
+
+export const LearnerRoutes = (props: LearnerRoutesProps) => {
+  return (
+    <>
+      {LearnerClassroomRoutes()}
+      {LearnerMainRoutes(props)}
     </>
   );
 };

@@ -340,6 +340,7 @@ export default function ClassroomPage() {
             isOpen={isSidebarOpen}
             onClose={toggleSidebar}
             onSelectLesson={selectLesson}
+            onToggleLessonCompletion={toggleLessonCompletion}
           />
 
         </div>
