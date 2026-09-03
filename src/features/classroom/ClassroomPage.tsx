@@ -21,6 +21,7 @@ import { useClassroom } from './hooks/useClassroom';
 import { VideoPlayer } from './components/VideoPlayer';
 import { CurriculumSidebar } from './components/CurriculumSidebar';
 import { ClassroomTabs } from './components/ClassroomTabs';
+import { classroomApi } from './api';
 import { toast } from 'sonner';
 
 export default function ClassroomPage() {
@@ -112,6 +113,11 @@ export default function ClassroomPage() {
   // 90% video playback auto-completion
   const handleProgress90 = () => {
     if (activeLesson && !isActiveLessonCompleted) {
+      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
+      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
+      if (!isNaN(numId) && numId > 0) {
+        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
+      }
       markAsCompleted(String(activeLesson.id));
       toast.success('Đã tự động đánh dấu hoàn thành bài học (xem >90%)!');
     }
@@ -119,6 +125,11 @@ export default function ClassroomPage() {
 
   const handleVideoEnded = () => {
     if (activeLesson && !isActiveLessonCompleted) {
+      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
+      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
+      if (!isNaN(numId) && numId > 0) {
+        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
+      }
       markAsCompleted(String(activeLesson.id));
       toast.success('Đã hoàn thành bài học!');
     }

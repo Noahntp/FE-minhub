@@ -552,10 +552,11 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
       // Async sync with API in background
       try {
         const isNowCompleted = newCompletedIds.includes(lessonId);
-        classroomApi.markLessonAsComplete(lessonId, isNowCompleted).catch(() => {});
-        classroomApi.updateStudentProgress(course.id, {
-          completedLessonIds: newCompletedIds,
-        }).catch(() => {});
+        classroomApi.markLessonAsComplete(lessonId, isNowCompleted)
+          .then(() => {
+            window.dispatchEvent(new CustomEvent('mindhub_activity_updated'));
+          })
+          .catch(() => {});
       } catch (e) {}
 
       return updatedProgress;

@@ -57,6 +57,89 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     }
   };
 
+  // 1. Listen for postMessage from Bunny CDN player / Embed iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {
+            return;
+          }
+        }
+        if (!data || typeof data !== 'object') return;
+
+        const evtName = data.event || data.type || data.name;
+        const curTime = typeof data.currentTime === 'number' ? data.currentTime : (typeof data.data?.currentTime === 'number' ? data.data.currentTime : (typeof data.current_time === 'number' ? data.current_time : undefined));
+        const dur = typeof data.duration === 'number' ? data.duration : (typeof data.data?.duration === 'number' ? data.data.duration : undefined);
+
+        if (typeof curTime === 'number' && curTime >= 0) {
+          trackTimeUpdate(curTime);
+          if (onTimeUpdate) {
+            onTimeUpdate(curTime);
+          }
+          saveProgress(curTime);
+
+          if (typeof dur === 'number' && dur > 0 && !hasTriggered90Ref.current) {
+            const ratio = curTime / dur;
+            if (ratio >= 0.9) {
+              hasTriggered90Ref.current = true;
+              if (onProgress90) {
+                onProgress90();
+              }
+            }
+          }
+        }
+
+        if (evtName === 'ended' || data.event === 'ended') {
+          trackPauseOrSeek();
+          if (onEnded) {
+            onEnded();
+          }
+        } else if (evtName === 'pause' || data.event === 'pause') {
+          trackPauseOrSeek();
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [numericLessonId, onTimeUpdate, onProgress90, onEnded, trackTimeUpdate, trackPauseOrSeek]);
+
+  // 2. Fallback Active Heartbeat Tracker for Iframe Playback
+  useEffect(() => {
+    if (isNaN(numericLessonId) || numericLessonId <= 0) return;
+
+    // Tick every 4 seconds to sync progress continuously
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        const savedTimeStr = localStorage.getItem(`mindhub_video_time_${numericLessonId}`);
+        const currentSaved = savedTimeStr ? parseInt(savedTimeStr, 10) : 0;
+        const nextSec = currentSaved + 4;
+        
+        localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(nextSec));
+        classroomApi.saveVideoPlaybackRatio(String(numericLessonId), nextSec).catch(() => {});
+        trackTimeUpdate(nextSec);
+        if (onTimeUpdate) onTimeUpdate(nextSec);
+
+        // Check 90% progress threshold (assume standard 600s or check duration)
+        const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds || 600;
+        if (lessonDurationSec > 0 && nextSec >= lessonDurationSec * 0.9 && !hasTriggered90Ref.current) {
+          hasTriggered90Ref.current = true;
+          if (onProgress90) {
+            onProgress90();
+          }
+        }
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [numericLessonId, activeLesson, onTimeUpdate, onProgress90, trackTimeUpdate]);
+
   useEffect(() => {
     hasTriggered90Ref.current = false;
     hasSeekedInitialRef.current = false;
