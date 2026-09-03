@@ -775,16 +775,6 @@ export default function DashboardOverview() {
         borderClass: "border-l-3 border-emerald-600",
         badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
         btnClass: "bg-emerald-600 text-white hover:opacity-90"
-      },
-      {
-        count: actions.pending_payout_accounts || 0,
-        title: "Tài khoản nhận tiền",
-        desc: `${actions.pending_payout_accounts || 0} tài khoản ngân hàng chờ xác minh`,
-        btnText: "Xác minh",
-        link: `/admin/payout-accounts?status=pending_verification`,
-        borderClass: "border-l-3 border-purple-500",
-        badgeClass: "bg-purple-50 text-purple-700 border border-purple-200",
-        btnClass: "bg-purple-600 text-white hover:opacity-90"
       }
     ].filter(item => item.count > 0);
   }, [dashboardData]);
@@ -1226,7 +1216,7 @@ export default function DashboardOverview() {
                   {formatVND(dashboardData.dashboard.data.withdrawal_summary.approved_amount)}
                 </p>
                 <span className="text-[9px] text-danger-brick mt-1 leading-tight font-medium block">
-                  {dashboardData.dashboard.data.withdrawal_summary.approved_count} yêu cầu đã duyệt, chờ chi
+                  {dashboardData.dashboard.data.withdrawal_summary.approved_count} yêu cầu đã duyệt, chờ chuyển tiền
                 </span>
               </div>
             </button>

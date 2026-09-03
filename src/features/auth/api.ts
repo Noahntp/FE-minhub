@@ -44,7 +44,7 @@ async login(payload: any): Promise<{ user: User; token: string }> {
         password: payload.password,
       }),
     });
-    const token = res.access_token || '';
+    const token = res.token || res.access_token || '';
     if (token) {
       setAuthToken(token);
     }

@@ -22,6 +22,7 @@ import { useClassroom } from './hooks/useClassroom';
 import { VideoPlayer } from './components/VideoPlayer';
 import { CurriculumSidebar } from './components/CurriculumSidebar';
 import { ClassroomTabs } from './components/ClassroomTabs';
+import { classroomApi } from './api';
 import { toast } from 'sonner';
 
 export default function ClassroomPage() {
@@ -40,6 +41,7 @@ export default function ClassroomPage() {
     selectLesson,
     markAsCompleted,
     toggleLessonCompletion,
+    updateLessonDuration,
     setTab,
   } = useClassroom(courseId);
 
@@ -113,6 +115,11 @@ export default function ClassroomPage() {
   // 90% video playback auto-completion
   const handleProgress90 = () => {
     if (activeLesson && !isActiveLessonCompleted) {
+      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
+      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
+      if (!isNaN(numId) && numId > 0) {
+        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
+      }
       markAsCompleted(String(activeLesson.id));
       toast.success('Đã tự động đánh dấu hoàn thành bài học (xem >90%)!');
     }
@@ -120,6 +127,11 @@ export default function ClassroomPage() {
 
   const handleVideoEnded = () => {
     if (activeLesson && !isActiveLessonCompleted) {
+      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
+      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
+      if (!isNaN(numId) && numId > 0) {
+        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
+      }
       markAsCompleted(String(activeLesson.id));
       toast.success('Đã hoàn thành bài học!');
     }
@@ -242,41 +254,18 @@ export default function ClassroomPage() {
           {/* LEFT COLUMN: VIDEO PLAYER + TABS + LESSON NAV BAR */}
           <div className="flex-1 w-full min-w-0 space-y-6">
             
-            {/* Video Player or Document View */}
-            {(activeLesson as any)?.type === 'document' || (activeLesson as any)?.lesson_type === 'document' ? (
-              <div className="w-full bg-slate-900 rounded-2xl overflow-hidden aspect-video flex flex-col items-center justify-center text-center p-8 border border-slate-800 shadow-2xl relative group">
-                <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
-                  <FileText className="w-10 h-10 text-emerald-400" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Bài học Tài liệu</h3>
-                <p className="text-slate-400 mb-6 max-w-md">Bài học này cung cấp tài liệu dạng văn bản/PDF để bạn nghiên cứu thay vì video.</p>
-                <div className="flex gap-4">
-                  {(activeLesson as any).video_url && (
-                    <a
-                      href={(activeLesson as any).video_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-500/20"
-                    >
-                      Mở tài liệu
-                    </a>
-                  )}
-                  <button
-                    onClick={handleVideoEnded}
-                    className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors border border-slate-700"
-                  >
-                    Đánh dấu hoàn thành
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <VideoPlayer
-                activeLesson={activeLesson}
-                onEnded={handleVideoEnded}
-                onProgress90={handleProgress90}
-                onTimeUpdate={setCurrentVideoTime}
-              />
-            )}
+            {/* Video Player */}
+            <VideoPlayer
+              activeLesson={activeLesson}
+              onEnded={handleVideoEnded}
+              onProgress90={handleProgress90}
+              onTimeUpdate={setCurrentVideoTime}
+              onDurationChange={(_sec, formatted) => {
+                if (activeLesson) {
+                  updateLessonDuration(String(activeLesson.id), formatted);
+                }
+              }}
+            />
 
             {/* Classroom Tabs (Overview, QA, Notes, Resources) */}
             <ClassroomTabs
@@ -369,6 +358,7 @@ export default function ClassroomPage() {
             isOpen={isSidebarOpen}
             onClose={toggleSidebar}
             onSelectLesson={selectLesson}
+            onToggleLessonCompletion={toggleLessonCompletion}
           />
 
         </div>

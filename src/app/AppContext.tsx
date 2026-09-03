@@ -121,8 +121,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   const list = Array.isArray(courseRes) ? courseRes : (courseRes?.data || []);
                   if (Array.isArray(list)) {
                     const ids = list
-                      .map((item: any) => String(item.course_id || item.course?.id || item.course?.slug || item.id))
-                      .filter(Boolean);
+                      .flatMap((item: any) => [
+                        item.course_id,
+                        item.course?.id,
+                        item.course?.slug,
+                      ])
+                      .filter(Boolean)
+                      .map(String);
                     if (ids.length > 0) {
                       setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
                     }
@@ -136,10 +141,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Could not fetch fresh user profile on app load:', err);
           setIsLoggedIn(false);
           setCurrentUser(INITIAL_USER);
+          setEnrolledCourseIds([]);
           localStorage.removeItem('mindhub_api_token');
           localStorage.removeItem('token');
           localStorage.removeItem('mindhub_is_logged_in');
           localStorage.removeItem('mindhub_current_user');
+          localStorage.removeItem('mindhub_enrolled_courses');
         })
         .finally(() => {
           setIsInitializingAuth(false);
@@ -147,6 +154,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       setIsLoggedIn(false);
       setIsInitializingAuth(false);
+      setEnrolledCourseIds([]);
+      localStorage.removeItem('mindhub_enrolled_courses');
     }
   }, []);
 
@@ -157,6 +166,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [orders, setOrders] = useState<Order[]>([]);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>(() => {
     try {
+      const storedToken = localStorage.getItem('mindhub_api_token') || localStorage.getItem('token');
+      const isLogged = localStorage.getItem('mindhub_is_logged_in') === 'true' && !!storedToken;
+      if (!isLogged) return [];
       const stored = localStorage.getItem('mindhub_enrolled_courses');
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -168,9 +180,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
-      localStorage.setItem('mindhub_enrolled_courses', JSON.stringify(enrolledCourseIds));
+      if (isLoggedIn) {
+        localStorage.setItem('mindhub_enrolled_courses', JSON.stringify(enrolledCourseIds));
+      } else {
+        localStorage.removeItem('mindhub_enrolled_courses');
+      }
     } catch (e) {}
-  }, [enrolledCourseIds]);
+  }, [enrolledCourseIds, isLoggedIn]);
   const [banners, setBanners] = useState<Banner[]>(INITIAL_BANNERS);
 
   // Audio State

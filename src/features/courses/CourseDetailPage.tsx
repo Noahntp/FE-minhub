@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { resolveMediaUrl } from "@/shared/utils/format";
 import {
@@ -43,13 +43,113 @@ import { CourseDetailSkeleton } from "./components/CourseDetailSkeleton";
 import {
   HomeCourseCard,
   HomeCourseItem,
+  isCourseTrialEligible,
+  isPermanentFreeCourse,
 } from "@/features/home/components/HomeCourseCard";
 import { toast } from "sonner";
 import { apiFetch } from "@/shared/lib/api-client";
+import { semanticSearchApi } from "@/services/api";
+
+// Mock chapters matching design
+const mockChapters = [
+  {
+    id: 'ch1',
+    title: 'Chương 1: Giới thiệu về Python',
+    lessonCount: 6,
+    duration: '45 phút',
+    lessons: [
+      { id: '1', title: '1.1 Python là gì?', duration: '05:30', isPreview: true },
+      { id: '2', title: '1.2 Cài đặt Python và môi trường lập trình', duration: '08:15', isPreview: true },
+      { id: '3', title: '1.3 Chạy chương trình đầu tiên', duration: '04:45', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch2',
+    title: 'Chương 2: Biến và kiểu dữ liệu',
+    lessonCount: 8,
+    duration: '1 giờ 10 phút',
+    lessons: [
+      { id: '4', title: '2.1 Khai báo biến và đặt tên chuẩn', duration: '09:20', isPreview: false },
+      { id: '5', title: '2.2 Kiểu dữ liệu số (Integer, Float)', duration: '12:10', isPreview: false },
+      { id: '6', title: '2.3 Chuỗi ký tự (String) & Xử lý chuỗi', duration: '15:40', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch3',
+    title: 'Chương 3: Toán tử và biểu thức',
+    lessonCount: 7,
+    duration: '1 giờ',
+    lessons: [
+      { id: '7', title: '3.1 Toán tử số học & gán giá trị', duration: '10:00', isPreview: false },
+      { id: '8', title: '3.2 Toán tử so sánh & logic', duration: '14:30', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch4',
+    title: 'Chương 4: Cấu trúc điều kiện',
+    lessonCount: 6,
+    duration: '50 phút',
+    lessons: [
+      { id: '9', title: '4.1 Câu lệnh If - Else cơ bản', duration: '11:15', isPreview: false },
+      { id: '10', title: '4.2 Điều kiện lồng nhau & Elif', duration: '13:50', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch5',
+    title: 'Chương 5: Vòng lặp',
+    lessonCount: 7,
+    duration: '1 giờ 5 phút',
+    lessons: [
+      { id: '11', title: '5.1 Vòng lặp For và hàm range()', duration: '12:00', isPreview: false },
+      { id: '12', title: '5.2 Vòng lặp While & xử lý điều kiện dừng', duration: '14:20', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch6',
+    title: 'Chương 6: Hàm (Function) và Module trong Python',
+    lessonCount: 8,
+    duration: '1 giờ 15 phút',
+    lessons: [
+      { id: '13', title: '6.1 Định nghĩa hàm def & Tham số truyền vào', duration: '11:30', isPreview: false },
+      { id: '14', title: '6.2 Giá trị trả về Return & Scope biến', duration: '14:10', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch7',
+    title: 'Chương 7: Cấu trúc dữ liệu nâng cao (List, Dictionary, Set)',
+    lessonCount: 10,
+    duration: '1 giờ 30 phút',
+    lessons: [
+      { id: '15', title: '7.1 Thao tác với List & Tuple', duration: '15:20', isPreview: false },
+      { id: '16', title: '7.2 Dictionary & Cấu trúc JSON trong Python', duration: '18:40', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch8',
+    title: 'Chương 8: Đọc & Ghi File (File I/O) và Xử lý ngoại lệ (Exception)',
+    lessonCount: 7,
+    duration: '55 phút',
+    lessons: [
+      { id: '17', title: '8.1 Thao tác đọc ghi tệp tin TXT / CSV', duration: '13:10', isPreview: false },
+      { id: '18', title: '8.2 Khối Try - Except xử lý lỗi ứng dụng', duration: '12:45', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch9',
+    title: 'Chương 9: Lập trình hướng đối tượng (OOP) & Dự án Thực tế',
+    lessonCount: 9,
+    duration: '1 giờ 40 phút',
+    lessons: [
+      { id: '19', title: '9.1 Class, Object & Kế thừa trong OOP', duration: '20:15', isPreview: false },
+      { id: '20', title: '9.2 Xây dựng phần mềm Quản lý Học viên Mini Project', duration: '25:30', isPreview: false },
+    ],
+  },
+];
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { course, isLoading, error } = useCourseDetail(courseId);
 
   // Auto-replace URL to course.slug if accessed via numeric ID or different slug
@@ -64,6 +164,8 @@ export default function CourseDetailPage() {
     setCart,
     enrolledCourseIds,
     setEnrolledCourseIds,
+    favorites,
+    setFavorites,
     openTrialModal,
     currentUser,
     isLoggedIn,
@@ -95,7 +197,7 @@ export default function CourseDetailPage() {
   >({ 0: true, 1: true });
 
   const isEnrolled = Boolean(
-    currentUser &&
+    isLoggedIn &&
     ((course as any)?.is_enrolled ||
       (course as any)?.isEnrolled ||
       enrolledCourseIds.some(
@@ -104,6 +206,17 @@ export default function CourseDetailPage() {
           String(id) === String(course?.slug),
       )),
   );
+
+  // Sync enrolled course IDs into global context state so other pages/widgets stay updated
+  useEffect(() => {
+    if (isEnrolled && course) {
+      const idsToAdd = [String(course.id), String(course.slug || '')].filter(Boolean);
+      setEnrolledCourseIds((prev) => {
+        const missing = idsToAdd.filter((id) => !prev.includes(id));
+        return missing.length > 0 ? [...prev, ...missing] : prev;
+      });
+    }
+  }, [isEnrolled, course?.id, course?.slug, setEnrolledCourseIds]);
 
   const loadReviews = () => {
     if (!course?.id) return;
@@ -159,45 +272,46 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (!course?.id) return;
 
-    // Fetch related courses
-    apiFetch<any>(`/courses/${course.id}/related`)
+    // Fetch AI Semantic Similar Courses & related
+    semanticSearchApi.getSimilarCourses(course.id, 4)
       .then((res) => {
-        const list = Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res)
-            ? res
-            : [];
+        const list = Array.isArray(res) ? res : (Array.isArray((res as any)?.data) ? (res as any).data : []);
         if (list.length > 0) {
           const mapped: HomeCourseItem[] = list.map((item: any) => ({
             id: String(item.slug || item.id || item.course_id),
-            title: item.title || "Khóa học liên quan",
-            level: item.level || "Mọi trình độ",
-            thumbnail:
-              item.thumbnail_url ||
-              item.image ||
-              "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80",
+            title: item.title || 'Khóa học liên quan',
+            level: item.course_level || item.level || 'Mọi trình độ',
+            thumbnail: item.thumbnail_url ? resolveMediaUrl(item.thumbnail_url) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
             rating: Number(item.average_rating || item.rating || 4.8),
             reviewCount: Number(item.reviews_count || item.reviewCount || 120),
-            enrolledCount: Number(
-              item.enrollments_count || item.enrolledCount || 1000,
-            ),
-            instructorName:
-              item.instructor?.full_name ||
-              item.instructor_name ||
-              "Giảng viên MindHub",
-            instructorAvatar:
-              item.instructor?.avatar_url ||
-              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80",
-            price:
-              item.sale_price !== null && item.sale_price !== undefined
-                ? Number(item.sale_price)
-                : Number(item.price || 399000),
-            originalPrice:
-              item.sale_price !== null && item.sale_price !== undefined
-                ? Number(item.price)
-                : undefined,
+            enrolledCount: Number(item.enrollments_count || item.enrolledCount || 1000),
+            instructorName: item.instructor?.full_name || item.instructor_name || 'Giảng viên MindHub',
+            instructorAvatar: item.instructor?.avatar_url ? resolveMediaUrl(item.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+            price: item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : Number(item.price || 399000),
+            originalPrice: item.sale_price !== null && item.sale_price !== undefined ? Number(item.price) : undefined,
+            discountBadge: item.match_percentage ? `${item.match_percentage}% Match AI` : undefined,
           }));
           setApiRelatedCourses(mapped);
+        } else {
+          // Fallback to general related endpoint
+          apiFetch<any>(`/courses/${course.id}/related`).then((relRes) => {
+            const relList = Array.isArray(relRes?.data) ? relRes.data : (Array.isArray(relRes) ? relRes : []);
+            if (relList.length > 0) {
+              setApiRelatedCourses(relList.map((item: any) => ({
+                id: String(item.slug || item.id),
+                title: item.title || 'Khóa học liên quan',
+                level: item.level || 'Mọi trình độ',
+                thumbnail: item.thumbnail_url ? resolveMediaUrl(item.thumbnail_url) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+                rating: Number(item.average_rating || 4.8),
+                reviewCount: Number(item.reviews_count || 120),
+                enrolledCount: Number(item.enrollments_count || 1000),
+                instructorName: item.instructor?.full_name || 'Giảng viên MindHub',
+                instructorAvatar: item.instructor?.avatar_url ? resolveMediaUrl(item.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+                price: item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : Number(item.price || 399000),
+                originalPrice: item.sale_price !== null && item.sale_price !== undefined ? Number(item.price) : undefined,
+              })));
+            }
+          }).catch(() => {});
         }
       })
       .catch(() => {});
@@ -279,13 +393,26 @@ export default function CourseDetailPage() {
     setExpandedChapters(all);
   };
 
+  const handleOpenReviewModal = () => {
+    if (!isLoggedIn) {
+      toast.error("Vui lòng đăng nhập để gửi nhận xét và đánh giá.");
+      navigate("/login", { state: { from: location.pathname + location.search } });
+      return;
+    }
+    if (currentUser?.role === "admin") {
+      toast.error("Tài khoản Quản trị viên (Admin) không thực hiện đánh giá khóa học.");
+      return;
+    }
+    setShowReviewModal(true);
+  };
+
   const handleAddToCart = () => {
     if (!course) return;
     if (!isLoggedIn) {
       toast.error(
         "Vui lòng đăng nhập để thực hiện chức năng này.",
       );
-      navigate("/auth");
+      navigate("/login", { state: { from: location.pathname + location.search } });
       return;
     }
     if (currentUser?.role === "admin") {
@@ -301,13 +428,13 @@ export default function CourseDetailPage() {
     navigate(`/cart?courseId=${course.id}`);
   };
 
-  const handleEnrollNow = () => {
+  const handleEnrollNow = async () => {
     if (!course) return;
     if (!isLoggedIn) {
       toast.error(
         "Vui lòng đăng nhập để thực hiện chức năng này.",
       );
-      navigate("/auth");
+      navigate("/login", { state: { from: location.pathname + location.search } });
       return;
     }
     if (currentUser?.role === "admin") {
@@ -316,19 +443,40 @@ export default function CourseDetailPage() {
       );
       return;
     }
-    const isFreeCourse = Boolean(
-      (course as any).isFree || Number(course.price || 0) === 0,
-    );
-    if (isFreeCourse) {
-      if (!enrolledCourseIds.includes(course.id)) {
-        setEnrolledCourseIds([...enrolledCourseIds, course.id]);
+
+    const isTrial = isCourseTrialEligible(course);
+    const isFree = isPermanentFreeCourse(course);
+
+    if (isTrial) {
+      const numericTargetId = Number(course.id) || (course as any).realId;
+      if (numericTargetId && !isNaN(numericTargetId)) {
+        try {
+          await apiFetch('/orders', {
+            method: 'POST',
+            body: JSON.stringify({ course_id: numericTargetId }),
+          });
+          if (!enrolledCourseIds.includes(course.id)) {
+            setEnrolledCourseIds([...enrolledCourseIds, course.id]);
+          }
+          toast.success(
+            "Đăng ký học thử khóa học thành công! Bắt đầu học ngay.",
+          );
+          navigate(`/learn/${course.id}`);
+          return;
+        } catch (err: any) {
+          toast.error(err?.message || 'Không thể đăng ký học thử lúc này.');
+          return;
+        }
       }
-      toast.success(
-        "Đăng ký tham gia khóa học miễn phí thành công! Bắt đầu học ngay.",
-      );
       navigate(`/learn/${course.id}`);
       return;
     }
+
+    if (isFree) {
+      toast.info('Khóa học miễn phí đang được đồng bộ cổng ghi danh tự động trên hệ thống. Bạn có thể xem trước các bài học mở bên dưới.');
+      return;
+    }
+
     if (!cart.includes(course.id)) {
       setCart([...cart, course.id]);
     }
@@ -341,7 +489,7 @@ export default function CourseDetailPage() {
       toast.error(
         "Vui lòng đăng nhập để thực hiện chức năng này.",
       );
-      navigate("/auth");
+      navigate("/login", { state: { from: location.pathname + location.search } });
       return;
     }
     if (currentUser?.role === "admin") {
@@ -354,11 +502,13 @@ export default function CourseDetailPage() {
     setIsWishlisted(nextState);
     if (nextState) {
       toast.success(`Đã thêm "${course.title}" vào danh sách yêu thích!`);
-      if (course.id && !isNaN(Number(course.id))) {
+      setFavorites((prev) => [...prev.filter((id) => id !== course.id), course.id]);
+      const targetId = (course as any).realId || (course as any).course_id || course.id;
+      if (targetId && !isNaN(Number(targetId))) {
         try {
           await apiFetch("/wishlists", {
             method: "POST",
-            body: JSON.stringify({ course_id: Number(course.id) }),
+            body: JSON.stringify({ course_id: Number(targetId) }),
           });
         } catch (err) {
           console.warn("Could not add to wishlist on backend:", err);
@@ -366,9 +516,11 @@ export default function CourseDetailPage() {
       }
     } else {
       toast.info(`Đã xóa khỏi danh sách yêu thích.`);
-      if (course.id && !isNaN(Number(course.id))) {
+      setFavorites((prev) => prev.filter((id) => id !== course.id && id !== String((course as any).realId)));
+      const targetId = (course as any).realId || (course as any).course_id || course.id;
+      if (targetId && !isNaN(Number(targetId))) {
         try {
-          await apiFetch(`/wishlists/${course.id}`, { method: "DELETE" });
+          await apiFetch(`/wishlists/${targetId}`, { method: "DELETE" });
         } catch (err) {
           console.warn("Could not remove from wishlist on backend:", err);
         }
@@ -514,7 +666,25 @@ export default function CourseDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Cột trái (5 cols): Video Preview Box */}
             <div className="lg:col-span-4">
-              <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 shadow-xl group border border-slate-200">
+              <div 
+                onClick={() => {
+                  const introVideo = (course as any).intro_video_url || (course as any).video_url || (course as any).preview_video_url;
+                  const previewLesson = ((course as any).curriculum || displayChapters || [])
+                    .flatMap((c: any) => c.lessons || [])
+                    .find((l: any) => l.is_preview || l.is_free_preview || l.isPreview);
+
+                  openTrialModal({
+                    id: previewLesson ? String(previewLesson.id) : 'intro-' + course.id,
+                    title: previewLesson ? `Xem thử: ${previewLesson.title}` : `Video giới thiệu: ${course.title}`,
+                    duration: previewLesson?.duration || '12:30',
+                    videoUrl: previewLesson?.videoUrl || previewLesson?.video_url || introVideo || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                    courseTitle: course.title,
+                    courseId: course.slug || course.id,
+                    instructorName: course.instructorName
+                  });
+                }}
+                className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 shadow-xl group border border-slate-200 cursor-pointer"
+              >
                 <img
                   src={
                     course.image ||
@@ -631,19 +801,34 @@ export default function CourseDetailPage() {
 
                 {/* Price Display */}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-black text-slate-900">
-                    {course.price === 0
-                      ? "Miễn phí"
-                      : new Intl.NumberFormat("vi-VN").format(course.price) +
-                        "đ"}
-                  </span>
-                  {course.salePrice && (
-                    <span className="text-sm text-slate-400 line-through">
-                      {new Intl.NumberFormat("vi-VN").format(
-                        course.originalPrice || Math.round(course.price * 1.4),
+                  {isCourseTrialEligible(course) ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-black text-emerald-600">0đ</span>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                        Học thử miễn phí
+                      </span>
+                    </div>
+                  ) : isPermanentFreeCourse(course) ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-black text-emerald-600">0đ</span>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                        Miễn phí
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-black text-slate-900">
+                        {new Intl.NumberFormat("vi-VN").format(course.price) + "đ"}
+                      </span>
+                      {course.salePrice && (
+                        <span className="text-sm text-slate-400 line-through">
+                          {new Intl.NumberFormat("vi-VN").format(
+                            course.originalPrice || Math.round(course.price * 1.4),
+                          )}
+                          đ
+                        </span>
                       )}
-                      đ
-                    </span>
+                    </>
                   )}
                 </div>
 
@@ -702,7 +887,7 @@ export default function CourseDetailPage() {
 
                       <button
                         type="button"
-                        onClick={() => setShowReviewModal(true)}
+                        onClick={handleOpenReviewModal}
                         className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs flex items-center justify-center gap-2 border border-amber-200 transition-all cursor-pointer shadow-sm"
                       >
                         <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
@@ -723,16 +908,16 @@ export default function CourseDetailPage() {
                         onClick={handleEnrollNow}
                         className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
                       >
-                        {(course as any).isFree ||
-                        Number(course.price || 0) === 0 ? (
+                        {isCourseTrialEligible(course) || isPermanentFreeCourse(course) ? (
                           <PlayCircle className="w-4 h-4" />
                         ) : (
                           <ShoppingCart className="w-4 h-4" />
                         )}
                         <span>
-                          {(course as any).isFree ||
-                          Number(course.price || 0) === 0
-                            ? "Tham gia ngay"
+                          {isCourseTrialEligible(course)
+                            ? "Đăng ký học thử khóa học"
+                            : isPermanentFreeCourse(course)
+                            ? "Khóa học miễn phí"
                             : "Mua ngay"}
                         </span>
                       </button>
@@ -749,7 +934,7 @@ export default function CourseDetailPage() {
                         className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-xs flex items-center justify-center gap-2 border border-emerald-200 transition-all cursor-pointer"
                       >
                         <PlayCircle className="w-4 h-4 text-emerald-600" />
-                        <span>Học thử bài giảng miễn phí</span>
+                        <span>Xem trước bài giảng mẫu</span>
                       </button>
                     </>
                   )}
@@ -1056,9 +1241,10 @@ export default function CourseDetailPage() {
                                   type="button"
                                   onClick={() =>
                                     openTrialModal({
-                                      id: lesson.id,
+                                      id: String(lesson.id),
                                       title: lesson.title,
                                       duration: lesson.duration || "10:00",
+                                      videoUrl: lesson.videoUrl || lesson.video_url || lesson.stream_url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
                                       courseTitle: course.title,
                                       courseId: course.slug || course.id,
                                       instructorName: course.instructorName,
@@ -1336,7 +1522,7 @@ export default function CourseDetailPage() {
             {/* Action button for enrolled students */}
             {isEnrolled && (
               <button
-                onClick={() => setShowReviewModal(true)}
+                onClick={handleOpenReviewModal}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-900/10 active:scale-95 transition-all cursor-pointer"
               >
                 <PenLine className="w-4 h-4" />
@@ -1453,7 +1639,7 @@ export default function CourseDetailPage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setShowReviewModal(true)}
+                      onClick={handleOpenReviewModal}
                       className="px-4 py-2 rounded-xl bg-white text-emerald-900 hover:bg-emerald-50 font-extrabold text-xs shrink-0 shadow transition-all active:scale-95 cursor-pointer"
                     >
                       Viết đánh giá ngay
@@ -1579,7 +1765,7 @@ export default function CourseDetailPage() {
 
                               {isMyReviewItem && (
                                 <button
-                                  onClick={() => setShowReviewModal(true)}
+                                  onClick={handleOpenReviewModal}
                                   className="text-xs text-emerald-600 hover:text-emerald-700 font-bold ml-2 underline cursor-pointer"
                                 >
                                   Sửa

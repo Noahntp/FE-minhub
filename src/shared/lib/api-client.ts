@@ -332,9 +332,13 @@ export const setAuthToken = (token: string | null) => {
   if (token) {
     config.authToken = token;
     localStorage.setItem('mindhub_api_token', token);
+    localStorage.setItem('token', token);
+    localStorage.setItem('mindhub_is_logged_in', 'true');
   } else {
     config.authToken = undefined;
     localStorage.removeItem('mindhub_api_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('mindhub_is_logged_in');
   }
 };
 

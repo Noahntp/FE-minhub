@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Star, Users, Heart, ShoppingCart, Flame, Sparkles, GraduationCap, Clock, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
@@ -32,6 +32,27 @@ export interface HomeCourseItem {
   isNew?: boolean;
   isHot?: boolean;
   durationSeconds?: number;
+  campaign_type?: 'discount' | 'trial' | null;
+  has_trial?: boolean;
+  hasTrial?: boolean;
+  isTrial?: boolean;
+}
+
+export function isCourseTrialEligible(course?: any): boolean {
+  if (!course) return false;
+  if (course.campaign_type === 'trial' || course.coupon?.campaign_type === 'trial') return true;
+  if (course.has_trial === true || course.hasTrial === true || course.isTrial === true) return true;
+  const price = Number(course.price ?? 0);
+  const salePrice = course.sale_price !== null && course.sale_price !== undefined ? Number(course.sale_price) : undefined;
+  if (price > 0 && salePrice === 0) return true;
+  return false;
+}
+
+export function isPermanentFreeCourse(course?: any): boolean {
+  if (!course) return false;
+  const price = Number(course.price ?? 0);
+  const isExplicitFree = Boolean(course.isFree || course.is_free);
+  return (price === 0 || isExplicitFree) && !isCourseTrialEligible(course);
 }
 
 interface HomeCourseCardProps {
@@ -50,10 +71,11 @@ export function HomeCourseCard({
   showProofBadge = false,
 }: HomeCourseCardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { favorites, setFavorites, currentUser, isLoggedIn, enrolledCourseIds } = useApp();
 
   const isEnrolled = Boolean(
-    currentUser &&
+    isLoggedIn &&
     ((course as any)?.is_enrolled ||
       (course as any)?.isEnrolled ||
       enrolledCourseIds?.some(
@@ -117,7 +139,7 @@ export function HomeCourseCard({
 
     if (!isLoggedIn) {
       toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
-      navigate('/auth');
+      navigate('/login', { state: { from: location.pathname + location.search } });
       return;
     }
 
@@ -163,7 +185,7 @@ export function HomeCourseCard({
 
     if (!isLoggedIn) {
       toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
-      navigate('/auth');
+      navigate('/login', { state: { from: location.pathname + location.search } });
       return;
     }
 
@@ -177,13 +199,37 @@ export function HomeCourseCard({
       return;
     }
 
-    if (course.isFree || course.price === 0) {
-      toast.success(`Đăng ký tham gia khóa học miễn phí thành công: ${course.title}`);
-      navigate(`/learn/${courseTarget}`);
-    } else {
-      toast.success(`Đang mở trang thanh toán cho khóa học: ${course.title}`);
-      navigate(`/checkout?courseId=${courseTarget}`);
+    const isTrial = isCourseTrialEligible(course);
+    const isFree = isPermanentFreeCourse(course);
+
+    if (isTrial) {
+      const numericTargetId = Number(course.realId || (course as any).course_id || course.id);
+      if (numericTargetId && !isNaN(numericTargetId)) {
+        apiFetch<any>('/orders', {
+          method: 'POST',
+          body: JSON.stringify({ course_id: numericTargetId }),
+        })
+          .then(() => {
+            toast.success(`Đăng ký học thử khóa học thành công: ${course.title}`);
+            navigate(`/learn/${courseTarget}`);
+          })
+          .catch((err: any) => {
+            toast.error(err?.message || 'Không thể đăng ký học thử lúc này.');
+          });
+      } else {
+        navigate(`/learn/${courseTarget}`);
+      }
+      return;
     }
+
+    if (isFree) {
+      toast.info('Khóa học miễn phí đang được đồng bộ cổng ghi danh tự động. Đang chuyển tới trang chi tiết...');
+      navigate(`/courses/${courseTarget}`);
+      return;
+    }
+
+    toast.success(`Đang mở trang thanh toán cho khóa học: ${course.title}`);
+    navigate(`/checkout?courseId=${courseTarget}`);
   };
 
   const formatPrice = (amount: number) => {
@@ -346,7 +392,14 @@ export function HomeCourseCard({
           
           {/* Price Display */}
           <div className="flex items-baseline justify-between">
-            {course.isFree || course.price === 0 ? (
+            {isCourseTrialEligible(course) ? (
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-black text-emerald-600">0đ</span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                  Học thử miễn phí
+                </span>
+              </div>
+            ) : isPermanentFreeCourse(course) ? (
               <div className="flex items-center gap-2">
                 <span className="text-lg font-black text-emerald-600">0đ</span>
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
@@ -381,8 +434,22 @@ export function HomeCourseCard({
               onClick={handleBuyNow}
               className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
             >
-              <ShoppingCart className="w-4 h-4" />
-              <span>{course.isFree ? 'Đăng ký học ngay' : 'Mua ngay'}</span>
+              {isCourseTrialEligible(course) ? (
+                <>
+                  <PlayCircle className="w-4 h-4" />
+                  <span>Học thử ngay</span>
+                </>
+              ) : isPermanentFreeCourse(course) ? (
+                <>
+                  <PlayCircle className="w-4 h-4" />
+                  <span>Xem khóa học</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>Mua ngay</span>
+                </>
+              )}
             </button>
           )}
 

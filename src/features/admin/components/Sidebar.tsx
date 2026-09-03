@@ -229,21 +229,6 @@ export default function Sidebar({
               <span className="sidebar-text truncate">Yêu cầu rút tiền</span>
               <span className="sidebar-tooltip">Yêu cầu rút tiền</span>
             </button>
-            <button 
-              onClick={() => onTabChange('payout-accounts')} 
-              data-active={activeTab === 'payout-accounts' ? 'true' : 'false'}
-              className="w-full sidebar-item relative flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-full text-mid-gray hover:bg-paper hover:text-ink border border-transparent transition-all duration-200 cursor-pointer"
-            >
-              <svg className="w-4.5 h-4.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path d="M3 21h18"/>
-                <path d="M3 10h18"/>
-                <path d="M5 6h14"/>
-                <path d="M4 10v11"/>
-                <path d="M20 10v11"/>
-              </svg>
-              <span className="sidebar-text truncate">Tài khoản nhận tiền</span>
-              <span className="sidebar-tooltip">Tài khoản nhận tiền</span>
-            </button>
           </div>
         </div>
 

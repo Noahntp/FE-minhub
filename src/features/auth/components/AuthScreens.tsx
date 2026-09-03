@@ -325,6 +325,8 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
           isEmailVerified: true
         });
         saveToHistory(apiUser);
+        localStorage.setItem('mindhub_current_user', JSON.stringify(apiUser));
+        localStorage.setItem('mindhub_is_logged_in', 'true');
         if (onLoginSuccess) {
           onLoginSuccess(apiUser);
         } else if (navigateTo) {

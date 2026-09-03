@@ -95,7 +95,9 @@ function mapApiDetailToCourse(res: any): Course {
               type: les.type || 'video',
               duration: les.duration ? `${Math.floor(les.duration / 60)}:${les.duration % 60}` : '10:00',
               isPreview: Boolean(les.is_free_preview || les.isPreview),
-              videoUrl: les.stream_url || les.streamUrl || les.video_url || les.videoUrl || (import.meta.env.DEV ? 'https://www.w3schools.com/html/mov_bbb.mp4' : ''),
+              videoUrl: les.video_id 
+                ? `https://iframe.mediadelivery.net/embed/724015/${les.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`
+                : (les.stream_url || les.streamUrl || les.video_url || les.videoUrl || (import.meta.env.DEV ? 'https://www.w3schools.com/html/mov_bbb.mp4' : '')),
             }))
           : [],
       }))
@@ -132,6 +134,9 @@ function mapApiDetailToCourse(res: any): Course {
       'Tự tin áp dụng kiến thức vào các sản phẩm thực tế'
     ],
     status: 'active',
+    is_enrolled: Boolean(res.is_enrolled || res.isEnrolled),
+    isEnrolled: Boolean(res.is_enrolled || res.isEnrolled),
+    enrollment_status: res.enrollment_status || (res.is_enrolled ? 'active' : undefined),
     chapters: mappedChapters.length > 0 ? mappedChapters : [
       {
         id: 'ch1',

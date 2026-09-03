@@ -31,8 +31,23 @@ export interface ApiConfig {
  */
 export function getNormalizedBaseUrl(rawUrl?: string): string {
   let url = (rawUrl || '').trim();
+  const isBrowser = typeof window !== 'undefined';
+  const isProductionDomain = isBrowser && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+  // If running on production domain (e.g. mindhub.io.vn) and an old localhost URL was saved in localStorage, discard it
+  if (isProductionDomain && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+    try {
+      localStorage.removeItem('mindhub_api_base_url');
+    } catch (_) {}
+    url = '';
+  }
+
   if (!url) {
-    url = 'http://localhost:8000/api';
+    if (isProductionDomain) {
+      url = `${window.location.origin}/BE/public/api`;
+    } else {
+      url = 'http://localhost:8000/api';
+    }
   }
   url = url.replace(/\/+$/, '');
   if (!url.endsWith('/api')) {
@@ -42,10 +57,10 @@ export function getNormalizedBaseUrl(rawUrl?: string): string {
 }
 
 // Read configuration from local storage or environment variables
-const initialMode = (import.meta as any).env?.VITE_API_MODE === 'api' ? 'api' : 'mock';
-const initialBaseUrl = getNormalizedBaseUrl(
-  localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL
-);
+const initialMode = ((import.meta as any).env?.VITE_API_MODE || 'api') === 'mock' ? 'mock' : 'api';
+const rawStoredUrl = typeof window !== 'undefined' ? localStorage.getItem('mindhub_api_base_url') : null;
+const rawEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+const initialBaseUrl = getNormalizedBaseUrl(rawStoredUrl || rawEnvUrl);
 
 const config: ApiConfig = {
   mode: initialMode,
@@ -3336,6 +3351,51 @@ export const ApiService = {
   }
 };
 
+export const semanticSearchApi = {
+  async search(query: string, options: { category_id?: string | number; min_score?: number; limit?: number } = {}) {
+    const params = new URLSearchParams();
+    params.set('q', query);
+    if (options.category_id) params.set('category_id', String(options.category_id));
+    if (options.min_score !== undefined) params.set('min_score', String(options.min_score));
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    return apiFetch<any>(`/search/semantic?${params.toString()}`);
+  },
+
+  async getTrendingSearches(limit = 8): Promise<string[]> {
+    try {
+      const res = await apiFetch<any>(`/search/trending?limit=${limit}`);
+      return Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      return [
+        'Lập trình React 19',
+        'Fullstack Web Developer',
+        'Laravel Backend REST API',
+        'Python AI & Machine Learning',
+        'Thiết kế UI/UX Figma',
+      ];
+    }
+  },
+
+  async trackSearchClick(data: { course_id: number | string; query?: string; position?: number; search_log_id?: number }) {
+    try {
+      return await apiFetch<any>('/search/click', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    } catch {
+      return null;
+    }
+  },
+
+  async getSimilarCourses(courseId: number | string, limit = 4): Promise<any[]> {
+    try {
+      const res = await apiFetch<any>(`/courses/${courseId}/semantic-recommendations?limit=${limit}`);
+      return Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      return [];
+    }
+  },
+};
 
 // Declared helper interface for sections array
 interface Section {

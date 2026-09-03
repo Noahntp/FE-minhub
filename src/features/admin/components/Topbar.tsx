@@ -114,8 +114,7 @@ export default function Topbar({
   const totalPending = 
     (actionItems.pending_course_reviews || 0) +
     (actionItems.pending_instructor_upgrades || 0) +
-    (actionItems.pending_withdrawals || 0) +
-    (actionItems.pending_payout_accounts || 0);
+    (actionItems.pending_withdrawals || 0);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -176,16 +175,6 @@ export default function Topbar({
       icon: ArrowDownToLine,
       iconBg: 'bg-emerald-100 text-emerald-700',
       badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    },
-    {
-      id: 'payouts',
-      count: actionItems.pending_payout_accounts || 0,
-      title: 'Tài khoản nhận tiền',
-      desc: 'tài khoản ngân hàng/MoMo cần xác minh thông tin',
-      url: '/admin/payout-accounts?status=pending_verification',
-      icon: CreditCard,
-      iconBg: 'bg-purple-100 text-purple-700',
-      badgeBg: 'bg-purple-100 text-purple-800 border-purple-200',
     },
   ];
 

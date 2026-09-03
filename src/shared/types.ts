@@ -169,6 +169,10 @@ export interface Course {
   discountPercent?: number | null;
   has_discount?: boolean;
   hasDiscount?: boolean;
+  campaign_type?: 'discount' | 'trial' | null;
+  has_trial?: boolean;
+  hasTrial?: boolean;
+  isTrial?: boolean;
   rating: number;
   reviewCount: number;
   enrolledCount: number;
@@ -183,6 +187,9 @@ export interface Course {
   requirements?: string[];
   willLearn?: string[];
   status: 'draft' | 'pending' | 'active' | 'rejected' | 'hidden' | 'archived' | 'suspended' | 'published' | 'approved';
+  is_enrolled?: boolean;
+  isEnrolled?: boolean;
+  enrollment_status?: string;
   rawStatus?: string;
   statusLabel?: string;
   category_id?: number | string;

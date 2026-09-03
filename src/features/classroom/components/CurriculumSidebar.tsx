@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Course, Lesson } from '@/shared/types';
-import { PlayCircle, CheckCircle, Clock, ChevronDown, ChevronUp, X, Play, Award, Trophy, BookOpen } from 'lucide-react';
+import { PlayCircle, CheckCircle, CheckCircle2, Check, Clock, ChevronDown, ChevronUp, X, Play, Award, Trophy, BookOpen } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 
 interface CurriculumSidebarProps {
@@ -10,6 +10,7 @@ interface CurriculumSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectLesson: (lessonId: string) => void;
+  onToggleLessonCompletion?: (lessonId: string) => void;
 }
 
 export function CurriculumSidebar({
@@ -19,6 +20,7 @@ export function CurriculumSidebar({
   isOpen,
   onClose,
   onSelectLesson,
+  onToggleLessonCompletion,
 }: CurriculumSidebarProps) {
   if (!course) return null;
 
@@ -158,20 +160,33 @@ export function CurriculumSidebar({
                         )}
 
                         <div className="flex items-center gap-3 overflow-hidden">
-                          {/* Icon Circle */}
-                          {isCompleted ? (
-                            <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            </div>
-                          ) : isActive ? (
-                            <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                              <Play className="w-3 h-3 fill-white ml-0.5" />
-                            </div>
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 font-bold text-[11px] flex items-center justify-center shrink-0">
-                              {lessonIndex + 1}
-                            </div>
-                          )}
+                          {/* Interactive Completion Mark / Checkbox */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onToggleLessonCompletion) {
+                                onToggleLessonCompletion(String(lesson.id));
+                              }
+                            }}
+                            title={isCompleted ? "Đã hoàn thành (Bấm để bỏ đánh dấu)" : "Bấm để đánh dấu đã hoàn thành"}
+                            className="shrink-0 p-0.5 rounded-full hover:scale-110 active:scale-95 transition-transform cursor-pointer focus:outline-none"
+                          >
+                            {isCompleted ? (
+                              <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm hover:bg-emerald-600 transition-colors">
+                                <CheckCircle2 className="w-4 h-4 fill-emerald-500 stroke-white" />
+                              </div>
+                            ) : isActive ? (
+                              <div className="w-6 h-6 rounded-full bg-emerald-50 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors group/btn">
+                                <Check className="w-3.5 h-3.5 opacity-60 group-hover/btn:opacity-100" />
+                              </div>
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 text-slate-500 flex items-center justify-center hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors group/btn">
+                                <span className="text-[10px] font-bold group-hover/btn:hidden">{lessonIndex + 1}</span>
+                                <Check className="w-3.5 h-3.5 hidden group-hover/btn:block text-emerald-600" />
+                              </div>
+                            )}
+                          </button>
 
                           {/* Title */}
                           <p

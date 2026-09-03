@@ -1,15 +1,18 @@
-name: Frontend CD
+name: CD - Deploy Frontend to Server
+run-name: 🚀 CD Frontend (${{ github.ref_name }}) - ${{ github.event.head_commit.message || 'Deploy' }}
 
 on:
   push:
     branches:
-      - main
       - develop
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
     name: Build & Deploy Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Code
@@ -26,62 +29,28 @@ jobs:
         run: npm install
 
       - name: Build Project
+        env:
+          VITE_API_BASE_URL: https://mindhub.io.vn/BE/public/api
+          VITE_API_MODE: api
+          VITE_MEDIA_BASE_URL: https://mindhub.io.vn/mindhub-media
         run: npm run build
 
       - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            APP_DIR="/var/www/mindhub-frontend"
-            RELEASE_ID=$(date +%Y%m%d%H%M%S)
-            RELEASE_DIR="${APP_DIR}/releases/${RELEASE_ID}"
-            CURRENT_LINK="${APP_DIR}/current"
-            
-            echo "Starting Frontend deployment for release ${RELEASE_ID}..."
-            
-            # Tạo thư mục release
-            mkdir -p ${RELEASE_DIR}
-            
-      - name: Copy Build to Server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "dist/*"
-          target: "/var/www/mindhub-frontend/releases/latest_build"
-          strip_components: 1
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_KEY }}
+        run: |
+          echo "📦 Đóng gói mã nguồn build dist..."
+          tar -czf /tmp/fe_dist.tar.gz -C dist .
 
-      - name: Finalize Deployment
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            APP_DIR="/var/www/mindhub-frontend"
-            # Tìm release ID mới nhất vừa được SCP lên
-            RELEASE_ID=$(date +%Y%m%d%H%M%S)
-            RELEASE_DIR="${APP_DIR}/releases/${RELEASE_ID}"
-            CURRENT_LINK="${APP_DIR}/current"
-            PREVIOUS_LINK="${APP_DIR}/previous"
+          echo "🔑 Cấu hình SSH Key..."
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
-            # Đổi tên thư mục latest_build thành RELEASE_ID
-            mv ${APP_DIR}/releases/latest_build ${RELEASE_DIR}
+          echo "🚀 Tải gói mã nguồn lên máy chủ..."
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -P 22 /tmp/fe_dist.tar.gz root@62.171.157.22:/tmp/fe_dist.tar.gz
 
-            echo "Switching active release (Symlink)..."
-            if [ -L "$CURRENT_LINK" ]; then
-              # Lưu lại version cũ để rollback
-              ln -snf $(readlink -f $CURRENT_LINK) $PREVIOUS_LINK
-            fi
+          echo "📂 Giải nén và cập nhật /www/wwwroot/default..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 22 root@62.171.157.22 "tar -xzf /tmp/fe_dist.tar.gz -C /www/wwwroot/default && rm -f /tmp/fe_dist.tar.gz && chown -R www:www /www/wwwroot/default/assets /www/wwwroot/default/index.html"
 
-            # Trỏ symlink current tới thư mục dist mới
-            ln -snf ${RELEASE_DIR} $CURRENT_LINK
-
-            # Dọn dẹp các release cũ (Giữ lại 3 bản gần nhất)
-            ls -1dt ${APP_DIR}/releases/* | grep -v 'latest_build' | tail -n +4 | xargs -d '\n' rm -rf || true
-            
-            echo "Deployment successful!"
+          echo "✅ Frontend triển khai thành công 100%!"
