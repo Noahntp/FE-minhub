@@ -11,6 +11,7 @@ import {
 import { ArrowUpDown, ExternalLink, ChevronDown, Search, X } from "lucide-react";
 import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 export default function OrdersManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -766,7 +767,7 @@ export default function OrdersManagement() {
                       <td className="py-2.5 px-3">
                         <div className="flex items-start gap-2">
                           {order.user?.avatar_url ? (
-                            <img src={order.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 bg-canvas border border-hairline" />
+                            <img src={resolveMediaUrl(order.user.avatar_url)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 bg-canvas border border-hairline" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-canvas border border-hairline flex items-center justify-center text-[10px] font-bold text-mid-gray shrink-0 uppercase">
                               {order.user?.full_name ? order.user.full_name.charAt(0) : "?"}
@@ -803,7 +804,7 @@ export default function OrdersManagement() {
                         {order.course ? (
                           <div className="flex items-start gap-2.5 min-w-0">
                             <img
-                              src={order.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
+                              src={resolveMediaUrl(order.course.thumbnail_url)}
                               alt=""
                               className="w-14 h-9 rounded object-cover shrink-0 border border-hairline/60 bg-canvas"
                               onError={(e) => {
@@ -1151,7 +1152,7 @@ export default function OrdersManagement() {
                           {selectedOrder.course ? (
                             <div className="flex items-start gap-3 text-xs">
                               <img
-                                src={selectedOrder.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
+                                src={resolveMediaUrl(selectedOrder.course.thumbnail_url)}
                                 alt="Course"
                                 className="w-16 h-10 rounded object-cover border border-hairline bg-canvas shrink-0"
                               />

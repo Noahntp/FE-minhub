@@ -13,6 +13,7 @@ import { cn } from '@/shared/lib/utils';
 import FilterSelect, { SelectOption } from './FilterSelect';
 import AdminPagination from "../shared/AdminPagination";
 import { AiCategoryModal } from "../shared/AiCategoryModal";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 interface Instructor {
   id: number;
@@ -1641,7 +1642,7 @@ export default function CourseReviews() {
                       <td className="p-3 pl-4">
                         <div className="flex items-start gap-3">
                           <img
-                            src={item.thumbnail_url || ''}
+                            src={resolveMediaUrl(item.thumbnail_url)}
                             alt="Thumbnail"
                             className="w-12 h-8 rounded-[4px] object-cover border border-hairline shrink-0 mt-0.5"
                             onError={(e: any) => {
@@ -1893,7 +1894,7 @@ export default function CourseReviews() {
                       <div className="space-y-5">
                         <div className="relative aspect-video w-full rounded-[6px] overflow-hidden border border-hairline">
                           <img
-                            src={drawerData.course?.thumbnail_url || ''}
+                            src={resolveMediaUrl(drawerData.course?.thumbnail_url)}
                             alt="Course Thumbnail"
                             className="w-full h-full object-cover"
                             onError={(e: any) => {
@@ -1979,7 +1980,7 @@ export default function CourseReviews() {
                         {/* Instructor Profile */}
                         <div className="p-4 rounded-[6px] border border-hairline bg-surface-alt flex items-start gap-4">
                           <img
-                            src={drawerData.course?.instructor?.avatar_url || ''}
+                            src={resolveMediaUrl(drawerData.course?.instructor?.avatar_url)}
                             alt="Instructor avatar"
                             className="w-12 h-12 rounded-full object-cover border border-hairline shrink-0"
                             onError={(e: any) => {

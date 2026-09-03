@@ -9,6 +9,7 @@ import FilterSelect, { SelectOption } from "./FilterSelect";
 import AdminPagination from "../shared/AdminPagination";
 import { config } from "@/shared/lib/api-client";
 import { autoCalculateFeaturedCoursesAdmin } from "@/services/api";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 // Format Helpers
 const formatDateTime = (isoString: string) => {
@@ -1803,7 +1804,7 @@ export default function CoursesManagement() {
                       <td className="p-3 pl-4">
                         <div className="flex items-center gap-3 group min-w-0">
                           <img
-                            src={course.thumbnail_url}
+                            src={resolveMediaUrl(course.thumbnail_url)}
                             alt={course.title}
                             loading="lazy"
                             className="h-10 w-16 rounded-[4px] object-cover bg-canvas border border-hairline group-hover:opacity-90 transition-opacity shrink-0"
@@ -1989,7 +1990,7 @@ export default function CoursesManagement() {
                   <section className="space-y-3">
                     <div className="aspect-video w-full rounded-[6px] bg-canvas overflow-hidden border border-hairline relative">
                       <img
-                        src={activeDetailCourse.thumbnail_url}
+                        src={resolveMediaUrl(activeDetailCourse.thumbnail_url)}
                         alt="Thumbnail"
                         id="detail-thumbnail"
                         className="w-full h-full object-cover"
@@ -2442,7 +2443,7 @@ export default function CoursesManagement() {
                             >
                               {senderAvatar ? (
                                 <img
-                                  src={senderAvatar}
+                                  src={resolveMediaUrl(senderAvatar)}
                                   alt={senderName}
                                   className="w-8 h-8 rounded-full object-cover shrink-0 border border-hairline"
                                   onError={(e: any) => {
@@ -2606,7 +2607,7 @@ export default function CoursesManagement() {
             <div className="rounded-[6px] border border-hairline bg-surface-alt p-3 flex gap-3 items-center text-xs">
               <div className="h-[54px] w-[88px] rounded-[4px] bg-canvas overflow-hidden shrink-0 border border-hairline">
                 <img
-                  src={featuredModal.course?.thumbnail_url}
+                  src={resolveMediaUrl(featuredModal.course?.thumbnail_url)}
                   alt="Thumbnail"
                   id="featured-modal-img"
                   className="w-full h-full object-cover"

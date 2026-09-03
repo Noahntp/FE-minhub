@@ -9,6 +9,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
 import { Filter, X, RotateCcw } from "lucide-react";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 interface UserInfo {
   id: number;
@@ -1272,7 +1273,7 @@ export default function Moderation() {
                         <div className="flex items-center gap-3">
                           {item.user?.avatar_url ? (
                             <img
-                              src={item.user.avatar_url}
+                              src={resolveMediaUrl(item.user.avatar_url)}
                               alt={item.user.full_name}
                               className="h-9 w-9 rounded-full object-cover shrink-0 border border-hairline bg-canvas"
                             />
@@ -1574,7 +1575,7 @@ export default function Moderation() {
                     <div className="flex items-center gap-3 p-3.5 rounded-xl border border-hairline bg-paper">
                       {drawerItem.user?.avatar_url ? (
                         <img
-                          src={drawerItem.user.avatar_url}
+                          src={resolveMediaUrl(drawerItem.user.avatar_url)}
                           alt={drawerItem.user.full_name}
                           className="h-10 w-10 rounded-full object-cover shrink-0 border border-hairline bg-canvas"
                         />

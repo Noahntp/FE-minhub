@@ -36,6 +36,7 @@ export interface HomeCourseItem {
   has_trial?: boolean;
   hasTrial?: boolean;
   isTrial?: boolean;
+  is_enrolled?: boolean;
 }
 
 export function isCourseTrialEligible(course?: any): boolean {

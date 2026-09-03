@@ -11,6 +11,7 @@ import {
 import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
 import { Search, X } from "lucide-react";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 // Register zoom plugin
 Chart.register(zoomPlugin);
@@ -784,7 +785,7 @@ export default function RevenuesManagement() {
                         {item.course ? (
                           <div className="flex items-start gap-2.5 min-w-0">
                             <img
-                              src={item.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
+                              src={resolveMediaUrl(item.course.thumbnail_url)}
                               alt=""
                               className="w-14 h-9 rounded object-cover shrink-0 border border-hairline/60 bg-canvas"
                               onError={(e) => {
@@ -960,9 +961,12 @@ export default function RevenuesManagement() {
                         </div>
                         <div className="p-3.5 border border-hairline rounded-[6px] bg-paper flex items-center gap-3.5 text-xs">
                           <img
-                            src={selectedRevenue.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
+                            src={resolveMediaUrl(selectedRevenue.course.thumbnail_url)}
                             alt=""
                             className="w-14 h-9 rounded object-cover border border-hairline bg-canvas shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60";
+                            }}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="font-semibold text-ink truncate">{selectedRevenue.course.title}</div>
