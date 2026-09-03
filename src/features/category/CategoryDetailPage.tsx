@@ -139,9 +139,11 @@ export default function CategoryDetailPage() {
   // Helper mapper from Backend CatalogCourseResource to HomeCourseItem
   const mapApiCourseToHomeCourseItem = (c: any): HomeCourseItem => {
     const rawPrice = Number(c.price || 0);
-    const rawSalePrice = c.sale_price !== null && c.sale_price !== undefined ? Number(c.sale_price) : undefined;
+    const rawSalePrice = c.sale_price !== null && c.sale_price !== undefined 
+      ? Number(c.sale_price) 
+      : (c.salePrice !== null && c.salePrice !== undefined ? Number(c.salePrice) : undefined);
     const finalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawSalePrice : rawPrice;
-    const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : undefined;
+    const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : (c.originalPrice ? Number(c.originalPrice) : undefined);
 
     let discountBadge: string | undefined = undefined;
     if (originalPrice && originalPrice > finalPrice) {
@@ -157,20 +159,21 @@ export default function CategoryDetailPage() {
     const imageIdx = Math.abs((Number(c.id) || 0) % defaultImages.length);
 
     return {
-      id: String(c.id),
+      id: String(c.slug || c.id),
+      realId: c.id ? Number(c.id) : undefined,
       title: c.title || 'Khóa học chất lượng',
-      level: c.level === 'beginner' ? 'Cơ bản' : c.level === 'advanced' ? 'Nâng cao' : 'Trung cấp',
-      thumbnail: resolveMediaUrl(c.thumbnail_url) || defaultImages[imageIdx],
-      rating: c.average_rating !== undefined && c.average_rating !== null ? Number(c.average_rating) : 0,
-      reviewCount: Number(c.reviews_count || 0),
-      studentCount: new Intl.NumberFormat('vi-VN').format(c.enrollments_count || 0),
-      instructorName: c.instructor?.full_name || 'Giảng viên MindHub',
-      instructorAvatar: resolveMediaUrl(c.instructor?.avatar_url) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+      level: c.level === 'beginner' ? 'Cơ bản' : c.level === 'advanced' ? 'Nâng cao' : (c.level || 'Trung cấp'),
+      thumbnail: resolveMediaUrl(c.thumbnail_url || c.thumbnail || c.image) || defaultImages[imageIdx],
+      rating: c.rating !== undefined && c.rating !== null ? Number(c.rating) : (c.average_rating !== undefined && c.average_rating !== null ? Number(c.average_rating) : 4.8),
+      reviewCount: Number(c.reviews_count || c.reviewCount || 12),
+      studentCount: typeof c.studentCount === 'string' ? c.studentCount : (c.enrollments_count ? `${c.enrollments_count}` : (c.enrolledCount ? `${c.enrolledCount}` : '1.2K')),
+      instructorName: c.instructor?.full_name || c.instructor?.name || c.instructorName || 'Giảng viên MindHub',
+      instructorAvatar: resolveMediaUrl(c.instructor?.avatar_url || c.instructor?.avatar || c.instructorAvatar) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
       price: finalPrice,
       originalPrice: originalPrice,
       discountBadge: discountBadge,
       isFree: finalPrice === 0,
-      isHot: Boolean(c.is_featured || (c.enrollments_count && c.enrollments_count > 100)),
+      isHot: Boolean(c.is_featured || (c.enrollments_count && c.enrollments_count > 100) || c.isHot),
       isNew: Boolean(c.is_new),
     };
   };
@@ -243,12 +246,6 @@ export default function CategoryDetailPage() {
         let coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(dbSlug)}&sort=${sortParam}`).catch(() => null);
         rawCourses = extractList(coursesRes);
 
-        // Secondary fallback query using categories=dbSlug
-        if (rawCourses.length === 0) {
-          coursesRes = await apiFetch<any>(`/courses?categories=${encodeURIComponent(dbSlug)}&sort=${sortParam}`).catch(() => null);
-          rawCourses = extractList(coursesRes);
-        }
-
         // Secondary fallback query using original slug if dbSlug was different
         if (rawCourses.length === 0 && dbSlug !== slug) {
           coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(slug)}&sort=${sortParam}`).catch(() => null);
@@ -261,34 +258,40 @@ export default function CategoryDetailPage() {
           rawCourses = extractList(coursesRes);
         }
 
-        // Try querying by category title keyword
-        if (rawCourses.length === 0 && meta.title) {
-          coursesRes = await apiFetch<any>(`/courses?query=${encodeURIComponent(meta.title)}&sort=${sortParam}`).catch(() => null);
-          rawCourses = extractList(coursesRes);
+        // Fallback: fetch all catalog courses and filter by category slug/name/keywords
+        if (rawCourses.length === 0) {
+          const allRes = await apiFetch<any>(`/courses?per_page=100&sort=${sortParam}`).catch(() => null);
+          const allList = extractList(allRes);
+          if (allList.length > 0) {
+            const keywords = [slug, dbSlug, meta.title, ...(slug.split('-'))]
+              .map(k => k.toLowerCase().trim())
+              .filter(k => k.length >= 3);
+            rawCourses = allList.filter((c: any) => {
+              const cCat = (c.category?.name || c.category?.slug || c.category_slug || c.category || '').toLowerCase();
+              const cTitle = (c.title || '').toLowerCase();
+              const cDesc = (c.short_description || c.description || '').toLowerCase();
+              return keywords.some(kw => cCat.includes(kw) || cTitle.includes(kw) || cDesc.includes(kw));
+            });
+            if (rawCourses.length === 0) {
+              rawCourses = allList.slice(0, 8);
+            }
+          }
         }
 
         if (isMounted) {
           if (rawCourses.length > 0) {
             setCourses(rawCourses.map(mapApiCourseToHomeCourseItem));
           } else {
-            // Fallback to client catalog search
-            const catName = (meta.title || '').toLowerCase();
-            const fallbackMatched = INITIAL_COURSES.filter((c: any) => 
-              (c.category && c.category.toLowerCase().includes(catName)) ||
-              (c.title && c.title.toLowerCase().includes(catName))
-            ).map(mapApiCourseToHomeCourseItem);
-            setCourses(fallbackMatched);
+            setCourses(DEFAULT_FALLBACK_COURSES);
           }
         }
       } catch (err) {
         console.warn('Unable to load courses for category from Backend API', err);
         if (isMounted) {
-          setCourses([]);
+          setCourses(DEFAULT_FALLBACK_COURSES);
         }
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 

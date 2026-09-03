@@ -168,12 +168,14 @@ const ALL_COURSES_DATA: HomeCourseItem[] = [
   },
 ];
 
+type PriceFilterType = 'all' | 'free' | 'paid' | 'under-500k' | '500k-1m' | 'over-1m';
+
 export default function CourseListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedPriceType, setSelectedPriceType] = useState<'all' | 'free' | 'paid'>('all');
+  const [selectedPriceType, setSelectedPriceType] = useState<PriceFilterType>('all');
   const [selectedMinRating, setSelectedMinRating] = useState<number | null>(null);
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
   const [selectedDurations, setSelectedDurations] = useState<string[]>([]);
@@ -193,11 +195,11 @@ export default function CourseListPage() {
   // Sync URL search parameters on mount / update
   useEffect(() => {
     const isFree = searchParams.get('free') === 'true';
-    const pType = searchParams.get('priceType');
+    const pType = searchParams.get('priceType') as PriceFilterType | null;
     if (isFree || pType === 'free') {
       setSelectedPriceType('free');
-    } else if (pType === 'paid') {
-      setSelectedPriceType('paid');
+    } else if (pType && ['paid', 'under-500k', '500k-1m', 'over-1m'].includes(pType)) {
+      setSelectedPriceType(pType);
     }
 
     const q = searchParams.get('search') || searchParams.get('query') || searchParams.get('q');
@@ -368,6 +370,14 @@ export default function CourseListPage() {
       params.set('priceType', 'free');
       params.set('min_price', '0');
       params.set('max_price', '0');
+    } else if (selectedPriceType === 'under-500k') {
+      params.set('min_price', '1');
+      params.set('max_price', '500000');
+    } else if (selectedPriceType === '500k-1m') {
+      params.set('min_price', '500000');
+      params.set('max_price', '1000000');
+    } else if (selectedPriceType === 'over-1m') {
+      params.set('min_price', '1000000');
     } else if (selectedPriceType === 'paid') {
       params.set('priceType', 'paid');
       params.set('min_price', '1');
@@ -436,10 +446,16 @@ export default function CourseListPage() {
             };
           });
 
-          // Apply client-side refining if needed
+          // Apply client-side refining for exact price accuracy
           let filtered = mapped;
           if (selectedPriceType === 'free') {
             filtered = filtered.filter((c) => c.price === 0);
+          } else if (selectedPriceType === 'under-500k') {
+            filtered = filtered.filter((c) => c.price > 0 && c.price <= 500000);
+          } else if (selectedPriceType === '500k-1m') {
+            filtered = filtered.filter((c) => c.price >= 500000 && c.price <= 1000000);
+          } else if (selectedPriceType === 'over-1m') {
+            filtered = filtered.filter((c) => c.price >= 1000000);
           } else if (selectedPriceType === 'paid') {
             filtered = filtered.filter((c) => c.price > 0);
           }
@@ -490,6 +506,12 @@ export default function CourseListPage() {
         }
         if (selectedPriceType === 'free') {
           filtered = filtered.filter(c => c.price === 0);
+        } else if (selectedPriceType === 'under-500k') {
+          filtered = filtered.filter(c => c.price > 0 && c.price <= 500000);
+        } else if (selectedPriceType === '500k-1m') {
+          filtered = filtered.filter(c => c.price >= 500000 && c.price <= 1000000);
+        } else if (selectedPriceType === 'over-1m') {
+          filtered = filtered.filter(c => c.price >= 1000000);
         } else if (selectedPriceType === 'paid') {
           filtered = filtered.filter(c => c.price > 0);
         }
@@ -998,7 +1020,13 @@ export default function CourseListPage() {
 
                 {selectedPriceType !== 'all' && (
                   <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg">
-                    <span>{selectedPriceType === 'free' ? 'Miễn phí' : 'Trả phí'}</span>
+                    <span>
+                      {selectedPriceType === 'free' && 'Miễn phí'}
+                      {selectedPriceType === 'paid' && 'Trả phí'}
+                      {selectedPriceType === 'under-500k' && 'Dưới 500K'}
+                      {selectedPriceType === '500k-1m' && '500K - 1M'}
+                      {selectedPriceType === 'over-1m' && 'Trên 1M'}
+                    </span>
                     <button onClick={() => setSelectedPriceType('all')} className="hover:text-rose-500">
                       <X className="w-3 h-3" />
                     </button>

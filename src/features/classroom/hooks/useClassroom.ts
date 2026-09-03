@@ -439,9 +439,10 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
           // Compute all lessons flat list
           const flatLessons = (foundCourse.chapters || []).flatMap((c: any) => c.lessons || []);
 
-          // Find saved current lesson ID if any
-          let savedCurrentLessonId: string | null = null;
-          if (saved) {
+          // Find saved current lesson ID if any (prioritize direct last lesson key)
+          const directSavedLastLesson = localStorage.getItem(`mindhub_last_lesson_${foundCourse.id}`);
+          let savedCurrentLessonId: string | null = directSavedLastLesson || null;
+          if (!savedCurrentLessonId && saved) {
             try {
               const parsed = JSON.parse(saved);
               if (parsed.currentLessonId) {
@@ -452,22 +453,38 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
 
           // Pick optimal resume lesson:
           // 1. If savedCurrentLessonId exists and valid, resume that lesson
-          // 2. Otherwise find the first uncompleted lesson in the course
-          // 3. Otherwise if all completed, pick the last lesson (or first)
           let optimalLesson: Lesson | null = null;
           if (savedCurrentLessonId) {
-            optimalLesson = flatLessons.find((l: any) => String(l.id) === savedCurrentLessonId) || null;
+            optimalLesson = flatLessons.find((l: any) => String(l.id) === String(savedCurrentLessonId)) || null;
           }
 
+          // 2. Check lessons with progress from Backend (in_progress or current_second > 0)
+          if (!optimalLesson) {
+            const inProgressLesson = flatLessons.find((l: any) => {
+              const sec = l.progress?.current_second ?? l.current_second;
+              const status = l.progress?.status ?? l.status;
+              return (typeof sec === 'number' && sec > 0 && status !== 'completed') || status === 'in_progress';
+            });
+            if (inProgressLesson) {
+              optimalLesson = inProgressLesson;
+            }
+          }
+
+          // 3. Otherwise find the first uncompleted lesson in the course
           if (!optimalLesson && flatLessons.length > 0) {
             const completedSet = new Set(finalCompletedIds.map(String));
-            // First uncompleted lesson
             const firstUncompleted = flatLessons.find((l: any) => !completedSet.has(String(l.id)));
             optimalLesson = firstUncompleted || flatLessons[flatLessons.length - 1] || flatLessons[0];
           }
 
           if (!optimalLesson && foundCourse.chapters && foundCourse.chapters.length > 0 && foundCourse.chapters[0].lessons.length > 0) {
             optimalLesson = foundCourse.chapters[0].lessons[0];
+          }
+
+          if (optimalLesson) {
+            try {
+              localStorage.setItem(`mindhub_last_lesson_${foundCourse.id}`, String(optimalLesson.id));
+            } catch (e) {}
           }
 
           setActiveLesson(optimalLesson);
@@ -504,6 +521,9 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
       if (lesson) {
         setActiveLesson(lesson);
         const strLessonId = String(lessonId);
+        try {
+          localStorage.setItem(`mindhub_last_lesson_${course.id}`, strLessonId);
+        } catch (e) {}
         setProgress(prev => {
           if (!prev) return null;
           const updated = { ...prev, currentLessonId: strLessonId };

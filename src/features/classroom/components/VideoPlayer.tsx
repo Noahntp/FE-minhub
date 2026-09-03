@@ -42,7 +42,9 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
   const [isLoadingVideo, setIsLoadingVideo] = useState<boolean>(false);
   const [initialStartTime, setInitialStartTime] = useState<number>(0);
   const [watermark, setWatermark] = useState<{ text: string; opacity?: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const hasSeekedInitialRef = useRef(false);
   const hasTriggered90Ref = useRef(false);
   const lastSavedSecondRef = useRef(0);
@@ -61,11 +63,95 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
 
     if (!isNaN(numericLessonId) && numericLessonId > 0) {
       localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(sec));
+      if (activeLesson) {
+        const cId = (activeLesson as any).course_id || (activeLesson as any).courseId;
+        if (cId) {
+          localStorage.setItem(`mindhub_last_lesson_${cId}`, String(activeLesson.id));
+        }
+      }
       const duration = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds;
       const boundedSec = (typeof duration === 'number' && duration > 0) ? Math.min(sec, duration) : sec;
       classroomApi.saveVideoPlaybackRatio(String(numericLessonId), boundedSec).catch(() => {});
     }
   };
+
+  // Keyboard Shortcuts: F (fullscreen), Space (play/pause), Left/Right Arrows (+-5s)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.closest('input, textarea, [contenteditable="true"]'))
+      ) {
+        return;
+      }
+
+      // F or f -> Fullscreen toggle
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        if (containerRef.current) {
+          if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen?.().catch(() => {});
+          } else {
+            document.exitFullscreen?.().catch(() => {});
+          }
+        }
+      }
+
+      // Space -> Toggle Play/Pause
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (videoRef.current) {
+          if (videoRef.current.paused) {
+            videoRef.current.play().catch(() => {});
+          } else {
+            videoRef.current.pause();
+          }
+        } else if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'togglePlay' }), '*');
+        }
+      }
+
+      // ArrowLeft -> Rewind 5s
+      if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        if (videoRef.current) {
+          const targetTime = Math.max(0, videoRef.current.currentTime - 5);
+          videoRef.current.currentTime = targetTime;
+          saveProgress(targetTime);
+        } else if (iframeRef.current?.contentWindow) {
+          const currentSaved = parseInt(localStorage.getItem(`mindhub_video_time_${numericLessonId}`) || '0', 10);
+          const targetTime = Math.max(0, currentSaved - 5);
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'seek', value: targetTime }), '*');
+          saveProgress(targetTime);
+        }
+      }
+
+      // ArrowRight -> Forward 5s
+      if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        const duration = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds || 600;
+        if (videoRef.current) {
+          const targetTime = Math.min(videoRef.current.duration || duration, videoRef.current.currentTime + 5);
+          videoRef.current.currentTime = targetTime;
+          saveProgress(targetTime);
+        } else if (iframeRef.current?.contentWindow) {
+          const currentSaved = parseInt(localStorage.getItem(`mindhub_video_time_${numericLessonId}`) || '0', 10);
+          const targetTime = Math.min(duration, currentSaved + 5);
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'seek', value: targetTime }), '*');
+          saveProgress(targetTime);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [numericLessonId, activeLesson]);
 
   // 1. Listen for postMessage from Bunny CDN player / Embed iframe
   useEffect(() => {
@@ -135,15 +221,20 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
       if (document.visibilityState === 'visible') {
         const savedTimeStr = localStorage.getItem(`mindhub_video_time_${numericLessonId}`);
         const currentSaved = savedTimeStr ? parseInt(savedTimeStr, 10) : 0;
-        const nextSec = currentSaved + 4;
+        const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds || 600;
+        
+        if (currentSaved >= lessonDurationSec) {
+          return;
+        }
+
+        const nextSec = Math.min(currentSaved + 4, lessonDurationSec);
         
         localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(nextSec));
         classroomApi.saveVideoPlaybackRatio(String(numericLessonId), nextSec).catch(() => {});
         trackTimeUpdate(nextSec);
         if (onTimeUpdate) onTimeUpdate(nextSec);
 
-        // Check 90% progress threshold (assume standard 600s or check duration)
-        const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds || 600;
+        // Check 90% progress threshold
         if (lessonDurationSec > 0 && nextSec >= lessonDurationSec * 0.9 && !hasTriggered90Ref.current) {
           hasTriggered90Ref.current = true;
           if (onProgress90) {
@@ -388,6 +479,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
 
   return (
     <div 
+      ref={containerRef}
       className="w-full relative rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-xl"
       style={{ paddingTop: '56.25%' }}
     >
@@ -398,6 +490,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
         </div>
       ) : isIframeEmbed ? (
         <iframe
+          ref={iframeRef}
           key={normalizedSrc}
           src={normalizedSrc}
           loading="lazy"

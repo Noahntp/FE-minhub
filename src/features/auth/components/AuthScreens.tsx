@@ -9,9 +9,9 @@ import { getDashboardRouteByRole } from '@/router/routes';
 import { validateEmail, validatePassword, validatePhone, isPhoneIdentifier, validateEmailOrPhone, extractApiErrors } from '@/shared/utils/validate';
 
 const DB_SEED_ACCOUNTS = [
-  { id: 'db-1', name: 'Student Test', email: 'learner1@mindhub.test', password: '12345678', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên' },
-  { id: 'db-2', name: 'Instructor Test', email: 'instructor1@mindhub.test', password: '12345678', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên' },
-  { id: 'db-3', name: 'Admin Test', email: 'admin@mindhub.test', password: '12345678', role: 'admin', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150', description: 'Quản trị viên' },
+  { id: 'db-1', name: 'Học viên (Test)', email: 'dangdominh303@gmail.com', password: 'minhdang3010', role: 'student', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150', description: 'Học viên (Live)' },
+  { id: 'db-2', name: 'Giảng viên (Test)', email: 'dangdevbe2026@gmail.com', password: 'minhdang3010', role: 'instructor', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150', description: 'Giảng viên (Live)' },
+  { id: 'db-3', name: 'Quản trị viên (Test)', email: 'dominhdang3010@gmail.com', password: 'minhdang3010', role: 'admin', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150', description: 'Quản trị viên (Admin)' },
 ];
 
 interface AuthScreensProps {
@@ -224,7 +224,7 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
       { ...SYSTEM_ROLE_USERS.admin, isEmailVerified: true }
     ];
     // Attach default password to the seeded objects for smooth logic
-    seeded.forEach((u: any) => { u.password = 'password123'; });
+    seeded.forEach((u: any) => { u.password = 'minhdang3010'; });
     localStorage.setItem('mindhub_registered_users_db', JSON.stringify(seeded));
     return seeded;
   });
@@ -249,9 +249,9 @@ export default function AuthScreens({ onLoginSuccess, onClose, initialMode = 'lo
     }
     // Pre-create/populate standard accounts of each role on this device as requested
     const defaultHistory = [
-      { ...SYSTEM_ROLE_USERS.student, isEmailVerified: true, password: 'password123' },
-      { ...SYSTEM_ROLE_USERS.instructor, isEmailVerified: true, password: 'password123' },
-      { ...SYSTEM_ROLE_USERS.admin, isEmailVerified: true, password: 'password123' }
+      { ...SYSTEM_ROLE_USERS.student, isEmailVerified: true, password: 'minhdang3010' },
+      { ...SYSTEM_ROLE_USERS.instructor, isEmailVerified: true, password: 'minhdang3010' },
+      { ...SYSTEM_ROLE_USERS.admin, isEmailVerified: true, password: 'minhdang3010' }
     ] as any[];
     localStorage.setItem('mindhub_logged_in_history', JSON.stringify(defaultHistory));
     return defaultHistory;

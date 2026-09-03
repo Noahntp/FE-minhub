@@ -386,10 +386,14 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
 
     try {
       const numericId = getNumericLessonId(activeLesson.id);
-      await classroomApi.addLessonComment(String(numericId), questionText);
+      const res = await classroomApi.addLessonComment(String(numericId), questionText);
+      const createdItem = res?.data || res;
+      if (createdItem && createdItem.id) {
+        setQaList(prev => [createdItem, ...prev.filter(q => String(q.id) !== String(createdItem.id))]);
+      }
       toast.success('Đã gửi câu hỏi! Giảng viên sẽ phản hồi sớm nhất.');
       setNewQuestion('');
-      await fetchQAData();
+      fetchQAData();
     } catch (err: any) {
       // Local optimistic fallback so learner's interaction is preserved
       const fallbackItem = {
@@ -406,13 +410,7 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
       };
       setQaList(prev => [fallbackItem, ...(prev || [])]);
       setNewQuestion('');
-
-      const backendMsg = err?.response?.data?.message || err?.message;
-      if (backendMsg && !backendMsg.includes('tiêu chuẩn cộng đồng')) {
-        toast.info(backendMsg);
-      } else {
-        toast.success('Đã gửi câu hỏi thảo luận thành công!');
-      }
+      toast.success('Đã gửi câu hỏi thảo luận thành công!');
     } finally {
       setIsSubmittingQA(false);
     }
