@@ -304,7 +304,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
         (foundCourse as any).instructorBio = instInfo.bio;
 
         // 3. Try to fetch outline syllabus from Backend API (/learn/courses/:id/outline)
-        const numericId = parseInt(String(courseId).replace(/\D/g, ''), 10);
+        const numericId = parseInt(String(foundCourse.id).replace(/\D/g, ''), 10);
         let apiChapters: any[] = [];
         let backendCompletedLessonIds: string[] = [];
         let hasBackendOutline = false;

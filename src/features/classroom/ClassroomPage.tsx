@@ -13,6 +13,7 @@ import {
   RotateCcw,
   X,
   Star,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
@@ -241,13 +242,41 @@ export default function ClassroomPage() {
           {/* LEFT COLUMN: VIDEO PLAYER + TABS + LESSON NAV BAR */}
           <div className="flex-1 w-full min-w-0 space-y-6">
             
-            {/* Video Player */}
-            <VideoPlayer
-              activeLesson={activeLesson}
-              onEnded={handleVideoEnded}
-              onProgress90={handleProgress90}
-              onTimeUpdate={setCurrentVideoTime}
-            />
+            {/* Video Player or Document View */}
+            {(activeLesson as any)?.type === 'document' || (activeLesson as any)?.lesson_type === 'document' ? (
+              <div className="w-full bg-slate-900 rounded-2xl overflow-hidden aspect-video flex flex-col items-center justify-center text-center p-8 border border-slate-800 shadow-2xl relative group">
+                <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
+                  <FileText className="w-10 h-10 text-emerald-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Bài học Tài liệu</h3>
+                <p className="text-slate-400 mb-6 max-w-md">Bài học này cung cấp tài liệu dạng văn bản/PDF để bạn nghiên cứu thay vì video.</p>
+                <div className="flex gap-4">
+                  {(activeLesson as any).video_url && (
+                    <a
+                      href={(activeLesson as any).video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-500/20"
+                    >
+                      Mở tài liệu
+                    </a>
+                  )}
+                  <button
+                    onClick={handleVideoEnded}
+                    className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors border border-slate-700"
+                  >
+                    Đánh dấu hoàn thành
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <VideoPlayer
+                activeLesson={activeLesson}
+                onEnded={handleVideoEnded}
+                onProgress90={handleProgress90}
+                onTimeUpdate={setCurrentVideoTime}
+              />
+            )}
 
             {/* Classroom Tabs (Overview, QA, Notes, Resources) */}
             <ClassroomTabs
