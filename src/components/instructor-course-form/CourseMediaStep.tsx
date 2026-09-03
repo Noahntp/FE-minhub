@@ -8,9 +8,10 @@ interface CourseMediaStepProps {
   introVideoUrl: string;
   setIntroVideoUrl: (url: string) => void;
   imageError?: string;
+  courseId?: string | number;
 }
 
-export default function CourseMediaStep({ image, setImage, introVideoUrl, setIntroVideoUrl, imageError }: CourseMediaStepProps) {
+export default function CourseMediaStep({ image, setImage, introVideoUrl, setIntroVideoUrl, imageError, courseId }: CourseMediaStepProps) {
   return (
     <div className="space-y-6">
       <div className="border-b pb-2 mb-2">
@@ -63,6 +64,7 @@ export default function CourseMediaStep({ image, setImage, introVideoUrl, setInt
             onChange={(url) => setIntroVideoUrl(url)}
             type="course_intro_video"
             label="Tải lên file video trailer (mp4, mov, webm)"
+            courseId={courseId}
           />
           <div className="space-y-1.5 text-left">
             <label className="block text-[10px] font-bold text-stone-600">Hoặc nhập liên kết URL video:</label>

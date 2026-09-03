@@ -26,6 +26,7 @@ interface CourseCurriculumStepProps {
   missingItems: string[];
   completedItems: string[];
   onSubmitForReview: () => void;
+  courseId?: string | number;
 }
 
 export function resolveLessonVideoUrl(rawUrl: string | null | undefined): string | null {
@@ -55,7 +56,8 @@ export default function CourseCurriculumStep({
   checklistProgress,
   missingItems,
   completedItems,
-  onSubmitForReview
+  onSubmitForReview,
+  courseId
 }: CourseCurriculumStepProps) {
   
   // Selection states (ID-based to prevent index mismatches & state corruption)
@@ -384,6 +386,10 @@ export default function CourseCurriculumStep({
                     if (String(les.id) !== String(activeLessonId)) return les;
                     return {
                       ...les,
+                      title: lessonDraft.title,
+                      content: lessonDraft.content,
+                      video_url: lessonDraft.video_url,
+                      lesson_type: lessonDraft.lesson_type,
                       video_duration_seconds: apiSec,
                       duration_seconds: apiSec,
                       is_preview: apiIsPreview
@@ -1100,6 +1106,7 @@ export default function CourseCurriculumStep({
         onClose={() => setIsLessonModalOpen(false)}
         onSave={handleSaveLesson}
         initialData={null}
+        courseId={courseId}
       />
 
       <AssetModal 

@@ -50,9 +50,10 @@ interface LessonModalProps {
     sort_order: number;
     resources?: any[];
   } | null;
+  courseId?: string | number;
 }
 
-export default function LessonModal({ isOpen, onClose, onSave, initialData }: LessonModalProps) {
+export default function LessonModal({ isOpen, onClose, onSave, initialData, courseId }: LessonModalProps) {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
@@ -324,6 +325,7 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
                 onDurationExtracted={handleDurationExtracted}
                 type="lesson_video" 
                 label="Tải lên Video bài học"
+                courseId={courseId}
               />
               {metadataError && (
                 <div className="text-[9.5px] font-medium text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center gap-1.5">

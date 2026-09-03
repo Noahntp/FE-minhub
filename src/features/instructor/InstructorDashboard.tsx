@@ -2210,6 +2210,26 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           }
         }
 
+        // Reload chapters from backend to update state with actual DB IDs
+        try {
+          const contentRes = await instructorApi.getCourseContent(courseId);
+          const contentData = contentRes?.data || contentRes;
+          const rawSections = contentData?.sections || [];
+          if (Array.isArray(rawSections) && rawSections.length > 0) {
+            const loadedChapters = rawSections.map((sec: any) => ({
+              id: sec.id,
+              title: sec.title,
+              description: sec.description || '',
+              sort_order: sec.sort_order || 1,
+              status: sec.status || 'published',
+              lessons: (sec.lessons || []).map((les: any) => mapLesson(les))
+            }));
+            setChapters(loadedChapters);
+          }
+        } catch (err) {
+          console.warn('Could not reload course content after sync:', err);
+        }
+
         await instructorApi.submitCourseToAdminVerification(courseId);
         alert('Đã gửi yêu cầu duyệt khóa học thành công! Khóa học đã được chuyển sang trạng thái Chờ duyệt (pending_review).');
         loadInstructorCoursesList();
@@ -4953,6 +4973,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                     introVideoUrl={introVideoUrl}
                     setIntroVideoUrl={setIntroVideoUrl}
                     imageError={step3Errors.image}
+                    courseId={editingCourseId || undefined}
                   />
                 )}
 

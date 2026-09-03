@@ -348,19 +348,23 @@ async getCourseEngagementAnalytics(courseId: string): Promise<any> {
     return apiFetch<any>(`/instructor/courses/${courseId}/analytics`);
   },
 
-async uploadInstructorFile(file: File, type: string = 'course_media'): Promise<{ url: string; path?: string }> {
-    return this.uploadInstructorFileWithProgress(file, type);
+async uploadInstructorFile(file: File, type: string = 'course_media', courseId?: number | string): Promise<{ url: string; path?: string }> {
+    return this.uploadInstructorFileWithProgress(file, type, undefined, courseId);
   },
 
 async uploadInstructorFileWithProgress(
     file: File, 
     type: string = 'course_media',
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    courseId?: number | string
   ): Promise<{ url: string; path?: string; file_name?: string; mime_type?: string; size?: number }> {
-    devLog('Instructor', 'Upload media file with progress', { fileName: file.name, type });
+    devLog('Instructor', 'Upload media file with progress', { fileName: file.name, type, courseId });
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
+    if (courseId) {
+      formData.append('course_id', String(courseId));
+    }
     const res = await uploadFileWithProgress<any>('/instructor/media/upload', formData, onProgress);
     return { 
       url: res?.url || res?.data?.url || res?.file_url || '',

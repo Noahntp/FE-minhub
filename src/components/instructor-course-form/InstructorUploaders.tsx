@@ -177,7 +177,8 @@ export const InstructorImageUploader: React.FC<UploaderProps> = ({ value, onChan
 export const InstructorVideoUploader: React.FC<UploaderProps & { 
   type: 'course_intro_video' | 'lesson_video';
   onDurationExtracted?: (seconds: number) => void;
-}> = ({ value, onChange, label, type, onDurationExtracted }) => {
+  courseId?: string | number;
+}> = ({ value, onChange, label, type, onDurationExtracted, courseId }) => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -199,14 +200,14 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
   }
 
   // Convert YouTube links to embed links if necessary
-  const isYouTube = resolvedVideoUrl && (resolvedVideoUrl.includes('youtube.com') || resolvedVideoUrl.includes('youtu.be'));
+  const isEmbed = resolvedVideoUrl && (resolvedVideoUrl.includes('youtube.com') || resolvedVideoUrl.includes('youtu.be') || resolvedVideoUrl.includes('iframe.mediadelivery.net'));
   const getYoutubeEmbedUrl = (url: string) => {
     const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
     const match = url.match(ytRegex);
     return match && match[1] ? `https://www.youtube.com/embed/${match[1]}` : url;
   };
   
-  if (isYouTube) {
+  if (resolvedVideoUrl && (resolvedVideoUrl.includes('youtube.com') || resolvedVideoUrl.includes('youtu.be'))) {
     resolvedVideoUrl = getYoutubeEmbedUrl(resolvedVideoUrl);
   }
 
@@ -272,7 +273,8 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
       const res = await instructorApi.uploadInstructorFileWithProgress(
         file, 
         type, 
-        (pct) => setProgress(pct)
+        (pct) => setProgress(pct),
+        courseId
       );
 
       setProgress(100);
@@ -333,11 +335,11 @@ export const InstructorVideoUploader: React.FC<UploaderProps & {
         {resolvedVideoUrl ? (
           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
             <div className="aspect-video max-h-36 bg-black rounded-lg overflow-hidden border">
-              {isYouTube ? (
+              {isEmbed ? (
                 <iframe
                   key={resolvedVideoUrl}
                   src={resolvedVideoUrl}
-                  title="YouTube video player"
+                  title="Video player"
                   className="w-full h-full object-contain"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

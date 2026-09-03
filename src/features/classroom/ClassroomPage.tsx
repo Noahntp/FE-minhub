@@ -13,6 +13,7 @@ import {
   RotateCcw,
   X,
   Star,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/EmptyState';
