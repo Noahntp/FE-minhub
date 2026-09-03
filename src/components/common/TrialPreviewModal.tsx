@@ -5,6 +5,25 @@ import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/lib/media-url';
 import Hls from 'hls.js';
+import bunnyVideosData from '@/shared/data/bunny_videos.json';
+
+const BUNNY_TITLE_MAP: Record<string, string> = {};
+let FIRST_VALID_BUNNY_EMBED = 'https://iframe.mediadelivery.net/embed/724015/3a3c6a0d-c691-4a82-afaa-d8824fc73ce1?autoplay=true&loop=false&muted=false&preload=true&responsive=true';
+
+Object.values(bunnyVideosData).forEach((vids: any) => {
+  if (Array.isArray(vids)) {
+    vids.forEach((v: any) => {
+      if (v.title && v.video_id) {
+        const normKey = v.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const embedUrl = `https://iframe.mediadelivery.net/embed/724015/${v.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
+        BUNNY_TITLE_MAP[normKey] = embedUrl;
+        if (!FIRST_VALID_BUNNY_EMBED) {
+          FIRST_VALID_BUNNY_EMBED = embedUrl;
+        }
+      }
+    });
+  }
+});
 
 const FALLBACK_SAMPLE_VIDEOS = [
   'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
@@ -55,18 +74,29 @@ export function TrialPreviewModal() {
   const currentLesson = activeTrialLesson || (trialLessonsList.length > 0 ? trialLessonsList[0] : null);
 
   useEffect(() => {
-    if (currentLesson?.videoUrl) {
-      const rawUrl = currentLesson.videoUrl.trim();
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-        setVideoSrc(rawUrl);
-      } else {
-        // Prevent 404 on dev server for unhosted relative video paths like /demo/videos/...
-        setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : rawUrl);
+    if (currentLesson) {
+      const normTitle = (currentLesson.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (BUNNY_TITLE_MAP[normTitle]) {
+        setVideoSrc(BUNNY_TITLE_MAP[normTitle]);
+        return;
       }
+
+      if (currentLesson.videoUrl) {
+        const rawUrl = currentLesson.videoUrl.trim();
+        if (rawUrl.includes('seed-bunny') || rawUrl.includes('placeholder')) {
+          setVideoSrc(FIRST_VALID_BUNNY_EMBED);
+          return;
+        }
+        if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+          setVideoSrc(rawUrl);
+          return;
+        }
+      }
+      setVideoSrc(FIRST_VALID_BUNNY_EMBED);
     } else {
-      setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : '');
+      setVideoSrc(FIRST_VALID_BUNNY_EMBED);
     }
-  }, [currentLesson?.videoUrl]);
+  }, [currentLesson]);
 
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
@@ -154,20 +184,31 @@ export function TrialPreviewModal() {
           {/* Left / Top: Video Player & Details */}
           <div className="lg:col-span-8 p-5 space-y-4 bg-slate-950 flex flex-col">
             
-            {/* HTML5 Video Player */}
+            {/* HTML5 Video Player or Bunny CDN Iframe */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl flex items-center justify-center">
               {videoSrc ? (
-                <video
-                  ref={videoRef}
-                  key={videoSrc}
-                  controls
-                  autoPlay
-                  onError={handleVideoError}
-                  className="w-full h-full object-cover"
-                  poster="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80"
-                >
-                  Trình duyệt của bạn không hỗ trợ phát video HTML5.
-                </video>
+                videoSrc.includes('iframe.mediadelivery.net') || videoSrc.includes('/embed/') || videoSrc.includes('youtube.com') ? (
+                  <iframe
+                    key={videoSrc}
+                    src={videoSrc}
+                    className="w-full h-full border-0"
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    key={videoSrc}
+                    controls
+                    autoPlay
+                    onError={handleVideoError}
+                    className="w-full h-full object-cover"
+                    poster="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80"
+                  >
+                    Trình duyệt của bạn không hỗ trợ phát video HTML5.
+                  </video>
+                )
               ) : (
                 <div className="flex items-center gap-2 text-slate-400 text-xs">
                   <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
