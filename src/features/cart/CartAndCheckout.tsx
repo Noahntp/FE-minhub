@@ -18,6 +18,7 @@ import {
   PlayCircle,
   BookOpen,
   Award,
+  Loader2,
 } from 'lucide-react';
 import { Course, Order, Coupon } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
@@ -312,8 +313,8 @@ export default function CartAndCheckout({
       });
   }, [currentUser]);
 
-  // Payment Method State: 'sepay' | 'vnpay' | 'momo' | 'bank' | 'card'
-  const [paymentMethod, setPaymentMethod] = useState<'sepay' | 'vnpay' | 'momo' | 'bank' | 'card'>('sepay');
+  // Payment Method State: 'sepay' | 'vnpay' (Thanh toán tự động qua VietQR hoặc Cổng VNPAY)
+  const [paymentMethod, setPaymentMethod] = useState<'sepay' | 'vnpay'>('sepay');
 
   // SePay VietQR Modal States
   const [sepayData, setSepayData] = useState<{
@@ -348,43 +349,90 @@ export default function CartAndCheckout({
     return new Intl.NumberFormat('vi-VN').format(num) + 'đ';
   };
 
-  const handleConfirmSepayPayment = async () => {
+  // Auto-polling order status while SePay modal is open
+  useEffect(() => {
+    if (!showSepayModal || !sepayData?.order_id) return;
+
+    let isPolling = true;
+    const intervalId = setInterval(async () => {
+      if (!isPolling) return;
+      try {
+        const res = await apiFetch<any>(`/orders/${sepayData.order_id}`);
+        const orderData = res?.data || res;
+        if (orderData && (orderData.status === 'paid' || orderData.payment_status === 'paid')) {
+          isPolling = false;
+          clearInterval(intervalId);
+
+          setShowSepayModal(false);
+          const order: Order = {
+            id: String(orderData.order_code || sepayData.transfer_content || sepayData.order_id),
+            date: new Date().toISOString().split('T')[0],
+            courses: [
+              {
+                id: checkoutCourse.id,
+                title: checkoutCourse.title,
+                price: finalTotal,
+              },
+            ],
+            discountAmount: initialDiscountAmount,
+            total: finalTotal,
+            status: 'success',
+            paymentMethod: 'Chuyển khoản VietQR (MB Bank)',
+          };
+
+          saveCourseToEnrolledList(checkoutCourse);
+          setCompletedOrder(order);
+          setPhase('success');
+          onEnrollSuccess([checkoutCourse.id], order);
+          toast.success('🎉 Đã nhận được chuyển khoản! Kích hoạt khóa học thành công.');
+        }
+      } catch (err) {
+        // Polling failure silently ignored
+      }
+    }, 2500);
+
+    return () => {
+      isPolling = false;
+      clearInterval(intervalId);
+    };
+  }, [showSepayModal, sepayData, checkoutCourse, finalTotal, initialDiscountAmount, onEnrollSuccess]);
+
+  const handleManualCheckPayment = async () => {
     if (!sepayData || isCheckingSepay) return;
     setIsCheckingSepay(true);
 
     try {
-      await apiFetch<any>('/payments', {
-        method: 'POST',
-        body: JSON.stringify({
-          order_id: sepayData.order_id,
-          payment_method: 'sepay',
-        }),
-      });
+      const res = await apiFetch<any>(`/orders/${sepayData.order_id}`);
+      const orderData = res?.data || res;
+      if (orderData && (orderData.status === 'paid' || orderData.payment_status === 'paid')) {
+        setShowSepayModal(false);
 
-      setShowSepayModal(false);
+        const order: Order = {
+          id: String(orderData.order_code || sepayData.transfer_content || sepayData.order_id),
+          date: new Date().toISOString().split('T')[0],
+          courses: [
+            {
+              id: checkoutCourse.id,
+              title: checkoutCourse.title,
+              price: finalTotal,
+            },
+          ],
+          discountAmount: initialDiscountAmount,
+          total: finalTotal,
+          status: 'success',
+          paymentMethod: 'Chuyển khoản VietQR (MB Bank)',
+        };
 
-      const order: Order = {
-        id: String(sepayData.transfer_content || sepayData.order_id),
-        date: new Date().toISOString().split('T')[0],
-        courses: [
-          {
-            id: checkoutCourse.id,
-            title: checkoutCourse.title,
-            price: finalTotal,
-          },
-        ],
-        discountAmount: initialDiscountAmount,
-        total: finalTotal,
-        status: 'success',
-        paymentMethod: 'Chuyển khoản VietQR (SePay)',
-      };
-
-      setCompletedOrder(order);
-      setPhase('success');
-      onEnrollSuccess([checkoutCourse.id], order);
-      toast.success('Xác nhận thanh toán SePay thành công! Bạn có thể bắt đầu học ngay.');
+        saveCourseToEnrolledList(checkoutCourse);
+        setCompletedOrder(order);
+        setPhase('success');
+        onEnrollSuccess([checkoutCourse.id], order);
+        toast.success('🎉 Đã xác nhận giao dịch chuyển khoản thành công! Bắt đầu học ngay.');
+      } else {
+        toast.info('Hệ thống chưa nhận được biến động số dư từ ngân hàng. Nếu bạn vừa chuyển tiền, vui lòng đợi thêm vài giây để hệ thống tự động đồng bộ.');
+      }
     } catch (err: any) {
-      toast.error(err.message || 'Có lỗi khi xác nhận giao dịch SePay.');
+      toast.error(err.message || 'Không thể kiểm tra trạng thái đơn hàng lúc này.');
     } finally {
       setIsCheckingSepay(false);
     }
@@ -473,7 +521,6 @@ export default function CartAndCheckout({
 
     setFormErrors({});
     setIsProcessing(true);
-    saveCourseToEnrolledList(checkoutCourse);
 
     try {
       const numericCourseId = Number(checkoutCourse.id) || 1;
@@ -530,28 +577,6 @@ export default function CartAndCheckout({
           return;
         }
       }
-
-      // Local success fallback
-      const order: Order = {
-        id: String(createdOrder.order_code || orderId),
-        date: new Date().toISOString().split('T')[0],
-        courses: [
-          {
-            id: checkoutCourse.id,
-            title: checkoutCourse.title,
-            price: finalTotal,
-          },
-        ],
-        discountAmount: initialDiscountAmount,
-        total: finalTotal,
-        status: 'success',
-        paymentMethod: 'Thanh toán bảo mật',
-      };
-
-      setCompletedOrder(order);
-      setPhase('success');
-      onEnrollSuccess([checkoutCourse.id], order);
-      toast.success('Đăng ký khóa học thành công!');
     } catch (err: any) {
       console.error('Payment API error:', err);
       toast.error(err.message || 'Có lỗi xảy ra khi tạo thanh toán. Vui lòng đăng nhập và thử lại.');
@@ -1098,69 +1123,7 @@ export default function CartAndCheckout({
                     </div>
                   </div>
 
-                  {/* Option 2: Thẻ ATM nội địa */}
-                  <div
-                    onClick={() => !isProcessing && setPaymentMethod('bank')}
-                    className={`p-4 rounded-xl border transition-all ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-slate-300'} flex items-center justify-between gap-4 ${
-                      paymentMethod === 'bank'
-                        ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
-                        : 'border-slate-200 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        paymentMethod === 'bank' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
-                      }`}>
-                        {paymentMethod === 'bank' && <div className="w-2 h-2 rounded-full bg-white" />}
-                      </div>
 
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
-                        <Building2 className="w-5 h-5" />
-                      </div>
-
-                      <div>
-                        <h4 className="text-xs font-extrabold text-slate-900">Thẻ ATM nội địa / Internet Banking</h4>
-                        <p className="text-[11px] text-slate-500 font-medium">Hỗ trợ tất cả ngân hàng nội địa</p>
-                      </div>
-                    </div>
-
-                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 shrink-0">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Hoàn tiền trong 7 ngày
-                    </span>
-                  </div>
-
-                  {/* Option 3: Thẻ quốc tế Visa/Mastercard */}
-                  <div
-                    onClick={() => setPaymentMethod('card')}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
-                      paymentMethod === 'card'
-                        ? 'border-blue-600 bg-blue-50/20 ring-1 ring-blue-600'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        paymentMethod === 'card' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
-                      }`}>
-                        {paymentMethod === 'card' && <div className="w-2 h-2 rounded-full bg-white" />}
-                      </div>
-
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center shrink-0">
-                        <CreditCard className="w-5 h-5" />
-                      </div>
-
-                      <div>
-                        <h4 className="text-xs font-extrabold text-slate-900">Thẻ quốc tế (Visa, Mastercard, JCB)</h4>
-                        <p className="text-[11px] text-slate-500 font-medium">Thanh toán bằng thẻ quốc tế</p>
-                      </div>
-                    </div>
-
-                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 shrink-0">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Hoàn tiền trong 7 ngày
-                    </span>
-                  </div>
 
                   {/* Footer note */}
                   <div className="pt-2 text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
@@ -1473,25 +1436,42 @@ export default function CartAndCheckout({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-2 border-t border-slate-100 pt-3">
+            {/* Action Buttons & Real-time Polling Status */}
+            <div className="space-y-3 border-t border-slate-100 pt-3">
+              {/* Listening to bank statement animation */}
+              <div className="flex items-center justify-center gap-2 p-3 bg-emerald-50/80 border border-emerald-200/80 rounded-xl text-emerald-800 text-xs font-semibold">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
+                </span>
+                <span>Đang tự động lắng nghe biến động số dư từ ngân hàng...</span>
+              </div>
+
               <button
-                onClick={handleConfirmSepayPayment}
+                type="button"
+                onClick={handleManualCheckPayment}
                 disabled={isCheckingSepay}
-                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
               >
                 {isCheckingSepay ? (
-                  <span>Đang xác nhận giao dịch...</span>
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Đang kiểm tra biến động số dư...</span>
+                  </>
                 ) : (
-                  <span>Tôi đã chuyển khoản thành công</span>
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Tôi đã chuyển khoản, kiểm tra ngay</span>
+                  </>
                 )}
               </button>
 
               <button
+                type="button"
                 onClick={() => setShowSepayModal(false)}
                 className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
               >
-                Đóng / Chọn phương thức khác
+                Đóng / Để thanh toán sau
               </button>
             </div>
 

@@ -16,6 +16,8 @@ import {
   ArrowUpDown,
   ExternalLink,
   ChevronDown,
+  Copy,
+  QrCode,
 } from "lucide-react";
 import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
@@ -25,6 +27,7 @@ import {
   approveWithdrawalApi,
   rejectWithdrawalApi,
   markPaidWithdrawalApi,
+  markFailedWithdrawalApi,
 } from "@/assets/js/api/withdrawals-api";
 
 interface SummaryKPIs {
@@ -52,6 +55,31 @@ function maskAccountNumber(accountNumber: string | undefined): string {
   if (str.length <= 4) return str;
   return "**** **** " + str.slice(-4);
 }
+
+function getVietQrBankCode(provider?: string): string {
+  if (!provider) return 'MB';
+  const p = provider.toUpperCase().replace(/\s+/g, '');
+  if (p.includes('MBBANK') || p === 'MB') return 'MB';
+  if (p.includes('VIETCOMBANK') || p === 'VCB') return 'VCB';
+  if (p.includes('TECHCOMBANK') || p === 'TCB') return 'TCB';
+  if (p.includes('VIETINBANK') || p === 'ICB' || p.includes('CTG')) return 'ICB';
+  if (p.includes('BIDV')) return 'BIDV';
+  if (p.includes('ACB')) return 'ACB';
+  if (p.includes('VPBANK') || p === 'VPB') return 'VPB';
+  if (p.includes('TPBANK') || p === 'TPB') return 'TPB';
+  if (p.includes('AGRIBANK') || p === 'VBA') return 'VBA';
+  if (p.includes('SACOMBANK') || p === 'STB') return 'STB';
+  if (p.includes('HDBANK') || p === 'HDB') return 'HDB';
+  if (p.includes('SHB')) return 'SHB';
+  if (p.includes('VIB')) return 'VIB';
+  if (p.includes('OCB')) return 'OCB';
+  if (p.includes('MSB')) return 'MSB';
+  if (p.includes('SEABANK') || p === 'SEAB') return 'SEAB';
+  if (p.includes('LPBANK') || p.includes('LIENVIET')) return 'LPB';
+  if (p.includes('EXIMBANK') || p === 'EIB') return 'EIB';
+  return provider.split(' ')[0] || 'MB';
+}
+
 
 const STATUS_MAP: Record<
   string,
@@ -397,6 +425,31 @@ export default function WithdrawalsManagement() {
       }
     } catch (err) {
       toast.error("Lỗi hệ thống khi hoàn tất.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMarkFailed = async (failedReason?: string) => {
+    if (!activeItem || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const res = await markFailedWithdrawalApi(
+        activeItem.id,
+        failedReason || "Chuyển khoản thủ công thất bại do sai thông tin ngân hàng."
+      );
+      if (res.success) {
+        toast.success("Đã ghi nhận thất bại và hoàn trả số dư cho giảng viên.");
+        setMarkPaidOpen(false);
+        loadData();
+        if (selectedWithdrawalId === activeItem.id) {
+          loadDetail(activeItem.id);
+        }
+      } else {
+        toast.error(res.message || "Xử lý thất bại.");
+      }
+    } catch (err) {
+      toast.error("Lỗi hệ thống khi cập nhật trạng thái thất bại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1209,6 +1262,21 @@ export default function WithdrawalsManagement() {
                               ×
                             </button>
                           </div>
+                        ) : item.status === "manual_required" || item.status === "approved" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveItem(item);
+                              setMarkPaidTxnId("");
+                              setMarkPaidError("");
+                              setMarkPaidOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-600 hover:text-white transition-colors cursor-pointer text-[11px] font-bold whitespace-nowrap shadow-sm"
+                            title="Mở mã QR chuyển tiền thủ công"
+                          >
+                            <QrCode className="w-3 h-3" />
+                            <span>Chuyển tiền</span>
+                          </button>
                         ) : (
                           <span className="text-mid-gray/40">—</span>
                         )}
@@ -1616,7 +1684,7 @@ export default function WithdrawalsManagement() {
                 </button>
               </>
             )}
-            {detail.status === "approved" && (
+            {(detail.status === "approved" || detail.status === "manual_required") && (
               <>
                 <button
                   type="button"
@@ -1626,32 +1694,10 @@ export default function WithdrawalsManagement() {
                     setMarkPaidError("");
                     setMarkPaidOpen(true);
                   }}
-                  className="h-9 px-4 text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-[6px] transition-colors cursor-pointer whitespace-nowrap"
+                  className="h-9 px-4 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-[6px] transition-colors cursor-pointer shadow-sm whitespace-nowrap flex items-center gap-1.5"
                 >
-                  Xác nhận chuyển khoản (Thủ công)
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="h-9 px-5 text-xs font-semibold bg-canvas text-mid-gray/60 border border-hairline rounded-[6px] cursor-not-allowed whitespace-nowrap"
-                >
-                  Đang chờ cổng xử lý...
-                </button>
-              </>
-            )}
-            {detail.status === "failed" && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveItem(detail);
-                    setMarkPaidTxnId("");
-                    setMarkPaidError("");
-                    setMarkPaidOpen(true);
-                  }}
-                  className="h-9 px-5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-[6px] transition-colors cursor-pointer shadow-sm whitespace-nowrap"
-                >
-                  Xử lý thủ công
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Chuyển tiền thủ công (VietQR)</span>
                 </button>
               </>
             )}
@@ -1810,74 +1856,227 @@ export default function WithdrawalsManagement() {
         </div>
       )}
 
-      {/* 3. Mark Paid Modal */}
-      {markPaidOpen && activeItem && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-paper border border-hairline rounded-[8px] shadow-2xl p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <Wallet className="w-5 h-5" />
+      {/* 3. Mark Paid / VietQR Manual Payout Modal */}
+      {markPaidOpen && activeItem && (() => {
+        const snap = activeItem.payout_snapshot || {};
+        const bankName = snap.provider || snap.bank_name || "Ngân hàng";
+        const bankCode = getVietQrBankCode(snap.provider_code || snap.provider || snap.bank_name);
+        const accNumber = String(snap.account_number || snap.account_number_masked || "").replace(/\s+/g, "");
+        const accName = snap.account_name || activeItem.user?.full_name || "";
+        const amountNum = Number(activeItem.amount) || 0;
+        const transferContent = `RUTTIEN ${activeItem.withdrawal_code}`;
+        const qrUrl = accNumber
+          ? `https://img.vietqr.io/image/${bankCode}-${accNumber}-compact2.png?amount=${Math.round(amountNum)}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accName)}`
+          : "";
+
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-lg bg-paper border border-hairline rounded-[12px] shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-hairline pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-ink">
+                      Chuyển tiền thủ công cho Giảng viên
+                    </h3>
+                    <p className="text-xs text-mid-gray font-mono">
+                      Mã yêu cầu: <span className="text-ink font-bold">{activeItem.withdrawal_code}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMarkPaidOpen(false)}
+                  className="h-8 w-8 rounded-full bg-canvas hover:bg-mid-gray/10 text-mid-gray hover:text-ink flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-ink">
-                  Đánh dấu đã thanh toán
-                </h3>
-                <p className="text-xs text-mid-gray font-mono">
-                  {activeItem.withdrawal_code}
+
+              {/* QR & Bank Information Card */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-surface-alt/60 p-4 rounded-[8px] border border-hairline">
+                {/* VietQR Code */}
+                <div className="flex flex-col items-center justify-center bg-paper p-3 rounded-[8px] border border-hairline shadow-sm">
+                  {qrUrl ? (
+                    <img
+                      src={qrUrl}
+                      alt="VietQR Payout"
+                      className="w-40 aspect-square object-contain rounded-[4px]"
+                    />
+                  ) : (
+                    <div className="w-40 aspect-square flex items-center justify-center text-xs text-mid-gray text-center p-2">
+                      Không đủ thông tin tạo mã QR
+                    </div>
+                  )}
+                  <span className="text-[10px] font-semibold text-mid-gray mt-2 text-center">
+                    Quét bằng App Ngân hàng bất kỳ
+                  </span>
+                </div>
+
+                {/* Transfer Info */}
+                <div className="space-y-2 text-xs">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray block">
+                      Ngân hàng thụ hưởng:
+                    </span>
+                    <span className="font-bold text-ink">{bankName}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray block">
+                      Số tài khoản:
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-mono font-black text-blue-600 text-sm">
+                        {accNumber || "---"}
+                      </span>
+                      {accNumber && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(accNumber);
+                            toast.success("Đã sao chép số tài khoản!");
+                          }}
+                          className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold hover:bg-blue-100 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                          Sao chép
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray block">
+                      Chủ tài khoản:
+                    </span>
+                    <span className="font-bold text-ink uppercase">
+                      {accName || "---"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray block">
+                      Số tiền chuyển:
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-black text-emerald-600 text-sm">
+                        {formatVND(amountNum)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(String(Math.round(amountNum)));
+                          toast.success("Đã sao chép số tiền!");
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold hover:bg-emerald-100 transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Copy className="w-2.5 h-2.5" />
+                        Sao chép
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-mid-gray block">
+                      Nội dung chuyển khoản:
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-mono font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 text-[11px]">
+                        {transferContent}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(transferContent);
+                          toast.success("Đã sao chép nội dung!");
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold hover:bg-rose-200 transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Copy className="w-2.5 h-2.5" />
+                        Sao chép
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Provider Payout ID input */}
+              <div className="pt-2">
+                <label
+                  htmlFor="provider-payout-id-input"
+                  className="block text-xs font-semibold text-ink mb-1.5"
+                >
+                  Mã tham chiếu / Mã giao dịch ngân hàng sau khi chuyển <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="provider-payout-id-input"
+                  maxLength={255}
+                  value={markPaidTxnId}
+                  onChange={(e) => {
+                    setMarkPaidTxnId(e.target.value);
+                    setMarkPaidError("");
+                  }}
+                  placeholder="Nhập mã giao dịch trên biên lai (VD: FT26090312345678...)"
+                  className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink transition-colors text-ink font-mono placeholder:text-mid-gray/60"
+                />
+                {markPaidError && (
+                  <span className="text-[11px] text-rose-600 font-medium mt-1 block">
+                    {markPaidError}
+                  </span>
+                )}
+                <p className="text-[11px] text-mid-gray mt-1">
+                  Sau khi quét mã QR và chuyển tiền thành công trên App Ngân hàng, nhập mã giao dịch để hoàn tất hồ sơ.
                 </p>
               </div>
-            </div>
 
-            <div>
-              <label
-                htmlFor="provider-payout-id-input"
-                className="block text-xs font-semibold text-ink mb-1.5"
-              >
-                Mã giao dịch từ ngân hàng / Cổng{" "}
-                <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="provider-payout-id-input"
-                maxLength={255}
-                value={markPaidTxnId}
-                onChange={(e) => {
-                  setMarkPaidTxnId(e.target.value);
-                  setMarkPaidError("");
-                }}
-                placeholder="Ví dụ: TXN-20260721-9981..."
-                className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink transition-colors text-ink font-mono placeholder:text-mid-gray/60"
-              />
-              {markPaidError && (
-                <span className="text-[11px] text-rose-600 font-medium mt-1 block">
-                  {markPaidError}
-                </span>
-              )}
-            </div>
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-hairline">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => {
+                    const reason = window.prompt("Nhập lý do thất bại (hệ thống sẽ hoàn lại số dư cho giảng viên):");
+                    if (reason && reason.trim()) {
+                      handleMarkFailed(reason.trim());
+                    }
+                  }}
+                  className="px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-[6px] border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                >
+                  Đánh dấu thất bại & Hoàn tiền
+                </button>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-hairline">
-              <button
-                type="button"
-                onClick={() => setMarkPaidOpen(false)}
-                className="px-4 py-2 text-xs font-semibold bg-canvas hover:bg-paper border border-hairline rounded-[6px] text-ink transition-colors cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleMarkPaid}
-                className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-[6px] transition-colors cursor-pointer flex items-center gap-1"
-              >
-                {isSubmitting && (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                )}
-                Xác nhận hoàn tất
-              </button>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setMarkPaidOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold bg-canvas hover:bg-paper border border-hairline rounded-[6px] text-ink transition-colors cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={handleMarkPaid}
+                    className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-[6px] transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+                  >
+                    {isSubmitting && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    )}
+                    <span>Xác nhận đã chuyển tiền</span>
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
