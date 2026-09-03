@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -99,6 +99,58 @@ export default function ClassroomPage() {
     }
   }, [allLessons.length, completedCount, hasShownCompletionModal]);
 
+  // Document/Text auto-completion (after 10 seconds)
+  useEffect(() => {
+    if (!activeLesson || isActiveLessonCompleted) return;
+    
+    const isDoc = activeLesson.lesson_type === 'document' || activeLesson.type === 'document' || (activeLesson as any).docContent;
+    const isText = activeLesson.lesson_type === 'text' || activeLesson.type === 'text';
+    
+    if (isDoc || isText) {
+      const timer = setTimeout(() => {
+        markAsCompleted(String(activeLesson.id));
+        toast.success('Đã tự động đánh dấu hoàn thành tài liệu (sau 10s)!');
+      }, 10000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [activeLesson, isActiveLessonCompleted, markAsCompleted]);
+  // 90% video playback auto-completion
+  const handleProgress90 = useCallback(() => {
+    if (activeLesson && !isActiveLessonCompleted) {
+      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
+      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
+      if (!isNaN(numId) && numId > 0) {
+        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
+      }
+      markAsCompleted(String(activeLesson.id));
+      toast.success('Đã tự động đánh dấu hoàn thành bài học (xem >90%)!');
+    }
+  }, [activeLesson, isActiveLessonCompleted, markAsCompleted]);
+
+  const handleVideoEnded = useCallback(() => {
+    if (activeLesson && !isActiveLessonCompleted) {
+      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
+      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
+      if (!isNaN(numId) && numId > 0) {
+        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
+      }
+      markAsCompleted(String(activeLesson.id));
+      toast.success('Đã hoàn thành bài học!');
+    }
+  }, [activeLesson, isActiveLessonCompleted, markAsCompleted]);
+
+  const handleTimeUpdate = useCallback((t: number) => {
+    setCurrentVideoTime(t);
+  }, []);
+
+  const handleDurationChange = useCallback((_sec: number, formatted: string) => {
+    if (activeLesson) {
+      updateLessonDuration(String(activeLesson.id), formatted);
+    }
+  }, [activeLesson, updateLessonDuration]);
+
+
   if (isLoading) {
     return <ClassroomSkeleton />;
   }
@@ -116,30 +168,7 @@ export default function ClassroomPage() {
     );
   }
 
-  // 90% video playback auto-completion
-  const handleProgress90 = () => {
-    if (activeLesson && !isActiveLessonCompleted) {
-      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
-      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
-      if (!isNaN(numId) && numId > 0) {
-        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
-      }
-      markAsCompleted(String(activeLesson.id));
-      toast.success('Đã tự động đánh dấu hoàn thành bài học (xem >90%)!');
-    }
-  };
 
-  const handleVideoEnded = () => {
-    if (activeLesson && !isActiveLessonCompleted) {
-      const numId = parseInt(String(activeLesson.id).replace(/\D/g, ''), 10);
-      const lessonDurationSec = (activeLesson as any)?.video_duration_seconds || 600;
-      if (!isNaN(numId) && numId > 0) {
-        classroomApi.saveVideoPlaybackRatio(String(numId), lessonDurationSec, lessonDurationSec, true).catch(() => {});
-      }
-      markAsCompleted(String(activeLesson.id));
-      toast.success('Đã hoàn thành bài học!');
-    }
-  };
 
   const handleToggleCurrentLesson = () => {
     if (!activeLesson) return;
@@ -258,18 +287,38 @@ export default function ClassroomPage() {
           {/* LEFT COLUMN: VIDEO PLAYER + TABS + LESSON NAV BAR */}
           <div className="flex-1 w-full min-w-0 space-y-6">
             
-            {/* Video Player */}
-            <VideoPlayer
-              activeLesson={activeLesson}
-              onEnded={handleVideoEnded}
-              onProgress90={handleProgress90}
-              onTimeUpdate={setCurrentVideoTime}
-              onDurationChange={(_sec, formatted) => {
-                if (activeLesson) {
-                  updateLessonDuration(String(activeLesson.id), formatted);
-                }
-              }}
-            />
+            {/* Conditional Rendering based on Lesson Type */}
+            {activeLesson?.lesson_type === 'document' || activeLesson?.type === 'document' || (activeLesson as any)?.docContent ? (
+              <div className="aspect-video w-full bg-slate-100 rounded-3xl border border-slate-200 overflow-hidden flex flex-col items-center justify-center p-8 text-center shadow-inner relative">
+                <div className="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
+                  <FileText className="w-10 h-10 text-indigo-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Tài liệu: {activeLesson?.title}</h3>
+                <p className="text-slate-500 max-w-md">
+                  Tài liệu đang được hiển thị. Hệ thống sẽ tự động ghi nhận bạn đã hoàn thành tài liệu này sau vài giây đọc.
+                </p>
+                {((activeLesson as any)?.content || (activeLesson as any)?.docContent) && (
+                  <div className="mt-8 text-left max-w-2xl w-full bg-white p-6 rounded-2xl border border-slate-200 shadow-sm prose prose-sm max-h-[300px] overflow-y-auto">
+                    <div dangerouslySetInnerHTML={{ __html: (activeLesson as any).content || (activeLesson as any).docContent }} />
+                  </div>
+                )}
+              </div>
+            ) : activeLesson?.lesson_type === 'text' || activeLesson?.type === 'text' ? (
+              <div className="w-full bg-white rounded-3xl border border-slate-200 overflow-hidden flex flex-col items-start justify-start p-8 shadow-inner relative min-h-[400px]">
+                <h3 className="text-2xl font-bold text-slate-800 mb-6">{activeLesson?.title}</h3>
+                <div className="prose max-w-none w-full text-slate-700 max-h-[600px] overflow-y-auto pr-4">
+                  <div dangerouslySetInnerHTML={{ __html: (activeLesson as any)?.content || '<p>Không có nội dung.</p>' }} />
+                </div>
+              </div>
+            ) : (
+              <VideoPlayer
+                activeLesson={activeLesson}
+                onEnded={handleVideoEnded}
+                onProgress90={handleProgress90}
+                onTimeUpdate={handleTimeUpdate}
+                onDurationChange={handleDurationChange}
+              />
+            )}
 
             {/* Classroom Tabs (Overview, QA, Notes, Resources) */}
             <ClassroomTabs
