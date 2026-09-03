@@ -18,7 +18,7 @@ export const InstructorImageUploader: React.FC<UploaderProps> = ({ value, onChan
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastFileRef = useRef<File | null>(null);
 
-  const resolvedImageUrl = previewUrl || resolveMediaUrl(value);
+  const resolvedImageUrl = previewUrl || (value && value.trim() ? resolveMediaUrl(value) : '');
 
   const processFile = async (file: File) => {
     lastFileRef.current = file;

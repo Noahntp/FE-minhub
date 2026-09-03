@@ -41,7 +41,7 @@ export function CourseBuilderWizard({
   const [hasDiscount, setHasDiscount] = useState<boolean>(false);
   const [discountPercent, setDiscountPercent] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number>(350000);
-  const [image, setImage] = useState('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800');
+  const [image, setImage] = useState('');
   const [requirements, setRequirements] = useState<string[]>(['Có máy tính cá nhân kết nối Internet']);
   const [newRequirement, setNewRequirement] = useState('');
   const [willLearn, setWillLearn] = useState<string[]>(['Lập trình thành thạo ngôn ngữ ứng dụng với thực tế']);

@@ -1058,7 +1058,7 @@ export default function InstructorDashboard({
     : baseOverviewStats;
 
   const resolveMediaUrl = (path?: string | null): string => {
-    if (!path) return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
+    if (!path) return '';
     return formatResolveMediaUrl(path);
   };
 
@@ -1306,7 +1306,7 @@ export default function InstructorDashboard({
           ? item.categories[0].name
           : (item.category || 'Chưa phân loại');
 
-        let image = item.thumbnail_url || item.image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
+        let image = item.thumbnail_url || item.image || '';
         if (image && !image.startsWith('http://') && !image.startsWith('https://') && !image.startsWith('data:')) {
           const apiBase = sharedApi.getConfig().baseUrl.replace(/\/api\/?$/, '');
           image = `${apiBase}${image.startsWith('/') ? '' : '/'}${image}`;
@@ -1449,8 +1449,10 @@ export default function InstructorDashboard({
       const currentDA = typeof discountAmount === 'number' ? discountAmount : parseInt(String(discountAmount), 10) || 0;
 
       const maxPercent = COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT;
+      const maxAllowedDiscount = Math.round(numPrice * (maxPercent / 100));
+      const minAllowedSalePrice = numPrice - maxAllowedDiscount;
       const calcFinalPrice = (hasDiscount && currentDP >= 1 && currentDP <= maxPercent)
-        ? Math.max(Math.ceil(numPrice * (1 - maxPercent / 100)), numPrice - currentDA)
+        ? Math.max(minAllowedSalePrice, numPrice - currentDA)
         : numPrice;
 
       const normalizedLvl = level === 'expert' ? 'advanced' : level;
@@ -2120,8 +2122,12 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           : (dbCategories.length > 0 ? (parseInt(String(dbCategories[0].id), 10) || 1) : 1);
 
         const currentDiscountPercent = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent)) || 0;
-        const currentFinalPrice = (hasDiscount && currentDiscountPercent >= 1 && currentDiscountPercent <= 99)
-          ? Math.round((Number(price) * (100 - currentDiscountPercent)) / 100)
+        const currentDA = typeof discountAmount === 'number' ? discountAmount : parseInt(String(discountAmount)) || 0;
+        const maxPercent = COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT;
+        const maxAllowedDiscount = Math.round(Number(price) * (maxPercent / 100));
+        const minAllowedSalePrice = Number(price) - maxAllowedDiscount;
+        const currentFinalPrice = (hasDiscount && currentDiscountPercent >= 1 && currentDiscountPercent <= maxPercent)
+          ? Math.max(minAllowedSalePrice, Number(price) - currentDA)
           : Number(price);
 
         const normalizedLvl = level === 'expert' ? 'advanced' : (level || 'beginner');
@@ -2306,7 +2312,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           enrolledCount: enrolled,
           revenue: safeRev,
           price: c.price || matchingCourse?.price || 0,
-          image: c.thumbnail_url ? resolveMediaUrl(c.thumbnail_url) : (matchingCourse?.image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800')
+          image: c.thumbnail_url ? resolveMediaUrl(c.thumbnail_url) : (matchingCourse?.image || '')
         };
       });
     }
@@ -4189,7 +4195,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                   errs.discount = `Theo quy định của sàn, khóa học được giảm tối đa ${maxDiscountPercent}%.`;
                 }
               } else {
-                const maxAllowedDiscount = Math.floor(numPrice * (maxDiscountPercent / 100));
+                const maxAllowedDiscount = Math.round(numPrice * (maxDiscountPercent / 100));
                 if (isNaN(currentDA) || currentDA < 1) {
                   errs.discount = 'Vui lòng nhập số tiền giảm giá hợp lệ.';
                 } else if (currentDA > maxAllowedDiscount) {
@@ -4591,10 +4597,11 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                   const currentDA = typeof discountAmount === 'number' ? discountAmount : parseInt(String(discountAmount), 10) || 0;
                   const maxPercent = COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT;
                   const minPrice = COURSE_PRICING_CONFIG.MIN_PRICE;
-                  const maxAllowedDiscount = Math.floor(numPrice * (maxPercent / 100));
+                  const maxAllowedDiscount = Math.round(numPrice * (maxPercent / 100));
+                  const minAllowedSalePrice = numPrice - maxAllowedDiscount;
 
                   const calculatedFinalPrice = (hasDiscount && currentDP >= 1 && currentDP <= maxPercent)
-                    ? Math.max(Math.ceil(numPrice * (1 - maxPercent / 100)), numPrice - currentDA)
+                    ? Math.max(minAllowedSalePrice, numPrice - currentDA)
                     : numPrice;
 
                   return (

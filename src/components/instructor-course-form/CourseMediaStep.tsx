@@ -39,7 +39,7 @@ export default function CourseMediaStep({ image, setImage, introVideoUrl, setInt
               type="text" 
               value={image}
               onChange={(e) => setImage(e.target.value)}
-              placeholder="https://images.unsplash.com/photo-..."
+              placeholder="https://..."
               className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 focus:outline-none bg-white transition-colors ${
                 imageError ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500'
               }`}
