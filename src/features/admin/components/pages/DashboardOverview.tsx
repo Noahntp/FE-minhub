@@ -1216,7 +1216,7 @@ export default function DashboardOverview() {
                   {formatVND(dashboardData.dashboard.data.withdrawal_summary.approved_amount)}
                 </p>
                 <span className="text-[9px] text-danger-brick mt-1 leading-tight font-medium block">
-                  {dashboardData.dashboard.data.withdrawal_summary.approved_count} yêu cầu đã duyệt, chờ chi
+                  {dashboardData.dashboard.data.withdrawal_summary.approved_count} yêu cầu đã duyệt, chờ chuyển tiền
                 </span>
               </div>
             </button>

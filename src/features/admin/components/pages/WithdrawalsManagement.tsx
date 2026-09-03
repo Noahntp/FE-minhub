@@ -58,34 +58,44 @@ const STATUS_MAP: Record<
   { label: string; color: string; dot: string }
 > = {
   pending: {
-    label: "Chờ chi",
-    color: "text-amber-700 bg-paper border-hairline",
+    label: "Chờ duyệt",
+    color: "text-amber-700 bg-amber-50/60 border-amber-200",
     dot: "bg-amber-500",
   },
   approved: {
-    label: "Đang xử lý",
-    color: "text-blue-700 bg-paper border-hairline",
+    label: "Đã phê duyệt",
+    color: "text-blue-700 bg-blue-50/60 border-blue-200",
     dot: "bg-blue-500",
+  },
+  processing: {
+    label: "Đang chuyển tiền",
+    color: "text-indigo-700 bg-indigo-50/60 border-indigo-200",
+    dot: "bg-indigo-500",
+  },
+  manual_required: {
+    label: "Cần xử lý thủ công",
+    color: "text-amber-800 bg-amber-50 border-amber-200",
+    dot: "bg-amber-600",
+  },
+  paid: {
+    label: "Đã thanh toán",
+    color: "text-emerald-700 bg-emerald-50/60 border-emerald-200",
+    dot: "bg-emerald-500",
   },
   rejected: {
     label: "Đã từ chối",
-    color: "text-mid-gray bg-paper border-hairline",
+    color: "text-mid-gray bg-canvas border-hairline",
     dot: "bg-mid-gray",
-  },
-  paid: {
-    label: "Thành công",
-    color: "text-emerald-700 bg-paper border-hairline",
-    dot: "bg-emerald-500",
   },
   failed: {
     label: "Thất bại",
-    color: "text-rose-700 bg-paper border-hairline",
+    color: "text-rose-700 bg-rose-50/60 border-rose-200",
     dot: "bg-rose-500",
   },
   cancelled: {
     label: "Đã hủy",
-    color: "text-rose-700 bg-paper border-hairline",
-    dot: "bg-rose-500",
+    color: "text-slate-600 bg-slate-50 border-slate-200",
+    dot: "bg-slate-400",
   },
 };
 
@@ -550,7 +560,7 @@ export default function WithdrawalsManagement() {
           </div>
         </div>
 
-        {/* Card 2: Chờ chi */}
+        {/* Card 2: Chờ duyệt */}
         <div
           onClick={() => {
             setStatus("pending");
@@ -572,7 +582,7 @@ export default function WithdrawalsManagement() {
         >
           <div className="flex items-center justify-between text-mid-gray">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">
-              Chờ chi
+              Chờ duyệt
             </span>
             <Clock className="w-4 h-4 text-amber-500 shrink-0" />
           </div>
@@ -792,12 +802,14 @@ export default function WithdrawalsManagement() {
                 placeholder="Tất cả trạng thái"
                 options={[
                   { value: "all", label: "Tất cả trạng thái" },
-                  { value: "pending", label: "Chờ chi (Pending)" },
-                  { value: "approved", label: "Đang xử lý (Approved)" },
-                  { value: "rejected", label: "Đã từ chối (Rejected)" },
-                  { value: "paid", label: "Thành công (Paid)" },
-                  { value: "cancelled", label: "Đã hủy (Cancelled)" },
-                  { value: "failed", label: "Thất bại (Failed)" },
+                  { value: "pending", label: "Chờ duyệt" },
+                  { value: "approved", label: "Đã phê duyệt" },
+                  { value: "processing", label: "Đang chuyển tiền" },
+                  { value: "manual_required", label: "Cần xử lý thủ công" },
+                  { value: "paid", label: "Đã thanh toán" },
+                  { value: "rejected", label: "Đã từ chối" },
+                  { value: "cancelled", label: "Đã hủy" },
+                  { value: "failed", label: "Thất bại" },
                 ]}
               />
             </div>
@@ -1144,14 +1156,14 @@ export default function WithdrawalsManagement() {
                             />
                             <span>{badge.label}</span>
                           </span>
-                          {item.payout_mode === 'auto' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                              AUTO
+                          {item.status !== 'pending' && item.payout_mode === 'auto' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-[10px] font-semibold text-blue-700">
+                              Tự động
                             </span>
                           )}
-                          {item.payout_mode === 'manual' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                              MANUAL
+                          {item.status !== 'pending' && item.payout_mode === 'manual' && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-[10px] font-semibold text-amber-800">
+                              Thủ công
                             </span>
                           )}
                         </div>
@@ -1278,14 +1290,14 @@ export default function WithdrawalsManagement() {
                   >
                     {STATUS_MAP[detail.status]?.label}
                   </span>
-                  {detail.payout_mode === 'auto' && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                      AUTO
+                  {detail.status !== 'pending' && detail.payout_mode === 'auto' && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-[10px] font-semibold text-blue-700">
+                      Tự động
                     </span>
                   )}
-                  {detail.payout_mode === 'manual' && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-hairline bg-paper text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                      MANUAL
+                  {detail.status !== 'pending' && detail.payout_mode === 'manual' && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-[10px] font-semibold text-amber-800">
+                      Thủ công
                     </span>
                   )}
                 </div>
@@ -1420,9 +1432,9 @@ export default function WithdrawalsManagement() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-hairline/60 text-[11px]">
-                    <span className="text-mid-gray">Trạng thái kết nối:</span>
-                    <span className="text-emerald-600 font-semibold uppercase">
-                      {detail.payout_snapshot?.status}
+                    <span className="text-mid-gray">Trạng thái tài khoản:</span>
+                    <span className="text-emerald-600 font-semibold">
+                      {detail.payout_snapshot?.status === 'disabled' ? 'Đã vô hiệu hóa' : 'Đã xác thực'}
                     </span>
                   </div>
                 </div>
@@ -1436,21 +1448,27 @@ export default function WithdrawalsManagement() {
                 <div className="flex justify-between items-center py-1 border-b border-hairline/60">
                   <span className="text-mid-gray">Phương thức:</span>
                   <span className="font-semibold text-ink">
-                    {detail.payout_mode === 'auto' ? "Tự động" : (detail.payout_mode === 'manual' ? "Thủ công" : "Không xác định")}
+                    {detail.status === 'pending'
+                      ? "Chưa xử lý chi trả"
+                      : detail.payout_mode === 'auto'
+                      ? "Chuyển khoản tự động"
+                      : detail.payout_mode === 'manual'
+                      ? "Chuyển khoản thủ công"
+                      : "Chưa xác định"}
                   </span>
                 </div>
-                {detail.payout_mode === 'auto' && (
+                {detail.status !== 'pending' && detail.payout_mode === 'auto' && (
                   <div className="flex justify-between items-center py-1">
-                    <span className="text-mid-gray">Provider:</span>
-                    <span className="font-semibold text-ink uppercase">
-                      {detail.payout_provider === 'fake' ? "Fake Gateway" : detail.payout_provider}
+                    <span className="text-mid-gray">Cổng chi trả:</span>
+                    <span className="font-semibold text-ink">
+                      {detail.payout_provider === 'fake' ? "Cổng giả lập Test" : (detail.payout_provider || "Hệ thống tự động")}
                     </span>
                   </div>
                 )}
-                {detail.payout_mode === 'manual' && (
+                {detail.status !== 'pending' && detail.payout_mode === 'manual' && (
                   <div className="flex justify-between items-center py-1">
                     <span className="text-mid-gray">Xử lý bởi:</span>
-                    <span className="font-semibold text-ink">Admin</span>
+                    <span className="font-semibold text-ink">Quản trị viên (Chuyển khoản ngoài)</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center py-1">
