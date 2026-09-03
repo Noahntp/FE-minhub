@@ -7,9 +7,10 @@ import { resolveMediaUrl } from '@/shared/lib/media-url';
 import Hls from 'hls.js';
 
 const FALLBACK_SAMPLE_VIDEOS = [
-  'https://media.w3.org/2010/05/sintel/trailer.mp4',
-  'https://vjs.zencdn.net/v/oceans.mp4',
-  'https://www.w3schools.com/html/mov_bbb.mp4'
+  'https://mindhub.io.vn/videos/laravel-rest-api/laravel-rest-api-01-rest-api-la-gi-trong-laravel.mp4',
+  'https://mindhub.io.vn/videos/ai-learning/ai-learning-01-ai-trong-hoc-tap-la-gi.mp4',
+  'https://www.w3schools.com/html/mov_bbb.mp4',
+  'https://vjs.zencdn.net/v/oceans.mp4'
 ];
 
 export function TrialPreviewModal() {
@@ -57,10 +58,12 @@ export function TrialPreviewModal() {
   useEffect(() => {
     if (currentLesson?.videoUrl) {
       const rawUrl = currentLesson.videoUrl.trim();
-      if (rawUrl.includes('mediadelivery.net') || rawUrl.includes('seed-bunny')) {
+      if (rawUrl.includes('mediadelivery.net') || rawUrl.includes('seed-bunny') || rawUrl.includes('gtv-videos-bucket')) {
         setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
       } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         setVideoSrc(rawUrl);
+      } else if (rawUrl.startsWith('/')) {
+        setVideoSrc(`${window.location.origin}${rawUrl}`);
       } else {
         setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
       }
@@ -163,10 +166,12 @@ export function TrialPreviewModal() {
                   key={videoSrc}
                   controls
                   autoPlay
+                  playsInline
                   onError={handleVideoError}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-black"
                   poster="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80"
                 >
+                  <source src={videoSrc} type="video/mp4" />
                   Trình duyệt của bạn không hỗ trợ phát video HTML5.
                 </video>
               ) : (
