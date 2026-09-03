@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { resolveMediaUrl } from "@/shared/utils/format";
 import {
@@ -147,6 +147,7 @@ const mockChapters = [
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { course, isLoading, error } = useCourseDetail(courseId);
 
   // Auto-replace URL to course.slug if accessed via numeric ID or different slug
@@ -161,6 +162,8 @@ export default function CourseDetailPage() {
     setCart,
     enrolledCourseIds,
     setEnrolledCourseIds,
+    favorites,
+    setFavorites,
     openTrialModal,
     currentUser,
     isLoggedIn,
@@ -388,13 +391,26 @@ export default function CourseDetailPage() {
     setExpandedChapters(all);
   };
 
+  const handleOpenReviewModal = () => {
+    if (!isLoggedIn) {
+      toast.error("Vui lòng đăng nhập để gửi nhận xét và đánh giá.");
+      navigate("/login", { state: { from: location.pathname + location.search } });
+      return;
+    }
+    if (currentUser?.role === "admin") {
+      toast.error("Tài khoản Quản trị viên (Admin) không thực hiện đánh giá khóa học.");
+      return;
+    }
+    setShowReviewModal(true);
+  };
+
   const handleAddToCart = () => {
     if (!course) return;
     if (!isLoggedIn) {
       toast.error(
         "Vui lòng đăng nhập để thực hiện chức năng này.",
       );
-      navigate("/auth");
+      navigate("/login", { state: { from: location.pathname + location.search } });
       return;
     }
     if (currentUser?.role === "admin") {
@@ -410,13 +426,13 @@ export default function CourseDetailPage() {
     navigate(`/cart?courseId=${course.id}`);
   };
 
-  const handleEnrollNow = () => {
+  const handleEnrollNow = async () => {
     if (!course) return;
     if (!isLoggedIn) {
       toast.error(
         "Vui lòng đăng nhập để thực hiện chức năng này.",
       );
-      navigate("/auth");
+      navigate("/login", { state: { from: location.pathname + location.search } });
       return;
     }
     if (currentUser?.role === "admin") {
@@ -429,12 +445,26 @@ export default function CourseDetailPage() {
       (course as any).isFree || Number(course.price || 0) === 0,
     );
     if (isFreeCourse) {
-      if (!enrolledCourseIds.includes(course.id)) {
-        setEnrolledCourseIds([...enrolledCourseIds, course.id]);
+      const numericTargetId = Number(course.id) || (course as any).realId;
+      if (numericTargetId && !isNaN(numericTargetId)) {
+        try {
+          await apiFetch('/orders', {
+            method: 'POST',
+            body: JSON.stringify({ course_id: numericTargetId }),
+          });
+          if (!enrolledCourseIds.includes(course.id)) {
+            setEnrolledCourseIds([...enrolledCourseIds, course.id]);
+          }
+          toast.success(
+            "Đăng ký tham gia khóa học miễn phí thành công! Bắt đầu học ngay.",
+          );
+          navigate(`/learn/${course.id}`);
+          return;
+        } catch (err: any) {
+          toast.error(err?.message || 'Không thể ghi danh khóa học miễn phí lúc này.');
+          return;
+        }
       }
-      toast.success(
-        "Đăng ký tham gia khóa học miễn phí thành công! Bắt đầu học ngay.",
-      );
       navigate(`/learn/${course.id}`);
       return;
     }
@@ -450,7 +480,7 @@ export default function CourseDetailPage() {
       toast.error(
         "Vui lòng đăng nhập để thực hiện chức năng này.",
       );
-      navigate("/auth");
+      navigate("/login", { state: { from: location.pathname + location.search } });
       return;
     }
     if (currentUser?.role === "admin") {
@@ -463,11 +493,13 @@ export default function CourseDetailPage() {
     setIsWishlisted(nextState);
     if (nextState) {
       toast.success(`Đã thêm "${course.title}" vào danh sách yêu thích!`);
-      if (course.id && !isNaN(Number(course.id))) {
+      setFavorites((prev) => [...prev.filter((id) => id !== course.id), course.id]);
+      const targetId = (course as any).realId || (course as any).course_id || course.id;
+      if (targetId && !isNaN(Number(targetId))) {
         try {
           await apiFetch("/wishlists", {
             method: "POST",
-            body: JSON.stringify({ course_id: Number(course.id) }),
+            body: JSON.stringify({ course_id: Number(targetId) }),
           });
         } catch (err) {
           console.warn("Could not add to wishlist on backend:", err);
@@ -475,9 +507,11 @@ export default function CourseDetailPage() {
       }
     } else {
       toast.info(`Đã xóa khỏi danh sách yêu thích.`);
-      if (course.id && !isNaN(Number(course.id))) {
+      setFavorites((prev) => prev.filter((id) => id !== course.id && id !== String((course as any).realId)));
+      const targetId = (course as any).realId || (course as any).course_id || course.id;
+      if (targetId && !isNaN(Number(targetId))) {
         try {
-          await apiFetch(`/wishlists/${course.id}`, { method: "DELETE" });
+          await apiFetch(`/wishlists/${targetId}`, { method: "DELETE" });
         } catch (err) {
           console.warn("Could not remove from wishlist on backend:", err);
         }
@@ -811,7 +845,7 @@ export default function CourseDetailPage() {
 
                       <button
                         type="button"
-                        onClick={() => setShowReviewModal(true)}
+                        onClick={handleOpenReviewModal}
                         className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-extrabold text-xs flex items-center justify-center gap-2 border border-amber-200 transition-all cursor-pointer shadow-sm"
                       >
                         <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
@@ -1445,7 +1479,7 @@ export default function CourseDetailPage() {
             {/* Action button for enrolled students */}
             {isEnrolled && (
               <button
-                onClick={() => setShowReviewModal(true)}
+                onClick={handleOpenReviewModal}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-900/10 active:scale-95 transition-all cursor-pointer"
               >
                 <PenLine className="w-4 h-4" />
@@ -1562,7 +1596,7 @@ export default function CourseDetailPage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setShowReviewModal(true)}
+                      onClick={handleOpenReviewModal}
                       className="px-4 py-2 rounded-xl bg-white text-emerald-900 hover:bg-emerald-50 font-extrabold text-xs shrink-0 shadow transition-all active:scale-95 cursor-pointer"
                     >
                       Viết đánh giá ngay
@@ -1688,7 +1722,7 @@ export default function CourseDetailPage() {
 
                               {isMyReviewItem && (
                                 <button
-                                  onClick={() => setShowReviewModal(true)}
+                                  onClick={handleOpenReviewModal}
                                   className="text-xs text-emerald-600 hover:text-emerald-700 font-bold ml-2 underline cursor-pointer"
                                 >
                                   Sửa

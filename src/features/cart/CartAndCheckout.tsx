@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ChevronRight,
   ShieldCheck,
@@ -133,6 +133,7 @@ export default function CartAndCheckout({
   initialCourseId = null,
 }: CartAndCheckoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const effectiveAllCourses = useMemo(() => {
     const map = new Map<string, Course>();
@@ -192,7 +193,7 @@ export default function CartAndCheckout({
     }
   }, [initialCourseId, effectiveAllCourses]);
 
-  const { currentUser } = useApp();
+  const { currentUser, isLoggedIn } = useApp();
 
   // Scroll to top on mount
   useEffect(() => {
@@ -563,6 +564,12 @@ export default function CartAndCheckout({
 
   const handleStartPayment = async () => {
     if (isProcessing) return;
+
+    if (!isLoggedIn || !currentUser) {
+      toast.error('Vui lòng đăng nhập để tiến hành thanh toán.');
+      navigate('/login', { state: { from: location.pathname + location.search } });
+      return;
+    }
 
     const nameErr = validateField('name', buyerName);
     const emailErr = validateField('email', buyerEmail);

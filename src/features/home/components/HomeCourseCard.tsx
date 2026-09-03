@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Star, Users, Heart, ShoppingCart, Flame, Sparkles, GraduationCap, Clock, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
@@ -50,6 +50,7 @@ export function HomeCourseCard({
   showProofBadge = false,
 }: HomeCourseCardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { favorites, setFavorites, currentUser, isLoggedIn, enrolledCourseIds } = useApp();
 
   const isEnrolled = Boolean(
@@ -117,7 +118,7 @@ export function HomeCourseCard({
 
     if (!isLoggedIn) {
       toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
-      navigate('/auth');
+      navigate('/login', { state: { from: location.pathname + location.search } });
       return;
     }
 
@@ -163,7 +164,7 @@ export function HomeCourseCard({
 
     if (!isLoggedIn) {
       toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
-      navigate('/auth');
+      navigate('/login', { state: { from: location.pathname + location.search } });
       return;
     }
 
@@ -178,12 +179,27 @@ export function HomeCourseCard({
     }
 
     if (course.isFree || course.price === 0) {
-      toast.success(`Đăng ký tham gia khóa học miễn phí thành công: ${course.title}`);
-      navigate(`/learn/${courseTarget}`);
-    } else {
-      toast.success(`Đang mở trang thanh toán cho khóa học: ${course.title}`);
-      navigate(`/checkout?courseId=${courseTarget}`);
+      const numericTargetId = Number(course.realId || (course as any).course_id || course.id);
+      if (numericTargetId && !isNaN(numericTargetId)) {
+        apiFetch<any>('/orders', {
+          method: 'POST',
+          body: JSON.stringify({ course_id: numericTargetId }),
+        })
+          .then(() => {
+            toast.success(`Đăng ký tham gia khóa học miễn phí thành công: ${course.title}`);
+            navigate(`/learn/${courseTarget}`);
+          })
+          .catch((err: any) => {
+            toast.error(err?.message || 'Không thể ghi danh khóa học miễn phí lúc này.');
+          });
+      } else {
+        navigate(`/learn/${courseTarget}`);
+      }
+      return;
     }
+
+    toast.success(`Đang mở trang thanh toán cho khóa học: ${course.title}`);
+    navigate(`/checkout?courseId=${courseTarget}`);
   };
 
   const formatPrice = (amount: number) => {
