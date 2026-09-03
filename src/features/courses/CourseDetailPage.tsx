@@ -202,6 +202,17 @@ export default function CourseDetailPage() {
       )),
   );
 
+  // Sync enrolled course IDs into global context state so other pages/widgets stay updated
+  useEffect(() => {
+    if (isEnrolled && course) {
+      const idsToAdd = [String(course.id), String(course.slug || '')].filter(Boolean);
+      setEnrolledCourseIds((prev) => {
+        const missing = idsToAdd.filter((id) => !prev.includes(id));
+        return missing.length > 0 ? [...prev, ...missing] : prev;
+      });
+    }
+  }, [isEnrolled, course?.id, course?.slug, setEnrolledCourseIds]);
+
   const loadReviews = () => {
     if (!course?.id) return;
     apiFetch<any>(`/courses/${course.id}/reviews?per_page=100`)

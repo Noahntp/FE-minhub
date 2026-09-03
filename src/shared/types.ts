@@ -183,6 +183,9 @@ export interface Course {
   requirements?: string[];
   willLearn?: string[];
   status: 'draft' | 'pending' | 'active' | 'rejected' | 'hidden' | 'archived' | 'suspended' | 'published' | 'approved';
+  is_enrolled?: boolean;
+  isEnrolled?: boolean;
+  enrollment_status?: string;
   rawStatus?: string;
   statusLabel?: string;
   category_id?: number | string;

@@ -134,6 +134,9 @@ function mapApiDetailToCourse(res: any): Course {
       'Tự tin áp dụng kiến thức vào các sản phẩm thực tế'
     ],
     status: 'active',
+    is_enrolled: Boolean(res.is_enrolled || res.isEnrolled),
+    isEnrolled: Boolean(res.is_enrolled || res.isEnrolled),
+    enrollment_status: res.enrollment_status || (res.is_enrolled ? 'active' : undefined),
     chapters: mappedChapters.length > 0 ? mappedChapters : [
       {
         id: 'ch1',
