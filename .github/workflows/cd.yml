@@ -26,6 +26,10 @@ jobs:
         run: npm install
 
       - name: Build Project
+        env:
+          VITE_API_BASE_URL: https://mindhub.io.vn/BE/public/index.php/api
+          VITE_API_MODE: api
+          VITE_MEDIA_BASE_URL: https://mindhub.io.vn/mindhub-media
         run: npm run build
 
       - name: Deploy to Server via SSH
@@ -33,7 +37,9 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             APP_DIR="/var/www/mindhub-frontend"
             RELEASE_ID=$(date +%Y%m%d%H%M%S)
@@ -50,7 +56,9 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
           source: "dist/*"
           target: "/var/www/mindhub-frontend/releases/latest_build"
           strip_components: 1
@@ -60,7 +68,9 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             APP_DIR="/var/www/mindhub-frontend"
             # Tìm release ID mới nhất vừa được SCP lên
