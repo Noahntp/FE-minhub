@@ -395,7 +395,8 @@ export default function CartAndCheckout({
     if (phase !== 'payment_pending' || !sepayData?.order_id) return;
 
     let isPolling = true;
-    const intervalId = setInterval(async () => {
+
+    const pollOrder = async () => {
       if (!isPolling) return;
       try {
         const res = await apiFetch<any>(`/orders/${sepayData.order_id}`);
@@ -430,7 +431,10 @@ export default function CartAndCheckout({
       } catch (err) {
         // Polling failure silently ignored
       }
-    }, 2500);
+    };
+
+    pollOrder();
+    const intervalId = setInterval(pollOrder, 1200);
 
     return () => {
       isPolling = false;
