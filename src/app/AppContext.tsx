@@ -121,8 +121,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   const list = Array.isArray(courseRes) ? courseRes : (courseRes?.data || []);
                   if (Array.isArray(list)) {
                     const ids = list
-                      .map((item: any) => String(item.course_id || item.course?.id || item.course?.slug || item.id))
-                      .filter(Boolean);
+                      .flatMap((item: any) => [
+                        item.course_id,
+                        item.course?.id,
+                        item.course?.slug,
+                      ])
+                      .filter(Boolean)
+                      .map(String);
                     if (ids.length > 0) {
                       setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
                     }
