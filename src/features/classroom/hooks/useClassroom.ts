@@ -484,20 +484,22 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     if (!course) return;
     setProgress(prev => {
       if (!prev) return prev;
-      const isAlreadyCompleted = prev.completedLessonIds.includes(lessonId);
+      const strIds = (prev.completedLessonIds || []).map(String);
+      const strLessonId = String(lessonId);
+      const isAlreadyCompleted = strIds.includes(strLessonId);
       let newCompletedIds: string[];
 
       if (typeof forceStatus === 'boolean') {
         if (forceStatus) {
-          newCompletedIds = Array.from(new Set([...prev.completedLessonIds, lessonId]));
+          newCompletedIds = Array.from(new Set([...strIds, strLessonId]));
         } else {
-          newCompletedIds = prev.completedLessonIds.filter(id => id !== lessonId);
+          newCompletedIds = strIds.filter(id => id !== strLessonId);
         }
       } else {
         if (isAlreadyCompleted) {
-          newCompletedIds = prev.completedLessonIds.filter(id => id !== lessonId);
+          newCompletedIds = strIds.filter(id => id !== strLessonId);
         } else {
-          newCompletedIds = Array.from(new Set([...prev.completedLessonIds, lessonId]));
+          newCompletedIds = Array.from(new Set([...strIds, strLessonId]));
         }
       }
 

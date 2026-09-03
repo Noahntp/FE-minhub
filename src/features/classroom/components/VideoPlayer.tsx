@@ -34,6 +34,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const [watermark, setWatermark] = useState<{ text: string; opacity?: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasSeekedInitialRef = useRef(false);
+  const hasTriggered90Ref = useRef(false);
   const lastSavedSecondRef = useRef(0);
 
   const numericLessonId = activeLesson ? parseInt(String(activeLesson.id).replace(/\D/g, ''), 10) : NaN;
