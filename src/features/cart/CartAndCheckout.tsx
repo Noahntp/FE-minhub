@@ -266,15 +266,8 @@ export default function CartAndCheckout({
         error = 'Địa chỉ email không đúng định dạng (Ví dụ: name@example.com).';
       }
     } else if (field === 'phone') {
-      const cleanPhone = val.replace(/\s+/g, '');
-      const vnPhoneRegex = /^(0|\+84)(3[2-9]|5[25689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$/;
-      if (!cleanPhone) {
-        error = 'Vui lòng nhập số điện thoại liên hệ.';
-      } else if (cleanPhone.length < 10) {
-        error = 'Số điện thoại phải có đúng 10 chữ số.';
-      } else if (!vnPhoneRegex.test(cleanPhone)) {
-        error = 'Số điện thoại không hợp lệ (Phải là đầu số VN: 03, 05, 07, 08, 09).';
-      }
+      // Số điện thoại là tùy chọn, không bắt buộc
+      error = undefined;
     }
 
     setFormErrors((prev) => ({ ...prev, [field]: error }));
@@ -573,9 +566,8 @@ export default function CartAndCheckout({
 
     const nameErr = validateField('name', buyerName);
     const emailErr = validateField('email', buyerEmail);
-    const phoneErr = validateField('phone', buyerPhone);
 
-    if (nameErr || emailErr || phoneErr) {
+    if (nameErr || emailErr) {
       // Auto-scroll and focus to the first invalid input
       if (nameErr && nameInputRef.current) {
         nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -583,9 +575,6 @@ export default function CartAndCheckout({
       } else if (emailErr && emailInputRef.current) {
         emailInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
         emailInputRef.current.focus();
-      } else if (phoneErr && phoneInputRef.current) {
-        phoneInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        phoneInputRef.current.focus();
       }
 
       toast.error('Vui lòng kiểm tra và điền chính xác thông tin người mua.');
@@ -1352,7 +1341,7 @@ export default function CartAndCheckout({
                     {/* Field 3: Số điện thoại */}
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                        Số điện thoại <span className="text-rose-500">*</span>
+                        Số điện thoại <span className="text-slate-400 font-normal text-[11px]">(Tùy chọn)</span>
                       </label>
                       <input
                         ref={phoneInputRef}
@@ -1361,21 +1350,10 @@ export default function CartAndCheckout({
                         onChange={(e) => {
                           const val = e.target.value.replace(/[^\d+]/g, '');
                           setBuyerPhone(val);
-                          if (formErrors.phone) validateField('phone', val);
                         }}
-                        onBlur={() => validateField('phone', buyerPhone)}
-                        className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none transition-all ${
-                          formErrors.phone
-                            ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/20 text-rose-900'
-                            : 'border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50/50'
-                        }`}
-                        placeholder="Ví dụ: 0912345678"
+                        className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none transition-all border-slate-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50/50"
+                        placeholder="Ví dụ: 0912345678 (Tùy chọn)"
                       />
-                      {formErrors.phone && (
-                        <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1">
-                          ⚠️ {formErrors.phone}
-                        </p>
-                      )}
                     </div>
                   </div>
 
