@@ -61,7 +61,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
   // Helper to save video progress to both API and localStorage
   const saveProgress = (seconds: number) => {
     const sec = Math.floor(seconds);
-    if (sec < 0) return;
+    if (sec <= 0) return; // Avoid wiping resume position on initial video mount
     lastSavedSecondRef.current = sec;
 
     if (!isNaN(numericLessonId) && numericLessonId > 0) {
@@ -254,12 +254,29 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
     hasTriggered90Ref.current = false;
     hasSeekedInitialRef.current = false;
     lastSavedSecondRef.current = 0;
-    setInitialStartTime(0);
 
     if (!activeLesson) {
       setVideoSrc('');
+      setInitialStartTime(0);
       return;
     }
+
+    // 0. Resolve saved playback position immediately before loading any player
+    let startSec = 0;
+    const progressSec = (activeLesson as any)?.progress?.current_second ?? (activeLesson as any)?.current_second;
+    if (typeof progressSec === 'number' && progressSec > 0) {
+      startSec = progressSec;
+    }
+    if (!isNaN(numericLessonId) && numericLessonId > 0) {
+      const localSaved = localStorage.getItem(`mindhub_video_time_${numericLessonId}`);
+      if (localSaved) {
+        const parsed = parseInt(localSaved, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          startSec = Math.max(startSec, parsed);
+        }
+      }
+    }
+    setInitialStartTime(startSec);
 
     // 1. Direct check with BUNNY_TITLE_MAP (matches real Bunny lecture video)
     const normTitle = (activeLesson.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -287,19 +304,13 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
 
     // 4. Fetch secure video stream from Backend API for real lesson
     if (!isNaN(numericLessonId) && numericLessonId > 0) {
-      // Load initial time from local storage backup
-      const localSaved = localStorage.getItem(`mindhub_video_time_${numericLessonId}`);
-      let startSec = localSaved ? parseInt(localSaved, 10) : 0;
-      if (isNaN(startSec) || startSec < 0) startSec = 0;
-      setInitialStartTime(startSec);
-
       setIsLoadingVideo(true);
       classroomApi.getSecureLessonContent(String(numericLessonId))
         .then(async (lessonData: any) => {
           const item = lessonData?.data || lessonData;
           const backendSec = item?.progress?.current_second ?? item?.current_second;
           if (typeof backendSec === 'number' && backendSec > 0) {
-            setInitialStartTime(backendSec);
+            setInitialStartTime(prev => Math.max(prev, backendSec));
             localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(backendSec));
           }
 
@@ -368,7 +379,52 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
     } else {
       setVideoSrc(DEFAULT_REAL_COURSE_STREAM);
     }
-  }, [activeLesson?.id]);
+  }, [activeLesson?.id, numericLessonId]);
+
+  const normalizedSrc = (() => {
+    if (!videoSrc) return '';
+    let url = videoSrc;
+    if (url.includes('.b-cdn.net/') && url.includes('/playlist.m3u8')) {
+      const match = url.match(/\.b-cdn\.net\/([^\/]+)\/playlist\.m3u8/);
+      if (match && match[1]) {
+        url = `https://iframe.mediadelivery.net/embed/724015/${match[1]}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
+      }
+    }
+    if (url.includes('iframe.mediadelivery.net')) {
+      if (!url.includes('responsive=true')) {
+        url += `${url.includes('?') ? '&' : '?'}responsive=true`;
+      }
+      if (initialStartTime > 0 && !url.includes('t=')) {
+        url += `&t=${Math.floor(initialStartTime)}`;
+      }
+    }
+    return url;
+  })();
+
+  const isIframeEmbed = Boolean(
+    normalizedSrc && (
+      normalizedSrc.includes('iframe.mediadelivery.net') ||
+      normalizedSrc.includes('youtube.com') ||
+      normalizedSrc.includes('/embed/')
+    )
+  );
+
+  // Seek Bunny iframe player to initialStartTime if iframe was ready
+  useEffect(() => {
+    if (initialStartTime > 0 && isIframeEmbed && iframeRef.current?.contentWindow) {
+      const sendSeek = () => {
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ event: 'seek', value: initialStartTime }),
+            '*'
+          );
+        } catch (e) {}
+      };
+      sendSeek();
+      const timer = setTimeout(sendSeek, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [initialStartTime, isIframeEmbed, normalizedSrc]);
 
   // Sync on page reload / unload
   useEffect(() => {
@@ -451,34 +507,6 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
       onEnded();
     }
   };
-
-  const normalizedSrc = (() => {
-    if (!videoSrc) return '';
-    let url = videoSrc;
-    if (url.includes('.b-cdn.net/') && url.includes('/playlist.m3u8')) {
-      const match = url.match(/\.b-cdn\.net\/([^\/]+)\/playlist\.m3u8/);
-      if (match && match[1]) {
-        url = `https://iframe.mediadelivery.net/embed/724015/${match[1]}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
-      }
-    }
-    if (url.includes('iframe.mediadelivery.net')) {
-      if (!url.includes('responsive=true')) {
-        url += `${url.includes('?') ? '&' : '?'}responsive=true`;
-      }
-      if (initialStartTime > 0 && !url.includes('t=')) {
-        url += `&t=${Math.floor(initialStartTime)}`;
-      }
-    }
-    return url;
-  })();
-
-  const isIframeEmbed = Boolean(
-    normalizedSrc && (
-      normalizedSrc.includes('iframe.mediadelivery.net') ||
-      normalizedSrc.includes('youtube.com') ||
-      normalizedSrc.includes('/embed/')
-    )
-  );
 
   return (
     <div 

@@ -74,7 +74,11 @@ export default function ClassroomPage() {
       ? allLessons[currentIndex + 1]
       : null;
 
-  const completedCount = progress?.completedLessonIds?.length || 0;
+  const completedCount = useMemo(() => {
+    if (!allLessons.length || !progress?.completedLessonIds) return 0;
+    const completedSet = new Set((progress.completedLessonIds || []).map(String));
+    return allLessons.filter(l => completedSet.has(String(l.id))).length;
+  }, [allLessons, progress?.completedLessonIds]);
 
   // Calculate overall course progress percentage
   const progressPercent = useMemo(() => {
@@ -84,7 +88,7 @@ export default function ClassroomPage() {
 
   const isActiveLessonCompleted = useMemo(() => {
     if (!activeLesson || !progress?.completedLessonIds) return false;
-    return progress.completedLessonIds.includes(activeLesson.id);
+    return progress.completedLessonIds.map(String).includes(String(activeLesson.id));
   }, [activeLesson, progress?.completedLessonIds]);
 
   // Check if course is 100% completed and trigger modal

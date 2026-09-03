@@ -318,12 +318,12 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
         (foundCourse as any).instructorBio = instInfo.bio;
 
         // 3. Try to fetch outline syllabus from Backend API (/learn/courses/:id/outline)
-        const numericId = parseInt(String(foundCourse.id).replace(/\D/g, ''), 10);
+        const numericId = Number(match?.id) || Number((foundCourse as any).realId) || Number((foundCourse as any).course_id) || (parseInt(String(foundCourse.id).replace(/\D/g, ''), 10) || 0);
         let apiChapters: any[] = [];
         let backendCompletedLessonIds: string[] = [];
         let hasBackendOutline = false;
 
-        if (!isNaN(numericId) && numericId > 0) {
+        if (numericId > 0) {
           try {
             const outlineRes = await classroomApi.getStudentCourseOutline(String(numericId));
             const rawSections = Array.isArray(outlineRes?.data) ? outlineRes.data : (Array.isArray(outlineRes) ? outlineRes : []);
@@ -361,6 +361,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
                         ? l.video_url
                         : 'https://iframe.mediadelivery.net/embed/724015/3a3c6a0d-c691-4a82-afaa-d8824fc73ce1?autoplay=true&loop=false&muted=false&preload=true&responsive=true',
                     content: l.description || l.summary,
+                    progress: l.progress || null,
                   };
                 })
               }));
@@ -378,6 +379,9 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
             title: sec.title || sec.name || `Chương ${idx + 1}`,
             lessons: (sec.lessons || sec.items || []).map((l: any, lIdx: number) => {
               const lessonIdStr = String(l.id || `l-${idx}-${lIdx}`);
+              if (l.progress?.status === 'completed' || l.progress?.completed_at) {
+                backendCompletedLessonIds.push(lessonIdStr);
+              }
               const rawDuration = l.video_duration_seconds ?? l.duration_seconds ?? l.duration ?? l.video_duration;
               let parsedDuration = '';
               if (typeof rawDuration === 'number' && rawDuration > 0) {
@@ -403,6 +407,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
                 isPreview: Boolean(l.is_preview || l.is_free_preview || l.isPreview),
                 videoUrl: videoEmbedUrl,
                 content: l.description || l.summary,
+                progress: l.progress || null,
               };
             })
           }));
@@ -418,38 +423,50 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
         if (isMounted) {
           setCourse(foundCourse);
 
-          // Load stored progress from localStorage
-          const storageKey = `mindhub_lesson_progress_${foundCourse.id}`;
+          // Load stored progress from localStorage across multiple possible keys (slug, id, numericId)
+          const storageKeys = [
+            `mindhub_lesson_progress_${foundCourse.id}`,
+            (foundCourse as any).slug ? `mindhub_lesson_progress_${(foundCourse as any).slug}` : '',
+            numericId > 0 ? `mindhub_lesson_progress_${numericId}` : '',
+            courseId ? `mindhub_lesson_progress_${courseId}` : '',
+          ].filter(Boolean);
+
           let savedCompletedIds: string[] = [];
-          const saved = localStorage.getItem(storageKey);
-          if (saved) {
-            try {
-              const parsed = JSON.parse(saved);
-              if (Array.isArray(parsed.completedLessonIds)) {
-                savedCompletedIds = parsed.completedLessonIds;
-              }
-            } catch (e) {}
-          }
+          storageKeys.forEach(k => {
+            const saved = localStorage.getItem(k);
+            if (saved) {
+              try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed.completedLessonIds)) {
+                  savedCompletedIds = [...savedCompletedIds, ...parsed.completedLessonIds.map(String)];
+                }
+              } catch (e) {}
+            }
+          });
 
           // If backend provided progress, prioritize real DB progress and merge
           const finalCompletedIds = hasBackendOutline 
             ? Array.from(new Set([...backendCompletedLessonIds, ...savedCompletedIds]))
-            : savedCompletedIds;
+            : Array.from(new Set([...savedCompletedIds, ...backendCompletedLessonIds]));
 
           // Compute all lessons flat list
           const flatLessons = (foundCourse.chapters || []).flatMap((c: any) => c.lessons || []);
 
           // Find saved current lesson ID if any (prioritize direct last lesson key)
-          const directSavedLastLesson = localStorage.getItem(`mindhub_last_lesson_${foundCourse.id}`);
+          let directSavedLastLesson: string | null = null;
+          [
+            `mindhub_last_lesson_${foundCourse.id}`,
+            (foundCourse as any).slug ? `mindhub_last_lesson_${(foundCourse as any).slug}` : '',
+            numericId > 0 ? `mindhub_last_lesson_${numericId}` : '',
+            courseId ? `mindhub_last_lesson_${courseId}` : '',
+          ].filter(Boolean).forEach(k => {
+            if (!directSavedLastLesson) {
+              const val = localStorage.getItem(k);
+              if (val) directSavedLastLesson = val;
+            }
+          });
+
           let savedCurrentLessonId: string | null = directSavedLastLesson || null;
-          if (!savedCurrentLessonId && saved) {
-            try {
-              const parsed = JSON.parse(saved);
-              if (parsed.currentLessonId) {
-                savedCurrentLessonId = String(parsed.currentLessonId);
-              }
-            } catch (e) {}
-          }
 
           // Pick optimal resume lesson:
           // 1. If savedCurrentLessonId exists and valid, resume that lesson
@@ -482,21 +499,32 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
           }
 
           if (optimalLesson) {
-            try {
-              localStorage.setItem(`mindhub_last_lesson_${foundCourse.id}`, String(optimalLesson.id));
-            } catch (e) {}
+            storageKeys.forEach(k => {
+              try {
+                localStorage.setItem(k.replace('mindhub_lesson_progress_', 'mindhub_last_lesson_'), String(optimalLesson!.id));
+              } catch (e) {}
+            });
           }
 
           setActiveLesson(optimalLesson);
 
-          setProgress({
+          const studentProgress: StudentProgress = {
             courseId: foundCourse.id,
             currentLessonId: optimalLesson?.id || '',
             completedLessonIds: finalCompletedIds,
             notes: [],
             bookmarks: [],
             lastWatchedProgressSec: 0
+          };
+
+          // Save to all key variants so F5 retains everything instantly
+          storageKeys.forEach(k => {
+            try {
+              localStorage.setItem(k, JSON.stringify(studentProgress));
+            } catch (e) {}
           });
+
+          setProgress(studentProgress);
         }
       } catch (err: any) {
         if (isMounted) setError(err);
@@ -566,9 +594,18 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
         completedLessonIds: newCompletedIds
       };
 
-      // Persist locally for instant reload retention
-      const storageKey = `mindhub_lesson_progress_${course.id}`;
-      localStorage.setItem(storageKey, JSON.stringify(updatedProgress));
+      // Persist locally across all possible course identifiers for instant reload retention
+      const storageKeys = [
+        `mindhub_lesson_progress_${course.id}`,
+        (course as any).slug ? `mindhub_lesson_progress_${(course as any).slug}` : '',
+        (course as any).realId ? `mindhub_lesson_progress_${(course as any).realId}` : '',
+      ].filter(Boolean);
+
+      storageKeys.forEach(k => {
+        try {
+          localStorage.setItem(k, JSON.stringify(updatedProgress));
+        } catch (e) {}
+      });
 
       // Async sync with API in background
       try {
