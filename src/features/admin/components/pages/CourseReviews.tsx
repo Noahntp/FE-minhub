@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Filter, RotateCcw, Sparkles } from 'lucide-react';
+import { Filter, RotateCcw, Sparkles, Film, Play, Tv } from 'lucide-react';
 import {
   getCourseReviews,
   getCourseReview,
@@ -1908,6 +1908,16 @@ export default function CourseReviews() {
                               {drawerData.course?.language === 'vi' ? 'Tiếng Việt' : 'Tiếng Anh'}
                             </span>
                           </div>
+                          {drawerData.course?.intro_video_url && (
+                            <button
+                              type="button"
+                              onClick={() => window.open(`/admin/course-preview/${drawerData.course?.id}`, '_blank')}
+                              className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-black/60 hover:bg-indigo-600 text-white flex items-center justify-center backdrop-blur-xs transition-all transform hover:scale-110 cursor-pointer shadow-lg group"
+                              title="Xem Video Trailer giới thiệu khóa học"
+                            >
+                              <Play className="w-5 h-5 ml-0.5 fill-white group-hover:text-white" />
+                            </button>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -2021,9 +2031,19 @@ export default function CourseReviews() {
                     {/* TAB 2: NỘI DUNG KHÓA HỌC */}
                     {drawerTab === 'content' && (
                       <div className="space-y-4 font-sans">
-                        <div className="flex items-center justify-between text-xs text-mid-gray">
-                          <span>Tổng số: {drawerData.sections?.length || 0} chương</span>
-                          <span>{drawerData.lessons?.length || 0} bài học</span>
+                        <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+                          <div className="text-xs text-mid-gray">
+                            <span>Tổng số: <strong className="text-ink">{drawerData.sections?.length || 0}</strong> chương • <strong className="text-ink">{drawerData.lessons?.length || 0}</strong> bài học</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => window.open(`/admin/course-preview/${drawerData.course?.id}`, '_blank')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer hover:scale-102"
+                            title="Mở toàn màn hình trang xem video và kiểm duyệt chi tiết các bài giảng"
+                          >
+                            <Tv className="w-3.5 h-3.5" />
+                            <span>Mở phòng xem Video kiểm duyệt ↗</span>
+                          </button>
                         </div>
 
                         <div className="space-y-2.5">
@@ -2066,19 +2086,32 @@ export default function CourseReviews() {
                                   {isExpanded && (
                                     <div className="divide-y divide-hairline bg-paper">
                                       {secLessons.map((les: any) => (
-                                        <div key={les.id} className="p-2.5 pl-8 flex items-center justify-between text-xs hover:bg-canvas/50 transition-colors font-medium">
+                                        <div
+                                          key={les.id}
+                                          onClick={() => window.open(`/admin/course-preview/${drawerData.course?.id}?lesson_id=${les.id}`, '_blank')}
+                                          className="p-2.5 pl-8 flex items-center justify-between text-xs hover:bg-indigo-50/60 transition-colors font-medium cursor-pointer group"
+                                          title="Nhấn để mở xem video và kiểm tra nội dung bài học này"
+                                        >
                                           <div className="flex items-center gap-2 min-w-0 pr-2">
                                             {getLessonTypeIcon(les.type)}
-                                            <span className="text-ink font-medium truncate">{les.title}</span>
+                                            <span className="text-ink group-hover:text-indigo-600 font-medium truncate transition-colors">
+                                              {les.title}
+                                            </span>
                                             {les.is_preview && (
-                                              <span className="text-[9px] font-bold text-success bg-success-soft px-1.5 py-0.5 rounded">
+                                              <span className="text-[9px] font-bold text-success bg-success-soft px-1.5 py-0.5 rounded shrink-0">
                                                 Học thử
                                               </span>
                                             )}
                                           </div>
-                                          <span className="text-[10px] text-mid-gray shrink-0 font-mono">
-                                            {formatDuration(les.duration_seconds)}
-                                          </span>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-[10px] text-mid-gray font-mono">
+                                              {formatDuration(les.duration_seconds || les.total_duration_seconds)}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded opacity-80 group-hover:opacity-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                              <span>Xem bài</span>
+                                              <Play className="w-2.5 h-2.5 fill-current" />
+                                            </span>
+                                          </div>
                                         </div>
                                       ))}
                                     </div>

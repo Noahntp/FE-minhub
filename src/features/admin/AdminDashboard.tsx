@@ -17,6 +17,7 @@ import Moderation from '@/features/admin/components/pages/Moderation';
 import PayoutAccounts from '@/features/admin/components/pages/PayoutAccounts';
 import Reports from '@/features/admin/components/pages/Reports';
 import Banners from '@/features/admin/components/pages/Banners';
+import CoursePreviewPlayer from '@/features/admin/components/pages/CoursePreviewPlayer';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -77,6 +78,10 @@ export default function AdminDashboard() {
     };
     return map[activeTab] || 'Dashboard';
   };
+
+  if (activeTab === 'course-preview') {
+    return <CoursePreviewPlayer />;
+  }
 
   return (
     <AdminLayout 
