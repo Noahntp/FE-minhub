@@ -363,6 +363,10 @@ export default function WithdrawalsManagement() {
         if (selectedWithdrawalId === activeItem.id) {
           loadDetail(activeItem.id);
         }
+        // Tự động mở ngay Modal QR để Admin quét MB Bank chuyển tiền
+        setMarkPaidTxnId("");
+        setMarkPaidError("");
+        setMarkPaidOpen(true);
       } else {
         toast.error(res.message || "Duyệt thất bại.");
       }
@@ -2030,9 +2034,17 @@ export default function WithdrawalsManagement() {
                     {markPaidError}
                   </span>
                 )}
-                <p className="text-[11px] text-mid-gray mt-1">
-                  Sau khi quét mã QR và chuyển tiền thành công trên App Ngân hàng, nhập mã giao dịch để hoàn tất hồ sơ.
-                </p>
+                <div className="p-2.5 bg-blue-50/60 border border-blue-200 rounded-[6px] text-[11px] text-blue-900 mt-2 space-y-1">
+                  <p className="font-semibold flex items-center gap-1 text-blue-800">
+                    ⚡ Tự động đối soát qua MB Bank & GPM:
+                  </p>
+                  <p className="text-blue-700 leading-relaxed">
+                    Hệ thống sẽ <strong>tự động chuyển sang trạng thái "Đã thanh toán"</strong> ngay khi tài khoản MB Bank ghi nhận tiền ra và GPM gửi biến động về.
+                  </p>
+                  <p className="text-blue-600/90 text-[10px]">
+                    (Tùy chọn) Bạn cũng có thể nhập mã giao dịch ngân hàng bên trên và bấm nút xác nhận thủ công nếu cần duyệt ngay lập tức.
+                  </p>
+                </div>
               </div>
 
               {/* Action Buttons */}
