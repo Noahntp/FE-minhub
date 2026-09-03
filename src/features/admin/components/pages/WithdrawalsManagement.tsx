@@ -1156,12 +1156,12 @@ export default function WithdrawalsManagement() {
                             />
                             <span>{badge.label}</span>
                           </span>
-                          {item.status !== 'pending' && item.payout_mode === 'auto' && (
+                          {item.status === 'paid' && item.payout_mode === 'auto' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-[10px] font-semibold text-blue-700">
                               Tự động
                             </span>
                           )}
-                          {item.status !== 'pending' && item.payout_mode === 'manual' && (
+                          {item.status === 'paid' && item.payout_mode === 'manual' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-[10px] font-semibold text-amber-800">
                               Thủ công
                             </span>
@@ -1290,12 +1290,12 @@ export default function WithdrawalsManagement() {
                   >
                     {STATUS_MAP[detail.status]?.label}
                   </span>
-                  {detail.status !== 'pending' && detail.payout_mode === 'auto' && (
+                  {detail.status === 'paid' && detail.payout_mode === 'auto' && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-[10px] font-semibold text-blue-700">
                       Tự động
                     </span>
                   )}
-                  {detail.status !== 'pending' && detail.payout_mode === 'manual' && (
+                  {detail.status === 'paid' && detail.payout_mode === 'manual' && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-[10px] font-semibold text-amber-800">
                       Thủ công
                     </span>
@@ -1448,16 +1448,12 @@ export default function WithdrawalsManagement() {
                 <div className="flex justify-between items-center py-1 border-b border-hairline/60">
                   <span className="text-mid-gray">Phương thức:</span>
                   <span className="font-semibold text-ink">
-                    {detail.status === 'pending'
-                      ? "Chưa xử lý chi trả"
-                      : detail.payout_mode === 'auto'
-                      ? "Chuyển khoản tự động"
-                      : detail.payout_mode === 'manual'
-                      ? "Chuyển khoản thủ công"
-                      : "Chưa xác định"}
+                    {detail.status === 'paid'
+                      ? (detail.payout_mode === 'auto' ? "Chuyển khoản tự động" : "Chuyển khoản thủ công")
+                      : "Chưa hoàn tất chi trả"}
                   </span>
                 </div>
-                {detail.status !== 'pending' && detail.payout_mode === 'auto' && (
+                {detail.status === 'paid' && detail.payout_mode === 'auto' && (
                   <div className="flex justify-between items-center py-1">
                     <span className="text-mid-gray">Cổng chi trả:</span>
                     <span className="font-semibold text-ink">
@@ -1465,7 +1461,7 @@ export default function WithdrawalsManagement() {
                     </span>
                   </div>
                 )}
-                {detail.status !== 'pending' && detail.payout_mode === 'manual' && (
+                {detail.status === 'paid' && detail.payout_mode === 'manual' && (
                   <div className="flex justify-between items-center py-1">
                     <span className="text-mid-gray">Xử lý bởi:</span>
                     <span className="font-semibold text-ink">Quản trị viên (Chuyển khoản ngoài)</span>
