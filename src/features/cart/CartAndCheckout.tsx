@@ -327,13 +327,52 @@ export default function CartAndCheckout({
     transfer_content: string;
     qr_url: string;
   } | null>(null);
-  const [showSepayModal, setShowSepayModal] = useState(false);
-  const [isCheckingSepay, setIsCheckingSepay] = useState(false);
-
-  // Flow phase: 'form' | 'success'
-  const [phase, setPhase] = useState<'form' | 'success'>('form');
+  // Flow phase: 'form' (Bước 1) | 'payment_pending' (Bước 2: Chờ chuyển khoản) | 'success' (Bước 3: Hoàn tất)
+  const [phase, setPhase] = useState<'form' | 'payment_pending' | 'success'>('form');
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Restore pending order on mount if student already created an order
+  useEffect(() => {
+    const restorePendingOrder = async () => {
+      try {
+        const storedStr = localStorage.getItem('mindhub_pending_order');
+        if (!storedStr) return;
+        const stored = JSON.parse(storedStr);
+        if (!stored?.order_id) return;
+
+        const res = await apiFetch<any>(`/orders/${stored.order_id}`);
+        const orderData = res?.data || res;
+        if (!orderData) return;
+
+        if (orderData.status === 'paid' || orderData.payment_status === 'paid') {
+          localStorage.removeItem('mindhub_pending_order');
+          const order: Order = {
+            id: String(orderData.order_code || stored.order_code || orderData.id),
+            date: new Date().toISOString().split('T')[0],
+            courses: [{ id: checkoutCourse.id, title: checkoutCourse.title, price: finalTotal }],
+            discountAmount: initialDiscountAmount,
+            total: finalTotal,
+            status: 'success',
+            paymentMethod: 'Chuyển khoản VietQR (MB Bank)',
+          };
+          saveCourseToEnrolledList(checkoutCourse);
+          setCompletedOrder(order);
+          setPhase('success');
+          onEnrollSuccess([checkoutCourse.id], order);
+        } else if (orderData.status === 'pending_payment') {
+          setSepayData(stored.sepay_data || stored);
+          setPhase('payment_pending');
+        } else {
+          localStorage.removeItem('mindhub_pending_order');
+        }
+      } catch (err) {
+        console.warn('Cannot check pending order:', err);
+      }
+    };
+
+    restorePendingOrder();
+  }, [checkoutCourse.id]);
 
   // Price calculations
   const rawOriginalPrice = (checkoutCourse as any).originalPrice;
@@ -349,9 +388,11 @@ export default function CartAndCheckout({
     return new Intl.NumberFormat('vi-VN').format(num) + 'đ';
   };
 
-  // Auto-polling order status while SePay modal is open
+  const [isCheckingSepay, setIsCheckingSepay] = useState(false);
+
+  // Auto-polling order status while waiting for payment
   useEffect(() => {
-    if (!showSepayModal || !sepayData?.order_id) return;
+    if (phase !== 'payment_pending' || !sepayData?.order_id) return;
 
     let isPolling = true;
     const intervalId = setInterval(async () => {
@@ -362,8 +403,8 @@ export default function CartAndCheckout({
         if (orderData && (orderData.status === 'paid' || orderData.payment_status === 'paid')) {
           isPolling = false;
           clearInterval(intervalId);
+          localStorage.removeItem('mindhub_pending_order');
 
-          setShowSepayModal(false);
           const order: Order = {
             id: String(orderData.order_code || sepayData.transfer_content || sepayData.order_id),
             date: new Date().toISOString().split('T')[0],
@@ -395,7 +436,7 @@ export default function CartAndCheckout({
       isPolling = false;
       clearInterval(intervalId);
     };
-  }, [showSepayModal, sepayData, checkoutCourse, finalTotal, initialDiscountAmount, onEnrollSuccess]);
+  }, [phase, sepayData, checkoutCourse, finalTotal, initialDiscountAmount, onEnrollSuccess]);
 
   const handleManualCheckPayment = async () => {
     if (!sepayData || isCheckingSepay) return;
@@ -405,7 +446,7 @@ export default function CartAndCheckout({
       const res = await apiFetch<any>(`/orders/${sepayData.order_id}`);
       const orderData = res?.data || res;
       if (orderData && (orderData.status === 'paid' || orderData.payment_status === 'paid')) {
-        setShowSepayModal(false);
+        localStorage.removeItem('mindhub_pending_order');
 
         const order: Order = {
           id: String(orderData.order_code || sepayData.transfer_content || sepayData.order_id),
@@ -435,6 +476,27 @@ export default function CartAndCheckout({
       toast.error(err.message || 'Không thể kiểm tra trạng thái đơn hàng lúc này.');
     } finally {
       setIsCheckingSepay(false);
+    }
+  };
+
+  const handleCancelPendingOrder = async () => {
+    if (!sepayData?.order_id) {
+      setPhase('form');
+      localStorage.removeItem('mindhub_pending_order');
+      return;
+    }
+    const confirmed = window.confirm('Bạn có chắc muốn hủy đơn hàng này để chọn phương thức thanh toán hoặc khóa học khác?');
+    if (!confirmed) return;
+
+    try {
+      await apiFetch<any>(`/orders/${sepayData.order_id}/cancel`, { method: 'PATCH' });
+      toast.info('Đã hủy đơn hàng chờ thanh toán.');
+    } catch (e) {
+      // ignore
+    } finally {
+      localStorage.removeItem('mindhub_pending_order');
+      setSepayData(null);
+      setPhase('form');
     }
   };
 
@@ -552,8 +614,14 @@ export default function CartAndCheckout({
 
         const sData = sepayRes?.data || sepayRes;
         setSepayData(sData);
-        setShowSepayModal(true);
-        toast.success('Đã tạo mã VietQR SePay! Vui lòng quét mã chuyển khoản.');
+        localStorage.setItem('mindhub_pending_order', JSON.stringify({
+          order_id: Number(orderId),
+          order_code: sData.order_code || createdOrder?.order_code,
+          sepay_data: sData,
+          course_id: checkoutCourse.id,
+        }));
+        setPhase('payment_pending');
+        toast.success('Đã tạo đơn hàng! Vui lòng quét mã VietQR để thanh toán.');
         return;
       }
 
@@ -597,16 +665,26 @@ export default function CartAndCheckout({
             Trang chủ
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-900 font-semibold">Thanh toán</span>
+          <Link to="/courses" className="hover:text-primary transition-colors">
+            Khóa học
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-slate-900 font-semibold">
+            {phase === 'payment_pending' ? 'Chờ thanh toán' : phase === 'success' ? 'Hoàn tất' : 'Thanh toán'}
+          </span>
         </nav>
 
         {/* 2. PAGE HEADER */}
         <div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Thanh toán
+            {phase === 'payment_pending' ? 'Chờ thanh toán đơn hàng' : phase === 'success' ? 'Đăng ký thành công' : 'Thanh toán'}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-            Xác nhận thông tin và hoàn tất thanh toán để sở hữu khóa học này.
+            {phase === 'payment_pending'
+              ? 'Quét mã VietQR chuyển khoản bằng App Ngân hàng bất kỳ để kích hoạt khóa học tự động.'
+              : phase === 'success'
+              ? 'Khóa học đã được thêm vào tài khoản của bạn. Chúc bạn học tập hiệu quả!'
+              : 'Xác nhận thông tin và hoàn tất thanh toán để sở hữu khóa học này.'}
           </p>
         </div>
 
@@ -614,46 +692,70 @@ export default function CartAndCheckout({
         <div className="flex items-center justify-center max-w-2xl mx-auto py-2">
           {/* Step 1 */}
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-sm">
-              1
+            <div
+              className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center shadow-sm ${
+                phase !== 'form' ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white'
+              }`}
+            >
+              {phase !== 'form' ? <Check className="w-3.5 h-3.5" /> : '1'}
             </div>
-            <span className="text-xs font-bold text-slate-900">Thông tin đơn hàng</span>
+            <span
+              className={`text-xs font-bold ${
+                phase !== 'form' ? 'text-emerald-700' : 'text-slate-900'
+              }`}
+            >
+              Thông tin đơn hàng
+            </span>
           </div>
 
-          <div className="w-16 sm:w-28 h-0.5 bg-slate-200 mx-3" />
+          <div
+            className={`w-16 sm:w-28 h-0.5 mx-3 transition-colors ${
+              phase !== 'form' ? 'bg-emerald-500' : 'bg-slate-200'
+            }`}
+          />
 
           {/* Step 2 */}
           <div className="flex items-center gap-2">
             <div
-              className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${
-                phase === 'success'
-                  ? 'bg-blue-600 text-white'
+              className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center transition-all ${
+                phase === 'payment_pending'
+                  ? 'bg-blue-600 text-white ring-4 ring-blue-100 shadow-sm'
+                  : phase === 'success'
+                  ? 'bg-emerald-500 text-white'
                   : 'bg-slate-200 text-slate-600'
               }`}
             >
-              2
+              {phase === 'success' ? <Check className="w-3.5 h-3.5" /> : '2'}
             </div>
             <span
               className={`text-xs font-semibold ${
-                phase === 'success' ? 'text-slate-900 font-bold' : 'text-slate-500'
+                phase === 'payment_pending'
+                  ? 'text-blue-600 font-bold'
+                  : phase === 'success'
+                  ? 'text-emerald-700 font-bold'
+                  : 'text-slate-500'
               }`}
             >
-              Thanh toán
+              {phase === 'payment_pending' ? 'Chờ thanh toán' : 'Thanh toán'}
             </span>
           </div>
 
-          <div className="w-16 sm:w-28 h-0.5 bg-slate-200 mx-3" />
+          <div
+            className={`w-16 sm:w-28 h-0.5 mx-3 transition-colors ${
+              phase === 'success' ? 'bg-emerald-500' : 'bg-slate-200'
+            }`}
+          />
 
           {/* Step 3 */}
           <div className="flex items-center gap-2">
             <div
               className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${
                 phase === 'success'
-                  ? 'bg-emerald-500 text-white'
+                  ? 'bg-emerald-500 text-white ring-4 ring-emerald-100'
                   : 'bg-slate-200 text-slate-600'
               }`}
             >
-              3
+              {phase === 'success' ? <Check className="w-3.5 h-3.5" /> : '3'}
             </div>
             <span
               className={`text-xs font-semibold ${
@@ -846,6 +948,239 @@ export default function CartAndCheckout({
 
             </div>
 
+          </div>
+        ) : phase === 'payment_pending' && sepayData ? (
+          /* STEP 2: CHỜ THANH TOÁN (VIETQR) */
+          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            {/* Status Header Banner */}
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="space-y-1.5 text-center sm:text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold">
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                  Đang chờ thanh toán chuyển khoản
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white">
+                  Đơn hàng #{sepayData.order_code || sepayData.order_id}
+                </h2>
+                <p className="text-xs sm:text-sm text-amber-100 font-medium">
+                  Vui lòng quét mã VietQR bằng App Ngân hàng bất kỳ để hoàn tất thanh toán.
+                </p>
+              </div>
+
+              <div className="bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-center shrink-0 min-w-[170px]">
+                <span className="text-[11px] font-semibold text-amber-100 uppercase tracking-wider block">
+                  Tổng tiền thanh toán
+                </span>
+                <span className="text-2xl font-black text-white">
+                  {formatVND(sepayData.amount)}
+                </span>
+              </div>
+            </div>
+
+            {/* 2 Columns: VietQR Details (Left) + Course Summary (Right) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column: VietQR & Banking Details (7 cols) */}
+              <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-md">
+                      VietQR
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        Chuyển khoản VietQR tự động
+                      </h3>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Hỗ trợ tất cả ứng dụng ngân hàng & ví điện tử
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR Code & Transfer Information */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-center">
+                  {/* QR Image */}
+                  <div className="flex flex-col items-center justify-center p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                    <img
+                      src={sepayData.qr_url}
+                      alt="VietQR Code"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        const fallbackUrl = `https://img.vietqr.io/image/MB-${sepayData.account_number}-compact2.png?amount=${sepayData.amount}&addInfo=${encodeURIComponent(sepayData.transfer_content)}&accountName=${encodeURIComponent(sepayData.account_name)}`;
+                        if (target.src !== fallbackUrl) {
+                          target.src = fallbackUrl;
+                        }
+                      }}
+                      className="w-48 aspect-square object-contain rounded-xl bg-white p-2 shadow-sm border border-slate-200"
+                    />
+                    <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      Tự động kích hoạt sau 1-3 giây
+                    </span>
+                  </div>
+
+                  {/* Transfer Details with Quick Copy */}
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[11px]">Ngân hàng:</span>
+                      <span className="font-extrabold text-slate-900">{sepayData.bank_name}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[11px]">Số tài khoản:</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-black text-blue-600 text-sm tracking-wide">{sepayData.account_number}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(sepayData.account_number);
+                            toast.success('Đã sao chép số tài khoản!');
+                          }}
+                          className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold hover:bg-blue-100 transition-colors cursor-pointer"
+                        >
+                          Sao chép
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[11px]">Chủ tài khoản:</span>
+                      <span className="font-bold text-slate-900">{sepayData.account_name}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[11px]">Số tiền thanh toán:</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-black text-emerald-600 text-sm">{formatVND(sepayData.amount)}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(String(Math.round(sepayData.amount)));
+                            toast.success('Đã sao chép số tiền!');
+                          }}
+                          className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          Sao chép
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 font-semibold block text-[11px]">Nội dung chuyển khoản (bắt buộc):</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-black text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-200 text-xs tracking-wider font-mono">
+                          {sepayData.transfer_content}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(sepayData.transfer_content);
+                            toast.success('Đã sao chép nội dung chuyển khoản!');
+                          }}
+                          className="px-2 py-1 rounded bg-rose-100 text-rose-700 text-[10px] font-bold hover:bg-rose-200 transition-colors cursor-pointer"
+                        >
+                          Sao chép
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Indicator & Action Buttons */}
+                <div className="space-y-3 border-t border-slate-100 pt-4">
+                  <div className="flex items-center justify-center gap-2.5 p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600" />
+                    </span>
+                    <span>Hệ thống đang tự động lắng nghe biến động số dư từ ngân hàng...</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={handleManualCheckPayment}
+                      disabled={isCheckingSepay}
+                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isCheckingSepay ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Đang kiểm tra giao dịch...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="w-4 h-4" />
+                          <span>Tôi đã chuyển khoản, kiểm tra ngay</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCancelPendingOrder}
+                      className="w-full py-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <span>Hủy đơn / Chọn phương thức khác</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Order Summary Sidebar (5 cols) */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+                  <h3 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-3">
+                    Khóa học đang đăng ký
+                  </h3>
+                  <div className="flex gap-3 items-center">
+                    <img
+                      src={resolveImageUrl(checkoutCourse.image)}
+                      alt={checkoutCourse.title}
+                      className="w-20 h-14 object-cover rounded-xl border border-slate-100 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug">
+                        {checkoutCourse.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {checkoutCourse.instructorName || 'Giảng viên MindHub'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 border-t border-slate-100 pt-3 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Giá khóa học:</span>
+                      <span className="font-semibold">{formatVND(originalPrice)}</span>
+                    </div>
+                    {initialDiscountAmount > 0 && (
+                      <div className="flex justify-between text-emerald-600">
+                        <span>Giảm giá:</span>
+                        <span className="font-semibold">-{formatVND(initialDiscountAmount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-slate-900 font-bold text-sm border-t border-slate-100 pt-2">
+                      <span>Tổng thanh toán:</span>
+                      <span className="text-blue-600 font-black">{formatVND(finalTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Support Note */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs text-slate-600 space-y-1">
+                  <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    Cần hỗ trợ thanh toán?
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Nếu bạn đã chuyển tiền nhưng quá 1 phút chưa thấy kích hoạt khóa học, vui lòng chụp màn hình biên lai và liên hệ Hotline: <strong className="text-slate-800">1900 8888</strong>.
+                  </p>
+                </div>
+              </div>
+
+            </div>
           </div>
         ) : (
           /* FORM PHASE: 2-COLUMN MAIN LAYOUT */
@@ -1337,147 +1672,7 @@ export default function CartAndCheckout({
           </div>
         )}
 
-      {/* SEPAY VIETQR PAYMENT MODAL */}
-      {showSepayModal && sepayData && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 relative border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-md">
-                  VietQR
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Thanh toán VietQR qua SePay</h3>
-                  <p className="text-xs text-slate-500 font-medium">Quét mã bằng App Ngân hàng bất kỳ để tự động duyệt</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSepayModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center transition-colors cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* QR Code & Banking Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-center">
-              {/* VietQR Code Image */}
-              <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-                <img
-                  src={sepayData.qr_url}
-                  alt="SePay VietQR Code"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    const fallbackUrl = `https://img.vietqr.io/image/MB-${sepayData.account_number}-compact2.png?amount=${sepayData.amount}&addInfo=${encodeURIComponent(sepayData.transfer_content)}&accountName=${encodeURIComponent(sepayData.account_name)}`;
-                    if (target.src !== fallbackUrl) {
-                      target.src = fallbackUrl;
-                    }
-                  }}
-                  className="w-44 aspect-square object-contain rounded-xl bg-white p-2 shadow-sm border border-slate-200"
-                />
-                <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  Kích hoạt tự động sau 1-3 giây
-                </span>
-              </div>
-
-              {/* Transfer Details */}
-              <div className="space-y-2.5 text-xs">
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px]">Ngân hàng:</span>
-                  <span className="font-extrabold text-slate-900">{sepayData.bank_name}</span>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px]">Số tài khoản:</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-black text-blue-600 text-sm tracking-wide">{sepayData.account_number}</span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(sepayData.account_number);
-                        toast.success('Đã sao chép số tài khoản!');
-                      }}
-                      className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold hover:bg-blue-100 transition-colors cursor-pointer"
-                    >
-                      Sao chép
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px]">Chủ tài khoản:</span>
-                  <span className="font-bold text-slate-900">{sepayData.account_name}</span>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px]">Nội dung chuyển khoản:</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="font-black text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-200 text-xs tracking-wider">
-                      {sepayData.transfer_content}
-                    </span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(sepayData.transfer_content);
-                        toast.success('Đã sao chép nội dung chuyển khoản!');
-                      }}
-                      className="px-2 py-1 rounded bg-rose-100 text-rose-700 text-[10px] font-bold hover:bg-rose-200 transition-colors cursor-pointer"
-                    >
-                      Sao chép
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px]">Số tiền thanh toán:</span>
-                  <span className="font-black text-slate-900 text-sm">{formatVND(sepayData.amount)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons & Real-time Polling Status */}
-            <div className="space-y-3 border-t border-slate-100 pt-3">
-              {/* Listening to bank statement animation */}
-              <div className="flex items-center justify-center gap-2 p-3 bg-emerald-50/80 border border-emerald-200/80 rounded-xl text-emerald-800 text-xs font-semibold">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
-                </span>
-                <span>Đang tự động lắng nghe biến động số dư từ ngân hàng...</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleManualCheckPayment}
-                disabled={isCheckingSepay}
-                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isCheckingSepay ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Đang kiểm tra biến động số dư...</span>
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="w-4 h-4" />
-                    <span>Tôi đã chuyển khoản, kiểm tra ngay</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowSepayModal(false)}
-                className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
-              >
-                Đóng / Để thanh toán sau
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
       </div>
     </div>

@@ -38,7 +38,6 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const hasSeekedInitialRef = useRef(false);
   const hasTriggered90Ref = useRef(false);
   const lastSavedSecondRef = useRef(0);
-  const hasTriggered90Ref = useRef(false);
 
   const numericLessonId = activeLesson ? parseInt(String(activeLesson.id).replace(/\D/g, ''), 10) : NaN;
 
