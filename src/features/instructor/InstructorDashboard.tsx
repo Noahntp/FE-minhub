@@ -3980,7 +3980,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           let totalDurationSeconds = 0;
           let freePreviewsCount = 0;
           let totalAssetsCount = 0;
-          let hasInvalidVideoLesson = false;
           
           chapters.forEach(ch => {
             if (ch.lessons) {
@@ -3989,16 +3988,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 totalDurationSeconds += l.video_duration_seconds || 0;
                 if (l.is_preview) freePreviewsCount++;
                 if (l.resources) totalAssetsCount += l.resources.length;
-                const lType = l.lesson_type || l.type || 'video';
-                if (lType === 'video' && (!l.video_url || !l.video_url.trim() || l.video_url.startsWith('blob:'))) {
-                  hasInvalidVideoLesson = true;
-                }
-                if (lType === 'text' && (!l.content || !l.content.trim())) {
-                  hasInvalidVideoLesson = true;
-                }
-                if (lType === 'document' && (!l.video_url || !l.video_url.trim()) && (!l.resources || l.resources.length === 0) && (!l.content || !l.content.trim())) {
-                  hasInvalidVideoLesson = true;
-                }
               });
             }
           });
@@ -4018,7 +4007,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           if (!hasIntroVideo) missingItems.push('Video trailer giới thiệu (Intro Video)');
           if (totalChapters === 0) missingItems.push('Ít nhất 1 chương học');
           if (totalLessons === 0) missingItems.push('Ít nhất 1 bài học');
-          if (hasInvalidVideoLesson) missingItems.push('Bài học chưa hoàn thiện nội dung (video/tài liệu/bài viết)');
           if (totalLessons > 0 && !hasFreePreview) missingItems.push('Ít nhất 1 bài học được bật Học thử miễn phí (Preview)');
 
           // Completed Items list
@@ -4032,7 +4020,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           if (hasThumbnail) completedItems.push('Ảnh bìa đại diện (Thumbnail)');
           if (hasIntroVideo) completedItems.push('Video giới thiệu (Intro Video)');
           if (totalChapters > 0) completedItems.push('Chương học');
-          if (totalLessons > 0 && !hasInvalidVideoLesson) completedItems.push('Bài học hoàn chỉnh');
+          if (totalLessons > 0) completedItems.push('Bài học');
           if (hasFreePreview) completedItems.push('Học thử miễn phí (Preview)');
 
           const totalChecks = Math.max(1, missingItems.length + completedItems.length);

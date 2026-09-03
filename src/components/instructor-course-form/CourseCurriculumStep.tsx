@@ -349,6 +349,8 @@ export default function CourseCurriculumStep({
     if (addingLessonSectionId !== null) {
       const targetSecId = addingLessonSectionId;
       const numericSecId = Number(targetSecId);
+      const targetSec = chapters.find(ch => String(ch.id) === String(targetSecId));
+      const nextSortOrder = (targetSec?.lessons?.length || 0) + 1;
       let createdLessonId: string | number = 'les-' + Date.now();
 
       if (courseId && !isNaN(numericSecId) && numericSecId > 0 && sharedApi.getConfig().mode === 'api') {
@@ -358,7 +360,7 @@ export default function CourseCurriculumStep({
             course_section_id: numericSecId,
             title: payload.title,
             lesson_type: payload.lesson_type || 'video',
-            sort_order: payload.sort_order || 1,
+            sort_order: payload.sort_order || nextSortOrder,
             is_preview: payload.is_preview || false,
             video_url: payload.video_url || undefined,
             video_duration_seconds: payload.video_duration_seconds || 0,
