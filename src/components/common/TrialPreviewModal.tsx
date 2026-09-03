@@ -58,7 +58,7 @@ export function TrialPreviewModal() {
   useEffect(() => {
     if (currentLesson?.videoUrl) {
       const rawUrl = currentLesson.videoUrl.trim();
-      if (rawUrl.includes('mediadelivery.net') || rawUrl.includes('seed-bunny') || rawUrl.includes('gtv-videos-bucket')) {
+      if (rawUrl.includes('gtv-videos-bucket') || rawUrl.includes('seed-bunny')) {
         setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
       } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         setVideoSrc(rawUrl);
@@ -71,6 +71,14 @@ export function TrialPreviewModal() {
       setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
     }
   }, [currentLesson?.videoUrl]);
+
+  const isIframe = Boolean(
+    videoSrc && (
+      videoSrc.includes('iframe.mediadelivery.net') ||
+      videoSrc.includes('youtube.com') ||
+      videoSrc.includes('/embed/')
+    )
+  );
 
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
@@ -158,9 +166,18 @@ export function TrialPreviewModal() {
           {/* Left / Top: Video Player & Details */}
           <div className="lg:col-span-8 p-5 space-y-4 bg-slate-950 flex flex-col">
 
-            {/* HTML5 Video Player */}
+            {/* HTML5 Video Player or Bunny CDN Stream Iframe */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl flex items-center justify-center">
-              {videoSrc ? (
+              {isIframe ? (
+                <iframe
+                  key={videoSrc}
+                  src={videoSrc}
+                  loading="lazy"
+                  className="w-full h-full border-0"
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                  allowFullScreen
+                />
+              ) : videoSrc ? (
                 <video
                   ref={videoRef}
                   key={videoSrc}
