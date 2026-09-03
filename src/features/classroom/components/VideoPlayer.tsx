@@ -51,8 +51,11 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
 
   const numericLessonId = activeLesson ? parseInt(String(activeLesson.id).replace(/\D/g, ''), 10) : NaN;
 
+  const lessonDuration = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds;
+
   const { trackTimeUpdate, trackPauseOrSeek } = useVideoProgressTracker({
     lessonId: activeLesson ? String(activeLesson.id) : undefined,
+    durationSeconds: typeof lessonDuration === 'number' && lessonDuration > 0 ? lessonDuration : undefined,
   });
 
   // Helper to save video progress to both API and localStorage
@@ -71,7 +74,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
       }
       const duration = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds;
       const boundedSec = (typeof duration === 'number' && duration > 0) ? Math.min(sec, duration) : sec;
-      classroomApi.saveVideoPlaybackRatio(String(numericLessonId), boundedSec).catch(() => {});
+      classroomApi.saveVideoPlaybackRatio(String(numericLessonId), boundedSec, duration).catch(() => {});
     }
   };
 
@@ -230,7 +233,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate,
         const nextSec = Math.min(currentSaved + 4, lessonDurationSec);
         
         localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(nextSec));
-        classroomApi.saveVideoPlaybackRatio(String(numericLessonId), nextSec).catch(() => {});
+        classroomApi.saveVideoPlaybackRatio(String(numericLessonId), nextSec, lessonDurationSec).catch(() => {});
         trackTimeUpdate(nextSec);
         if (onTimeUpdate) onTimeUpdate(nextSec);
 

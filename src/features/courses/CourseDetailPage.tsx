@@ -445,9 +445,9 @@ export default function CourseDetailPage() {
     }
 
     const isTrial = isCourseTrialEligible(course);
-    const isFree = isPermanentFreeCourse(course);
+    const isFree = isPermanentFreeCourse(course) || Number(course.price ?? 0) === 0 || Number(course.salePrice ?? (course as any).sale_price ?? 0) === 0;
 
-    if (isTrial) {
+    if (isTrial || isFree) {
       const numericTargetId = Number(course.id) || (course as any).realId;
       if (numericTargetId && !isNaN(numericTargetId)) {
         try {
@@ -455,25 +455,26 @@ export default function CourseDetailPage() {
             method: 'POST',
             body: JSON.stringify({ course_id: numericTargetId }),
           });
-          if (!enrolledCourseIds.includes(course.id)) {
-            setEnrolledCourseIds([...enrolledCourseIds, course.id]);
-          }
+          const nextIds = [String(course.id), String(course.slug || '')].filter(Boolean);
+          setEnrolledCourseIds((prev) => {
+            const missing = nextIds.filter((id) => !prev.includes(id));
+            return missing.length > 0 ? [...prev, ...missing] : prev;
+          });
           toast.success(
-            "Đăng ký học thử khóa học thành công! Bắt đầu học ngay.",
+            "Đăng ký tham gia khóa học thành công! Bắt đầu học ngay.",
           );
-          navigate(`/learn/${course.id}`);
+          navigate(`/learn/${course.slug || course.id}`);
           return;
         } catch (err: any) {
-          toast.error(err?.message || 'Không thể đăng ký học thử lúc này.');
+          if (err?.message?.includes('sở hữu') || err?.message?.includes('đã từng học') || err?.status === 409) {
+            navigate(`/learn/${course.slug || course.id}`);
+            return;
+          }
+          toast.error(err?.message || 'Không thể ghi danh khóa học lúc này.');
           return;
         }
       }
-      navigate(`/learn/${course.id}`);
-      return;
-    }
-
-    if (isFree) {
-      toast.info('Khóa học miễn phí đang được đồng bộ cổng ghi danh tự động trên hệ thống. Bạn có thể xem trước các bài học mở bên dưới.');
+      navigate(`/learn/${course.slug || course.id}`);
       return;
     }
 

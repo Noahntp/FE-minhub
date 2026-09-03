@@ -200,9 +200,9 @@ export function HomeCourseCard({
     }
 
     const isTrial = isCourseTrialEligible(course);
-    const isFree = isPermanentFreeCourse(course);
+    const isFree = isPermanentFreeCourse(course) || Number(course.price ?? 0) === 0;
 
-    if (isTrial) {
+    if (isTrial || isFree) {
       const numericTargetId = Number(course.realId || (course as any).course_id || course.id);
       if (numericTargetId && !isNaN(numericTargetId)) {
         apiFetch<any>('/orders', {
@@ -210,21 +210,19 @@ export function HomeCourseCard({
           body: JSON.stringify({ course_id: numericTargetId }),
         })
           .then(() => {
-            toast.success(`Đăng ký học thử khóa học thành công: ${course.title}`);
+            toast.success(`Đăng ký tham gia khóa học thành công: ${course.title}`);
             navigate(`/learn/${courseTarget}`);
           })
           .catch((err: any) => {
-            toast.error(err?.message || 'Không thể đăng ký học thử lúc này.');
+            if (err?.message?.includes('sở hữu') || err?.message?.includes('đã từng học') || err?.status === 409) {
+              navigate(`/learn/${courseTarget}`);
+              return;
+            }
+            toast.error(err?.message || 'Không thể đăng ký lúc này.');
           });
       } else {
         navigate(`/learn/${courseTarget}`);
       }
-      return;
-    }
-
-    if (isFree) {
-      toast.info('Khóa học miễn phí đang được đồng bộ cổng ghi danh tự động. Đang chuyển tới trang chi tiết...');
-      navigate(`/courses/${courseTarget}`);
       return;
     }
 
