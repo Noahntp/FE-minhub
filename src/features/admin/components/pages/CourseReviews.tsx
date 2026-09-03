@@ -339,7 +339,7 @@ export default function CourseReviews() {
     setPerPage(urlPerPage);
 
     try {
-      getCategories({ per_page: 200 }).then((res: any) => {
+      getCategories({ per_page: 100 }).then((res: any) => {
         if (res && Array.isArray(res.data)) {
           setCategories(res.data.map((c: any) => ({ id: c.id, name: c.name })));
         } else if (res && res.data && Array.isArray(res.data.items)) {
@@ -403,8 +403,10 @@ export default function CourseReviews() {
         }
       }
 
-      const res = await getCourseReviews(apiParams);
-      const allRes = await getCourseReviews({ per_page: 9999 });
+      const [res, allRes] = await Promise.all([
+        getCourseReviews(apiParams),
+        getCourseReviews({ per_page: 100 }),
+      ]);
 
       if (res && res.success && res.data && allRes && allRes.success) {
         setItems(res.data.items || []);
@@ -771,8 +773,10 @@ export default function CourseReviews() {
     setActiveCourseId(null);
     setDrawerData(null);
 
-    if (searchParams.has("open_course_id")) {
-      navigate(-1);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextParams.has("open_course_id")) {
+      nextParams.delete("open_course_id");
+      setSearchParams(nextParams, { replace: true });
     }
   };
 
@@ -1790,6 +1794,23 @@ export default function CourseReviews() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-semibold text-ink font-sans">Chi tiết kiểm duyệt khóa học</h2>
+                    {drawerData?.course?.status && (
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-[4px] border ${
+                          drawerData.course.status === 'published' || drawerData.course.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : drawerData.course.status === 'rejected'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}
+                      >
+                        ● {drawerData.course.status === 'published' || drawerData.course.status === 'approved'
+                          ? 'Đã duyệt'
+                          : drawerData.course.status === 'rejected'
+                          ? 'Đã từ chối'
+                          : 'Đang chờ duyệt'}
+                      </span>
+                    )}
                     {drawerData?.checklist && (
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-[4px] border ${
@@ -1898,10 +1919,21 @@ export default function CourseReviews() {
                           </p>
                           <div className="flex items-center gap-2 py-0.5">
                             <span className="text-xs text-mid-gray font-medium">Danh mục:</span>
-                            {drawerData.course?.category?.name ? (
-                              <span className="text-xs font-bold text-ink bg-slate-100 px-2.5 py-0.5 rounded-full">
-                                {drawerData.course.category.name}
-                              </span>
+                            {(drawerData.course?.category?.name || drawerData.course?.category_name || drawerData.course?.categories?.[0]?.name) ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-ink bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                  {drawerData.course?.category?.name || drawerData.course?.category_name || drawerData.course?.categories?.[0]?.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setAiCategoryModalCourse(drawerData.course)}
+                                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                                  title="Đổi danh mục bằng AI"
+                                >
+                                  <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
+                                  <span>Đổi</span>
+                                </button>
+                              </div>
                             ) : (
                               <button
                                 type="button"
@@ -2348,6 +2380,8 @@ export default function CourseReviews() {
           course={aiCategoryModalCourse}
           onCategoryAssigned={(newCatName, catId) => {
             showToast(`Đã gán danh mục "${newCatName}" cho khóa học thành công!`, 'success');
+            setItems((prev: any[]) => prev.map(c => c.id === aiCategoryModalCourse.id ? { ...c, category_name: newCatName, category: { id: catId, name: newCatName }, category_unassigned: false } : c));
+            setAllItems((prev: any[]) => prev.map(c => c.id === aiCategoryModalCourse.id ? { ...c, category_name: newCatName, category: { id: catId, name: newCatName }, category_unassigned: false } : c));
             loadData();
             if (drawerData && drawerData.course && drawerData.course.id === aiCategoryModalCourse.id) {
               setDrawerData((prev: any) => ({
