@@ -27,9 +27,17 @@ interface VideoPlayerProps {
   onEnded?: () => void;
   onProgress90?: () => void;
   onTimeUpdate?: (currentTimeSeconds: number) => void;
+  onDurationChange?: (durationSeconds: number, durationFormatted: string) => void;
 }
 
-export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate }: VideoPlayerProps) {
+const formatSecToMinSec = (sec: number) => {
+  if (isNaN(sec) || sec <= 0) return '00:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+};
+
+export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate, onDurationChange }: VideoPlayerProps) {
   const [videoSrc, setVideoSrc] = useState<string>('');
   const [isLoadingVideo, setIsLoadingVideo] = useState<boolean>(false);
   const [initialStartTime, setInitialStartTime] = useState<number>(0);
@@ -53,7 +61,9 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
 
     if (!isNaN(numericLessonId) && numericLessonId > 0) {
       localStorage.setItem(`mindhub_video_time_${numericLessonId}`, String(sec));
-      classroomApi.saveVideoPlaybackRatio(String(numericLessonId), sec).catch(() => {});
+      const duration = (activeLesson as any)?.video_duration_seconds || (activeLesson as any)?.duration_seconds;
+      const boundedSec = (typeof duration === 'number' && duration > 0) ? Math.min(sec, duration) : sec;
+      classroomApi.saveVideoPlaybackRatio(String(numericLessonId), boundedSec).catch(() => {});
     }
   };
 
@@ -74,6 +84,12 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
         const evtName = data.event || data.type || data.name;
         const curTime = typeof data.currentTime === 'number' ? data.currentTime : (typeof data.data?.currentTime === 'number' ? data.data.currentTime : (typeof data.current_time === 'number' ? data.current_time : undefined));
         const dur = typeof data.duration === 'number' ? data.duration : (typeof data.data?.duration === 'number' ? data.data.duration : undefined);
+
+        if (typeof dur === 'number' && dur > 0) {
+          if (onDurationChange) {
+            onDurationChange(dur, formatSecToMinSec(dur));
+          }
+        }
 
         if (typeof curTime === 'number' && curTime >= 0) {
           trackTimeUpdate(curTime);
@@ -108,7 +124,7 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [numericLessonId, onTimeUpdate, onProgress90, onEnded, trackTimeUpdate, trackPauseOrSeek]);
+  }, [numericLessonId, onTimeUpdate, onProgress90, onEnded, onDurationChange, trackTimeUpdate, trackPauseOrSeek]);
 
   // 2. Fallback Active Heartbeat Tracker for Iframe Playback
   useEffect(() => {
@@ -313,6 +329,9 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
 
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
+    if (video.duration > 0 && onDurationChange) {
+      onDurationChange(video.duration, formatSecToMinSec(video.duration));
+    }
     if (!hasSeekedInitialRef.current && initialStartTime > 0 && initialStartTime < video.duration) {
       video.currentTime = initialStartTime;
       hasSeekedInitialRef.current = true;

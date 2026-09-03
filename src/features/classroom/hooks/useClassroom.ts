@@ -35,6 +35,7 @@ export interface UseClassroomResult {
   selectLesson: (lessonId: string) => void;
   markAsCompleted: (lessonId: string) => void;
   toggleLessonCompletion: (lessonId: string, forceStatus?: boolean) => void;
+  updateLessonDuration: (lessonId: string, durationFormatted: string) => void;
   setTab: (tab: TabType) => void;
 }
 
@@ -567,6 +568,33 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     toggleLessonCompletion(lessonId, true);
   };
 
+  const updateLessonDuration = useCallback((lessonId: string, durationFormatted: string) => {
+    if (!lessonId || !durationFormatted) return;
+    setActiveLesson(prev => {
+      if (prev && String(prev.id) === String(lessonId)) {
+        return { ...prev, duration: durationFormatted };
+      }
+      return prev;
+    });
+
+    setCourse(prev => {
+      if (!prev || !prev.chapters) return prev;
+      let hasChange = false;
+      const updatedChapters = prev.chapters.map(ch => ({
+        ...ch,
+        lessons: ch.lessons.map(l => {
+          if (String(l.id) === String(lessonId) && l.duration !== durationFormatted) {
+            hasChange = true;
+            return { ...l, duration: durationFormatted };
+          }
+          return l;
+        })
+      }));
+      if (!hasChange) return prev;
+      return { ...prev, chapters: updatedChapters };
+    });
+  }, []);
+
   return {
     course,
     activeLesson,
@@ -579,6 +607,7 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
     selectLesson,
     markAsCompleted,
     toggleLessonCompletion,
+    updateLessonDuration,
     setTab
   };
 }

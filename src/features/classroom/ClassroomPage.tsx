@@ -40,6 +40,7 @@ export default function ClassroomPage() {
     selectLesson,
     markAsCompleted,
     toggleLessonCompletion,
+    updateLessonDuration,
     setTab,
   } = useClassroom(courseId);
 
@@ -258,6 +259,11 @@ export default function ClassroomPage() {
               onEnded={handleVideoEnded}
               onProgress90={handleProgress90}
               onTimeUpdate={setCurrentVideoTime}
+              onDurationChange={(_sec, formatted) => {
+                if (activeLesson) {
+                  updateLessonDuration(String(activeLesson.id), formatted);
+                }
+              }}
             />
 
             {/* Classroom Tabs (Overview, QA, Notes, Resources) */}

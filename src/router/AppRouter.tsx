@@ -8,7 +8,7 @@ import { useApp } from '@/app/AppContext';
 
 // Route Modules
 import { PublicAuthRoutes, PublicMainRoutes } from './routes/PublicRoutes';
-import { LearnerClassroomRoutes, LearnerMainRoutes } from './routes/LearnerRoutes';
+import { LearnerRoutes } from './routes/LearnerRoutes';
 import { InstructorMainRoutes, InstructorWorkspaceRoutes } from './routes/InstructorRoutes';
 import { AdminRoutes } from './routes/AdminRoutes';
 import { CartRoutes } from './routes/CartRoutes';
@@ -73,13 +73,10 @@ function AppRoutes() {
           {/* Main Layout Routes (Navbar + Footer) */}
           <Route element={<MainLayout />}>
             {PublicMainRoutes()}
-            {LearnerMainRoutes({ currentUser, setCurrentUser, navigateTo, handleLogout })}
+            {LearnerRoutes({ currentUser, setCurrentUser, navigateTo, handleLogout })}
             {InstructorMainRoutes({ currentUser })}
             {CartRoutes()}
           </Route>
-
-          {/* Learning Classroom Routes (Dedicated Focus Mode, No Duplicate Header/Footer) */}
-          {LearnerClassroomRoutes()}
 
           {/* Instructor Workspace (No Main Navbar/Footer) */}
           {InstructorWorkspaceRoutes()}
