@@ -46,6 +46,105 @@ import {
 } from "@/features/home/components/HomeCourseCard";
 import { toast } from "sonner";
 import { apiFetch } from "@/shared/lib/api-client";
+import { semanticSearchApi } from "@/services/api";
+import { resolveMediaUrl as resolveMediaUrlAlt } from "@/shared/lib/media-url";
+
+// Mock chapters matching design
+const mockChapters = [
+  {
+    id: 'ch1',
+    title: 'Chương 1: Giới thiệu về Python',
+    lessonCount: 6,
+    duration: '45 phút',
+    lessons: [
+      { id: '1', title: '1.1 Python là gì?', duration: '05:30', isPreview: true },
+      { id: '2', title: '1.2 Cài đặt Python và môi trường lập trình', duration: '08:15', isPreview: true },
+      { id: '3', title: '1.3 Chạy chương trình đầu tiên', duration: '04:45', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch2',
+    title: 'Chương 2: Biến và kiểu dữ liệu',
+    lessonCount: 8,
+    duration: '1 giờ 10 phút',
+    lessons: [
+      { id: '4', title: '2.1 Khai báo biến và đặt tên chuẩn', duration: '09:20', isPreview: false },
+      { id: '5', title: '2.2 Kiểu dữ liệu số (Integer, Float)', duration: '12:10', isPreview: false },
+      { id: '6', title: '2.3 Chuỗi ký tự (String) & Xử lý chuỗi', duration: '15:40', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch3',
+    title: 'Chương 3: Toán tử và biểu thức',
+    lessonCount: 7,
+    duration: '1 giờ',
+    lessons: [
+      { id: '7', title: '3.1 Toán tử số học & gán giá trị', duration: '10:00', isPreview: false },
+      { id: '8', title: '3.2 Toán tử so sánh & logic', duration: '14:30', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch4',
+    title: 'Chương 4: Cấu trúc điều kiện',
+    lessonCount: 6,
+    duration: '50 phút',
+    lessons: [
+      { id: '9', title: '4.1 Câu lệnh If - Else cơ bản', duration: '11:15', isPreview: false },
+      { id: '10', title: '4.2 Điều kiện lồng nhau & Elif', duration: '13:50', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch5',
+    title: 'Chương 5: Vòng lặp',
+    lessonCount: 7,
+    duration: '1 giờ 5 phút',
+    lessons: [
+      { id: '11', title: '5.1 Vòng lặp For và hàm range()', duration: '12:00', isPreview: false },
+      { id: '12', title: '5.2 Vòng lặp While & xử lý điều kiện dừng', duration: '14:20', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch6',
+    title: 'Chương 6: Hàm (Function) và Module trong Python',
+    lessonCount: 8,
+    duration: '1 giờ 15 phút',
+    lessons: [
+      { id: '13', title: '6.1 Định nghĩa hàm def & Tham số truyền vào', duration: '11:30', isPreview: false },
+      { id: '14', title: '6.2 Giá trị trả về Return & Scope biến', duration: '14:10', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch7',
+    title: 'Chương 7: Cấu trúc dữ liệu nâng cao (List, Dictionary, Set)',
+    lessonCount: 10,
+    duration: '1 giờ 30 phút',
+    lessons: [
+      { id: '15', title: '7.1 Thao tác với List & Tuple', duration: '15:20', isPreview: false },
+      { id: '16', title: '7.2 Dictionary & Cấu trúc JSON trong Python', duration: '18:40', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch8',
+    title: 'Chương 8: Đọc & Ghi File (File I/O) và Xử lý ngoại lệ (Exception)',
+    lessonCount: 7,
+    duration: '55 phút',
+    lessons: [
+      { id: '17', title: '8.1 Thao tác đọc ghi tệp tin TXT / CSV', duration: '13:10', isPreview: false },
+      { id: '18', title: '8.2 Khối Try - Except xử lý lỗi ứng dụng', duration: '12:45', isPreview: false },
+    ],
+  },
+  {
+    id: 'ch9',
+    title: 'Chương 9: Lập trình hướng đối tượng (OOP) & Dự án Thực tế',
+    lessonCount: 9,
+    duration: '1 giờ 40 phút',
+    lessons: [
+      { id: '19', title: '9.1 Class, Object & Kế thừa trong OOP', duration: '20:15', isPreview: false },
+      { id: '20', title: '9.2 Xây dựng phần mềm Quản lý Học viên Mini Project', duration: '25:30', isPreview: false },
+    ],
+  },
+];
+>>>>>>> feature/semantic-search-bunny-cdn
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -159,45 +258,46 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (!course?.id) return;
 
-    // Fetch related courses
-    apiFetch<any>(`/courses/${course.id}/related`)
+    // Fetch AI Semantic Similar Courses & related
+    semanticSearchApi.getSimilarCourses(course.id, 4)
       .then((res) => {
-        const list = Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res)
-            ? res
-            : [];
+        const list = Array.isArray(res) ? res : (Array.isArray((res as any)?.data) ? (res as any).data : []);
         if (list.length > 0) {
           const mapped: HomeCourseItem[] = list.map((item: any) => ({
             id: String(item.slug || item.id || item.course_id),
-            title: item.title || "Khóa học liên quan",
-            level: item.level || "Mọi trình độ",
-            thumbnail:
-              item.thumbnail_url ||
-              item.image ||
-              "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80",
+            title: item.title || 'Khóa học liên quan',
+            level: item.course_level || item.level || 'Mọi trình độ',
+            thumbnail: item.thumbnail_url ? resolveMediaUrl(item.thumbnail_url) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
             rating: Number(item.average_rating || item.rating || 4.8),
             reviewCount: Number(item.reviews_count || item.reviewCount || 120),
-            enrolledCount: Number(
-              item.enrollments_count || item.enrolledCount || 1000,
-            ),
-            instructorName:
-              item.instructor?.full_name ||
-              item.instructor_name ||
-              "Giảng viên MindHub",
-            instructorAvatar:
-              item.instructor?.avatar_url ||
-              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80",
-            price:
-              item.sale_price !== null && item.sale_price !== undefined
-                ? Number(item.sale_price)
-                : Number(item.price || 399000),
-            originalPrice:
-              item.sale_price !== null && item.sale_price !== undefined
-                ? Number(item.price)
-                : undefined,
+            enrolledCount: Number(item.enrollments_count || item.enrolledCount || 1000),
+            instructorName: item.instructor?.full_name || item.instructor_name || 'Giảng viên MindHub',
+            instructorAvatar: item.instructor?.avatar_url ? resolveMediaUrl(item.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+            price: item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : Number(item.price || 399000),
+            originalPrice: item.sale_price !== null && item.sale_price !== undefined ? Number(item.price) : undefined,
+            discountBadge: item.match_percentage ? `${item.match_percentage}% Match AI` : undefined,
           }));
           setApiRelatedCourses(mapped);
+        } else {
+          // Fallback to general related endpoint
+          apiFetch<any>(`/courses/${course.id}/related`).then((relRes) => {
+            const relList = Array.isArray(relRes?.data) ? relRes.data : (Array.isArray(relRes) ? relRes : []);
+            if (relList.length > 0) {
+              setApiRelatedCourses(relList.map((item: any) => ({
+                id: String(item.slug || item.id),
+                title: item.title || 'Khóa học liên quan',
+                level: item.level || 'Mọi trình độ',
+                thumbnail: item.thumbnail_url ? resolveMediaUrl(item.thumbnail_url) : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80',
+                rating: Number(item.average_rating || 4.8),
+                reviewCount: Number(item.reviews_count || 120),
+                enrolledCount: Number(item.enrollments_count || 1000),
+                instructorName: item.instructor?.full_name || 'Giảng viên MindHub',
+                instructorAvatar: item.instructor?.avatar_url ? resolveMediaUrl(item.instructor.avatar_url) : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+                price: item.sale_price !== null && item.sale_price !== undefined ? Number(item.sale_price) : Number(item.price || 399000),
+                originalPrice: item.sale_price !== null && item.sale_price !== undefined ? Number(item.price) : undefined,
+              })));
+            }
+          }).catch(() => {});
         }
       })
       .catch(() => {});

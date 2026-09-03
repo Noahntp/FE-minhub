@@ -3336,6 +3336,51 @@ export const ApiService = {
   }
 };
 
+export const semanticSearchApi = {
+  async search(query: string, options: { category_id?: string | number; min_score?: number; limit?: number } = {}) {
+    const params = new URLSearchParams();
+    params.set('q', query);
+    if (options.category_id) params.set('category_id', String(options.category_id));
+    if (options.min_score !== undefined) params.set('min_score', String(options.min_score));
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    return apiFetch<any>(`/search/semantic?${params.toString()}`);
+  },
+
+  async getTrendingSearches(limit = 8): Promise<string[]> {
+    try {
+      const res = await apiFetch<any>(`/search/trending?limit=${limit}`);
+      return Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      return [
+        'Lập trình React 19',
+        'Fullstack Web Developer',
+        'Laravel Backend REST API',
+        'Python AI & Machine Learning',
+        'Thiết kế UI/UX Figma',
+      ];
+    }
+  },
+
+  async trackSearchClick(data: { course_id: number | string; query?: string; position?: number; search_log_id?: number }) {
+    try {
+      return await apiFetch<any>('/search/click', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    } catch {
+      return null;
+    }
+  },
+
+  async getSimilarCourses(courseId: number | string, limit = 4): Promise<any[]> {
+    try {
+      const res = await apiFetch<any>(`/courses/${courseId}/semantic-recommendations?limit=${limit}`);
+      return Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      return [];
+    }
+  },
+};
 
 // Declared helper interface for sections array
 interface Section {

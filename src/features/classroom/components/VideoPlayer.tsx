@@ -6,6 +6,19 @@ import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/lib/media-url';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { useVideoProgressTracker } from '../hooks/useVideoProgressTracker';
+import bunnyVideosData from '@/shared/data/bunny_videos.json';
+
+const BUNNY_TITLE_MAP: Record<string, string> = {};
+Object.values(bunnyVideosData).forEach((vids: any) => {
+  if (Array.isArray(vids)) {
+    vids.forEach((v: any) => {
+      if (v.title && v.video_id) {
+        const normKey = v.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+        BUNNY_TITLE_MAP[normKey] = `https://iframe.mediadelivery.net/embed/724015/${v.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
+      }
+    });
+  }
+});
 
 interface VideoPlayerProps {
   activeLesson: Lesson | null;
@@ -20,7 +33,6 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
   const [initialStartTime, setInitialStartTime] = useState<number>(0);
   const [watermark, setWatermark] = useState<{ text: string; opacity?: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const hasTriggered90Ref = useRef(false);
   const hasSeekedInitialRef = useRef(false);
   const lastSavedSecondRef = useRef(0);
 
@@ -53,6 +65,21 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
       return;
     }
 
+    // 1. Direct check with BUNNY_TITLE_MAP
+    const normTitle = (activeLesson.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const directBunnyEmbed = BUNNY_TITLE_MAP[normTitle];
+    if (directBunnyEmbed) {
+      setVideoSrc(directBunnyEmbed);
+      return;
+    }
+
+    // 2. If activeLesson already has a direct valid videoUrl
+    if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb') && !activeLesson.videoUrl.includes('BigBuckBunny')) {
+      setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
+      return;
+    }
+
+    // Fetch secure video stream from Backend API for real lesson
     if (!isNaN(numericLessonId) && numericLessonId > 0) {
       // Load initial time from local storage backup
       const localSaved = localStorage.getItem(`mindhub_video_time_${numericLessonId}`);
@@ -271,7 +298,6 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
           <p className="text-xs font-semibold text-slate-400">Bài học chưa có video hoặc video đang được cập nhật.</p>
         </div>
       )}
-
       {/* Watermark Overlay for Content Protection (Fixed Top-Left, Submerged High-Contrast Text) */}
       {watermark?.text && (
         <div 
