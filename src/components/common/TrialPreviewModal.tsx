@@ -7,8 +7,8 @@ import { resolveMediaUrl } from '@/shared/lib/media-url';
 import Hls from 'hls.js';
 
 const FALLBACK_SAMPLE_VIDEOS = [
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+  'https://media.w3.org/2010/05/sintel/trailer.mp4',
+  'https://vjs.zencdn.net/v/oceans.mp4',
   'https://www.w3schools.com/html/mov_bbb.mp4'
 ];
 
@@ -33,7 +33,7 @@ export function TrialPreviewModal() {
             id: String(item.id),
             title: item.title || 'Bài học xem thử',
             duration: item.duration || '12:30',
-            videoUrl: item.stream_url || item.video_url || item.videoUrl || (import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : ''),
+            videoUrl: item.stream_url || item.video_url || item.videoUrl || FALLBACK_SAMPLE_VIDEOS[0],
             courseTitle: item.course_title || item.courseTitle || 'Khóa học chất lượng cao',
             courseId: String(item.course_id || item.courseId || 'react-nextjs-master'),
             instructorName: item.instructor_name || item.instructorName || 'Giảng viên MindHub',
@@ -57,14 +57,15 @@ export function TrialPreviewModal() {
   useEffect(() => {
     if (currentLesson?.videoUrl) {
       const rawUrl = currentLesson.videoUrl.trim();
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      if (rawUrl.includes('mediadelivery.net') || rawUrl.includes('seed-bunny')) {
+        setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
+      } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         setVideoSrc(rawUrl);
       } else {
-        // Prevent 404 on dev server for unhosted relative video paths like /demo/videos/...
-        setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : rawUrl);
+        setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
       }
     } else {
-      setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : '');
+      setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
     }
   }, [currentLesson?.videoUrl]);
 

@@ -354,9 +354,11 @@ export function useClassroom(courseId: string | undefined): UseClassroomResult {
                     type: 'video',
                     duration: parsedDuration,
                     isPreview: Boolean(l.is_preview),
-                    videoUrl: l.video_id
+                    videoUrl: (l.video_id && !String(l.video_id).includes('seed-bunny'))
                       ? `https://iframe.mediadelivery.net/embed/724015/${l.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`
-                      : (l.video_url || l.stream_url || ''),
+                      : (l.video_url && !l.video_url.includes('seed-bunny'))
+                        ? l.video_url
+                        : 'https://iframe.mediadelivery.net/embed/724015/3a3c6a0d-c691-4a82-afaa-d8824fc73ce1?autoplay=true&loop=false&muted=false&preload=true&responsive=true',
                     content: l.description || l.summary,
                   };
                 })

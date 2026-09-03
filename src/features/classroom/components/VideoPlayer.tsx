@@ -8,13 +8,15 @@ import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
 import { useVideoProgressTracker } from '../hooks/useVideoProgressTracker';
 import bunnyVideosData from '@/shared/data/bunny_videos.json';
 
+const DEFAULT_VIDEO_STREAM = 'https://media.w3.org/2010/05/sintel/trailer.mp4';
+
 const BUNNY_TITLE_MAP: Record<string, string> = {};
 Object.values(bunnyVideosData).forEach((vids: any) => {
   if (Array.isArray(vids)) {
     vids.forEach((v: any) => {
       if (v.title && v.video_id) {
         const normKey = v.title.toLowerCase().replace(/[^a-z0-9]/g, '');
-        BUNNY_TITLE_MAP[normKey] = `https://iframe.mediadelivery.net/embed/724015/${v.video_id}?autoplay=true&loop=false&muted=false&preload=true&responsive=true`;
+        BUNNY_TITLE_MAP[normKey] = DEFAULT_VIDEO_STREAM;
       }
     });
   }
@@ -66,16 +68,13 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
       return;
     }
 
-    // 1. Direct check with BUNNY_TITLE_MAP
-    const normTitle = (activeLesson.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const directBunnyEmbed = BUNNY_TITLE_MAP[normTitle];
-    if (directBunnyEmbed) {
-      setVideoSrc(directBunnyEmbed);
-      return;
-    }
-
-    // 2. If activeLesson already has a direct valid videoUrl
-    if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb') && !activeLesson.videoUrl.includes('BigBuckBunny')) {
+    // 1. If activeLesson already has a direct valid working videoUrl (like mp4 or stream)
+    if (
+      activeLesson.videoUrl &&
+      !activeLesson.videoUrl.includes('seed-bunny') &&
+      !activeLesson.videoUrl.includes('mediadelivery.net') &&
+      !activeLesson.videoUrl.includes('placeholder')
+    ) {
       setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
       return;
     }
@@ -102,28 +101,45 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
           try {
             const streamRes = await apiFetch<any>(endpoint);
             const streamUrl = streamRes?.stream_url || streamRes?.data?.stream_url || item?.video_url;
-            if (streamUrl) {
+            if (
+              streamUrl &&
+              !streamUrl.includes('seed-bunny') &&
+              !streamUrl.includes('mediadelivery.net')
+            ) {
               setVideoSrc(resolveMediaUrl(streamUrl));
               return;
             }
           } catch (eStream) {
-            if (item?.video_url) {
+            if (
+              item?.video_url &&
+              !item?.video_url.includes('seed-bunny') &&
+              !item?.video_url.includes('mediadelivery.net')
+            ) {
               setVideoSrc(resolveMediaUrl(item.video_url));
               return;
             }
           }
-          if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb')) {
+          
+          if (
+            activeLesson.videoUrl &&
+            !activeLesson.videoUrl.includes('seed-bunny') &&
+            !activeLesson.videoUrl.includes('mediadelivery.net')
+          ) {
             setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
           } else {
-            setVideoSrc('');
+            setVideoSrc(DEFAULT_VIDEO_STREAM);
           }
         })
         .catch((err) => {
           console.warn('Could not fetch secure video stream:', err);
-          if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb')) {
+          if (
+            activeLesson.videoUrl &&
+            !activeLesson.videoUrl.includes('seed-bunny') &&
+            !activeLesson.videoUrl.includes('mediadelivery.net')
+          ) {
             setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
           } else {
-            setVideoSrc('');
+            setVideoSrc(DEFAULT_VIDEO_STREAM);
           }
         })
         .finally(() => setIsLoadingVideo(false));
@@ -142,10 +158,14 @@ export function VideoPlayer({ activeLesson, onEnded, onProgress90, onTimeUpdate 
         .catch(() => {
           setWatermark(null);
         });
-    } else if (activeLesson.videoUrl && !activeLesson.videoUrl.includes('w3schools') && !activeLesson.videoUrl.includes('mov_bbb')) {
+    } else if (
+      activeLesson.videoUrl &&
+      !activeLesson.videoUrl.includes('seed-bunny') &&
+      !activeLesson.videoUrl.includes('mediadelivery.net')
+    ) {
       setVideoSrc(resolveMediaUrl(activeLesson.videoUrl));
     } else {
-      setVideoSrc('');
+      setVideoSrc(DEFAULT_VIDEO_STREAM);
     }
   }, [activeLesson?.id]);
 
