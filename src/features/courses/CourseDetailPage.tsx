@@ -144,7 +144,6 @@ const mockChapters = [
     ],
   },
 ];
->>>>>>> feature/semantic-search-bunny-cdn
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
