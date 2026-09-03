@@ -259,8 +259,21 @@ export default function CourseCurriculumStep({
     setDropdownOpenSectionId(null);
   };
 
-  const handleSaveSection = (payload: any) => {
+  const handleSaveSection = async (payload: any) => {
     if (editingSectionId !== null) {
+      const numericSecId = Number(editingSectionId);
+      if (!isNaN(numericSecId) && numericSecId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          await instructorApi.updateSection(numericSecId, {
+            title: payload.title,
+            sort_order: payload.sort_order,
+          });
+        } catch (err: any) {
+          console.error("Failed to update section:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể cập nhật chương trên máy chủ.');
+          return;
+        }
+      }
       setChapters(prev => prev.map(ch => {
         if (String(ch.id) !== String(editingSectionId)) return ch;
         return {
@@ -272,25 +285,51 @@ export default function CourseCurriculumStep({
           lessons: ch.lessons || []
         };
       }));
-      alert('Đã cập nhật chương thành công!');
     } else {
+      let createdId: string | number = 'sec-' + Date.now();
+      if (courseId && sharedApi.getConfig().mode === 'api') {
+        try {
+          const res = await instructorApi.createSection({
+            course_id: Number(courseId),
+            title: payload.title,
+            sort_order: payload.sort_order || (chapters.length + 1),
+          });
+          const resData = res?.data || res;
+          if (resData?.id) {
+            createdId = resData.id;
+          }
+        } catch (err: any) {
+          console.error("Failed to create section:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể tạo chương học trên máy chủ.');
+          return;
+        }
+      }
       const newSec = {
-        id: 'sec-' + Date.now(),
+        id: createdId,
         title: payload.title,
         description: payload.description,
-        sort_order: payload.sort_order,
+        sort_order: payload.sort_order || (chapters.length + 1),
         status: payload.status,
         lessons: []
       };
       setChapters(prev => [...prev, newSec]);
-      setActiveSectionId(newSec.id);
-      alert('Đã thêm chương thành công!');
+      setActiveSectionId(createdId);
     }
     setIsSectionModalOpen(false);
   };
 
-  const handleRemoveSection = (sectionId: string | number) => {
+  const handleRemoveSection = async (sectionId: string | number) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa chương này và toàn bộ bài học bên trong?')) {
+      const numericSecId = Number(sectionId);
+      if (!isNaN(numericSecId) && numericSecId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          await instructorApi.deleteSection(numericSecId);
+        } catch (err: any) {
+          console.error("Failed to delete section:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể xóa chương trên máy chủ.');
+          return;
+        }
+      }
       setChapters(prev => prev.filter(ch => String(ch.id) !== String(sectionId)));
       if (String(activeSectionId) === String(sectionId)) {
         setActiveSectionId(null);
@@ -306,14 +345,41 @@ export default function CourseCurriculumStep({
     setIsLessonModalOpen(true);
   };
 
-  const handleSaveLesson = (payload: any) => {
+  const handleSaveLesson = async (payload: any) => {
     if (addingLessonSectionId !== null) {
-      const newLessonId = 'les-' + Date.now();
+      const targetSecId = addingLessonSectionId;
+      const numericSecId = Number(targetSecId);
+      let createdLessonId: string | number = 'les-' + Date.now();
+
+      if (courseId && !isNaN(numericSecId) && numericSecId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          const res = await instructorApi.createLesson({
+            course_id: Number(courseId),
+            course_section_id: numericSecId,
+            title: payload.title,
+            lesson_type: payload.lesson_type || 'video',
+            sort_order: payload.sort_order || 1,
+            is_preview: payload.is_preview || false,
+            video_url: payload.video_url || undefined,
+            video_duration_seconds: payload.video_duration_seconds || 0,
+            content: payload.content || undefined,
+          });
+          const resData = res?.data || res;
+          if (resData?.id) {
+            createdLessonId = resData.id;
+          }
+        } catch (err: any) {
+          console.error("Failed to create lesson:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể tạo bài học trên máy chủ.');
+          return;
+        }
+      }
+
       const newLesson = {
-        id: newLessonId,
+        id: createdLessonId,
         title: payload.title,
         slug: payload.slug || generateSlug(payload.title),
-        lesson_type: payload.lesson_type,
+        lesson_type: payload.lesson_type || 'video',
         content: payload.content || '',
         video_url: payload.video_url || '',
         video_duration_seconds: payload.video_duration_seconds || 0,
@@ -324,22 +390,30 @@ export default function CourseCurriculumStep({
       };
 
       setChapters(prev => prev.map(ch => {
-        if (String(ch.id) !== String(addingLessonSectionId)) return ch;
+        if (String(ch.id) !== String(targetSecId)) return ch;
         return { ...ch, lessons: [...(ch.lessons || []), newLesson] };
       }));
 
-      const targetSecId = addingLessonSectionId;
       setAddingLessonSectionId(null);
       setIsLessonModalOpen(false);
 
       setActiveSectionId(targetSecId);
-      setActiveLessonId(newLessonId);
-      alert('Đã thêm bài học thành công!');
+      setActiveLessonId(createdLessonId);
     }
   };
 
-  const handleRemoveLesson = (sectionId: string | number, lessonId: string | number) => {
+  const handleRemoveLesson = async (sectionId: string | number, lessonId: string | number) => {
     if (window.confirm('Bạn có chắc muốn xóa bài học này?')) {
+      const numericLesId = Number(lessonId);
+      if (!isNaN(numericLesId) && numericLesId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          await instructorApi.deleteLesson(numericLesId);
+        } catch (err: any) {
+          console.error("Failed to delete lesson:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể xóa bài học trên máy chủ.');
+          return;
+        }
+      }
       setChapters(prev => prev.map(ch => {
         if (String(ch.id) !== String(sectionId)) return ch;
         return { ...ch, lessons: (ch.lessons || []).filter((les: any) => String(les.id) !== String(lessonId)) };

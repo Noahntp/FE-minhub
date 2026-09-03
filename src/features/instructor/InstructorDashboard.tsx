@@ -4986,6 +4986,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                     missingItems={missingItems}
                     completedItems={completedItems}
                     onSubmitForReview={handleFinishCoursePublish}
+                    courseId={editingCourseId || undefined}
                   />
                 )}
 
