@@ -1,9 +1,11 @@
-name: Frontend CD
+name: CD - Deploy Frontend to Server
+run-name: 🚀 CD Frontend (${{ github.ref_name }}) - ${{ github.event.head_commit.message || 'Deploy' }}
 
 on:
   push:
     branches:
       - develop
+      - main
   workflow_dispatch:
 
 jobs:
@@ -28,22 +30,27 @@ jobs:
 
       - name: Build Project
         env:
-          VITE_API_BASE_URL: https://mindhub.io.vn/BE/public/index.php/api
+          VITE_API_BASE_URL: https://mindhub.io.vn/BE/public/api
           VITE_API_MODE: api
           VITE_MEDIA_BASE_URL: https://mindhub.io.vn/mindhub-media
         run: npm run build
 
-      - name: Deploy to Server via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        continue-on-error: true
-        with:
-          server: ${{ secrets.FTP_SERVER || secrets.SSH_HOST || '62.171.157.22' }}
-          username: ${{ secrets.FTP_USERNAME || secrets.SSH_USER || 'xam' }}
-          password: ${{ secrets.FTP_PASSWORD || secrets.SSH_PASSWORD || 'EJmW5bmmihX6XBNK' }}
-          server-dir: /
-          local-dir: ./dist/
-          dangerous-clean-slate: false
-
-      - name: Sync SPA Route Index Files
+      - name: Deploy to Server via SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_KEY }}
         run: |
-          echo "Deployment to production server finished successfully!"
+          echo "📦 Đóng gói mã nguồn build dist..."
+          tar -czf /tmp/fe_dist.tar.gz -C dist .
+
+          echo "🔑 Cấu hình SSH Key..."
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          echo "🚀 Tải gói mã nguồn lên máy chủ..."
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -P 22 /tmp/fe_dist.tar.gz root@62.171.157.22:/tmp/fe_dist.tar.gz
+
+          echo "📂 Giải nén và cập nhật /www/wwwroot/default..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 22 root@62.171.157.22 "tar -xzf /tmp/fe_dist.tar.gz -C /www/wwwroot/default && rm -f /tmp/fe_dist.tar.gz && chown -R www:www /www/wwwroot/default/assets /www/wwwroot/default/index.html"
+
+          echo "✅ Frontend triển khai thành công 100%!"

@@ -31,8 +31,23 @@ export interface ApiConfig {
  */
 export function getNormalizedBaseUrl(rawUrl?: string): string {
   let url = (rawUrl || '').trim();
+  const isBrowser = typeof window !== 'undefined';
+  const isProductionDomain = isBrowser && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+  // If running on production domain (e.g. mindhub.io.vn) and an old localhost URL was saved in localStorage, discard it
+  if (isProductionDomain && (url.includes('localhost') || url.includes('127.0.0.1'))) {
+    try {
+      localStorage.removeItem('mindhub_api_base_url');
+    } catch (_) {}
+    url = '';
+  }
+
   if (!url) {
-    url = 'http://localhost:8000/api';
+    if (isProductionDomain) {
+      url = `${window.location.origin}/BE/public/api`;
+    } else {
+      url = 'http://localhost:8000/api';
+    }
   }
   url = url.replace(/\/+$/, '');
   if (!url.endsWith('/api')) {
@@ -42,10 +57,10 @@ export function getNormalizedBaseUrl(rawUrl?: string): string {
 }
 
 // Read configuration from local storage or environment variables
-const initialMode = (import.meta as any).env?.VITE_API_MODE === 'api' ? 'api' : 'mock';
-const initialBaseUrl = getNormalizedBaseUrl(
-  localStorage.getItem('mindhub_api_base_url') || (import.meta as any).env?.VITE_API_BASE_URL
-);
+const initialMode = ((import.meta as any).env?.VITE_API_MODE || 'api') === 'mock' ? 'mock' : 'api';
+const rawStoredUrl = typeof window !== 'undefined' ? localStorage.getItem('mindhub_api_base_url') : null;
+const rawEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+const initialBaseUrl = getNormalizedBaseUrl(rawStoredUrl || rawEnvUrl);
 
 const config: ApiConfig = {
   mode: initialMode,
