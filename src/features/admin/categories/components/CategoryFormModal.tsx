@@ -52,6 +52,7 @@ export default function CategoryFormModal({
       // Reset validation & form
       setValidationErrors({});
       setSlugManuallyEdited(false);
+      setIsSubmitting(false);
       
       if (mode === "edit" && categoryId !== null) {
         setIsLoading(true);

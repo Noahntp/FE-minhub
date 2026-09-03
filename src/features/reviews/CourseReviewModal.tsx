@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Star, X, Send, Sparkles, AlertCircle, CheckCircle2, MessageSquare } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { apiFetch } from '@/shared/lib/api-client';
+import { useApp } from '@/app/AppContext';
 import { toast } from 'sonner';
 
 interface CourseReviewModalProps {
@@ -32,6 +33,7 @@ export function CourseReviewModal({
   initialComment = '',
   onSuccess,
 }: CourseReviewModalProps) {
+  const { isLoggedIn } = useApp();
   const [rating, setRating] = useState<number>(initialRating);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [comment, setComment] = useState<string>(initialComment);
@@ -41,6 +43,7 @@ export function CourseReviewModal({
     if (isOpen) {
       setRating(initialRating || 5);
       setComment(initialComment || '');
+      setIsSubmitting(false);
     }
   }, [isOpen, initialRating, initialComment]);
 
@@ -49,6 +52,10 @@ export function CourseReviewModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLoggedIn) {
+      toast.error('Vui lòng đăng nhập để gửi đánh giá.');
+      return;
+    }
     if (!comment.trim()) {
       toast.error('Vui lòng nhập nội dung nhận xét của bạn');
       return;

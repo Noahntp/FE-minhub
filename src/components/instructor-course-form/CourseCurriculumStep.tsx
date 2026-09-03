@@ -9,7 +9,7 @@ import SectionModal from './SectionModal';
 import LessonModal from './LessonModal';
 import AssetModal from './AssetModal';
 import LessonPreviewModal from './LessonPreviewModal';
-import { InstructorVideoUploader } from './InstructorUploaders';
+import { InstructorVideoUploader, InstructorAssetUploader } from './InstructorUploaders';
 import { sharedApi } from '@/features/shared/api';
 import { instructorApi } from '@/features/instructor/api';
 import { 
@@ -26,6 +26,7 @@ interface CourseCurriculumStepProps {
   missingItems: string[];
   completedItems: string[];
   onSubmitForReview: () => void;
+  courseId?: string | number;
 }
 
 export function resolveLessonVideoUrl(rawUrl: string | null | undefined): string | null {
@@ -55,7 +56,8 @@ export default function CourseCurriculumStep({
   checklistProgress,
   missingItems,
   completedItems,
-  onSubmitForReview
+  onSubmitForReview,
+  courseId
 }: CourseCurriculumStepProps) {
   
   // Selection states (ID-based to prevent index mismatches & state corruption)
@@ -79,6 +81,89 @@ export default function CourseCurriculumStep({
   
   // Collapse/Expand state for chapters
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  // Drag & Drop states
+  const [draggedSectionIdx, setDraggedSectionIdx] = useState<number | null>(null);
+  const [dragOverSectionIdx, setDragOverSectionIdx] = useState<number | null>(null);
+  const [draggedLessonInfo, setDraggedLessonInfo] = useState<{ sectionId: string | number; lessonIdx: number } | null>(null);
+  const [dragOverLessonInfo, setDragOverLessonInfo] = useState<{ sectionId: string | number; lessonIdx: number } | null>(null);
+
+  // Section Drag & Drop handlers
+  const handleSectionDragStart = (e: React.DragEvent, sIdx: number) => {
+    e.dataTransfer.setData('text/plain', `section:${sIdx}`);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedSectionIdx(sIdx);
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent, sIdx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverSectionIdx !== sIdx) {
+      setDragOverSectionIdx(sIdx);
+    }
+  };
+
+  const handleSectionDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (draggedSectionIdx === null || draggedSectionIdx === targetIdx) {
+      setDraggedSectionIdx(null);
+      setDragOverSectionIdx(null);
+      return;
+    }
+    setChapters(prev => {
+      const updated = [...prev];
+      const [moved] = updated.splice(draggedSectionIdx, 1);
+      updated.splice(targetIdx, 0, moved);
+      return updated.map((ch, idx) => ({ ...ch, sort_order: idx + 1 }));
+    });
+    setDraggedSectionIdx(null);
+    setDragOverSectionIdx(null);
+  };
+
+  // Lesson Drag & Drop handlers
+  const handleLessonDragStart = (e: React.DragEvent, sectionId: string | number, lIdx: number) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/plain', `lesson:${sectionId}:${lIdx}`);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedLessonInfo({ sectionId, lessonIdx: lIdx });
+  };
+
+  const handleLessonDragOver = (e: React.DragEvent, sectionId: string | number, lIdx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverLessonInfo?.sectionId !== sectionId || dragOverLessonInfo?.lessonIdx !== lIdx) {
+      setDragOverLessonInfo({ sectionId, lessonIdx: lIdx });
+    }
+  };
+
+  const handleLessonDrop = (e: React.DragEvent, targetSectionId: string | number, targetLIdx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!draggedLessonInfo) {
+      setDraggedLessonInfo(null);
+      setDragOverLessonInfo(null);
+      return;
+    }
+
+    setChapters(prev => {
+      const next = prev.map(ch => ({ ...ch, lessons: [...(ch.lessons || [])] }));
+      const sourceSec = next.find(s => String(s.id) === String(draggedLessonInfo.sectionId));
+      const targetSec = next.find(s => String(s.id) === String(targetSectionId));
+      if (!sourceSec || !targetSec) return prev;
+
+      const [moved] = sourceSec.lessons.splice(draggedLessonInfo.lessonIdx, 1);
+      targetSec.lessons.splice(targetLIdx, 0, moved);
+
+      return next.map(ch => ({
+        ...ch,
+        lessons: (ch.lessons || []).map((les: any, idx: number) => ({ ...les, sort_order: idx + 1 }))
+      }));
+    });
+
+    setDraggedLessonInfo(null);
+    setDragOverLessonInfo(null);
+  };
 
   // Derive active section & lesson using robust ID comparison
   const selectedSection = chapters.find(ch => String(ch.id) === String(activeSectionId)) || null;
@@ -174,8 +259,21 @@ export default function CourseCurriculumStep({
     setDropdownOpenSectionId(null);
   };
 
-  const handleSaveSection = (payload: any) => {
+  const handleSaveSection = async (payload: any) => {
     if (editingSectionId !== null) {
+      const numericSecId = Number(editingSectionId);
+      if (!isNaN(numericSecId) && numericSecId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          await instructorApi.updateSection(numericSecId, {
+            title: payload.title,
+            sort_order: payload.sort_order,
+          });
+        } catch (err: any) {
+          console.error("Failed to update section:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể cập nhật chương trên máy chủ.');
+          return;
+        }
+      }
       setChapters(prev => prev.map(ch => {
         if (String(ch.id) !== String(editingSectionId)) return ch;
         return {
@@ -187,25 +285,51 @@ export default function CourseCurriculumStep({
           lessons: ch.lessons || []
         };
       }));
-      alert('Đã cập nhật chương thành công!');
     } else {
+      let createdId: string | number = 'sec-' + Date.now();
+      if (courseId && sharedApi.getConfig().mode === 'api') {
+        try {
+          const res = await instructorApi.createSection({
+            course_id: Number(courseId),
+            title: payload.title,
+            sort_order: payload.sort_order || (chapters.length + 1),
+          });
+          const resData = res?.data || res;
+          if (resData?.id) {
+            createdId = resData.id;
+          }
+        } catch (err: any) {
+          console.error("Failed to create section:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể tạo chương học trên máy chủ.');
+          return;
+        }
+      }
       const newSec = {
-        id: 'sec-' + Date.now(),
+        id: createdId,
         title: payload.title,
         description: payload.description,
-        sort_order: payload.sort_order,
+        sort_order: payload.sort_order || (chapters.length + 1),
         status: payload.status,
         lessons: []
       };
       setChapters(prev => [...prev, newSec]);
-      setActiveSectionId(newSec.id);
-      alert('Đã thêm chương thành công!');
+      setActiveSectionId(createdId);
     }
     setIsSectionModalOpen(false);
   };
 
-  const handleRemoveSection = (sectionId: string | number) => {
+  const handleRemoveSection = async (sectionId: string | number) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa chương này và toàn bộ bài học bên trong?')) {
+      const numericSecId = Number(sectionId);
+      if (!isNaN(numericSecId) && numericSecId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          await instructorApi.deleteSection(numericSecId);
+        } catch (err: any) {
+          console.error("Failed to delete section:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể xóa chương trên máy chủ.');
+          return;
+        }
+      }
       setChapters(prev => prev.filter(ch => String(ch.id) !== String(sectionId)));
       if (String(activeSectionId) === String(sectionId)) {
         setActiveSectionId(null);
@@ -221,14 +345,43 @@ export default function CourseCurriculumStep({
     setIsLessonModalOpen(true);
   };
 
-  const handleSaveLesson = (payload: any) => {
+  const handleSaveLesson = async (payload: any) => {
     if (addingLessonSectionId !== null) {
-      const newLessonId = 'les-' + Date.now();
+      const targetSecId = addingLessonSectionId;
+      const numericSecId = Number(targetSecId);
+      const targetSec = chapters.find(ch => String(ch.id) === String(targetSecId));
+      const nextSortOrder = (targetSec?.lessons?.length || 0) + 1;
+      let createdLessonId: string | number = 'les-' + Date.now();
+
+      if (courseId && !isNaN(numericSecId) && numericSecId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          const res = await instructorApi.createLesson({
+            course_id: Number(courseId),
+            course_section_id: numericSecId,
+            title: payload.title,
+            lesson_type: payload.lesson_type || 'video',
+            sort_order: payload.sort_order || nextSortOrder,
+            is_preview: payload.is_preview || false,
+            video_url: payload.video_url || undefined,
+            video_duration_seconds: payload.video_duration_seconds || 0,
+            content: payload.content || undefined,
+          });
+          const resData = res?.data || res;
+          if (resData?.id) {
+            createdLessonId = resData.id;
+          }
+        } catch (err: any) {
+          console.error("Failed to create lesson:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể tạo bài học trên máy chủ.');
+          return;
+        }
+      }
+
       const newLesson = {
-        id: newLessonId,
+        id: createdLessonId,
         title: payload.title,
         slug: payload.slug || generateSlug(payload.title),
-        lesson_type: payload.lesson_type,
+        lesson_type: payload.lesson_type || 'video',
         content: payload.content || '',
         video_url: payload.video_url || '',
         video_duration_seconds: payload.video_duration_seconds || 0,
@@ -239,22 +392,30 @@ export default function CourseCurriculumStep({
       };
 
       setChapters(prev => prev.map(ch => {
-        if (String(ch.id) !== String(addingLessonSectionId)) return ch;
+        if (String(ch.id) !== String(targetSecId)) return ch;
         return { ...ch, lessons: [...(ch.lessons || []), newLesson] };
       }));
 
-      const targetSecId = addingLessonSectionId;
       setAddingLessonSectionId(null);
       setIsLessonModalOpen(false);
 
       setActiveSectionId(targetSecId);
-      setActiveLessonId(newLessonId);
-      alert('Đã thêm bài học thành công!');
+      setActiveLessonId(createdLessonId);
     }
   };
 
-  const handleRemoveLesson = (sectionId: string | number, lessonId: string | number) => {
+  const handleRemoveLesson = async (sectionId: string | number, lessonId: string | number) => {
     if (window.confirm('Bạn có chắc muốn xóa bài học này?')) {
+      const numericLesId = Number(lessonId);
+      if (!isNaN(numericLesId) && numericLesId > 0 && sharedApi.getConfig().mode === 'api') {
+        try {
+          await instructorApi.deleteLesson(numericLesId);
+        } catch (err: any) {
+          console.error("Failed to delete lesson:", err);
+          alert(err?.response?.data?.message || err?.message || 'Không thể xóa bài học trên máy chủ.');
+          return;
+        }
+      }
       setChapters(prev => prev.map(ch => {
         if (String(ch.id) !== String(sectionId)) return ch;
         return { ...ch, lessons: (ch.lessons || []).filter((les: any) => String(les.id) !== String(lessonId)) };
@@ -301,6 +462,10 @@ export default function CourseCurriculumStep({
                     if (String(les.id) !== String(activeLessonId)) return les;
                     return {
                       ...les,
+                      title: lessonDraft.title,
+                      content: lessonDraft.content,
+                      video_url: lessonDraft.video_url,
+                      lesson_type: lessonDraft.lesson_type,
                       video_duration_seconds: apiSec,
                       duration_seconds: apiSec,
                       is_preview: apiIsPreview
@@ -497,24 +662,44 @@ export default function CourseCurriculumStep({
             ) : (
               chapters.map((chapter, sIdx) => {
                 const isCollapsed = !!collapsedSections[String(chapter.id)];
+                const isSectionDraggedOver = dragOverSectionIdx === sIdx && draggedSectionIdx !== null && draggedSectionIdx !== sIdx;
+
                 return (
                   <div 
                     key={chapter.id || sIdx} 
-                    className="border border-slate-100/90 rounded-xl p-3 bg-slate-50/20 space-y-2 instructor-section-card relative"
+                    onDragOver={(e) => handleSectionDragOver(e, sIdx)}
+                    onDrop={(e) => handleSectionDrop(e, sIdx)}
+                    className={`border rounded-xl p-3 bg-slate-50/20 space-y-2 instructor-section-card relative transition-all ${
+                      isSectionDraggedOver 
+                        ? 'border-emerald-500 bg-emerald-50/30 scale-[1.01]' 
+                        : 'border-slate-200/80 hover:border-slate-300'
+                    }`}
                   >
                     
                     {/* Chapter Header */}
                     <div className="flex justify-between items-center group/chapter">
-                      <button 
-                        type="button"
-                        onClick={() => toggleCollapse(chapter.id)}
-                        className="flex items-center gap-1.5 text-left min-w-0 flex-1 hover:text-emerald-700 select-none cursor-pointer focus:outline-none"
-                      >
-                        {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
-                        <span className="font-extrabold text-stone-850 truncate text-[11px] select-none">
-                          Chương {sIdx + 1}: {chapter.title}
-                        </span>
-                      </button>
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        {/* Drag Handle */}
+                        <div
+                          draggable
+                          onDragStart={(e) => handleSectionDragStart(e, sIdx)}
+                          className="p-1 text-stone-300 hover:text-stone-600 cursor-grab active:cursor-grabbing rounded transition-colors"
+                          title="Kéo thả để sắp xếp lại chương"
+                        >
+                          <GripVertical className="w-3.5 h-3.5" />
+                        </div>
+
+                        <button 
+                          type="button"
+                          onClick={() => toggleCollapse(chapter.id)}
+                          className="flex items-center gap-1.5 text-left min-w-0 flex-1 hover:text-emerald-700 select-none cursor-pointer focus:outline-none"
+                        >
+                          {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-stone-400" /> : <ChevronDown className="w-3.5 h-3.5 text-stone-400" />}
+                          <span className="font-extrabold text-stone-850 truncate text-[11px] select-none">
+                            Chương {sIdx + 1}: {chapter.title}
+                          </span>
+                        </button>
+                      </div>
                       
                       <div className="flex items-center gap-1.5 ml-2 shrink-0">
                         <button
@@ -569,21 +754,37 @@ export default function CourseCurriculumStep({
                           const isSelected = String(chapter.id) === String(activeSectionId) && String(lesson.id) === String(activeLessonId);
                           const lessonSec = Number(lesson.video_duration_seconds ?? lesson.duration_seconds ?? lesson.duration ?? 0);
                           const durationStr = formatDuration(lessonSec);
+                          const isLessonDraggedOver = dragOverLessonInfo?.sectionId === chapter.id && dragOverLessonInfo?.lessonIdx === lIdx;
                           
                           return (
                             <div 
                               key={lesson.id || lIdx}
+                              onDragOver={(e) => handleLessonDragOver(e, chapter.id, lIdx)}
+                              onDrop={(e) => handleLessonDrop(e, chapter.id, lIdx)}
                               onClick={() => {
                                 setActiveSectionId(chapter.id);
                                 setActiveLessonId(lesson.id);
                               }}
                               className={`flex justify-between items-center px-2 py-2 rounded-lg cursor-pointer transition-all instructor-lesson-row group/lesson relative border ${
-                                isSelected 
-                                  ? 'bg-[#e6f4ea] border-emerald-500/50 text-emerald-800 shadow-3xs font-bold' 
-                                  : 'hover:bg-slate-50/70 border-transparent text-stone-650'
+                                isLessonDraggedOver
+                                  ? 'border-emerald-500 bg-emerald-50/50 scale-[1.01]'
+                                  : isSelected 
+                                    ? 'bg-[#e6f4ea] border-emerald-500/50 text-emerald-800 shadow-3xs font-bold' 
+                                    : 'hover:bg-slate-50/70 border-transparent text-stone-650'
                               }`}
                             >
-                              <span className="flex items-center gap-1.5 truncate flex-1 min-w-0 pr-1.5">
+                              <div className="flex items-center gap-1 truncate flex-1 min-w-0 pr-1.5">
+                                {/* Lesson Drag Handle */}
+                                <div
+                                  draggable
+                                  onDragStart={(e) => handleLessonDragStart(e, chapter.id, lIdx)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-0.5 text-stone-300 hover:text-stone-600 cursor-grab active:cursor-grabbing rounded transition-colors shrink-0"
+                                  title="Kéo thả sắp xếp bài học"
+                                >
+                                  <GripVertical className="w-3 h-3" />
+                                </div>
+
                                 {lesson.lesson_type === 'video' ? (
                                   <Video className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                                 ) : (
@@ -592,7 +793,7 @@ export default function CourseCurriculumStep({
                                 <span className="truncate text-[10.5px]">
                                   {sIdx + 1}.{lIdx + 1} {lesson.title}
                                 </span>
-                              </span>
+                              </div>
                               
                               <div className="flex items-center gap-2 shrink-0 ml-1">
                                 {Boolean(lesson.is_preview) && (
@@ -714,7 +915,21 @@ export default function CourseCurriculumStep({
                   </div>
                 </div>
 
-                {/* 2. Đường dẫn bài học (slug) */}
+                {/* 2. Loại bài học */}
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-stone-600">Loại bài học</label>
+                  <select 
+                    value={lessonDraft.lesson_type || 'video'} 
+                    onChange={(e) => handleUpdateDraftField('lesson_type', e.target.value)}
+                    className="w-full text-[10.5px] font-semibold text-stone-700 border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="video">Video bài giảng</option>
+                    <option value="document">Tài liệu học tập (Doc/PDF/Slide)</option>
+                    <option value="text">Bài đọc lý thuyết (Text)</option>
+                  </select>
+                </div>
+
+                {/* 3. Đường dẫn bài học (slug) */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold text-stone-600">Đường dẫn bài học (slug)</label>
                   <input 
@@ -729,25 +944,27 @@ export default function CourseCurriculumStep({
                   />
                 </div>
 
-                {/* 3. Mô tả bài học */}
+                {/* 4. Mô tả / Nội dung bài học */}
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold text-stone-600">Mô tả bài học</label>
+                  <label className="block text-[10px] font-bold text-stone-600">
+                    {lessonDraft.lesson_type === 'text' ? 'Nội dung bài viết (Markdown/HTML) *' : 'Mô tả bài học'}
+                  </label>
                   <div className="relative">
                     <textarea 
-                      rows={4}
-                      maxLength={500}
+                      rows={lessonDraft.lesson_type === 'text' ? 7 : 4}
+                      maxLength={lessonDraft.lesson_type === 'text' ? 5000 : 500}
                       value={lessonDraft.content}
                       onChange={(e) => handleUpdateDraftField('content', e.target.value)}
-                      placeholder="Mô tả tóm tắt nội dung bài học..."
+                      placeholder={lessonDraft.lesson_type === 'text' ? "Soạn thảo nội dung bài viết hướng dẫn chi tiết..." : "Mô tả tóm tắt nội dung bài học..."}
                       className="w-full text-[10.5px] font-medium text-stone-700 border border-slate-200 rounded-xl p-3 bg-slate-50/15 focus:outline-none focus:border-emerald-500"
                     />
                     <span className="absolute right-3.5 bottom-2.5 text-[8.5px] text-stone-400 font-bold">
-                      {lessonDraft.content ? lessonDraft.content.length : 0}/500
+                      {lessonDraft.content ? lessonDraft.content.length : 0}/{lessonDraft.lesson_type === 'text' ? 5000 : 500}
                     </span>
                   </div>
                 </div>
 
-                {/* 4. Tải lên video bài học (File Upload Duy Nhất) */}
+                {/* 5. Tải lên video bài học (File Upload Duy Nhất cho Video) */}
                 {lessonDraft.lesson_type === 'video' && (
                   <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200/80 space-y-2">
                     <InstructorVideoUploader 
@@ -775,7 +992,23 @@ export default function CourseCurriculumStep({
                   </div>
                 )}
 
-                {/* 5. Cài đặt thời lượng & Học thử */}
+                {/* 5. Tải lên file tài liệu (cho loại Document) */}
+                {lessonDraft.lesson_type === 'document' && (
+                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200/80 space-y-2">
+                    <label className="block text-[10px] font-bold text-stone-700">Tải lên file tài liệu học tập (PDF, DOCX, ZIP, Slide)</label>
+                    <InstructorAssetUploader 
+                      onAssetUploaded={(asset) => {
+                        handleSaveAsset(asset);
+                        if (!lessonDraft.video_url) {
+                          handleUpdateDraftField('video_url', asset.file_url);
+                        }
+                      }}
+                      label="Tải tài liệu đính kèm"
+                    />
+                  </div>
+                )}
+
+                {/* 6. Cài đặt thời lượng & Học thử */}
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                   <div>
                     <label className="block text-[10px] font-bold text-stone-600 mb-1">Thời lượng (mm:ss)</label>
@@ -949,6 +1182,7 @@ export default function CourseCurriculumStep({
         onClose={() => setIsLessonModalOpen(false)}
         onSave={handleSaveLesson}
         initialData={null}
+        courseId={courseId}
       />
 
       <AssetModal 

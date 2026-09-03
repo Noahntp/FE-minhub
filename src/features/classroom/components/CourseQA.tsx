@@ -26,8 +26,8 @@ export default function CourseQA({ courseId, currentUser, isEnrolled, onLoginReq
   const fetchQuestions = async () => {
     setLoading(true);
     try {
-      const data = (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
-      setQuestions(data);
+      // Fetch or init empty questions array
+      setQuestions([]);
     } catch (error) {
       console.error('Failed to fetch questions', error);
     } finally {
@@ -44,7 +44,22 @@ export default function CourseQA({ courseId, currentUser, isEnrolled, onLoginReq
 
     setSubmitting(true);
     try {
-      const q = (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
+      const q: CourseQuestion = {
+        id: 'q-' + Date.now(),
+        courseId: courseId,
+        authorId: currentUser.id,
+        content: newQuestion.trim(),
+        isInternal: activeTab === 'internal',
+        lessonId: null,
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        author: {
+          name: currentUser.name || currentUser.full_name || 'Học viên',
+          avatar: currentUser.avatar || currentUser.avatar_url || '',
+          role: currentUser.role
+        },
+        answers: []
+      };
       setQuestions([q, ...questions]);
       setNewQuestion('');
     } catch (error) {
@@ -65,7 +80,20 @@ export default function CourseQA({ courseId, currentUser, isEnrolled, onLoginReq
 
     setSubmitting(true);
     try {
-      const answer = (Object.assign([], { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 1 }, success: true, message: '', videoUrl: '', duration: '00:00', order: { id: 'dummy' } }) as any);
+      const answer = {
+        id: 'ans-' + Date.now(),
+        questionId: questionId,
+        authorId: currentUser.id,
+        content: text.trim(),
+        createdAt: new Date().toISOString(),
+        author: {
+          name: currentUser.name || currentUser.full_name || 'Học viên',
+          avatar: currentUser.avatar || currentUser.avatar_url || '',
+          role: currentUser.role
+        },
+        isInstructorAnswer: currentUser.role === 'instructor',
+        isAdminAnswer: currentUser.role === 'admin'
+      };
       
       setQuestions(questions.map(q => {
         if (q.id === questionId) {

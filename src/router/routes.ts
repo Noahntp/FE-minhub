@@ -79,6 +79,32 @@ export function getDashboardRouteByRole(role?: string): string {
 }
 
 /**
+ * Resolves the destination URL after a successful login according to role and requested URL
+ */
+export function resolvePostLoginRedirect(role?: string, from?: string): string {
+  const defaultDashboard = getDashboardRouteByRole(role);
+  if (!from || from === '/login' || from === '/register' || from === '/403') {
+    return defaultDashboard;
+  }
+
+  const cleanRole = (role || 'learner').toLowerCase().trim();
+
+  if (cleanRole === 'admin') {
+    return from.startsWith('/admin') ? from : defaultDashboard;
+  }
+
+  if (cleanRole === 'instructor') {
+    return from.startsWith('/instructor') ? from : defaultDashboard;
+  }
+
+  if (from.startsWith('/admin') || from.startsWith('/instructor')) {
+    return defaultDashboard;
+  }
+
+  return from;
+}
+
+/**
  * Common Role Labels mapping
  */
 export const RoleLabels: Record<string, string> = {

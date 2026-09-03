@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Filter, RotateCcw } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Filter, RotateCcw, Sparkles, Film, Play, Tv } from 'lucide-react';
 import {
   getCourseReviews,
   getCourseReview,
@@ -11,6 +12,8 @@ import { showToast } from '@/assets/js/toast';
 import { cn } from '@/shared/lib/utils';
 import FilterSelect, { SelectOption } from './FilterSelect';
 import AdminPagination from "../shared/AdminPagination";
+import { AiCategoryModal } from "../shared/AiCategoryModal";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 interface Instructor {
   id: number;
@@ -93,6 +96,9 @@ function ReviewStatusMarker({ status }: { status: string }) {
 }
 
 export default function CourseReviews() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   // Ref to results section for auto-scrolling
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -130,6 +136,7 @@ export default function CourseReviews() {
   // Card click active filter state (default to pending review)
   const [statusFilter, setStatusFilter] = useState('pending');
   const [reviewedDateFilter, setReviewedDateFilter] = useState('');
+  const [aiCategoryModalCourse, setAiCategoryModalCourse] = useState<any | null>(null);
 
   // Applied filter states
   const [appliedFilters, setAppliedFilters] = useState({
@@ -333,7 +340,7 @@ export default function CourseReviews() {
     setPerPage(urlPerPage);
 
     try {
-      getCategories({ per_page: 200 }).then((res: any) => {
+      getCategories({ per_page: 100 }).then((res: any) => {
         if (res && Array.isArray(res.data)) {
           setCategories(res.data.map((c: any) => ({ id: c.id, name: c.name })));
         } else if (res && res.data && Array.isArray(res.data.items)) {
@@ -397,8 +404,10 @@ export default function CourseReviews() {
         }
       }
 
-      const res = await getCourseReviews(apiParams);
-      const allRes = await getCourseReviews({ per_page: 9999 });
+      const [res, allRes] = await Promise.all([
+        getCourseReviews(apiParams),
+        getCourseReviews({ per_page: 100 }),
+      ]);
 
       if (res && res.success && res.data && allRes && allRes.success) {
         setItems(res.data.items || []);
@@ -563,6 +572,8 @@ export default function CourseReviews() {
     setFormSort('submitted_desc');
     setFormDateFrom('');
     setFormDateTo('');
+    setStatusFilter('all');
+    setReviewedDateFilter('');
 
     setSortBy('submitted_at');
     setSortDirection('desc');
@@ -703,6 +714,22 @@ export default function CourseReviews() {
     setAppliedFilters(prev => ({ ...prev, sort: compatibilitySort }));
   };
 
+  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
+  useEffect(() => {
+    const openCourseId = parseInt(searchParams.get("open_course_id") || "0");
+    if (openCourseId > 0) {
+      if (activeCourseId !== openCourseId) {
+        handleOpenDrawer(openCourseId);
+      }
+    } else {
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        setActiveCourseId(null);
+        setDrawerData(null);
+      }
+    }
+  }, [searchParams]);
+
   // Drawer handlers
   const handleOpenDrawer = async (courseId: number) => {
     if (drawerLoading && activeCourseId === courseId) return;
@@ -713,9 +740,9 @@ export default function CourseReviews() {
     setActiveCourseId(courseId);
     setDrawerData(null);
 
-    const url = new URL(window.location.href);
-    url.searchParams.set("open_course_id", String(courseId));
-    window.history.replaceState({}, "", url.toString());
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("open_course_id", String(courseId));
+    setSearchParams(nextParams);
 
     try {
       const res = await getCourseReview(courseId);
@@ -747,10 +774,10 @@ export default function CourseReviews() {
     setActiveCourseId(null);
     setDrawerData(null);
 
-    const url = new URL(window.location.href);
-    if (url.searchParams.has("open_course_id")) {
-      url.searchParams.delete("open_course_id");
-      window.history.replaceState({}, "", url.toString());
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextParams.has("open_course_id")) {
+      nextParams.delete("open_course_id");
+      setSearchParams(nextParams, { replace: true });
     }
   };
 
@@ -797,6 +824,7 @@ export default function CourseReviews() {
         message: res.message || "Khóa học đã được duyệt thành công.",
       });
       setDbVersion((v) => v + 1);
+      window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
     } catch (err: any) {
       console.error("Lỗi duyệt khóa học:", err);
       const status = err.status || err?.data?.status;
@@ -811,6 +839,7 @@ export default function CourseReviews() {
         setIsApproveModalOpen(false);
         handleCloseDrawer();
         setDbVersion((v) => v + 1);
+        window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
       } else {
         showToast({
           type: "error",
@@ -847,17 +876,16 @@ export default function CourseReviews() {
 
     setSubmittingAction(true);
     try {
-      const res = await rejectCourse(actionCourseId, {
-        admin_reject_reason: reason,
-      });
+      const res = await rejectCourse(actionCourseId, { admin_reject_reason: reason });
       setIsRejectModalOpen(false);
       handleCloseDrawer();
       showToast({
         type: "success",
         title: "Đã từ chối khóa học",
-        message: res.message || "Khóa học đã được gửi lại để giảng viên chỉnh sửa.",
+        message: res.message || "Đã gửi thông báo từ chối đến giảng viên.",
       });
       setDbVersion((v) => v + 1);
+      window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
     } catch (err: any) {
       console.error("Lỗi từ chối khóa học:", err);
       const status = err.status || err?.data?.status;
@@ -872,6 +900,7 @@ export default function CourseReviews() {
         setIsRejectModalOpen(false);
         handleCloseDrawer();
         setDbVersion((v) => v + 1);
+        window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
       } else {
         showToast({
           type: "error",
@@ -1035,11 +1064,11 @@ export default function CourseReviews() {
         <button
           type="button"
           onClick={() => handleCardClick('all')}
-          aria-pressed={statusFilter === ''}
+          aria-pressed={statusFilter === 'all' || (!statusFilter && !reviewedDateFilter)}
           aria-label="Lọc tất cả hồ sơ kiểm duyệt"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-indigo-500",
-            statusFilter === ''
+            (statusFilter === 'all' || (!statusFilter && !reviewedDateFilter))
               ? "border-indigo-500 bg-indigo-50/30 ring-1 ring-indigo-500/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
@@ -1064,11 +1093,11 @@ export default function CourseReviews() {
         <button
           type="button"
           onClick={() => handleCardClick('pending')}
-          aria-pressed={statusFilter === 'pending'}
+          aria-pressed={statusFilter === 'pending' || statusFilter === 'pending_review'}
           aria-label="Lọc hồ sơ chờ duyệt"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-warning",
-            statusFilter === 'pending'
+            (statusFilter === 'pending' || statusFilter === 'pending_review')
               ? "border-warning bg-warning-soft/10 ring-1 ring-warning/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
@@ -1108,11 +1137,11 @@ export default function CourseReviews() {
         <button
           type="button"
           onClick={() => handleCardClick('approved_today')}
-          aria-pressed={statusFilter === 'approved' && reviewedDateFilter === 'today'}
+          aria-pressed={(statusFilter === 'approved' || statusFilter === 'published') && reviewedDateFilter === 'today'}
           aria-label="Lọc hồ sơ đã duyệt hôm nay"
           className={cn(
             "text-left w-full rounded-[6px] border p-4 shadow-subtle flex flex-col justify-between min-h-[104px] transition-all cursor-pointer border-t-2 border-t-success",
-            (statusFilter === 'approved' && reviewedDateFilter === 'today')
+            ((statusFilter === 'approved' || statusFilter === 'published') && reviewedDateFilter === 'today')
               ? "border-success bg-success-soft/10 ring-1 ring-success/30"
               : "border-hairline bg-paper hover:border-mid-gray/40"
           )}
@@ -1613,7 +1642,7 @@ export default function CourseReviews() {
                       <td className="p-3 pl-4">
                         <div className="flex items-start gap-3">
                           <img
-                            src={item.thumbnail_url || ''}
+                            src={resolveMediaUrl(item.thumbnail_url)}
                             alt="Thumbnail"
                             className="w-12 h-8 rounded-[4px] object-cover border border-hairline shrink-0 mt-0.5"
                             onError={(e: any) => {
@@ -1641,7 +1670,27 @@ export default function CourseReviews() {
 
                       {/* 2. Danh mục */}
                       <td className="p-3 text-mid-gray font-medium">
-                        {(item as any).category_name || (item as any).category?.name || 'N/A'}
+                        {(() => {
+                          const catName = (item as any).category_name || (item as any).category?.name || '';
+                          const isUnassigned = !catName || catName === 'N/A' || catName.includes('Chưa phân loại') || Boolean((item as any).category_unassigned);
+                          if (isUnassigned) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAiCategoryModalCourse(item);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9.5px] font-extrabold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all cursor-pointer shadow-2xs hover:scale-105"
+                                title="Bấm để dùng DeepSeek AI phân tích và gợi ý danh mục tự động"
+                              >
+                                <span>⚠️ Chưa có danh mục</span>
+                                <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />
+                              </button>
+                            );
+                          }
+                          return <span className="text-ink font-semibold">{catName}</span>;
+                        })()}
                       </td>
 
                       {/* 3. Mô tả ngắn */}
@@ -1746,6 +1795,23 @@ export default function CourseReviews() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-semibold text-ink font-sans">Chi tiết kiểm duyệt khóa học</h2>
+                    {drawerData?.course?.status && (
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-[4px] border ${
+                          drawerData.course.status === 'published' || drawerData.course.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : drawerData.course.status === 'rejected'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}
+                      >
+                        ● {drawerData.course.status === 'published' || drawerData.course.status === 'approved'
+                          ? 'Đã duyệt'
+                          : drawerData.course.status === 'rejected'
+                          ? 'Đã từ chối'
+                          : 'Đang chờ duyệt'}
+                      </span>
+                    )}
                     {drawerData?.checklist && (
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-[4px] border ${
@@ -1828,7 +1894,7 @@ export default function CourseReviews() {
                       <div className="space-y-5">
                         <div className="relative aspect-video w-full rounded-[6px] overflow-hidden border border-hairline">
                           <img
-                            src={drawerData.course?.thumbnail_url || ''}
+                            src={resolveMediaUrl(drawerData.course?.thumbnail_url)}
                             alt="Course Thumbnail"
                             className="w-full h-full object-cover"
                             onError={(e: any) => {
@@ -1843,6 +1909,16 @@ export default function CourseReviews() {
                               {drawerData.course?.language === 'vi' ? 'Tiếng Việt' : 'Tiếng Anh'}
                             </span>
                           </div>
+                          {drawerData.course?.intro_video_url && (
+                            <button
+                              type="button"
+                              onClick={() => window.open(`/admin/course-preview/${drawerData.course?.id}`, '_blank')}
+                              className="absolute inset-0 m-auto w-12 h-12 rounded-full bg-black/60 hover:bg-indigo-600 text-white flex items-center justify-center backdrop-blur-xs transition-all transform hover:scale-110 cursor-pointer shadow-lg group"
+                              title="Xem Video Trailer giới thiệu khóa học"
+                            >
+                              <Play className="w-5 h-5 ml-0.5 fill-white group-hover:text-white" />
+                            </button>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -1852,6 +1928,36 @@ export default function CourseReviews() {
                           <p className="text-[11px] text-mid-gray font-mono">
                             Slug: {drawerData.course?.slug}
                           </p>
+                          <div className="flex items-center gap-2 py-0.5">
+                            <span className="text-xs text-mid-gray font-medium">Danh mục:</span>
+                            {(drawerData.course?.category?.name || drawerData.course?.category_name || drawerData.course?.categories?.[0]?.name) ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-ink bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                  {drawerData.course?.category?.name || drawerData.course?.category_name || drawerData.course?.categories?.[0]?.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setAiCategoryModalCourse(drawerData.course)}
+                                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                                  title="Đổi danh mục bằng AI"
+                                >
+                                  <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
+                                  <span>Đổi</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setAiCategoryModalCourse(drawerData.course)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all cursor-pointer shadow-2xs hover:scale-105"
+                                title="Bấm để dùng DeepSeek AI phân tích và gợi ý danh mục tự động"
+                              >
+                                <span>⚠️ Chưa có danh mục</span>
+                                <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />
+                                <span className="text-indigo-600 underline font-bold ml-0.5">AI Gợi ý danh mục</span>
+                              </button>
+                            )}
+                          </div>
                           <div className="flex items-center gap-4 pt-1">
                             <div className="flex items-baseline gap-1.5">
                               <span className="text-xs text-mid-gray">Giá bán:</span>
@@ -1874,7 +1980,7 @@ export default function CourseReviews() {
                         {/* Instructor Profile */}
                         <div className="p-4 rounded-[6px] border border-hairline bg-surface-alt flex items-start gap-4">
                           <img
-                            src={drawerData.course?.instructor?.avatar_url || ''}
+                            src={resolveMediaUrl(drawerData.course?.instructor?.avatar_url)}
                             alt="Instructor avatar"
                             className="w-12 h-12 rounded-full object-cover border border-hairline shrink-0"
                             onError={(e: any) => {
@@ -1926,9 +2032,19 @@ export default function CourseReviews() {
                     {/* TAB 2: NỘI DUNG KHÓA HỌC */}
                     {drawerTab === 'content' && (
                       <div className="space-y-4 font-sans">
-                        <div className="flex items-center justify-between text-xs text-mid-gray">
-                          <span>Tổng số: {drawerData.sections?.length || 0} chương</span>
-                          <span>{drawerData.lessons?.length || 0} bài học</span>
+                        <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+                          <div className="text-xs text-mid-gray">
+                            <span>Tổng số: <strong className="text-ink">{drawerData.sections?.length || 0}</strong> chương • <strong className="text-ink">{drawerData.lessons?.length || 0}</strong> bài học</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => window.open(`/admin/course-preview/${drawerData.course?.id}`, '_blank')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer hover:scale-102"
+                            title="Mở toàn màn hình trang xem video và kiểm duyệt chi tiết các bài giảng"
+                          >
+                            <Tv className="w-3.5 h-3.5" />
+                            <span>Mở phòng xem Video kiểm duyệt ↗</span>
+                          </button>
                         </div>
 
                         <div className="space-y-2.5">
@@ -1971,19 +2087,32 @@ export default function CourseReviews() {
                                   {isExpanded && (
                                     <div className="divide-y divide-hairline bg-paper">
                                       {secLessons.map((les: any) => (
-                                        <div key={les.id} className="p-2.5 pl-8 flex items-center justify-between text-xs hover:bg-canvas/50 transition-colors font-medium">
+                                        <div
+                                          key={les.id}
+                                          onClick={() => window.open(`/admin/course-preview/${drawerData.course?.id}?lesson_id=${les.id}`, '_blank')}
+                                          className="p-2.5 pl-8 flex items-center justify-between text-xs hover:bg-indigo-50/60 transition-colors font-medium cursor-pointer group"
+                                          title="Nhấn để mở xem video và kiểm tra nội dung bài học này"
+                                        >
                                           <div className="flex items-center gap-2 min-w-0 pr-2">
                                             {getLessonTypeIcon(les.type)}
-                                            <span className="text-ink font-medium truncate">{les.title}</span>
+                                            <span className="text-ink group-hover:text-indigo-600 font-medium truncate transition-colors">
+                                              {les.title}
+                                            </span>
                                             {les.is_preview && (
-                                              <span className="text-[9px] font-bold text-success bg-success-soft px-1.5 py-0.5 rounded">
+                                              <span className="text-[9px] font-bold text-success bg-success-soft px-1.5 py-0.5 rounded shrink-0">
                                                 Học thử
                                               </span>
                                             )}
                                           </div>
-                                          <span className="text-[10px] text-mid-gray shrink-0 font-mono">
-                                            {formatDuration(les.duration_seconds)}
-                                          </span>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-[10px] text-mid-gray font-mono">
+                                              {formatDuration(les.duration_seconds || les.total_duration_seconds)}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded opacity-80 group-hover:opacity-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                              <span>Xem bài</span>
+                                              <Play className="w-2.5 h-2.5 fill-current" />
+                                            </span>
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
@@ -2275,6 +2404,32 @@ export default function CourseReviews() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI Category Suggestion Modal */}
+      {aiCategoryModalCourse && (
+        <AiCategoryModal
+          isOpen={!!aiCategoryModalCourse}
+          onClose={() => setAiCategoryModalCourse(null)}
+          course={aiCategoryModalCourse}
+          onCategoryAssigned={(newCatName, catId) => {
+            showToast(`Đã gán danh mục "${newCatName}" cho khóa học thành công!`, 'success');
+            setItems((prev: any[]) => prev.map(c => c.id === aiCategoryModalCourse.id ? { ...c, category_name: newCatName, category: { id: catId, name: newCatName }, category_unassigned: false } : c));
+            setAllItems((prev: any[]) => prev.map(c => c.id === aiCategoryModalCourse.id ? { ...c, category_name: newCatName, category: { id: catId, name: newCatName }, category_unassigned: false } : c));
+            loadData();
+            if (drawerData && drawerData.course && drawerData.course.id === aiCategoryModalCourse.id) {
+              setDrawerData((prev: any) => ({
+                ...prev,
+                course: {
+                  ...prev.course,
+                  category_id: catId,
+                  category_name: newCatName,
+                  category: { id: catId, name: newCatName },
+                },
+              }));
+            }
+          }}
+        />
       )}
     </div>
   );

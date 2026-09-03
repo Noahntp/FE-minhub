@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { RotateCcw, Filter, X } from "lucide-react";
+import { RotateCcw, Filter, X, Gem, Award } from "lucide-react";
 import * as upgradesApi from "@/assets/js/api/instructor-upgrades-api.js";
 import { toast } from "sonner";
 import { cn } from "@/shared/lib/utils";
@@ -14,13 +14,31 @@ const calculatePercentage = (value: number, total: number) => {
 };
 
 // User Status Dot Marker
-function UpgradeStatusMarker({ status }: { status: string }) {
+function UpgradeStatusMarker({
+  status,
+  isResubmission,
+}: {
+  status: string;
+  isResubmission?: boolean;
+}) {
   if (status === "pending") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning select-none">
-        <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
-        Chờ xử lý
-      </span>
+      <div className="flex flex-col gap-1 items-start select-none">
+        <div className="inline-flex items-center gap-1.5 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warning">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse shrink-0"></span>
+            Chờ xử lý
+          </span>
+          {isResubmission && (
+            <span
+              className="text-[11px] font-bold text-danger-brick tracking-tight"
+              title="Hồ sơ được học viên chỉnh sửa và nộp lại sau khi bị từ chối"
+            >
+              (Nộp lại)
+            </span>
+          )}
+        </div>
+      </div>
     );
   } else if (status === "approved") {
     return (
@@ -41,11 +59,11 @@ function UpgradeStatusMarker({ status }: { status: string }) {
 
 // User Payout Status Dot Marker
 function PayoutStatusMarker({ status }: { status: string }) {
-  if (status === "active") {
+  if (status === "active" || status === "verified") {
     return (
       <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-success select-none">
         <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0"></span>
-        Đã kích hoạt
+        Đã xác thực
       </span>
     );
   } else if (status === "pending_verification") {
@@ -63,6 +81,194 @@ function PayoutStatusMarker({ status }: { status: string }) {
       </span>
     );
   }
+}
+
+// User Avatar with fallback letter
+function UserAvatar({
+  fullName,
+  avatarUrl,
+  size = "md",
+}: {
+  fullName?: string;
+  avatarUrl?: string | null;
+  size?: "sm" | "md" | "lg";
+}) {
+  const [hasError, setHasError] = useState(false);
+  const firstLetter = fullName ? fullName.charAt(0).toUpperCase() : "U";
+
+  const sizeClasses = {
+    sm: "h-7 w-7 text-[10px]",
+    md: "h-8 w-8 text-xs",
+    lg: "h-12 w-12 text-base",
+  }[size];
+
+  if (avatarUrl && !hasError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={fullName || "User Avatar"}
+        onError={() => setHasError(true)}
+        className={cn(
+          sizeClasses,
+          "rounded-full object-cover shrink-0 border border-hairline/80 shadow-2xs select-none",
+        )}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        sizeClasses,
+        "flex items-center justify-center rounded-full bg-canvas text-mid-gray font-bold select-none border border-hairline/60 shrink-0",
+      )}
+    >
+      {firstLetter}
+    </div>
+  );
+}
+
+// Cấp hạng / Huy chương
+function RankBadge({ rank }: { rank?: string }) {
+  const r = (rank || "").toLowerCase().trim();
+  if (r === "diamond" || r === "kim cương") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-cyan-700 bg-cyan-50 border border-cyan-200 select-none shadow-2xs">
+        <Gem className="w-3 h-3 text-cyan-500 fill-cyan-400/30 shrink-0 animate-pulse" />
+        Diamond
+      </span>
+    );
+  }
+  if (r === "gold" || r === "vàng") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 select-none shadow-2xs">
+        <Award className="w-3 h-3 text-amber-500 fill-amber-400/40 shrink-0" />
+        Gold
+      </span>
+    );
+  }
+  if (r === "silver" || r === "bạc") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 select-none shadow-2xs">
+        <Award className="w-3 h-3 text-slate-400 fill-slate-300/40 shrink-0" />
+        Silver
+      </span>
+    );
+  }
+  if (r === "bronze" || r === "đồng") {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-900 bg-orange-50 border border-orange-200 select-none shadow-2xs">
+        <Award className="w-3 h-3 text-amber-700 fill-amber-600/40 shrink-0" />
+        Bronze
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] text-mid-gray/80 font-medium">
+      {rank || "Chưa phân cấp"}
+    </span>
+  );
+}
+
+// Ngân hàng nội bộ và Logo Badge
+const getBankDetails = (providerName: string) => {
+  const p = (providerName || "").trim();
+  const lower = p.toLowerCase();
+
+  if (lower.includes("vietcombank") || lower === "vcb") {
+    return {
+      shortName: "Vietcombank",
+      badgeColor: "bg-emerald-700 text-white border-emerald-800",
+      code: "VCB",
+    };
+  }
+  if (lower.includes("techcombank") || lower === "tcb") {
+    return {
+      shortName: "Techcombank",
+      badgeColor: "bg-red-600 text-white border-red-700",
+      code: "TCB",
+    };
+  }
+  if (lower.includes("mb") || lower.includes("quân đội")) {
+    return {
+      shortName: "MB Bank",
+      badgeColor: "bg-blue-700 text-white border-blue-800",
+      code: "MB",
+    };
+  }
+  if (lower.includes("vpbank") || lower.includes("vp bank")) {
+    return {
+      shortName: "VPBank",
+      badgeColor: "bg-emerald-600 text-white border-emerald-700",
+      code: "VPB",
+    };
+  }
+  if (lower.includes("acb") || lower.includes("á châu")) {
+    return {
+      shortName: "ACB",
+      badgeColor: "bg-sky-600 text-white border-sky-700",
+      code: "ACB",
+    };
+  }
+  if (lower.includes("bidv")) {
+    return {
+      shortName: "BIDV",
+      badgeColor: "bg-teal-700 text-white border-teal-800",
+      code: "BIDV",
+    };
+  }
+  if (lower.includes("agribank")) {
+    return {
+      shortName: "Agribank",
+      badgeColor: "bg-amber-800 text-white border-amber-900",
+      code: "VBA",
+    };
+  }
+  if (lower.includes("tpbank") || lower.includes("tiên phong")) {
+    return {
+      shortName: "TPBank",
+      badgeColor: "bg-purple-700 text-white border-purple-800",
+      code: "TPB",
+    };
+  }
+  if (lower.includes("momo")) {
+    return {
+      shortName: "MoMo",
+      badgeColor: "bg-pink-600 text-white border-pink-700",
+      code: "MoMo",
+    };
+  }
+  if (lower.includes("zalopay")) {
+    return {
+      shortName: "ZaloPay",
+      badgeColor: "bg-blue-500 text-white border-blue-600",
+      code: "Zalo",
+    };
+  }
+  return {
+    shortName: p || "Ngân hàng",
+    badgeColor: "bg-slate-700 text-white border-slate-800",
+    code: p ? p.substring(0, 3).toUpperCase() : "NH",
+  };
+};
+
+function BankBadge({ provider }: { provider?: string }) {
+  const bank = getBankDetails(provider || "");
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className={cn(
+          "inline-flex items-center justify-center h-4 px-1 rounded text-[8px] font-black uppercase tracking-wider select-none shrink-0 shadow-2xs border",
+          bank.badgeColor,
+        )}
+      >
+        {bank.code}
+      </span>
+      <span className="font-semibold text-ink text-xs truncate">
+        {bank.shortName}
+      </span>
+    </div>
+  );
 }
 
 // Common experience colors helper mapping (7-8px dot)
@@ -269,11 +475,15 @@ export default function InstructorUpgrades() {
     type: "approve" | "reject" | "";
     user: any | null;
     error?: string;
+    reason?: string;
+    submitting?: boolean;
   }>({
     open: false,
     type: "",
     user: null,
     error: "",
+    reason: "",
+    submitting: false,
   });
 
   // Close menus on outside click
@@ -298,14 +508,27 @@ export default function InstructorUpgrades() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setIsDrawerOpen(false);
+        closeDetailDrawer();
         setConfirmModal({ open: false, type: "", user: null, error: "" });
         setActiveColumnMenu(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isDrawerOpen, searchParams]);
+
+  // Auto smart scroll down to list section when status or open_upgrade_id is in URL
+  useEffect(() => {
+    if (statusParam || searchParams.has("status") || searchParams.has("open_upgrade_id")) {
+      const timer = setTimeout(() => {
+        const el = document.getElementById("upgrade-list-section");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [statusParam, searchParams]);
 
   // Update query parameters helper
   const updateFilters = (newFilters: Record<string, any>) => {
@@ -586,7 +809,7 @@ export default function InstructorUpgrades() {
     const missingPayoutCount = pendingItems.filter(
       (r) =>
         !r.payout_account ||
-        r.payout_account.status !== "active" ||
+        (r.payout_account.status !== "active" && r.payout_account.status !== "verified") ||
         !r.payout_account.account_name ||
         !r.payout_account.account_number_masked,
     ).length;
@@ -601,8 +824,23 @@ export default function InstructorUpgrades() {
     });
   };
 
-  // Open Drawer trigger
-  const openDetailDrawer = async (userId: number) => {
+  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
+  useEffect(() => {
+    const openId = searchParams.get("open_upgrade_id");
+    if (openId) {
+      const uid = Number(openId);
+      if (uid && (!activeDetailUser || activeDetailUser.user?.id !== uid)) {
+        loadDetailUser(uid);
+      }
+    } else {
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        setActiveDetailUser(null);
+      }
+    }
+  }, [searchParams]);
+
+  const loadDetailUser = async (userId: number) => {
     try {
       const res = await upgradesApi.getUpgradeRequest(userId);
       if (res && res.success) {
@@ -611,39 +849,75 @@ export default function InstructorUpgrades() {
         setIsDrawerOpen(true);
       } else {
         toast.error(res ? res.message : "Không thể lấy chi tiết hồ sơ.");
+        closeDetailDrawer();
       }
     } catch (e) {
       toast.error("Lỗi khi kết nối chi tiết hồ sơ.");
+      closeDetailDrawer();
+    }
+  };
+
+  // Open Drawer trigger
+  const openDetailDrawer = (userId: number) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("open_upgrade_id", String(userId));
+    setSearchParams(nextParams);
+    loadDetailUser(userId);
+  };
+
+  const closeDetailDrawer = () => {
+    setIsDrawerOpen(false);
+    setActiveDetailUser(null);
+    if (searchParams.has("open_upgrade_id")) {
+      navigate(-1);
     }
   };
 
   // Action submit triggers
   const handleConfirmSubmit = async () => {
-    const { type, user } = confirmModal;
-    if (!user) return;
+    const { type, user, reason, submitting } = confirmModal;
+    if (!user || submitting) return;
+
+    if (type === "reject" && (!reason || !reason.trim())) {
+      setConfirmModal((prev) => ({
+        ...prev,
+        error: "Vui lòng nhập lý do từ chối để học viên nắm thông tin.",
+      }));
+      toast.error("Vui lòng nhập lý do từ chối hồ sơ.");
+      return;
+    }
+
+    setConfirmModal((prev) => ({ ...prev, submitting: true, error: "" }));
 
     try {
       let res: any;
       if (type === "approve") {
         res = await upgradesApi.approveUpgradeRequest(user.user.id);
       } else if (type === "reject") {
-        res = await upgradesApi.rejectUpgradeRequest(user.user.id);
+        res = await upgradesApi.rejectUpgradeRequest(user.user.id, reason?.trim());
       }
 
       if (res && res.success) {
         toast.success(res.message || "Thực hiện thành công.");
-        setConfirmModal({ open: false, type: "", user: null, error: "" });
+        setConfirmModal({ open: false, type: "", user: null, error: "", reason: "", submitting: false });
         setIsDrawerOpen(false);
         loadData();
+        window.dispatchEvent(new CustomEvent("mindhub-admin-task-updated"));
       } else {
         toast.error(res ? res.message : "Thao tác thất bại.");
         setConfirmModal((prev) => ({
           ...prev,
+          submitting: false,
           error: res ? res.message : "Lỗi hệ thống.",
         }));
       }
-    } catch (e) {
-      toast.error("Có lỗi xảy ra trong quá trình phê duyệt.");
+    } catch (e: any) {
+      toast.error(e?.message || "Có lỗi xảy ra trong quá trình xử lý.");
+      setConfirmModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: e?.message || "Có lỗi xảy ra.",
+      }));
     }
   };
 
@@ -2348,9 +2622,11 @@ export default function InstructorUpgrades() {
                       {/* Subscriber Name Card */}
                       <td className="p-3.5 pl-5">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-mid-gray font-bold text-xs select-none">
-                            {firstLetter}
-                          </div>
+                          <UserAvatar
+                            fullName={item.user?.full_name}
+                            avatarUrl={item.user?.avatar_url}
+                            size="md"
+                          />
                           <div className="min-w-0">
                             <div className="font-bold text-ink text-sm sm:text-xs leading-tight flex items-center">
                               {item.user?.full_name}
@@ -2403,9 +2679,9 @@ export default function InstructorUpgrades() {
                         </div>
                       </td>
 
-                      {/* Experience (Beautiful inline dot layout) */}
+                      {/* Experience & Rank (Medal + Years) */}
                       <td className="p-3.5">
-                        <div className="flex flex-col gap-0.5 justify-center">
+                        <div className="flex flex-col gap-1 justify-center">
                           <div
                             className={cn(
                               "font-semibold flex items-center gap-1.5 text-xs select-none",
@@ -2418,28 +2694,32 @@ export default function InstructorUpgrades() {
                                 expColor.bg,
                               )}
                             ></span>
-                            {item.instructor_profile?.experience_years} năm
+                            {item.instructor_profile?.experience_years ?? 0} năm KN
                           </div>
-                          <div className="text-[10px] text-mid-gray/80 font-medium pl-3.5">
-                            {item.instructor_profile?.level || "Chưa phân cấp"}
-                          </div>
+                          {item.application_status === "approved" ? (
+                            <div>
+                              <RankBadge rank={item.instructor_profile?.level || item.instructor_profile?.instructor_rank} />
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-mid-gray/70 font-normal">
+                              Chưa xếp hạng
+                            </div>
+                          )}
                         </div>
                       </td>
 
                       {/* Payout Account */}
                       <td className="p-3.5">
-                        {item.payout_account ? (
-                          <div>
-                            <div className="font-medium text-ink">
-                              {item.payout_account.provider}
-                            </div>
-                            <div className="text-[10px] text-mid-gray mt-0.5">
+                        {item.application_status === "approved" && item.payout_account ? (
+                          <div className="space-y-1">
+                            <BankBadge provider={item.payout_account.provider} />
+                            <div className="text-[10px] text-mid-gray truncate max-w-[150px]">
                               {item.payout_account.account_name}
                             </div>
-                            <div className="text-[10px] font-mono text-mid-gray mt-0.5 font-medium tracking-wide">
+                            <div className="text-[10px] font-mono text-mid-gray font-medium tracking-wide">
                               {item.payout_account.account_number_masked}
                             </div>
-                            <div className="mt-0.5">
+                            <div>
                               <PayoutStatusMarker
                                 status={item.payout_account.status}
                               />
@@ -2459,7 +2739,10 @@ export default function InstructorUpgrades() {
 
                       {/* Status */}
                       <td className="p-3.5">
-                        <UpgradeStatusMarker status={item.application_status} />
+                        <UpgradeStatusMarker
+                          status={item.application_status}
+                          isResubmission={item.is_resubmission}
+                        />
                       </td>
 
                       {/* Actions */}
@@ -2488,7 +2771,7 @@ export default function InstructorUpgrades() {
       {isDrawerOpen && activeDetailUser && (
         <>
           <div
-            onClick={() => setIsDrawerOpen(false)}
+            onClick={closeDetailDrawer}
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-300"
           />
           <div
@@ -2502,7 +2785,7 @@ export default function InstructorUpgrades() {
               </h2>
               <button
                 type="button"
-                onClick={() => setIsDrawerOpen(false)}
+                onClick={closeDetailDrawer}
                 className="p-1.5 hover:bg-canvas rounded-full text-mid-gray hover:text-ink transition-colors cursor-pointer bg-transparent border-none"
               >
                 <svg
@@ -2526,11 +2809,11 @@ export default function InstructorUpgrades() {
               {/* Header profile card */}
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink text-white font-bold text-lg shrink-0 select-none">
-                    {activeDetailUser.user?.full_name
-                      ? activeDetailUser.user.full_name.charAt(0).toUpperCase()
-                      : "U"}
-                  </div>
+                  <UserAvatar
+                    fullName={activeDetailUser.user?.full_name}
+                    avatarUrl={activeDetailUser.user?.avatar_url}
+                    size="lg"
+                  />
                   <div className="space-y-0.5">
                     <h3 className="text-base font-semibold text-ink flex items-center">
                       {activeDetailUser.user?.full_name}
@@ -2566,15 +2849,25 @@ export default function InstructorUpgrades() {
                           Bị từ chối
                         </span>
                       )}
+
+                      {activeDetailUser.is_resubmission && (
+                        <span className="px-2 py-0.5 text-[9px] font-bold text-danger-brick border border-danger-brick/30 bg-danger-brick/10 rounded">
+                          (Nộp lại)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => navigate(`/admin/users?open_user_id=${activeDetailUser.user?.id}`)}
-                  className="px-3 py-1 text-[11px] font-semibold rounded-[4px] border border-hairline bg-paper hover:bg-surface-alt text-ink transition-colors cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded-[4px] border border-hairline bg-paper hover:bg-surface-alt text-ink transition-colors cursor-pointer shadow-sm shrink-0 whitespace-nowrap flex items-center gap-1.5"
+                  title="Mở hồ sơ tài khoản này trong trang Quản lý người dùng"
                 >
-                  Xem chi tiết
+                  <span>Hồ sơ người dùng</span>
+                  <svg className="w-3 h-3 text-mid-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
                 </button>
               </div>
 
@@ -2637,7 +2930,7 @@ export default function InstructorUpgrades() {
                       {activeDetailUser.instructor_profile?.expertise || "---"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-mid-gray">
                       Kinh nghiệm giảng dạy:
                     </span>
@@ -2646,12 +2939,17 @@ export default function InstructorUpgrades() {
                       năm kinh nghiệm
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-mid-gray">Phân cấp chuyên môn:</span>
-                    <span className="font-semibold text-ink">
-                      {activeDetailUser.instructor_profile?.level ||
-                        "Chưa phân cấp"}
-                    </span>
+                    <div>
+                      {activeDetailUser.application_status === "approved" ? (
+                        <RankBadge rank={activeDetailUser.instructor_profile?.level || activeDetailUser.instructor_profile?.instructor_rank} />
+                      ) : (
+                        <span className="text-[11px] text-mid-gray font-normal italic">
+                          Chưa xếp hạng (Chờ duyệt)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2662,25 +2960,14 @@ export default function InstructorUpgrades() {
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
                     Tài khoản nhận tiền
                   </h4>
-                  {activeDetailUser.payout_account && (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/admin/payout-accounts?open_payout_account_id=${activeDetailUser.payout_account.id}`)}
-                      className="px-3 py-1 text-[11px] font-semibold rounded-[4px] border border-hairline bg-paper hover:bg-surface-alt text-ink transition-colors cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-                    >
-                      Xem chi tiết
-                    </button>
-                  )}
                 </div>
-                {activeDetailUser.payout_account ? (
+                {activeDetailUser.application_status === "approved" && activeDetailUser.payout_account ? (
                   <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-mid-gray">
-                        Phương thức thanh toán:
+                        Ngân hàng thụ hưởng:
                       </span>
-                      <span className="font-bold text-ink">
-                        {activeDetailUser.payout_account.provider}
-                      </span>
+                      <BankBadge provider={activeDetailUser.payout_account.provider} />
                     </div>
                     <div className="flex justify-between">
                       <span className="text-mid-gray">Tên chủ tài khoản:</span>
@@ -2758,8 +3045,8 @@ export default function InstructorUpgrades() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-[6px] border border-hairline bg-surface-alt p-4 text-center italic text-mid-gray/60">
-                    Chưa bổ sung thông tin tài khoản nhận tiền.
+                  <div className="rounded-[6px] border border-hairline bg-surface-alt p-4 text-center italic text-mid-gray/70">
+                    Chưa liên kết
                   </div>
                 )}
               </div>
@@ -2880,26 +3167,13 @@ export default function InstructorUpgrades() {
               <div className="flex justify-between">
                 <span className="text-mid-gray">Kinh nghiệm:</span>
                 <span className="font-semibold text-ink">
-                  {confirmModal.user?.instructor_profile?.experience_years} năm
-                  (
-                  {confirmModal.user?.instructor_profile?.level ||
-                    "Chưa phân cấp"}
-                  )
+                  {confirmModal.user?.instructor_profile?.experience_years ?? 0} năm kinh nghiệm
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-mid-gray">Tài khoản nhận tiền:</span>
-                <span
-                  className={cn(
-                    "font-semibold",
-                    confirmModal.user?.payout_account?.status === "active"
-                      ? "text-success"
-                      : "text-danger-brick",
-                  )}
-                >
-                  {confirmModal.user?.payout_account
-                    ? `Đã liên kết (${confirmModal.user.payout_account.provider})`
-                    : "Chưa liên kết"}
+                <span className="font-semibold text-mid-gray/70 italic">
+                  Chưa liên kết
                 </span>
               </div>
               {confirmModal.error && (
@@ -2911,24 +3185,44 @@ export default function InstructorUpgrades() {
             <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
               <button
                 type="button"
+                disabled={confirmModal.submitting}
                 onClick={() =>
                   setConfirmModal({
                     open: false,
                     type: "",
                     user: null,
                     error: "",
+                    reason: "",
+                    submitting: false,
                   })
                 }
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink transition-colors",
+                  confirmModal.submitting ? "opacity-50 cursor-not-allowed" : "hover:bg-hairline cursor-pointer"
+                )}
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
+                disabled={confirmModal.submitting}
                 onClick={handleConfirmSubmit}
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-success text-white transition-all border-none flex items-center justify-center gap-2 min-w-[130px]",
+                  confirmModal.submitting ? "opacity-80 cursor-wait" : "hover:opacity-90 cursor-pointer shadow-sm"
+                )}
               >
-                Xác nhận duyệt
+                {confirmModal.submitting ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang phê duyệt...</span>
+                  </>
+                ) : (
+                  <span>Xác nhận duyệt</span>
+                )}
               </button>
             </div>
           </div>
@@ -2965,32 +3259,88 @@ export default function InstructorUpgrades() {
                 </span>
               </div>
               {confirmModal.error && (
-                <p className="text-[10px] text-danger-brick mt-1">
+                <p className="text-[10px] text-danger-brick mt-1 font-medium">
                   {confirmModal.error}
                 </p>
               )}
             </div>
+            <div>
+              <label
+                htmlFor="reject-upgrade-reason"
+                className="block text-xs font-semibold text-ink mb-1"
+              >
+                Lý do từ chối <span className="text-danger-brick">*</span>
+              </label>
+              <textarea
+                id="reject-upgrade-reason"
+                rows={3}
+                disabled={confirmModal.submitting}
+                value={confirmModal.reason || ""}
+                onChange={(e) =>
+                  setConfirmModal((prev) => ({
+                    ...prev,
+                    reason: e.target.value,
+                    error: "",
+                  }))
+                }
+                placeholder="Nhập chi tiết lý do từ chối (bắt buộc: ví dụ thiếu chứng chỉ sư phạm, kinh nghiệm chưa phù hợp...)"
+                className={cn(
+                  "w-full p-2.5 text-xs bg-canvas border rounded-lg focus:ring-2 outline-none text-ink resize-none font-medium transition-all",
+                  confirmModal.submitting ? "opacity-60 cursor-not-allowed" : "",
+                  confirmModal.error
+                    ? "border-danger-brick focus:ring-rose-200 focus:border-danger-brick"
+                    : "border-hairline focus:ring-rose-100 focus:border-rose-400"
+                )}
+              />
+              <p className="text-[10px] text-mid-gray mt-1">
+                Lý do này sẽ được gửi tới học viên để hướng dẫn hoàn thiện lại hồ sơ.
+              </p>
+            </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
               <button
                 type="button"
+                disabled={confirmModal.submitting}
                 onClick={() =>
                   setConfirmModal({
                     open: false,
                     type: "",
                     user: null,
                     error: "",
+                    reason: "",
+                    submitting: false,
                   })
                 }
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink transition-colors",
+                  confirmModal.submitting ? "opacity-50 cursor-not-allowed" : "hover:bg-hairline cursor-pointer"
+                )}
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                disabled={confirmModal.submitting || !confirmModal.reason?.trim()}
+                className={cn(
+                  "px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] transition-all border-none shadow-sm flex items-center justify-center gap-2 min-w-[130px]",
+                  confirmModal.submitting
+                    ? "bg-danger-brick/80 text-white cursor-wait"
+                    : confirmModal.reason?.trim()
+                      ? "bg-danger-brick text-white hover:opacity-90 cursor-pointer"
+                      : "bg-danger-brick/40 text-white/70 cursor-not-allowed"
+                )}
               >
-                Xác nhận từ chối
+                {confirmModal.submitting ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Đang từ chối...</span>
+                  </>
+                ) : (
+                  <span>Xác nhận từ chối</span>
+                )}
               </button>
             </div>
           </div>

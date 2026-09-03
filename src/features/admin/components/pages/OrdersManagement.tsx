@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   getOrders,
@@ -11,8 +11,10 @@ import {
 import { ArrowUpDown, ExternalLink, ChevronDown, Search, X } from "lucide-react";
 import AdminPagination from "../shared/AdminPagination";
 import FilterSelect from "./FilterSelect";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 export default function OrdersManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   // --- States ---
   const [items, setItems] = useState<any[]>([]);
@@ -133,14 +135,44 @@ export default function OrdersManagement() {
     loadData();
   }, [page, perPage, status, paymentStatus, search, datePreset, dateFrom, dateTo]);
 
-  // Handle deep link order detail if open_order_id query param is present
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const openOrderId = params.get("open_order_id");
-    if (openOrderId) {
-      handleOpenDrawer(Number(openOrderId));
+  const loadOrderDetail = async (orderId: number) => {
+    setDetailLoading(true);
+    setSelectedOrder(null);
+    setActiveTab('overview');
+    setDrawerOpen(true);
+
+    try {
+      const res = await getOrder(orderId);
+      if (res && res.success) {
+        setSelectedOrder(res.data);
+      } else {
+        toast.error("Không thể lấy chi tiết đơn hàng.");
+        handleCloseDrawer();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi tải chi tiết đơn hàng.");
+      handleCloseDrawer();
+    } finally {
+      setDetailLoading(false);
     }
-  }, []);
+  };
+
+  // Handle deep link order detail and sync on Browser Back/Forward
+  useEffect(() => {
+    const openOrderId = searchParams.get("open_order_id");
+    if (openOrderId) {
+      const oid = Number(openOrderId);
+      if (oid && (!selectedOrder || selectedOrder.id !== oid)) {
+        loadOrderDetail(oid);
+      }
+    } else {
+      if (drawerOpen) {
+        setDrawerOpen(false);
+        setSelectedOrder(null);
+      }
+    }
+  }, [searchParams]);
 
   // --- Actions ---
   const handleApplyFilters = (e: React.FormEvent) => {
@@ -209,42 +241,20 @@ export default function OrdersManagement() {
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
-  const handleOpenDrawer = async (orderId: number) => {
-    setDetailLoading(true);
-    setSelectedOrder(null);
-    setActiveTab('overview');
-    setDrawerOpen(true);
-
-    // Sync URL param
-    const url = new URL(window.location.href);
-    url.searchParams.set("open_order_id", String(orderId));
-    window.history.replaceState({}, "", url.toString());
-
-    try {
-      const res = await getOrder(orderId);
-      if (res && res.success) {
-        setSelectedOrder(res.data);
-      } else {
-        toast.error("Không thể lấy chi tiết đơn hàng.");
-        handleCloseDrawer();
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Lỗi khi tải chi tiết đơn hàng.");
-      handleCloseDrawer();
-    } finally {
-      setDetailLoading(false);
-    }
+  const handleOpenDrawer = (orderId: number) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("open_order_id", String(orderId));
+    setSearchParams(nextParams);
+    loadOrderDetail(orderId);
   };
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
     setSelectedOrder(null);
 
-    // Remove URL param
-    const url = new URL(window.location.href);
-    url.searchParams.delete("open_order_id");
-    window.history.replaceState({}, "", url.toString());
+    if (searchParams.has("open_order_id")) {
+      navigate(-1);
+    }
   };
 
   const handleCopyCode = (code: string) => {
@@ -757,7 +767,7 @@ export default function OrdersManagement() {
                       <td className="py-2.5 px-3">
                         <div className="flex items-start gap-2">
                           {order.user?.avatar_url ? (
-                            <img src={order.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 bg-canvas border border-hairline" />
+                            <img src={resolveMediaUrl(order.user.avatar_url)} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 bg-canvas border border-hairline" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-canvas border border-hairline flex items-center justify-center text-[10px] font-bold text-mid-gray shrink-0 uppercase">
                               {order.user?.full_name ? order.user.full_name.charAt(0) : "?"}
@@ -794,7 +804,7 @@ export default function OrdersManagement() {
                         {order.course ? (
                           <div className="flex items-start gap-2.5 min-w-0">
                             <img
-                              src={order.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
+                              src={resolveMediaUrl(order.course.thumbnail_url)}
                               alt=""
                               className="w-14 h-9 rounded object-cover shrink-0 border border-hairline/60 bg-canvas"
                               onError={(e) => {
@@ -1142,7 +1152,7 @@ export default function OrdersManagement() {
                           {selectedOrder.course ? (
                             <div className="flex items-start gap-3 text-xs">
                               <img
-                                src={selectedOrder.course.thumbnail_url || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=120&auto=format&fit=crop&q=60"}
+                                src={resolveMediaUrl(selectedOrder.course.thumbnail_url)}
                                 alt="Course"
                                 className="w-16 h-10 rounded object-cover border border-hairline bg-canvas shrink-0"
                               />

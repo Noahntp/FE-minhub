@@ -288,9 +288,7 @@ export default function UsersManagement() {
     status: "active",
     locked_reason: "",
   });
-  const [createErrors, setCreateErrors] = useState<Record<string, string[]>>(
-    {},
-  );
+  const [createErrors, setCreateErrors] = useState<Record<string, string[]>>({});
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -318,6 +316,107 @@ export default function UsersManagement() {
     reason: "",
     error: "",
   });
+
+  // Bulk Actions State & Group Calculations
+  const selectedUsers = (data?.items || []).filter((u: any) =>
+    selectedUserIds.has(u.id),
+  );
+  const eligibleToLock = selectedUsers.filter(
+    (u: any) =>
+      !u.locked && u.status !== "locked" && u.id !== CURRENT_ADMIN_ID,
+  );
+  const eligibleToUnlock = selectedUsers.filter(
+    (u: any) => u.locked || u.status === "locked",
+  );
+  const eligibleToActivate = selectedUsers.filter(
+    (u: any) =>
+      u.status === "inactive" && !u.locked && u.id !== CURRENT_ADMIN_ID,
+  );
+
+  const [bulkModal, setBulkModal] = useState<{
+    open: boolean;
+    action: "lock" | "unlock" | "activate" | "";
+    eligibleUsers: any[];
+    skippedCount: number;
+    reason: string;
+    error: string;
+    loading: boolean;
+  }>({
+    open: false,
+    action: "",
+    eligibleUsers: [],
+    skippedCount: 0,
+    reason: "",
+    error: "",
+    loading: false,
+  });
+
+  // Comprehensive Form Validation Helper
+  const validateUserFields = (
+    formData: {
+      full_name: string;
+      email: string;
+      password?: string;
+      phone?: string;
+      status?: string;
+      locked_reason?: string;
+    },
+    isEdit = false,
+  ) => {
+    const errors: Record<string, string[]> = {};
+
+    // 1. Full name validation
+    if (!formData.full_name || !formData.full_name.trim()) {
+      errors.full_name = ["Họ và tên không được để trống."];
+    } else if (formData.full_name.trim().length > 255) {
+      errors.full_name = ["Họ và tên không được vượt quá 255 ký tự."];
+    }
+
+    // 2. Email validation
+    if (!formData.email || !formData.email.trim()) {
+      errors.email = ["Email không được để trống."];
+    } else if (
+      !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(
+        formData.email.trim(),
+      )
+    ) {
+      errors.email = ["Email không đúng định dạng (ví dụ: user@example.com)."];
+    } else if (formData.email.trim().length > 255) {
+      errors.email = ["Email không được vượt quá 255 ký tự."];
+    }
+
+    // 3. Password validation (min 8 chars matching backend rule)
+    if (!isEdit) {
+      if (!formData.password) {
+        errors.password = ["Mật khẩu không được để trống."];
+      } else if (formData.password.length < 8) {
+        errors.password = ["Mật khẩu phải có tối thiểu 8 ký tự."];
+      }
+    } else if (formData.password && formData.password.length < 8) {
+      errors.password = ["Mật khẩu phải có tối thiểu 8 ký tự nếu muốn thay đổi."];
+    }
+
+    // 4. Phone validation (Vietnamese mobile format)
+    if (formData.phone && formData.phone.trim()) {
+      const cleanPhone = formData.phone.replace(/[\s-]/g, "");
+      if (!/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/.test(cleanPhone)) {
+        errors.phone = [
+          "Số điện thoại không đúng định dạng VN (10 chữ số, ví dụ: 0912345678).",
+        ];
+      }
+    }
+
+    // 5. Locked reason validation if status is locked
+    if (formData.status === "locked") {
+      if (!formData.locked_reason || !formData.locked_reason.trim()) {
+        errors.locked_reason = ["Lý do khóa tài khoản là bắt buộc khi chọn trạng thái Đã khóa."];
+      } else if (formData.locked_reason.trim().length < 5) {
+        errors.locked_reason = ["Lý do khóa cần có ít nhất 5 ký tự."];
+      }
+    }
+
+    return errors;
+  };
 
   // Sync window clicks to auto-close dropdown menus
   useEffect(() => {
@@ -482,11 +581,30 @@ export default function UsersManagement() {
     per_page,
   ]);
 
-  // Handle open drawer from query parameters (dashboard deep linking)
+  const loadUserDetail = async (userId: number) => {
+    try {
+      const res = await usersApi.getUser(userId);
+      if (res && res.success) {
+        setActiveDetailUser(res.data);
+        setIsDrawerOpen(true);
+      } else {
+        toast.error(res ? res.message : "Không thể lấy thông tin người dùng.");
+        closeDetailDrawer();
+      }
+    } catch (e) {
+      toast.error("Lỗi khi tải chi tiết người dùng.");
+      closeDetailDrawer();
+    }
+  };
+
+  // Handle open drawer from query parameters (dashboard deep linking and browser Back)
   useEffect(() => {
     const openId = Number(searchParams.get("open_user_id"));
     if (openId && openId > 0 && activeDetailUser?.id !== openId) {
-      openDetailDrawer(openId);
+      loadUserDetail(openId);
+    } else if (!openId && isDrawerOpen) {
+      setIsDrawerOpen(false);
+      setActiveDetailUser(null);
     }
   }, [searchParams]);
 
@@ -525,34 +643,21 @@ export default function UsersManagement() {
   };
 
   // Action drawer triggers
-  const openDetailDrawer = async (userId: number) => {
+  const openDetailDrawer = (userId: number) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("open_user_id", String(userId));
       return next;
-    }, { replace: true });
-
-    try {
-      const res = await usersApi.getUser(userId);
-      if (res && res.success) {
-        setActiveDetailUser(res.data);
-        setIsDrawerOpen(true);
-      } else {
-        toast.error(res ? res.message : "Không thể lấy thông tin người dùng.");
-      }
-    } catch (e) {
-      toast.error("Lỗi khi tải chi tiết người dùng.");
-    }
+    });
+    loadUserDetail(userId);
   };
 
   const closeDetailDrawer = () => {
     setIsDrawerOpen(false);
     setActiveDetailUser(null);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete("open_user_id");
-      return next;
-    }, { replace: true });
+    if (searchParams.has("open_user_id")) {
+      navigate(-1);
+    }
   };
 
   const handleOpenEditModal = (user: any) => {
@@ -570,35 +675,15 @@ export default function UsersManagement() {
     setIsEditModalOpen(true);
   };
 
-  // API submit triggers
+  // API submit triggers with validation
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreateErrors({});
-
-    // Basic validation
-    const errors: Record<string, string[]> = {};
-    if (!createFormData.full_name.trim())
-      errors.full_name = ["Họ và tên không được để trống"];
-    if (!createFormData.email.trim()) {
-      errors.email = ["Email không được để trống"];
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createFormData.email)) {
-      errors.email = ["Email không hợp lệ"];
-    }
-    if (!createFormData.password) {
-      errors.password = ["Mật khẩu không được để trống"];
-    } else if (createFormData.password.length < 6) {
-      errors.password = ["Mật khẩu phải có ít nhất 6 ký tự"];
-    }
-    if (
-      createFormData.phone &&
-      !/^[0-9]{10,11}$/.test(createFormData.phone.replace(/[\s-]/g, ""))
-    ) {
-      errors.phone = ["Số điện thoại không hợp lệ"];
-    }
+    const errors = validateUserFields(createFormData, false);
     if (Object.keys(errors).length > 0) {
       setCreateErrors(errors);
       return;
     }
+    setCreateErrors({});
 
     try {
       const res = await usersApi.createUser(createFormData);
@@ -615,6 +700,7 @@ export default function UsersManagement() {
           locked_reason: "",
         });
         fetchUsers();
+        window.dispatchEvent(new Event("mindhub-admin-task-updated"));
       } else if (res.errors) {
         setCreateErrors(res.errors);
       } else {
@@ -627,6 +713,11 @@ export default function UsersManagement() {
 
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    const errors = validateUserFields(editFormData, true);
+    if (Object.keys(errors).length > 0) {
+      setEditErrors(errors);
+      return;
+    }
     setEditErrors({});
 
     // Safety check: Admin cannot lock himself
@@ -643,6 +734,7 @@ export default function UsersManagement() {
         toast.success("Cập nhật người dùng thành công.");
         setIsEditModalOpen(false);
         fetchUsers();
+        window.dispatchEvent(new Event("mindhub-admin-task-updated"));
         if (isDrawerOpen && activeDetailUser?.id === editFormData.id) {
           openDetailDrawer(editFormData.id);
         }
@@ -672,26 +764,29 @@ export default function UsersManagement() {
     try {
       let res: any;
       if (type === "lock") {
-        if (!reason || reason.trim() === "") {
+        if (!reason || reason.trim().length < 5) {
           setConfirmModal((prev) => ({
             ...prev,
-            error: "Lý do khóa là bắt buộc.",
+            error: "Lý do khóa tài khoản là bắt buộc (tối thiểu 5 ký tự).",
           }));
           return;
         }
         res = await usersApi.updateUser(user.id, {
           status: "locked",
           locked: true,
-          locked_reason: reason,
+          locked_reason: reason.trim(),
         });
       } else if (type === "unlock") {
         res = await usersApi.updateUser(user.id, {
           locked: false,
           status: "active",
+          locked_reason: null,
         });
       } else if (type === "activate") {
         res = await usersApi.updateUser(user.id, {
           status: "active",
+          locked: false,
+          locked_reason: null,
         });
       } else if (type === "deactivate") {
         res = await usersApi.updateUser(user.id, {
@@ -709,6 +804,7 @@ export default function UsersManagement() {
           error: "",
         });
         fetchUsers();
+        window.dispatchEvent(new Event("mindhub-admin-task-updated"));
         if (isDrawerOpen && activeDetailUser?.id === user.id) {
           openDetailDrawer(user.id);
         }
@@ -721,6 +817,95 @@ export default function UsersManagement() {
       }
     } catch (e) {
       toast.error("Đã xảy ra lỗi khi thực thi thao tác.");
+    }
+  };
+
+  // Bulk action handlers
+  const handleOpenBulkModal = (action: "lock" | "unlock" | "activate") => {
+    let eligible: any[] = [];
+    if (action === "lock") eligible = eligibleToLock;
+    else if (action === "unlock") eligible = eligibleToUnlock;
+    else if (action === "activate") eligible = eligibleToActivate;
+
+    if (eligible.length === 0) {
+      if (action === "lock")
+        toast.warning("Không có tài khoản nào đang hoạt động để khóa.");
+      else if (action === "unlock")
+        toast.warning("Không có tài khoản nào đang bị khóa để mở.");
+      else if (action === "activate")
+        toast.warning("Không có tài khoản nào cần kích hoạt.");
+      return;
+    }
+
+    const skipped = selectedUserIds.size - eligible.length;
+
+    setBulkModal({
+      open: true,
+      action,
+      eligibleUsers: eligible,
+      skippedCount: skipped,
+      reason: "",
+      error: "",
+      loading: false,
+    });
+  };
+
+  const handleExecuteBulkAction = async () => {
+    if (!bulkModal.action || bulkModal.eligibleUsers.length === 0) return;
+
+    if (bulkModal.action === "lock") {
+      if (!bulkModal.reason || bulkModal.reason.trim().length < 5) {
+        setBulkModal((prev) => ({
+          ...prev,
+          error: "Vui lòng nhập lý do khóa tối thiểu 5 ký tự.",
+        }));
+        return;
+      }
+    }
+
+    setBulkModal((prev) => ({ ...prev, loading: true, error: "" }));
+
+    try {
+      const res = await usersApi.bulkUserAction({
+        action: bulkModal.action,
+        user_ids: bulkModal.eligibleUsers.map((u) => u.id),
+        locked_reason: bulkModal.reason.trim(),
+      });
+
+      if (res && res.success) {
+        toast.success(res.message || "Thao tác hàng loạt thành công.");
+        setBulkModal({
+          open: false,
+          action: "",
+          eligibleUsers: [],
+          skippedCount: 0,
+          reason: "",
+          error: "",
+          loading: false,
+        });
+        setSelectedUserIds(new Set());
+        fetchUsers();
+        window.dispatchEvent(new Event("mindhub-admin-task-updated"));
+      } else if (res && res.errors) {
+        const firstErr = Object.values(res.errors)[0];
+        setBulkModal((prev) => ({
+          ...prev,
+          loading: false,
+          error: Array.isArray(firstErr) ? firstErr[0] : String(firstErr),
+        }));
+      } else {
+        setBulkModal((prev) => ({
+          ...prev,
+          loading: false,
+          error: res?.message || "Đã xảy ra lỗi khi thực hiện thao tác hàng loạt.",
+        }));
+      }
+    } catch (err: any) {
+      setBulkModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: err.message || "Lỗi hệ thống.",
+      }));
     }
   };
 
@@ -2698,35 +2883,68 @@ export default function UsersManagement() {
       {selectedUserIds.size > 0 && (
         <div
           id="bulk-actions-bar"
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center justify-between gap-6 px-4 py-2.5 bg-ink text-white rounded-[6px] shadow-lg text-xs w-full max-w-[480px] md:max-w-[560px] select-none"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4 px-4 py-3 bg-neutral-900 text-white rounded-xl shadow-2xl border border-neutral-700 text-xs w-[calc(100%-32px)] max-w-[720px] select-none animate-in fade-in slide-in-from-bottom-3 duration-200"
         >
-          <div className="flex items-center gap-2.5">
-            <span className="font-medium text-white/90">
-              Đã chọn{" "}
-              <span className="font-bold text-white">
-                {selectedUserIds.size}
-              </span>{" "}
-              tài khoản
+          {/* Status Breakdown */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-white">
+              Đã chọn <span className="text-blue-400">{selectedUserIds.size}</span> tài khoản:
             </span>
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              {eligibleToLock.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  {eligibleToLock.length} Đang hoạt động
+                </span>
+              )}
+              {eligibleToUnlock.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-rose-950 text-rose-300 border border-rose-800">
+                  {eligibleToUnlock.length} Đã khóa
+                </span>
+              )}
+              {eligibleToActivate.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700">
+                  {eligibleToActivate.length} Không hoạt động
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setSelectedUserIds(new Set())}
-              className="text-[10px] text-white/70 hover:text-white underline font-medium cursor-pointer bg-transparent border-none font-sans"
+              className="text-[11px] text-neutral-400 hover:text-white underline font-medium cursor-pointer bg-transparent border-none ml-1"
             >
               Bỏ chọn
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled
-              className="px-3 py-1 text-[10px] font-semibold bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-colors cursor-not-allowed opacity-50 relative group animate-none"
-            >
-              Khóa hàng loạt
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block bg-paper text-ink border border-hairline text-[9px] px-2 py-1 rounded shadow whitespace-nowrap">
-                Chờ nâng cấp API Backend
-              </span>
-            </button>
+
+          {/* Targeted Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            {eligibleToLock.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleOpenBulkModal("lock")}
+                className="px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors cursor-pointer border-none shadow-sm flex items-center gap-1"
+              >
+                Khóa ({eligibleToLock.length})
+              </button>
+            )}
+            {eligibleToUnlock.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleOpenBulkModal("unlock")}
+                className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer border-none shadow-sm flex items-center gap-1"
+              >
+                Mở khóa ({eligibleToUnlock.length})
+              </button>
+            )}
+            {eligibleToActivate.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleOpenBulkModal("activate")}
+                className="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer border-none shadow-sm flex items-center gap-1"
+              >
+                Kích hoạt ({eligibleToActivate.length})
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -2796,9 +3014,15 @@ export default function UsersManagement() {
                         Quản trị viên
                       </span>
                     ) : activeDetailUser.role === "instructor" ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-success-soft text-success border border-success/20">
-                        Giảng viên
-                      </span>
+                      activeDetailUser.has_pending_upgrade ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                          Giảng viên (Chờ duyệt)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-success-soft text-success border border-success/20">
+                          Giảng viên
+                        </span>
+                      )
                     ) : (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-canvas border border-hairline text-mid-gray">
                         Học viên
@@ -2813,6 +3037,32 @@ export default function UsersManagement() {
                   </div>
                 </div>
               </div>
+
+              {/* Upgrade Request Banner */}
+              {activeDetailUser.has_pending_upgrade && (
+                <div className="rounded-[8px] border border-amber-300 bg-amber-50/90 p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <span>Có hồ sơ Giảng viên chờ duyệt</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 leading-snug">
+                      Tài khoản này đang nộp đơn xin nâng cấp lên Giảng viên.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeDetailDrawer();
+                      navigate(`/admin/instructor-upgrades?open_upgrade_id=${activeDetailUser.id}`);
+                    }}
+                    className="px-3 py-1.5 text-[11px] font-bold rounded-[6px] bg-amber-600 hover:bg-amber-700 text-white shrink-0 cursor-pointer shadow-xs transition-colors flex items-center gap-1"
+                  >
+                    <span>Duyệt hồ sơ</span>
+                    <span aria-hidden="true">&rarr;</span>
+                  </button>
+                </div>
+              )}
 
               {/* General Information Section */}
               <div className="space-y-3">
@@ -2851,20 +3101,20 @@ export default function UsersManagement() {
                   <div className="flex justify-between">
                     <span className="text-mid-gray">Trạng thái:</span>
                     <span className="font-medium text-ink">
-                      {activeDetailUser.status === "active"
-                        ? "Đang hoạt động"
-                        : activeDetailUser.status === "inactive"
+                      {activeDetailUser.status === "locked" || activeDetailUser.locked
+                        ? "Đã khóa"
+                        : activeDetailUser.status === "inactive" || !activeDetailUser.last_login_at
                           ? "Không hoạt động"
-                          : "Đã khóa"}
+                          : "Đang hoạt động"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-mid-gray">Trạng thái hiệu lực:</span>
                     <span className="font-medium text-ink">
-                      {activeDetailUser.effective_status === "locked"
+                      {activeDetailUser.effective_status === "locked" || activeDetailUser.locked
                         ? "Bị khóa"
-                        : activeDetailUser.effective_status === "inactive"
-                          ? "Vô hiệu hóa"
+                        : activeDetailUser.effective_status === "inactive" || !activeDetailUser.last_login_at
+                          ? "Không hoạt động (Chưa đăng nhập)"
                           : "Bình thường"}
                     </span>
                   </div>
@@ -2941,48 +3191,66 @@ export default function UsersManagement() {
 
             {/* Footer actions inside drawer */}
             <div className="p-4 border-t border-hairline bg-surface-alt flex flex-wrap gap-2 justify-end shrink-0">
-              <button
-                type="button"
-                onClick={() => handleOpenEditModal(activeDetailUser)}
-                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
-              >
-                Chỉnh sửa
-              </button>
-              {activeDetailUser.id !== CURRENT_ADMIN_ID && (
+              {activeDetailUser.has_pending_upgrade ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeDetailDrawer();
+                    navigate(`/admin/instructor-upgrades?open_upgrade_id=${activeDetailUser.id}`);
+                  }}
+                  className="px-5 py-2 text-xs font-bold rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all cursor-pointer border-none flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Duyệt hồ sơ</span>
+                </button>
+              ) : (
                 <>
-                  {activeDetailUser.locked ||
-                  activeDetailUser.status === "locked" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEditModal(activeDetailUser)}
+                    className="px-4 py-1.5 text-xs font-semibold rounded-full bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                  >
+                    Chỉnh sửa
+                  </button>
+                  {activeDetailUser.id !== CURRENT_ADMIN_ID && (
+                    <>
+                      {activeDetailUser.locked ||
+                      activeDetailUser.status === "locked" ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleQuickAction("unlock", activeDetailUser)
+                          }
+                          className="px-4 py-1.5 text-xs font-semibold rounded-full bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                        >
+                          Mở khóa
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleQuickAction("lock", activeDetailUser)
+                          }
+                          className="px-4 py-1.5 text-xs font-semibold rounded-full bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                        >
+                          Khóa tài khoản
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {activeDetailUser.id === CURRENT_ADMIN_ID && (
                     <button
                       type="button"
-                      onClick={() =>
-                        handleQuickAction("unlock", activeDetailUser)
-                      }
-                      className="px-4 py-1.5 text-xs font-semibold rounded-full bg-success text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
-                    >
-                      Mở khóa
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleQuickAction("lock", activeDetailUser)
-                      }
-                      className="px-4 py-1.5 text-xs font-semibold rounded-full bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                      disabled
+                      title="Bạn không thể tự khóa tài khoản của chính mình."
+                      className="px-4 py-1.5 text-xs font-semibold rounded-full bg-mid-gray/25 text-mid-gray cursor-not-allowed border-none"
                     >
                       Khóa tài khoản
                     </button>
                   )}
                 </>
-              )}
-              {activeDetailUser.id === CURRENT_ADMIN_ID && (
-                <button
-                  type="button"
-                  disabled
-                  title="Bạn không thể tự khóa tài khoản của chính mình."
-                  className="px-4 py-1.5 text-xs font-semibold rounded-full bg-mid-gray/25 text-mid-gray cursor-not-allowed border-none"
-                >
-                  Khóa tài khoản
-                </button>
               )}
             </div>
           </div>
@@ -2991,9 +3259,9 @@ export default function UsersManagement() {
 
       {/* MODAL: CREATE USER */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-none">
-          <div className="bg-paper border border-hairline rounded-[6px] w-full max-w-md shadow-subtle flex flex-col max-h-[90vh]">
-            <div className="flex h-14 shrink-0 items-center justify-between px-5 border-b border-hairline">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-150">
+          <div className="bg-paper border border-hairline rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex h-14 shrink-0 items-center justify-between px-5 border-b border-hairline bg-surface-alt">
               <h3 className="text-sm font-bold text-ink">
                 Thêm người dùng mới
               </h3>
@@ -3002,20 +3270,7 @@ export default function UsersManagement() {
                 onClick={() => setIsCreateModalOpen(false)}
                 className="p-1 hover:bg-canvas rounded-full text-mid-gray hover:text-ink transition-colors cursor-pointer bg-transparent border-none"
               >
-                <svg
-                  className="w-4.5 h-4.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-grow overflow-y-auto p-5 custom-scrollbar">
@@ -3027,85 +3282,124 @@ export default function UsersManagement() {
                 <div>
                   <label
                     htmlFor="create-name"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
-                    Họ và tên *
+                    Họ và tên <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     id="create-name"
                     value={createFormData.full_name}
-                    onChange={(e) =>
-                      setCreateFormData({
-                        ...createFormData,
-                        full_name: e.target.value,
-                      })
-                    }
-                    placeholder="Ví dụ: Nguyễn Văn A"
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCreateFormData({ ...createFormData, full_name: val });
+                      if (createErrors.full_name && val.trim()) {
+                        const next = { ...createErrors };
+                        delete next.full_name;
+                        setCreateErrors(next);
+                      }
+                    }}
+                    placeholder="Ví dụ: Nguyễn Văn An"
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      createErrors.full_name
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
-                  {createErrors.full_name && (
-                    <p className="text-[10px] text-danger-brick mt-1">
+                  {createErrors.full_name ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
                       {createErrors.full_name[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      Họ và tên đầy đủ của người dùng (tối đa 255 ký tự).
                     </p>
                   )}
                 </div>
+
                 <div>
                   <label
                     htmlFor="create-email"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
-                    Email *
+                    Địa chỉ Email <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="email"
                     id="create-email"
                     value={createFormData.email}
-                    onChange={(e) =>
-                      setCreateFormData({
-                        ...createFormData,
-                        email: e.target.value,
-                      })
-                    }
-                    placeholder="example@gmail.com"
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCreateFormData({ ...createFormData, email: val });
+                      if (createErrors.email && val.trim()) {
+                        const next = { ...createErrors };
+                        delete next.email;
+                        setCreateErrors(next);
+                      }
+                    }}
+                    placeholder="Ví dụ: nguyenvana@example.com"
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      createErrors.email
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
-                  {createErrors.email && (
-                    <p className="text-[10px] text-danger-brick mt-1">
+                  {createErrors.email ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
                       {createErrors.email[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      Email dùng để đăng nhập và nhận thông báo hệ thống.
                     </p>
                   )}
                 </div>
+
                 <div>
                   <label
                     htmlFor="create-password"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
-                    Mật khẩu *
+                    Mật khẩu <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="password"
                     id="create-password"
                     value={createFormData.password}
-                    onChange={(e) =>
-                      setCreateFormData({
-                        ...createFormData,
-                        password: e.target.value,
-                      })
-                    }
-                    placeholder="Tối thiểu 6 ký tự"
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCreateFormData({ ...createFormData, password: val });
+                      if (createErrors.password && val.length >= 8) {
+                        const next = { ...createErrors };
+                        delete next.password;
+                        setCreateErrors(next);
+                      }
+                    }}
+                    placeholder="Nhập mật khẩu (tối thiểu 8 ký tự)"
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      createErrors.password
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
-                  {createErrors.password && (
-                    <p className="text-[10px] text-danger-brick mt-1">
+                  {createErrors.password ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
                       {createErrors.password[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      Mật khẩu bảo mật phải có tối thiểu 8 ký tự.
                     </p>
                   )}
                 </div>
+
                 <div>
                   <label
                     htmlFor="create-phone"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
                     Số điện thoại
                   </label>
@@ -3113,84 +3407,117 @@ export default function UsersManagement() {
                     type="text"
                     id="create-phone"
                     value={createFormData.phone}
-                    onChange={(e) =>
-                      setCreateFormData({
-                        ...createFormData,
-                        phone: e.target.value,
-                      })
-                    }
-                    placeholder="Ví dụ: 0901234567"
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCreateFormData({ ...createFormData, phone: val });
+                      if (createErrors.phone) {
+                        const next = { ...createErrors };
+                        delete next.phone;
+                        setCreateErrors(next);
+                      }
+                    }}
+                    placeholder="Ví dụ: 0912345678"
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      createErrors.phone
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
+                  {createErrors.phone ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
+                      {createErrors.phone[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      Định dạng 10 số di động VN (03x, 05x, 07x, 08x, 09x).
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <label
-                    htmlFor="create-role"
-                    className="block text-xs font-semibold text-ink mb-1.5"
-                  >
-                    Vai trò *
-                  </label>
-                  <select
-                    id="create-role"
-                    value={createFormData.role}
-                    onChange={(e) =>
-                      setCreateFormData({
-                        ...createFormData,
-                        role: e.target.value,
-                      })
-                    }
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
-                  >
-                    <option value="learner">Học viên</option>
-                    <option value="instructor">Giảng viên</option>
-                    <option value="admin">Quản trị viên</option>
-                  </select>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="create-role"
+                      className="block text-xs font-semibold text-ink mb-1"
+                    >
+                      Vai trò <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      id="create-role"
+                      value={createFormData.role}
+                      onChange={(e) =>
+                        setCreateFormData({
+                          ...createFormData,
+                          role: e.target.value,
+                        })
+                      }
+                      className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-lg focus:ring-2 focus:ring-blue-100 outline-none text-ink cursor-pointer font-medium"
+                    >
+                      <option value="learner">Học viên</option>
+                      <option value="instructor">Giảng viên</option>
+                      <option value="admin">Quản trị viên</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="create-status"
+                      className="block text-xs font-semibold text-ink mb-1"
+                    >
+                      Trạng thái ban đầu
+                    </label>
+                    <select
+                      id="create-status"
+                      value={createFormData.status}
+                      onChange={(e) =>
+                        setCreateFormData({
+                          ...createFormData,
+                          status: e.target.value,
+                        })
+                      }
+                      className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-lg focus:ring-2 focus:ring-blue-100 outline-none text-ink cursor-pointer font-medium"
+                    >
+                      <option value="active">Đang hoạt động</option>
+                      <option value="inactive">Không hoạt động</option>
+                      <option value="locked">Đã khóa</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label
-                    htmlFor="create-status"
-                    className="block text-xs font-semibold text-ink mb-1.5"
-                  >
-                    Trạng thái ban đầu
-                  </label>
-                  <select
-                    id="create-status"
-                    value={createFormData.status}
-                    onChange={(e) =>
-                      setCreateFormData({
-                        ...createFormData,
-                        status: e.target.value,
-                      })
-                    }
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium"
-                  >
-                    <option value="active">Đang hoạt động</option>
-                    <option value="inactive">Không hoạt động</option>
-                    <option value="locked">Đã khóa</option>
-                  </select>
-                </div>
+
                 {createFormData.status === "locked" && (
                   <div>
                     <label
                       htmlFor="create-lock-reason"
-                      className="block text-xs font-semibold text-ink mb-1.5"
+                      className="block text-xs font-semibold text-rose-600 mb-1"
                     >
-                      Lý do khóa *
+                      Lý do khóa tài khoản <span className="text-rose-500">*</span>
                     </label>
                     <textarea
                       id="create-lock-reason"
                       value={createFormData.locked_reason}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value;
                         setCreateFormData({
                           ...createFormData,
-                          locked_reason: e.target.value,
+                          locked_reason: val,
                         })
-                      }
-                      placeholder="Nhập lý do đình chỉ tài khoản này..."
-                      className="w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink resize-none leading-relaxed font-medium"
+                        if (createErrors.locked_reason && val.trim().length >= 5) {
+                          const next = { ...createErrors };
+                          delete next.locked_reason;
+                          setCreateErrors(next);
+                        }
+                      }}
+                      placeholder="Nhập lý do chi tiết vì sao tài khoản này bị khóa..."
+                      className={cn(
+                        "w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink resize-none leading-relaxed font-medium transition-all",
+                        createErrors.locked_reason
+                          ? "border-rose-500 focus:ring-rose-200"
+                          : "border-hairline focus:border-rose-500 focus:ring-rose-100",
+                      )}
                     />
                     {createErrors.locked_reason && (
-                      <p className="text-[10px] text-danger-brick mt-1">
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">
                         {createErrors.locked_reason[0]}
                       </p>
                     )}
@@ -3202,16 +3529,16 @@ export default function UsersManagement() {
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer border border-hairline"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-canvas text-ink hover:bg-neutral-200 transition-colors cursor-pointer border border-hairline"
               >
                 Hủy bỏ
               </button>
               <button
                 type="submit"
                 form="create-user-form"
-                className="px-5 py-1.5 text-xs font-semibold rounded-full bg-ink text-white hover:opacity-90 transition-opacity flex items-center gap-1.5 cursor-pointer border-none"
+                className="px-5 py-2 text-xs font-semibold rounded-lg bg-ink text-white hover:opacity-90 transition-opacity flex items-center gap-1.5 cursor-pointer border-none shadow-sm"
               >
-                Thêm mới
+                Tạo người dùng
               </button>
             </div>
           </div>
@@ -3220,9 +3547,9 @@ export default function UsersManagement() {
 
       {/* MODAL: EDIT USER */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-none">
-          <div className="bg-paper border border-hairline rounded-[6px] w-full max-w-md shadow-subtle flex flex-col max-h-[90vh]">
-            <div className="flex h-14 shrink-0 items-center justify-between px-5 border-b border-hairline">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-150">
+          <div className="bg-paper border border-hairline rounded-xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex h-14 shrink-0 items-center justify-between px-5 border-b border-hairline bg-surface-alt">
               <h3 className="text-sm font-bold text-ink">
                 Chỉnh sửa người dùng
               </h3>
@@ -3231,20 +3558,7 @@ export default function UsersManagement() {
                 onClick={() => setIsEditModalOpen(false)}
                 className="p-1 hover:bg-canvas rounded-full text-mid-gray hover:text-ink transition-colors cursor-pointer bg-transparent border-none"
               >
-                <svg
-                  className="w-4.5 h-4.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-grow overflow-y-auto p-5 custom-scrollbar">
@@ -3256,78 +3570,123 @@ export default function UsersManagement() {
                 <div>
                   <label
                     htmlFor="edit-name"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
-                    Họ và tên *
+                    Họ và tên <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     id="edit-name"
                     value={editFormData.full_name}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        full_name: e.target.value,
-                      })
-                    }
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData({ ...editFormData, full_name: val });
+                      if (editErrors.full_name && val.trim()) {
+                        const next = { ...editErrors };
+                        delete next.full_name;
+                        setEditErrors(next);
+                      }
+                    }}
+                    placeholder="Ví dụ: Nguyễn Văn An"
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      editErrors.full_name
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
-                  {editErrors.full_name && (
-                    <p className="text-[10px] text-danger-brick mt-1">
+                  {editErrors.full_name ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
                       {editErrors.full_name[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      Họ và tên đầy đủ của người dùng (tối đa 255 ký tự).
                     </p>
                   )}
                 </div>
+
                 <div>
                   <label
                     htmlFor="edit-email"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
-                    Email *
+                    Địa chỉ Email <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="email"
                     id="edit-email"
                     value={editFormData.email}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        email: e.target.value,
-                      })
-                    }
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData({ ...editFormData, email: val });
+                      if (editErrors.email && val.trim()) {
+                        const next = { ...editErrors };
+                        delete next.email;
+                        setEditErrors(next);
+                      }
+                    }}
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      editErrors.email
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
-                  {editErrors.email && (
-                    <p className="text-[10px] text-danger-brick mt-1">
+                  {editErrors.email ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
                       {editErrors.email[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      Định dạng chuẩn email (ví dụ: user@example.com).
                     </p>
                   )}
                 </div>
+
                 <div>
                   <label
                     htmlFor="edit-password"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
-                    Mật khẩu mới (Để trống nếu không đổi)
+                    Mật khẩu mới
                   </label>
                   <input
                     type="password"
                     id="edit-password"
                     value={editFormData.password}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        password: e.target.value,
-                      })
-                    }
-                    placeholder="Nhập mật khẩu mới"
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData({ ...editFormData, password: val });
+                      if (editErrors.password && (val === "" || val.length >= 8)) {
+                        const next = { ...editErrors };
+                        delete next.password;
+                        setEditErrors(next);
+                      }
+                    }}
+                    placeholder="Để trống nếu không muốn đổi mật khẩu"
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      editErrors.password
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
+                  {editErrors.password ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
+                      {editErrors.password[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      Chỉ nhập khi cần đặt lại mật khẩu (tối thiểu 8 ký tự).
+                    </p>
+                  )}
                 </div>
+
                 <div>
                   <label
                     htmlFor="edit-phone"
-                    className="block text-xs font-semibold text-ink mb-1.5"
+                    className="block text-xs font-semibold text-ink mb-1"
                   >
                     Số điện thoại
                   </label>
@@ -3335,88 +3694,122 @@ export default function UsersManagement() {
                     type="text"
                     id="edit-phone"
                     value={editFormData.phone}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        phone: e.target.value,
-                      })
-                    }
-                    className="w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditFormData({ ...editFormData, phone: val });
+                      if (editErrors.phone) {
+                        const next = { ...editErrors };
+                        delete next.phone;
+                        setEditErrors(next);
+                      }
+                    }}
+                    placeholder="Ví dụ: 0912345678"
+                    className={cn(
+                      "w-full h-10 px-3 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink font-medium transition-all",
+                      editErrors.phone
+                        ? "border-rose-500 focus:ring-rose-200"
+                        : "border-hairline focus:border-blue-500 focus:ring-blue-100",
+                    )}
                   />
-                </div>
-                <div>
-                  <label
-                    htmlFor="edit-role"
-                    className="block text-xs font-semibold text-ink mb-1.5"
-                  >
-                    Vai trò *
-                  </label>
-                  <select
-                    id="edit-role"
-                    value={editFormData.role}
-                    onChange={(e) =>
-                      setEditFormData({ ...editFormData, role: e.target.value })
-                    }
-                    disabled={editFormData.id === CURRENT_ADMIN_ID}
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium disabled:bg-neutral-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="learner">Học viên</option>
-                    <option value="instructor">Giảng viên</option>
-                    <option value="admin">Quản trị viên</option>
-                  </select>
-                </div>
-                <div>
-                  <label
-                    htmlFor="edit-status"
-                    className="block text-xs font-semibold text-ink mb-1.5"
-                  >
-                    Trạng thái
-                  </label>
-                  <select
-                    id="edit-status"
-                    value={editFormData.status}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        status: e.target.value,
-                      })
-                    }
-                    disabled={editFormData.id === CURRENT_ADMIN_ID}
-                    className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink cursor-pointer font-medium disabled:bg-neutral-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="active">Đang hoạt động</option>
-                    <option value="inactive">Không hoạt động</option>
-                    <option value="locked">Đã khóa</option>
-                  </select>
-                  {editFormData.id === CURRENT_ADMIN_ID && (
-                    <p className="text-[10px] text-mid-gray mt-1 font-medium">
-                      Bạn không thể tự vô hiệu hóa hoặc khóa tài khoản của chính
-                      mình.
+                  {editErrors.phone ? (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">
+                      {editErrors.phone[0]}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-mid-gray mt-1">
+                      10 số di động VN (03x, 05x, 07x, 08x, 09x).
                     </p>
                   )}
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="edit-role"
+                      className="block text-xs font-semibold text-ink mb-1"
+                    >
+                      Vai trò <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      id="edit-role"
+                      value={editFormData.role}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, role: e.target.value })
+                      }
+                      disabled={editFormData.id === CURRENT_ADMIN_ID}
+                      className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-lg focus:ring-2 focus:ring-blue-100 outline-none text-ink cursor-pointer font-medium disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="learner">Học viên</option>
+                      <option value="instructor">Giảng viên</option>
+                      <option value="admin">Quản trị viên</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="edit-status"
+                      className="block text-xs font-semibold text-ink mb-1"
+                    >
+                      Trạng thái
+                    </label>
+                    <select
+                      id="edit-status"
+                      value={editFormData.status}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          status: e.target.value,
+                        })
+                      }
+                      disabled={editFormData.id === CURRENT_ADMIN_ID}
+                      className="w-full h-10 px-3 text-xs bg-canvas border border-hairline rounded-lg focus:ring-2 focus:ring-blue-100 outline-none text-ink cursor-pointer font-medium disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="active">Đang hoạt động</option>
+                      <option value="inactive">Không hoạt động</option>
+                      <option value="locked">Đã khóa</option>
+                    </select>
+                  </div>
+                </div>
+
+                {editFormData.id === CURRENT_ADMIN_ID && (
+                  <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 p-2.5 rounded-lg font-medium">
+                    Đây là tài khoản quản trị hiện tại của bạn. Hệ thống không cho phép thay đổi vai trò hoặc khóa tài khoản của chính mình.
+                  </p>
+                )}
+
                 {editFormData.status === "locked" && (
                   <div>
                     <label
                       htmlFor="edit-lock-reason"
-                      className="block text-xs font-semibold text-ink mb-1.5"
+                      className="block text-xs font-semibold text-rose-600 mb-1"
                     >
-                      Lý do khóa *
+                      Lý do khóa tài khoản <span className="text-rose-500">*</span>
                     </label>
                     <textarea
                       id="edit-lock-reason"
                       value={editFormData.locked_reason}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value;
                         setEditFormData({
                           ...editFormData,
-                          locked_reason: e.target.value,
+                          locked_reason: val,
                         })
-                      }
-                      placeholder="Nhập lý do đình chỉ tài khoản này..."
-                      className="w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink resize-none leading-relaxed font-medium"
+                        if (editErrors.locked_reason && val.trim().length >= 5) {
+                          const next = { ...editErrors };
+                          delete next.locked_reason;
+                          setEditErrors(next);
+                        }
+                      }}
+                      placeholder="Nhập lý do chi tiết vì sao tài khoản này bị khóa..."
+                      className={cn(
+                        "w-full h-20 p-2.5 text-xs bg-canvas focus:bg-paper border rounded-lg focus:ring-2 outline-none text-ink resize-none leading-relaxed font-medium transition-all",
+                        editErrors.locked_reason
+                          ? "border-rose-500 focus:ring-rose-200"
+                          : "border-hairline focus:border-rose-500 focus:ring-rose-100",
+                      )}
                     />
                     {editErrors.locked_reason && (
-                      <p className="text-[10px] text-danger-brick mt-1">
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">
                         {editErrors.locked_reason[0]}
                       </p>
                     )}
@@ -3428,16 +3821,123 @@ export default function UsersManagement() {
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer border border-hairline"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-canvas text-ink hover:bg-neutral-200 transition-colors cursor-pointer border border-hairline"
               >
                 Hủy bỏ
               </button>
               <button
                 type="submit"
                 form="edit-user-form"
-                className="px-5 py-1.5 text-xs font-semibold rounded-full bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                className="px-5 py-2 text-xs font-semibold rounded-lg bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none shadow-sm"
               >
                 Lưu thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK ACTION CONFIRMATION MODAL */}
+      {bulkModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-paper border border-hairline rounded-xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div>
+              <h3
+                className={cn(
+                  "text-base font-bold",
+                  bulkModal.action === "lock" ? "text-rose-600" : "text-ink",
+                )}
+              >
+                {bulkModal.action === "lock"
+                  ? `Khóa hàng loạt ${bulkModal.eligibleUsers.length} tài khoản`
+                  : bulkModal.action === "unlock"
+                    ? `Mở khóa hàng loạt ${bulkModal.eligibleUsers.length} tài khoản`
+                    : `Kích hoạt hàng loạt ${bulkModal.eligibleUsers.length} tài khoản`}
+              </h3>
+
+              <div className="mt-2 space-y-2 text-xs text-mid-gray leading-relaxed font-medium">
+                <p>
+                  Bạn đang chuẩn bị thực hiện thao tác trên{" "}
+                  <strong className="text-ink font-semibold">
+                    {bulkModal.eligibleUsers.length} tài khoản
+                  </strong>{" "}
+                  hợp lệ.
+                </p>
+
+                {bulkModal.skippedCount > 0 && (
+                  <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
+                    ⚠️ Đã tự động loại trừ{" "}
+                    <strong>{bulkModal.skippedCount} tài khoản</strong> không đủ
+                    điều kiện (đã ở trạng thái này hoặc tài khoản Admin hiện tại).
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {bulkModal.action === "lock" && (
+              <div>
+                <label
+                  htmlFor="bulk-lock-reason"
+                  className="block text-xs font-semibold text-rose-700 mb-1"
+                >
+                  Lý do khóa hàng loạt <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  id="bulk-lock-reason"
+                  value={bulkModal.reason}
+                  onChange={(e) =>
+                    setBulkModal({
+                      ...bulkModal,
+                      reason: e.target.value,
+                      error: "",
+                    })
+                  }
+                  placeholder="Ví dụ: Vi phạm chính sách nền tảng, phát hiện gian lận hoặc spam diện rộng..."
+                  className="w-full h-24 p-2.5 text-xs bg-canvas border border-hairline rounded-lg focus:ring-2 focus:ring-rose-200 outline-none text-ink resize-none leading-relaxed font-medium"
+                />
+              </div>
+            )}
+
+            {bulkModal.error && (
+              <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-lg font-medium">
+                {bulkModal.error}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-hairline">
+              <button
+                type="button"
+                disabled={bulkModal.loading}
+                onClick={() =>
+                  setBulkModal({
+                    open: false,
+                    action: "",
+                    eligibleUsers: [],
+                    skippedCount: 0,
+                    reason: "",
+                    error: "",
+                    loading: false,
+                  })
+                }
+                className="px-4 py-2 text-xs font-semibold rounded-lg border border-hairline bg-canvas text-ink hover:bg-neutral-200 transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={bulkModal.loading}
+                onClick={handleExecuteBulkAction}
+                className={cn(
+                  "px-5 py-2 text-xs font-semibold rounded-lg text-white transition-opacity cursor-pointer border-none shadow-sm flex items-center gap-1.5",
+                  bulkModal.action === "lock"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : bulkModal.action === "unlock"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-blue-600 hover:bg-blue-700",
+                  bulkModal.loading && "opacity-50 cursor-not-allowed",
+                )}
+              >
+                {bulkModal.loading ? "Đang xử lý..." : "Xác nhận thực hiện"}
               </button>
             </div>
           </div>
@@ -3447,7 +3947,7 @@ export default function UsersManagement() {
       {/* CONFIRMATION ACTION MODAL: LOCK */}
       {confirmModal.open && confirmModal.type === "lock" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-paper border border-hairline rounded-[6px] w-full max-w-sm shadow-subtle p-5 space-y-4">
+          <div className="bg-paper border border-hairline rounded-xl w-full max-w-sm shadow-2xl p-5 space-y-4">
             <div>
               <h3 className="text-sm font-bold text-danger-brick">
                 Đình chỉ / Khóa tài khoản
@@ -3466,7 +3966,7 @@ export default function UsersManagement() {
                 htmlFor="lock-reason-input"
                 className="block text-xs font-semibold text-ink mb-1.5"
               >
-                Lý do khóa tài khoản *
+                Lý do khóa tài khoản <span className="text-rose-500">*</span>
               </label>
               <textarea
                 id="lock-reason-input"
@@ -3475,10 +3975,10 @@ export default function UsersManagement() {
                   setConfirmModal({ ...confirmModal, reason: e.target.value })
                 }
                 placeholder="Ví dụ: Spam, vi phạm bản quyền nội dung..."
-                className="w-full h-20 p-2 text-xs bg-canvas border border-hairline rounded-[6px] focus:ring-1 focus:ring-blue-600/40 outline-none text-ink resize-none leading-relaxed font-medium"
+                className="w-full h-20 p-2 text-xs bg-canvas border border-hairline rounded-lg focus:ring-1 focus:ring-blue-600/40 outline-none text-ink resize-none leading-relaxed font-medium"
               />
               {confirmModal.error && (
-                <p className="text-[10px] text-danger-brick mt-1">
+                <p className="text-[11px] text-danger-brick mt-1">
                   {confirmModal.error}
                 </p>
               )}
@@ -3495,14 +3995,14 @@ export default function UsersManagement() {
                     error: "",
                   })
                 }
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-lg border border-hairline bg-canvas text-ink hover:bg-neutral-200 transition-colors cursor-pointer"
               >
                 Bỏ qua
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                className="px-4 py-1.5 h-9 text-xs font-semibold rounded-lg bg-danger-brick text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
               >
                 Xác nhận khóa
               </button>
@@ -3517,7 +4017,7 @@ export default function UsersManagement() {
           confirmModal.type === "activate" ||
           confirmModal.type === "deactivate") && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="bg-paper border border-hairline rounded-[6px] w-full max-w-xs shadow-subtle p-5 space-y-4">
+            <div className="bg-paper border border-hairline rounded-xl w-full max-w-xs shadow-2xl p-5 space-y-4">
               <div>
                 <h3
                   className="text-sm font-bold text-ink"
@@ -3546,7 +4046,7 @@ export default function UsersManagement() {
                   ?
                 </p>
                 {confirmModal.error && (
-                  <p className="text-[10px] text-danger-brick mt-1">
+                  <p className="text-[11px] text-danger-brick mt-1">
                     {confirmModal.error}
                   </p>
                 )}
@@ -3563,14 +4063,14 @@ export default function UsersManagement() {
                       error: "",
                     })
                   }
-                  className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] border border-hairline bg-canvas text-ink hover:bg-hairline transition-colors cursor-pointer"
+                  className="px-4 py-1.5 h-9 text-xs font-semibold rounded-lg border border-hairline bg-canvas text-ink hover:bg-neutral-200 transition-colors cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmSubmit}
-                  className="px-4 py-1.5 h-9 text-xs font-semibold rounded-[6px] bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
+                  className="px-4 py-1.5 h-9 text-xs font-semibold rounded-lg bg-ink text-white hover:opacity-90 transition-opacity cursor-pointer border-none"
                 >
                   Xác nhận
                 </button>

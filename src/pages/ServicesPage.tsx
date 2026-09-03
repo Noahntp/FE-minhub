@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { Link, useNavigate } from 'react-router-dom';
 import { homeApi } from '@/features/home/api';
 import { CountUpNumber } from '@/shared/components/ui/CountUpNumber';
+import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { resolveMediaUrl } from '@/shared/utils/format';
 import {
   ChevronRight,
@@ -30,6 +32,12 @@ export default function ServicesPage() {
   const [stats, setStats] = useState<any>(null);
   const [testimonials, setTestimonials] = useState<any[]>([]);
 
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
     homeApi.getHomepageData()
@@ -49,34 +57,7 @@ export default function ServicesPage() {
     };
   }, []);
 
-  const defaultTestimonials = [
-    {
-      id: 1,
-      comment: 'MindHub là nền tảng tuyệt vời để tôi chia sẻ kiến thức và tiếp cận hàng nghìn học viên. Chính sách chia sẻ doanh thu rất hợp lý và minh bạch.',
-      user_name: 'Nguyễn Văn A',
-      user_role: 'Giảng viên Lập trình Python',
-      user_avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-      rating: 5,
-    },
-    {
-      id: 2,
-      comment: 'Tôi rất ấn tượng với công cụ hỗ trợ giảng dạy và đội ngũ hỗ trợ nhiệt tình của MindHub. Doanh thu của tôi đã tăng trưởng đáng kể.',
-      user_name: 'Trần Thị B',
-      user_role: 'Giảng viên Marketing',
-      user_avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
-      rating: 5,
-    },
-    {
-      id: 3,
-      comment: 'Nền tảng ổn định, học viên chất lượng và chính sách rút tiền nhanh chóng. Tôi hoàn toàn tin tưởng và gắn bó lâu dài với MindHub.',
-      user_name: 'Lê Văn C',
-      user_role: 'Giảng viên thiết kế UI/UX',
-      user_avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
-      rating: 5,
-    },
-  ];
 
-  const displayTestimonials = testimonials.length > 0 ? testimonials : defaultTestimonials;
 
   return (
     <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans pb-20">
@@ -560,8 +541,16 @@ export default function ServicesPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            {displayTestimonials.map((item: any, index: number) => {
+          {testimonials.length === 0 ? (
+            <div className="py-10">
+              <EmptyState 
+                title="Chưa có đánh giá nào"
+                description="Hệ thống đang cập nhật các đánh giá mới nhất."
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+              {testimonials.map((item: any, index: number) => {
               const text = (item.comment || item.content || '').trim();
               const formattedComment = text ? (text.startsWith('"') ? text : `"${text}"`) : '"Nội dung khóa học rất sát thực tế, hệ thống ổn định và hỗ trợ nhiệt tình."';
               
@@ -606,6 +595,7 @@ export default function ServicesPage() {
               );
             })}
           </div>
+          )}
 
         </div>
       </section>

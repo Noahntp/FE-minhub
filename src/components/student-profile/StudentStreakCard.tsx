@@ -47,13 +47,23 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
   useEffect(() => {
     let isMounted = true;
     const fetchStreak = async () => {
+      const token = localStorage.getItem('mindhub_api_token') || localStorage.getItem('token') || localStorage.getItem('auth_token');
+      if (!token) {
+        if (isMounted) setLoading(false);
+        return;
+      }
       try {
-        const res = await apiFetch<any>('/me/streak');
+        const tz = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Ho_Chi_Minh');
+        const res = await apiFetch<any>(`/me/streak?timezone=${tz}`);
         if (isMounted && res) {
           const payload = res.data || res;
           setData(payload);
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.status === 401) {
+          if (isMounted) setLoading(false);
+          return;
+        }
         try {
           const fallbackRes = await ApiService.getLearningStreak();
           if (isMounted && fallbackRes) {
@@ -61,7 +71,7 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
             setData(payload);
           }
         } catch (e) {
-          console.warn('Failed to fetch streak metrics:', e);
+          // Silent fallback failure
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -70,8 +80,13 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
 
     fetchStreak();
 
+    window.addEventListener('mindhub_activity_updated', fetchStreak);
+    window.addEventListener('focus', fetchStreak);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('mindhub_activity_updated', fetchStreak);
+      window.removeEventListener('focus', fetchStreak);
     };
   }, []);
 
@@ -88,11 +103,12 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
   const todayIdx = jsDay === 0 ? 6 : jsDay - 1;
   const dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
-  const defaultWeekDays: WeekDayItem[] = dayLabels.map((day, idx) => ({
+  const defaultWeekDays: (WeekDayItem & { learning_time?: string })[] = dayLabels.map((day, idx) => ({
     day,
     active: idx === todayIdx,
     isToday: idx === todayIdx,
     is_today: idx === todayIdx,
+    learning_time: idx === todayIdx ? 'Đang học' : '0 phút',
   }));
 
   const weekDays = data?.week_days && data.week_days.length > 0 ? data.week_days : defaultWeekDays;
@@ -118,9 +134,9 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
       <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
         <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
           <Flame className="w-4.5 h-4.5 text-amber-500 fill-amber-400 animate-pulse" />
-          <span>Chuỗi học tập (Streak)</span>
+          Chuỗi học tập (Streak)
         </h2>
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold ${
+        <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-xs ${
           isMaintaining 
             ? 'bg-amber-50 text-amber-700 border border-amber-200' 
             : 'bg-slate-100 text-slate-600 border border-slate-200'
@@ -184,12 +200,14 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
         </div>
 
         <div className="grid grid-cols-7 gap-1 sm:gap-2">
-          {weekDays.map((item, idx) => {
+          {weekDays.map((item: any, idx: number) => {
             const isToday = item.isToday || item.is_today;
+            const tooltipText = `${item.day} (${item.date || ''}): ${item.learning_time || (item.active ? 'Đã hoàn thành bài học' : '0 phút học')}`;
             return (
               <div
                 key={idx}
-                className={`p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border text-center flex flex-col items-center gap-0.5 sm:gap-1 transition-all ${
+                title={tooltipText}
+                className={`group relative cursor-pointer p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border text-center flex flex-col items-center gap-0.5 sm:gap-1 transition-all hover:scale-110 ${
                   isToday
                     ? 'bg-amber-400 text-slate-900 border-amber-400 shadow-md shadow-amber-400/30 scale-105 font-black'
                     : item.active
@@ -205,6 +223,12 @@ export const StudentStreakCard: React.FC<StudentStreakCardProps> = ({
                 ) : (
                   <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-slate-300" />
                 )}
+
+                {/* Hover Learning Time Tooltip */}
+                <div className="absolute -top-9 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center px-2 py-1 bg-slate-900 text-white text-[10px] font-medium rounded-lg shadow-lg whitespace-nowrap pointer-events-none z-50">
+                  {item.learning_time || (item.active ? 'Đã học' : '0 phút')}
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                </div>
               </div>
             );
           })}

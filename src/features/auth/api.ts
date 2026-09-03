@@ -2,7 +2,7 @@ import { apiFetch, devLog, config, ApiError, setAuthToken } from '@/shared/lib/a
 import { Course, Chapter, Lesson, Resource, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '@/shared/types';
 
 export const authApi = {
-async register(payload: any): Promise<{ user: User; token: string; verify_url?: string; otp_code?: string; note?: string }> {
+async register(payload: any): Promise<{ user: User; token: string; verify_url?: string; otp_code?: string; note?: string; channel?: 'email' | 'sms'; sent_to?: string }> {
     devLog('Auth', 'Register new user', { email: payload.email, role: payload.role });
     const endpoint = payload.role === 'instructor' ? '/auth/register/instructor' : '/auth/register/learner';
     
@@ -17,6 +17,8 @@ async register(payload: any): Promise<{ user: User; token: string; verify_url?: 
     } else {
       delete cleanPayload.experience_years;
     }
+    if (!cleanPayload.email) delete cleanPayload.email;
+    if (!cleanPayload.phone) delete cleanPayload.phone;
 
     const res = await apiFetch<any>(endpoint, {
       method: 'POST',
@@ -27,7 +29,9 @@ async register(payload: any): Promise<{ user: User; token: string; verify_url?: 
       token: res.token || '',
       verify_url: res.verify_url,
       otp_code: res.otp_code,
-      note: res.note
+      note: res.note,
+      channel: res.channel,
+      sent_to: res.sent_to,
     };
   },
 
@@ -40,7 +44,7 @@ async login(payload: any): Promise<{ user: User; token: string }> {
         password: payload.password,
       }),
     });
-    const token = res.access_token || '';
+    const token = res.token || res.access_token || '';
     if (token) {
       setAuthToken(token);
     }
@@ -64,9 +68,17 @@ async getGoogleRedirectUrl(): Promise<string> {
     });
   },
 
-  async verifyOtp(payload: { email: string; otp: string }): Promise<any> {
-    devLog('Auth', 'Verify OTP email/phone code', payload);
+  async verifyOtp(payload: { email?: string; phone?: string; otp: string }): Promise<any> {
+    devLog('Auth', 'Verify OTP code', payload);
     return apiFetch<any>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async resendVerifyOtp(payload: { email?: string; phone?: string; channel: 'email' | 'sms' }): Promise<any> {
+    devLog('Auth', 'Resend verify OTP code', payload);
+    return apiFetch<any>('/auth/resend-verify-otp', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

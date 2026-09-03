@@ -387,28 +387,29 @@ export default function StudentManagement({ instructorCourses = [] }: StudentMan
   const handleExportReport = async () => {
     setExporting(true);
     try {
-      const queryParams = new URLSearchParams();
-      if (courseFilter && courseFilter !== 'all') queryParams.set('course_id', String(courseFilter));
-      if (statusFilter && statusFilter !== 'all') queryParams.set('status', String(statusFilter));
-      if (debouncedSearch) queryParams.set('search', String(debouncedSearch));
-      if (presetFilter && presetFilter !== '30d') queryParams.set('preset', String(presetFilter));
-      if (presetFilter === 'custom' && dateFrom) queryParams.set('date_from', String(dateFrom));
-      if (presetFilter === 'custom' && dateTo) queryParams.set('date_to', String(dateTo));
-
-      const downloadUrl = `http://127.0.0.1:8000/api/instructor/learners/export?${queryParams.toString()}`;
+      const blob = await instructorApi.exportInstructorLearnersBlob({
+        course_id: courseFilter,
+        status: statusFilter,
+        search: debouncedSearch,
+        preset: presetFilter,
+        date_from: dateFrom,
+        date_to: dateTo,
+      });
 
       const dateStr = dateFrom && dateTo ? `${dateFrom}-den-${dateTo}` : new Date().toISOString().slice(0, 10);
-
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = url;
       link.setAttribute('download', `hoc-vien-${dateStr}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
-      showToast('Xuất báo cáo danh sách lượt ghi danh thành công!');
-    } catch (err) {
-      showToast('Xuất báo cáo thất bại.', 'error');
+      showToast('Xuất báo cáo danh sách học viên thành công!');
+    } catch (err: any) {
+      console.error('Export learners failed:', err);
+      showToast(err?.message || 'Xuất báo cáo thất bại.', 'error');
     } finally {
       setExporting(false);
     }

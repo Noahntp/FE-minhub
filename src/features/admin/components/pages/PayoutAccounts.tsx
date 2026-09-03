@@ -64,7 +64,7 @@ export default function PayoutAccounts() {
   const [perPage, setPerPage] = useState(20);
   const [search, setSearch] = useState('');
   const [provider, setProvider] = useState('all');
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState(searchParams.get('status') || 'all');
 
   // Handle clicking on stat cards to filter and scroll
   const handleFilterClick = (newStatus: string, label: string) => {
@@ -171,43 +171,65 @@ export default function PayoutAccounts() {
         setDetail(res.data);
       } else {
         toast.error(res.message || 'Lỗi tải chi tiết tài khoản.');
-        setSelectedAccountId(null);
+        closeDrawer();
       }
     } catch (err) {
       console.error(err);
       toast.error('Không thể kết nối để lấy thông tin chi tiết.');
+      closeDrawer();
     } finally {
       setIsDetailLoading(false);
     }
   };
 
+  // Sync open drawer & URL status on mount and on browser Back/Forward (searchParams change)
   useEffect(() => {
-    if (selectedAccountId) {
-      loadDetail(selectedAccountId);
-      // Sync URL
-      const nextParams = new URLSearchParams(searchParams);
-      if (nextParams.get('open_payout_account_id') !== String(selectedAccountId)) {
-        nextParams.set('open_payout_account_id', String(selectedAccountId));
-        setSearchParams(nextParams, { replace: true });
+    const urlStatus = searchParams.get('status');
+    if (urlStatus && urlStatus !== status) {
+      setStatus(urlStatus);
+      setPage(1);
+    }
+
+    if (urlStatus || searchParams.has('open_payout_account_id')) {
+      const timer = setTimeout(() => {
+        const section = document.getElementById('payout-accounts-list-section');
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+
+    const openId = searchParams.get('open_payout_account_id');
+    if (openId) {
+      const pid = Number(openId);
+      if (pid && selectedAccountId !== pid) {
+        setSelectedAccountId(pid);
+        loadDetail(pid);
       }
     } else {
-      setDetail(null);
-      // Cleanup URL
-      if (searchParams.has('open_payout_account_id')) {
-        const nextParams = new URLSearchParams(searchParams);
-        nextParams.delete('open_payout_account_id');
-        setSearchParams(nextParams, { replace: true });
+      if (selectedAccountId !== null) {
+        setSelectedAccountId(null);
+        setDetail(null);
       }
     }
-  }, [selectedAccountId]);
-
-  // Handle deep link
-  useEffect(() => {
-    const openId = searchParams.get('open_payout_account_id');
-    if (openId && !selectedAccountId) {
-      setSelectedAccountId(Number(openId));
-    }
   }, [searchParams]);
+
+  const openPayoutDrawer = (id: number) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('open_payout_account_id', String(id));
+    setSearchParams(nextParams);
+    setSelectedAccountId(id);
+    loadDetail(id);
+  };
+
+  const closeDrawer = () => {
+    setSelectedAccountId(null);
+    setDetail(null);
+    if (searchParams.has('open_payout_account_id')) {
+      navigate(-1);
+    }
+  };
 
   // Handle Approve Account Action
   const handleApprove = async () => {
@@ -219,6 +241,7 @@ export default function PayoutAccounts() {
         setIsApproveOpen(false);
         loadData();
         loadDetail(detail.id);
+        window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
       } else {
         toast.error(res.message || 'Duyệt tài khoản thất bại.');
       }
@@ -239,6 +262,7 @@ export default function PayoutAccounts() {
         setRejectReason('');
         loadData();
         loadDetail(detail.id);
+        window.dispatchEvent(new CustomEvent('mindhub-admin-task-updated'));
       } else {
         toast.error(res.message || 'Từ chối tài khoản thất bại.');
       }
@@ -631,7 +655,7 @@ export default function PayoutAccounts() {
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedAccountId(item.id)}
+                      onClick={() => openPayoutDrawer(item.id)}
                       className={`border-b border-hairline/80 hover:bg-canvas-alt/30 transition-colors cursor-pointer group ${
                         selectedAccountId === item.id ? 'bg-canvas-alt/50' : ''
                       }`}
@@ -721,7 +745,7 @@ export default function PayoutAccounts() {
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-ink/40 backdrop-blur-[2px] transition-opacity duration-300"
-            onClick={() => setSelectedAccountId(null)}
+            onClick={closeDrawer}
           ></div>
 
           {/* Panel */}
@@ -744,7 +768,7 @@ export default function PayoutAccounts() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedAccountId(null)}
+                  onClick={closeDrawer}
                   className="p-1.5 rounded-lg text-mid-gray hover:text-ink hover:bg-canvas-alt transition-colors"
                 >
                   <X className="w-5 h-5" />

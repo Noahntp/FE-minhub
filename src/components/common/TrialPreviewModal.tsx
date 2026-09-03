@@ -7,9 +7,10 @@ import { resolveMediaUrl } from '@/shared/lib/media-url';
 import Hls from 'hls.js';
 
 const FALLBACK_SAMPLE_VIDEOS = [
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-  'https://www.w3schools.com/html/mov_bbb.mp4'
+  'https://mindhub.io.vn/videos/laravel-rest-api/laravel-rest-api-01-rest-api-la-gi-trong-laravel.mp4',
+  'https://mindhub.io.vn/videos/ai-learning/ai-learning-01-ai-trong-hoc-tap-la-gi.mp4',
+  'https://www.w3schools.com/html/mov_bbb.mp4',
+  'https://vjs.zencdn.net/v/oceans.mp4'
 ];
 
 export function TrialPreviewModal() {
@@ -33,19 +34,19 @@ export function TrialPreviewModal() {
             id: String(item.id),
             title: item.title || 'Bài học xem thử',
             duration: item.duration || '12:30',
-            videoUrl: item.stream_url || item.video_url || item.videoUrl || (import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : ''),
+            videoUrl: item.stream_url || item.video_url || item.videoUrl || FALLBACK_SAMPLE_VIDEOS[0],
             courseTitle: item.course_title || item.courseTitle || 'Khóa học chất lượng cao',
             courseId: String(item.course_id || item.courseId || 'react-nextjs-master'),
             instructorName: item.instructor_name || item.instructorName || 'Giảng viên MindHub',
           }));
           setTrialLessonsList(mapped);
-          
+
           if (!activeTrialLesson) {
             setActiveTrialLesson(mapped[0]);
           }
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         setIsLoading(false);
       });
@@ -57,22 +58,33 @@ export function TrialPreviewModal() {
   useEffect(() => {
     if (currentLesson?.videoUrl) {
       const rawUrl = currentLesson.videoUrl.trim();
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      if (rawUrl.includes('gtv-videos-bucket') || rawUrl.includes('seed-bunny')) {
+        setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
+      } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
         setVideoSrc(rawUrl);
+      } else if (rawUrl.startsWith('/')) {
+        setVideoSrc(`${window.location.origin}${rawUrl}`);
       } else {
-        // Prevent 404 on dev server for unhosted relative video paths like /demo/videos/...
-        setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : rawUrl);
+        setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
       }
     } else {
-      setVideoSrc(import.meta.env.DEV ? FALLBACK_SAMPLE_VIDEOS[0] : '');
+      setVideoSrc(FALLBACK_SAMPLE_VIDEOS[0]);
     }
   }, [currentLesson?.videoUrl]);
+
+  const isIframe = Boolean(
+    videoSrc && (
+      videoSrc.includes('iframe.mediadelivery.net') ||
+      videoSrc.includes('youtube.com') ||
+      videoSrc.includes('/embed/')
+    )
+  );
 
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     let hls: Hls | null = null;
-    
+
     if (videoRef.current && videoSrc) {
       if (videoSrc.includes('.m3u8') && Hls.isSupported()) {
         hls = new Hls();
@@ -118,7 +130,7 @@ export function TrialPreviewModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
       <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-white">
-        
+
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
           <div className="flex items-center gap-3">
@@ -150,22 +162,33 @@ export function TrialPreviewModal() {
 
         {/* Modal Body: Video Player & Playlist */}
         <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto">
-          
+
           {/* Left / Top: Video Player & Details */}
           <div className="lg:col-span-8 p-5 space-y-4 bg-slate-950 flex flex-col">
-            
-            {/* HTML5 Video Player */}
+
+            {/* Video Player: Direct MP4/HLS vs Embed Iframe */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl flex items-center justify-center">
-              {videoSrc ? (
+              {isIframe ? (
+                <iframe
+                  key={videoSrc}
+                  src={videoSrc}
+                  title={currentLesson?.title || 'Video xem thử'}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                  allowFullScreen
+                />
+              ) : videoSrc ? (
                 <video
                   ref={videoRef}
                   key={videoSrc}
                   controls
                   autoPlay
+                  playsInline
                   onError={handleVideoError}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-black"
                   poster="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80"
                 >
+                  <source src={videoSrc} type="video/mp4" />
                   Trình duyệt của bạn không hỗ trợ phát video HTML5.
                 </video>
               ) : (
@@ -224,7 +247,7 @@ export function TrialPreviewModal() {
 
           {/* Right / Bottom: Playlist of Trial Lessons */}
           <div className="lg:col-span-4 p-4 bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 space-y-3 flex flex-col">
-            
+
             <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-2 border-b border-slate-800">
               <span className="flex items-center gap-1.5">
                 <PlayCircle className="w-4 h-4 text-emerald-400" />
@@ -246,11 +269,10 @@ export function TrialPreviewModal() {
                     <button
                       key={item.id}
                       onClick={() => setActiveTrialLesson(item)}
-                      className={`w-full p-3 rounded-xl text-left text-xs transition-all flex items-start gap-3 border cursor-pointer ${
-                        isActive
+                      className={`w-full p-3 rounded-xl text-left text-xs transition-all flex items-start gap-3 border cursor-pointer ${isActive
                           ? 'bg-emerald-950/60 border-emerald-500/50 text-white shadow-md'
                           : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-800 hover:border-slate-700'
-                      }`}
+                        }`}
                     >
                       <div className={`p-2 rounded-lg shrink-0 ${isActive ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
                         <PlayCircle className="w-4 h-4" />

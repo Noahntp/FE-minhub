@@ -20,6 +20,7 @@ interface AppContextType {
   setCurrentUser: React.Dispatch<React.SetStateAction<UserType>>;
   isLoggedIn: boolean;
   setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
+  isInitializingAuth: boolean;
   courses: Course[];
   setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
   favorites: string[];
@@ -70,22 +71,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('mindhub_is_logged_in');
-      return stored === null || stored === 'undefined' || stored === 'null'
-        ? true
-        : stored === 'true';
+      const token = localStorage.getItem('mindhub_api_token') || localStorage.getItem('token');
+      return stored === 'true' && !!token;
     } catch (e) {
-      return true;
+      return false;
     }
   });
 
+  const [isInitializingAuth, setIsInitializingAuth] = useState<boolean>(true);
+
   // Fetch fresh profile from Backend database on app mount/reload if token exists
   useEffect(() => {
-    const token = localStorage.getItem('mindhub_api_token');
+    const token = localStorage.getItem('mindhub_api_token') || localStorage.getItem('token');
     if (token) {
       apiFetch<any>('/users/me')
         .then(res => {
           const profileData = res?.data || res;
           if (profileData) {
+            const role = profileData.role || 'learner';
             setCurrentUser(prev => {
               const updated = {
                 ...prev,
@@ -98,7 +101,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 expertise: profileData.expertise ?? prev?.expertise,
                 avatar: profileData.avatar_url || profileData.avatar || prev?.avatar,
                 avatar_url: profileData.avatar_url || profileData.avatar || prev?.avatar_url,
-                role: profileData.role || prev?.role
+                role: role
               };
               if (JSON.stringify(updated) === JSON.stringify(prev)) {
                 return prev;
@@ -108,25 +111,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               } catch (e) {}
               return updated;
             });
+            setIsLoggedIn(true);
+            localStorage.setItem('mindhub_is_logged_in', 'true');
+
+            // Only fetch learner courses if user is a learner
+            if (role === 'learner' || role === 'student') {
+              apiFetch<any>('/me/courses')
+                .then((courseRes) => {
+                  const list = Array.isArray(courseRes) ? courseRes : (courseRes?.data || []);
+                  if (Array.isArray(list)) {
+                    const ids = list
+                      .flatMap((item: any) => [
+                        item.course_id,
+                        item.course?.id,
+                        item.course?.slug,
+                      ])
+                      .filter(Boolean)
+                      .map(String);
+                    if (ids.length > 0) {
+                      setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
+                    }
+                  }
+                })
+                .catch(() => {});
+            }
           }
         })
         .catch(err => {
           console.warn('Could not fetch fresh user profile on app load:', err);
-        });
-
-      apiFetch<any>('/me/courses')
-        .then((res) => {
-          const list = Array.isArray(res) ? res : (res?.data || []);
-          if (Array.isArray(list)) {
-            const ids = list
-              .map((item: any) => String(item.course_id || item.course?.id || item.course?.slug || item.id))
-              .filter(Boolean);
-            if (ids.length > 0) {
-              setEnrolledCourseIds((prev) => Array.from(new Set([...prev, ...ids])));
-            }
-          }
+          setIsLoggedIn(false);
+          setCurrentUser(INITIAL_USER);
+          setEnrolledCourseIds([]);
+          localStorage.removeItem('mindhub_api_token');
+          localStorage.removeItem('token');
+          localStorage.removeItem('mindhub_is_logged_in');
+          localStorage.removeItem('mindhub_current_user');
+          localStorage.removeItem('mindhub_enrolled_courses');
         })
-        .catch(() => {});
+        .finally(() => {
+          setIsInitializingAuth(false);
+        });
+    } else {
+      setIsLoggedIn(false);
+      setIsInitializingAuth(false);
+      setEnrolledCourseIds([]);
+      localStorage.removeItem('mindhub_enrolled_courses');
     }
   }, []);
 
@@ -137,6 +166,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [orders, setOrders] = useState<Order[]>([]);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>(() => {
     try {
+      const storedToken = localStorage.getItem('mindhub_api_token') || localStorage.getItem('token');
+      const isLogged = localStorage.getItem('mindhub_is_logged_in') === 'true' && !!storedToken;
+      if (!isLogged) return [];
       const stored = localStorage.getItem('mindhub_enrolled_courses');
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -148,9 +180,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
-      localStorage.setItem('mindhub_enrolled_courses', JSON.stringify(enrolledCourseIds));
+      if (isLoggedIn) {
+        localStorage.setItem('mindhub_enrolled_courses', JSON.stringify(enrolledCourseIds));
+      } else {
+        localStorage.removeItem('mindhub_enrolled_courses');
+      }
     } catch (e) {}
-  }, [enrolledCourseIds]);
+  }, [enrolledCourseIds, isLoggedIn]);
   const [banners, setBanners] = useState<Banner[]>(INITIAL_BANNERS);
 
   // Audio State
@@ -200,6 +236,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUser,
         isLoggedIn,
         setIsLoggedIn,
+        isInitializingAuth,
         courses,
         setCourses,
         favorites,

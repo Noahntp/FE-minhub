@@ -1,0 +1,978 @@
+{
+    "Web Project Management": [
+        {
+            "title": "Web Project Management 20 Tong Ket Khoa Hoc Quan Ly Du An Web Nho",
+            "video_id": "90448330-8192-4db4-8622-49dd05054471"
+        },
+        {
+            "title": "Web Project Management 19 Cach Luu Source Code Va Backup Sau Du An",
+            "video_id": "bdd6a6cd-45a8-4dab-94b1-def1a7d7796a"
+        },
+        {
+            "title": "Web Project Management 18 Cach Bao Gia Bao Tri Hosting Domain Va Chinh Sua",
+            "video_id": "87362504-d0d1-48fe-94f1-51fa23158b49"
+        },
+        {
+            "title": "Web Project Management 17 Cach Viet Tai Lieu Huong Dan Su Dung Ngan",
+            "video_id": "a8760c2a-ba88-4d5d-8d18-4a287db36630"
+        },
+        {
+            "title": "Web Project Management 16 Checklist Truoc Khi Ban Giao Website",
+            "video_id": "df9bb4b8-e6cd-4617-81db-d17d0aaa07cc"
+        },
+        {
+            "title": "Web Project Management 15 Cach Xu Ly Khi Du An Bi Tre",
+            "video_id": "9511d843-43bf-465c-af72-ee35034517f1"
+        },
+        {
+            "title": "Web Project Management 14 Cach Quan Ly File Hinh Anh Noi Dung Va Tai Khoan",
+            "video_id": "af378ce4-3d57-4036-80e9-3955c7079bf7"
+        },
+        {
+            "title": "Web Project Management 13 Cach Nhan Feedback Ma Khong Bi Loan Yeu Cau",
+            "video_id": "4b9b3d7c-0a09-4f1d-b2c5-baacaefcd5a3"
+        },
+        {
+            "title": "Web Project Management 12 Cach Gui Update Tien Do Cho Khach Hang",
+            "video_id": "b374dbb4-de59-4d42-b6af-92920a18aa1e"
+        },
+        {
+            "title": "Web Project Management 11 Cach Lap Timeline Du An Web 2 Den 4 Tuan",
+            "video_id": "59bfa024-f441-4162-9482-562eda4e9eb5"
+        },
+        {
+            "title": "Web Project Management 10 Cach Xu Ly Dat Coc Thanh Toan Va Ban Giao",
+            "video_id": "4bc31dcf-666a-48e6-bc1a-74ffc6353e70"
+        },
+        {
+            "title": "Web Project Management 09 Nhung Dieu Khoan Co Ban Nen Co Trong Hop Dong",
+            "video_id": "a2c2bcd9-b2a0-465f-8c26-b5beb5e4c0d2"
+        },
+        {
+            "title": "Web Project Management 08 Cach Ghi Ro Pham Vi Chinh Sua",
+            "video_id": "fad22316-ca76-417a-8d06-6c47b6201870"
+        },
+        {
+            "title": "Web Project Management 07 Cach Bao Gia Theo Goi Don Gian Cho Nguoi Moi",
+            "video_id": "7e2608e6-eff1-4b98-97bb-5717f93a996c"
+        },
+        {
+            "title": "Web Project Management 06 Cac Yeu To Anh Huong Den Gia Mot Website",
+            "video_id": "8d0fda69-729c-4e77-9b9d-4bd1f96c0cd4"
+        },
+        {
+            "title": "Web Project Management 05 Cach Tranh Nhan Du An Vuot Kha Nang",
+            "video_id": "61618ce2-3d20-4292-a0dc-0031dbfbf510"
+        },
+        {
+            "title": "Web Project Management 04 Cach Xac Dinh Phan Khach Hang Phai Cung Cap",
+            "video_id": "248f9133-6802-4fde-8567-989a2b17b43a"
+        },
+        {
+            "title": "Web Project Management 03 Cach Boc Tach Tinh Nang Thanh Hang Muc",
+            "video_id": "40f9e20f-9561-4b65-ae42-02cec8ab26da"
+        },
+        {
+            "title": "Web Project Management 02 Cach Phan Loai Landing Page Website Gioi Thieu Va Web App",
+            "video_id": "19b88491-91c8-4720-b8a0-05b85e59b9e6"
+        },
+        {
+            "title": "Web Project Management 01 Vi Sao Phai Chot Scope Truoc Khi Bao Gia",
+            "video_id": "6b68f061-bb95-48c0-8045-7dde873492e2"
+        }
+    ],
+    "Web Analytics A/B Testing": [
+        {
+            "title": "Web Analytics Ab Testing 20 Tong Ket Khoa Hoc Web Analytics Va A B Testing",
+            "video_id": "64e4ad44-e094-4067-af7d-52575fa53e27"
+        },
+        {
+            "title": "Web Analytics Ab Testing 19 Cach Trinh Bay Insight Analytics Trong Portfolio",
+            "video_id": "dc4b53bc-379f-4e83-98ee-5d1667f8d07c"
+        },
+        {
+            "title": "Web Analytics Ab Testing 18 Checklist Tracking Truoc Khi Deploy Landing Page",
+            "video_id": "4db24753-f984-4d11-96ca-674282e76fc2"
+        },
+        {
+            "title": "Web Analytics Ab Testing 17 Ket Hop Analytics Voi Ux Improvement",
+            "video_id": "eaac3aa3-3700-432d-9df2-69742f7b4463"
+        },
+        {
+            "title": "Web Analytics Ab Testing 16 Thiet Ke Event Naming De Hieu Cho Dev Team",
+            "video_id": "947c0380-40d8-4821-ad65-fa1c9c9521f1"
+        },
+        {
+            "title": "Web Analytics Ab Testing 15 Cach Doc Ket Qua Test Mot Cach Than Trong",
+            "video_id": "a923d72d-50ed-4121-8a9c-66a4b777fc7f"
+        },
+        {
+            "title": "Web Analytics Ab Testing 14 Nhung Loi A B Testing Nguoi Moi Hay Mac",
+            "video_id": "73e16036-cb4d-482d-95f4-4d968089b43f"
+        },
+        {
+            "title": "Web Analytics Ab Testing 13 Test Headline Cta Layout Va Form",
+            "video_id": "bd55f2ee-6c30-4990-aafc-8a746b4dc9b4"
+        },
+        {
+            "title": "Web Analytics Ab Testing 12 Chon Mot Gia Thuyet Test Ro Rang",
+            "video_id": "84e0dfa8-9ac2-45e4-b178-eb8dbb5ffebf"
+        },
+        {
+            "title": "Web Analytics Ab Testing 11 A B Testing La Gi Va Dung Khi Nao",
+            "video_id": "368c3409-a727-4467-ac51-79c34497bc48"
+        },
+        {
+            "title": "Web Analytics Ab Testing 10 Theo Doi Drop Off Trong Flow Checkout",
+            "video_id": "c3b121b7-d91d-47f7-85b4-3e60212f0c8e"
+        },
+        {
+            "title": "Web Analytics Ab Testing 09 Theo Doi Video Lesson Progress O Muc San Pham",
+            "video_id": "905f83dc-6f90-4d2d-9692-5615a11fc7ea"
+        },
+        {
+            "title": "Web Analytics Ab Testing 08 Theo Doi Nguoi Dung Xem Course Detail",
+            "video_id": "c234e9f9-3a06-46eb-a98f-acce81c4f7a8"
+        },
+        {
+            "title": "Web Analytics Ab Testing 07 Theo Doi Form Submit Va Loi Form",
+            "video_id": "490b47ab-d27e-49ef-97ae-513ff1efcd40"
+        },
+        {
+            "title": "Web Analytics Ab Testing 06 Theo Doi Click Cta Tren Landing Page",
+            "video_id": "1be4f80c-76b3-4a8e-8c1a-1184f3f919c3"
+        },
+        {
+            "title": "Web Analytics Ab Testing 05 Nhung Chi So Khong Nen Hieu Sai Khi Moi Bat Dau",
+            "video_id": "aa77556f-6519-4f06-b752-926741eb7107"
+        },
+        {
+            "title": "Web Analytics Ab Testing 04 Funnel Co Ban Trong Website E Learning",
+            "video_id": "8a66f8b4-ab28-4635-93ff-53fba15d5bb1"
+        },
+        {
+            "title": "Web Analytics Ab Testing 03 Event Tracking Dung De Theo Doi Hanh Dong Nao",
+            "video_id": "0b0f9d02-2bae-43ea-b5b9-972a31ba65a4"
+        },
+        {
+            "title": "Web Analytics Ab Testing 02 Page View Session User Conversion La Gi",
+            "video_id": "84bab58a-2d4a-4398-b617-73fa0f75bd00"
+        },
+        {
+            "title": "Web Analytics Ab Testing 01 Web Analytics La Gi Va Vi Sao Web Developer Nen Biet",
+            "video_id": "20a8bc0f-af20-4724-8264-b85acbcb0193"
+        }
+    ],
+    "React E-Learning": [
+        {
+            "title": "React Elearning 30 Tong Ket Khoa Hoc React E Learning",
+            "video_id": "eac327b2-9a58-44b8-8380-5370e2f3de67"
+        },
+        {
+            "title": "React Elearning 29 Deploy React Frontend Len Aapanel",
+            "video_id": "81601ad7-2d22-41c7-923d-f7d756198473"
+        },
+        {
+            "title": "React Elearning 28 Toi Uu Build React Truoc Khi Deploy",
+            "video_id": "77df8a82-b4e0-4e2c-8f34-4d4f8f50c898"
+        },
+        {
+            "title": "React Elearning 27 Tich Hop Learning Dashboard Cho Learner",
+            "video_id": "6146d702-3a55-40df-82ef-a37f41ff2021"
+        },
+        {
+            "title": "React Elearning 26 Ket Noi Flow Xem Khoa Hoc Mua Khoa Va Hoc Bai",
+            "video_id": "5f3fa477-1462-4e44-9455-0b74f52720a3"
+        },
+        {
+            "title": "React Elearning 25 Xu Ly Thong Bao Toast Va Confirm Dialog",
+            "video_id": "d2312c72-418c-4689-ad97-bd4dcff60f12"
+        },
+        {
+            "title": "React Elearning 24 Toi Uu Responsive Cho Dashboard Va Lesson Page",
+            "video_id": "2bf3eba7-fe3f-4240-a58a-3bbfdff60ab5"
+        },
+        {
+            "title": "React Elearning 23 Tao Reusable Component Cho Button Input Va Modal",
+            "video_id": "f91c180d-c789-4418-bc96-a1f89845e010"
+        },
+        {
+            "title": "React Elearning 22 Validate Form Frontend Nhung Khong Thay The Backend",
+            "video_id": "e83f9662-d835-42d2-a179-f8b0158b0192"
+        },
+        {
+            "title": "React Elearning 21 Quan Ly State Loading Error Va Empty State",
+            "video_id": "bca799bf-20e9-4730-823c-8986070bda15"
+        },
+        {
+            "title": "React Elearning 20 Giao Dien Ghi Chu Bai Hoc Trong Man Hoc",
+            "video_id": "4eae5301-c9f7-4ee9-bbd4-1cae7b0520eb"
+        },
+        {
+            "title": "React Elearning 19 Luu Tien Do Hoc Video Va Lesson Progress",
+            "video_id": "6fa795aa-fcce-4ed5-bbab-cb915dd10aec"
+        },
+        {
+            "title": "React Elearning 18 Phat Video Tu Media Domain Trong React",
+            "video_id": "f45df13c-cc27-4338-9e37-6a2c762c2151"
+        },
+        {
+            "title": "React Elearning 17 Hien Thi Sidebar Chuong Va Danh Sach Bai Hoc",
+            "video_id": "38359639-faa7-4321-9a73-bf83e5bd6efb"
+        },
+        {
+            "title": "React Elearning 16 Xay Trang Hoc Video Cho Learner",
+            "video_id": "ce47d6b9-03be-4e8a-8ad5-ac4fb28225f2"
+        },
+        {
+            "title": "React Elearning 15 Logout Va Xu Ly Loi 401 403 Tren Frontend",
+            "video_id": "96e7740e-6c81-4cf7-8b72-109b730a5d97"
+        },
+        {
+            "title": "React Elearning 14 Xu Ly Trang Thai User Sau Khi Refresh Trang",
+            "video_id": "6404952a-1e76-40a7-b6fe-a7bb17136ccf"
+        },
+        {
+            "title": "React Elearning 13 Protected Route Cho Learner Va Instructor",
+            "video_id": "086fea25-c7c9-4d5b-8752-269bb4de69e0"
+        },
+        {
+            "title": "React Elearning 12 Luu Token Va Gui Authorization Header",
+            "video_id": "46d9b009-8f95-4e4b-aa04-9e75de2eb056"
+        },
+        {
+            "title": "React Elearning 11 Form Dang Nhap Va Dang Ky Trong React",
+            "video_id": "bfae6526-4e88-4326-a83f-1f271fd905a7"
+        },
+        {
+            "title": "React Elearning 10 Hien Thi Course Detail Voi Chuong Va Bai Hoc",
+            "video_id": "ae3d3ae1-693f-4f99-985b-5ac3c073abff"
+        },
+        {
+            "title": "React Elearning 09 Xu Ly Search Filter Va Sort Khoa Hoc Tren Frontend",
+            "video_id": "50b6a534-ae9e-461f-b39d-4867c51fcaee"
+        },
+        {
+            "title": "React Elearning 08 Goi Api Danh Sach Khoa Hoc Va Xu Ly Loading",
+            "video_id": "498bf114-3d52-4658-a1de-fd16140b1cc4"
+        },
+        {
+            "title": "React Elearning 07 Thiet Ke Course Card Va Course Grid",
+            "video_id": "590e9cf3-28c3-4ae2-8bae-771f518ce7a4"
+        },
+        {
+            "title": "React Elearning 06 React Router Cho Trang Home Course List Va Course Detail",
+            "video_id": "4f80c21b-7490-49f8-917c-1f3da58a57d7"
+        },
+        {
+            "title": "React Elearning 05 Ket Noi React Voi Laravel Api Bang Environment",
+            "video_id": "735e2b86-91c3-40bf-b1a7-a7b85f27df04"
+        },
+        {
+            "title": "React Elearning 04 To Chuc Layout Header Footer Va App Shell",
+            "video_id": "056f06c4-ff1b-48e6-ad45-c7cb18dfc1c6"
+        },
+        {
+            "title": "React Elearning 03 Component Props Va State Trong React",
+            "video_id": "d25e9de0-4088-4fd5-986e-d83036a8cb01"
+        },
+        {
+            "title": "React Elearning 02 Cai Dat React Vite Va Cau Truc Project Frontend",
+            "video_id": "d339940e-99df-4e03-8099-86ab61380722"
+        },
+        {
+            "title": "React Elearning 01 React La Gi Va Vi Sao Dung Cho E Learning",
+            "video_id": "7b597457-f3cd-440e-9b35-b02e4d2fa363"
+        }
+    ],
+    "Postman API Testing": [
+        {
+            "title": "Postman Api Testing 30 Tong Ket Khoa Hoc Postman Api Testing",
+            "video_id": "d5b6fb12-32e2-41d8-b4b3-b3095c382504"
+        },
+        {
+            "title": "Postman Api Testing 29 Checklist Test Api Truoc Ngay Demo",
+            "video_id": "453d834c-74dc-418c-b09d-b676163eef7b"
+        },
+        {
+            "title": "Postman Api Testing 28 Export Collection Va Environment Cho Team",
+            "video_id": "365d0fc4-ca2d-4009-a66a-fd1fbe23082d"
+        },
+        {
+            "title": "Postman Api Testing 27 Chuan Bi Du Lieu Seed De Test On Dinh",
+            "video_id": "5b8e4ae0-f6cc-4db4-bb66-de3a1df343cb"
+        },
+        {
+            "title": "Postman Api Testing 26 Sap Xep Collection Theo Module Auth Catalog Payment Learning",
+            "video_id": "a956a207-44be-483a-9118-d4b4c275e9f4"
+        },
+        {
+            "title": "Postman Api Testing 25 Ghi Bao Cao Test Api Ro Rang",
+            "video_id": "04b19819-fe81-449f-8995-31e9d0f3ff93"
+        },
+        {
+            "title": "Postman Api Testing 24 Debug Loi 500 Bang Response Va Laravel Log",
+            "video_id": "4825201f-f65e-4c96-a30f-d4f674ef5a9d"
+        },
+        {
+            "title": "Postman Api Testing 23 Test Permission Va Ownership Trong Api",
+            "video_id": "ecacd22a-3ee5-4c2a-a404-8de494f6e407"
+        },
+        {
+            "title": "Postman Api Testing 22 Test Not Found 404 Va Conflict 409",
+            "video_id": "79133496-d3d5-4894-b3c9-c8e93836debd"
+        },
+        {
+            "title": "Postman Api Testing 21 Test Validation Loi 422 Trong Api",
+            "video_id": "604ce6a3-ccbf-4133-ac86-6ca4bad52582"
+        },
+        {
+            "title": "Postman Api Testing 20 Test Flow Hoc Bai Va Luu Tien Do",
+            "video_id": "d52556d8-bc37-4850-872b-c582bc84e60e"
+        },
+        {
+            "title": "Postman Api Testing 19 Test Flow Thanh Toan Va Tao Enrollment",
+            "video_id": "3236bc89-2f50-4d3a-838d-dcba3bcd8bba"
+        },
+        {
+            "title": "Postman Api Testing 18 Test Flow Tao Order Va Ap Coupon",
+            "video_id": "e7489fb6-64eb-4e6d-a2bb-20aba57914c7"
+        },
+        {
+            "title": "Postman Api Testing 17 Test Flow Chi Tiet Khoa Hoc Va Lesson Overview",
+            "video_id": "a45b377c-94f7-466f-ac0d-98dba47a5625"
+        },
+        {
+            "title": "Postman Api Testing 16 Test Flow Xem Danh Sach Khoa Hoc",
+            "video_id": "a45bfa97-5d1a-4cfd-9ff1-faebe2405f14"
+        },
+        {
+            "title": "Postman Api Testing 15 Viet Test Script Kiem Tra Status Va Response",
+            "video_id": "01719183-6f09-40e5-8f26-4d81e855f764"
+        },
+        {
+            "title": "Postman Api Testing 14 Viet Pre Request Script Co Ban",
+            "video_id": "a364dddc-dfb2-4944-95e3-eab93ae8d27d"
+        },
+        {
+            "title": "Postman Api Testing 13 Dung Variable De Luu User Id Course Id Order I",
+            "video_id": "361ea885-a757-451c-8fca-1fb8da6a9461"
+        },
+        {
+            "title": "Postman Api Testing 12 Dung Environment Cho Base Url Va Token",
+            "video_id": "3e798822-3633-469d-8cc4-5cd5621356c1"
+        },
+        {
+            "title": "Postman Api Testing 11 Tao Postman Collection Cho Du An Laravel",
+            "video_id": "08fb2790-4794-4ad9-b72f-13d45e2775a0"
+        },
+        {
+            "title": "Postman Api Testing 10 Xu Ly Loi 401 403 Khi Test Api",
+            "video_id": "e4a6a5ad-c278-4bab-ab6c-139b2df5dc13"
+        },
+        {
+            "title": "Postman Api Testing 09 Test Logout Va Refresh Token",
+            "video_id": "7e86cda0-2980-48ce-ae96-3394d5d3fa29"
+        },
+        {
+            "title": "Postman Api Testing 08 Gui Authorization Header Cho Api Protected",
+            "video_id": "85cd9643-6a84-4aa8-813b-6ecc04c12c5b"
+        },
+        {
+            "title": "Postman Api Testing 07 Test Api Login Va Luu Access Token",
+            "video_id": "09533fbc-b787-491e-870d-679c3684bb51"
+        },
+        {
+            "title": "Postman Api Testing 06 Test Api Register Bang Postman",
+            "video_id": "260ae1d1-5d1a-4d4a-89f9-0bf4dc01e81a"
+        },
+        {
+            "title": "Postman Api Testing 05 Doc Status Code Va Json Response Khi Test Api",
+            "video_id": "dc370704-6a08-4b8c-bb96-3ec6a4b4af66"
+        },
+        {
+            "title": "Postman Api Testing 04 Tao Request Get Post Put Patch Delete Dau Tien",
+            "video_id": "15192dd3-bdf8-49c8-b3bf-e3911573092a"
+        },
+        {
+            "title": "Postman Api Testing 03 Hieu Method Url Header Body Va Response Trong Postman",
+            "video_id": "b3a956a0-47db-4d10-974b-71d1e306ce0b"
+        },
+        {
+            "title": "Postman Api Testing 02 Cai Dat Postman Va Tao Workspace Dau Tien",
+            "video_id": "4941bba6-d089-4a28-bb37-e91bd4dd4283"
+        },
+        {
+            "title": "Postman Api Testing 01 Postman La Gi Va Vi Sao Backend Fresher Nen Biet",
+            "video_id": "73862136-0e76-4de3-a21d-04dd5406106f"
+        }
+    ],
+    "MySQL Database Design": [
+        {
+            "title": "Mysql Database Design 30 Tong Ket Khoa Hoc Mysql Database Design",
+            "video_id": "edc02de8-b33d-4cdc-8499-c8426426e365"
+        },
+        {
+            "title": "Mysql Database Design 29 Checklist Loi Database Thuong Gap Trong Do An",
+            "video_id": "d9284d0e-b35c-4cba-bec2-285b8bed2df3"
+        },
+        {
+            "title": "Mysql Database Design 28 Kiem Tra Du Lieu Mau Co Du Flow Demo",
+            "video_id": "ceb90847-3e74-4f01-b618-c452cd68f515"
+        },
+        {
+            "title": "Mysql Database Design 27 Kiem Tra Constraint Va Relationship Truoc Khi Code",
+            "video_id": "aebb775d-7aaf-42d2-bfc9-4b29be3eb3cf"
+        },
+        {
+            "title": "Mysql Database Design 26 Kiem Tra Naming Convention Cua Bang Va Cot",
+            "video_id": "67450897-2409-44d2-87da-29e8fe1f51e0"
+        },
+        {
+            "title": "Mysql Database Design 25 Du Lieu Demo Seed Cho Trinh Chieu San Pham",
+            "video_id": "dd04c766-99ba-41c3-9191-5c7cd63c989c"
+        },
+        {
+            "title": "Mysql Database Design 24 Soft Delete Va Trang Thai Du Lieu",
+            "video_id": "8bddc2bd-4aba-4cb8-b4ef-9b2eaef0cc6c"
+        },
+        {
+            "title": "Mysql Database Design 22 Index La Gi Va Khi Nao Nen Dung",
+            "video_id": "b0bb5af5-0729-4a2e-aeb1-f5d7f2df1fab"
+        },
+        {
+            "title": "Mysql Database Design 23 Tranh N Plus 1 Query Tu Goc Nhin Database",
+            "video_id": "cb89b710-edbf-4b2a-a0ab-93d75dd3a0d6"
+        },
+        {
+            "title": "Mysql Database Design 21 Join Du Lieu Course Instructor Va Category",
+            "video_id": "730ce617-90e4-4fdf-8a5a-24059c25e5a5"
+        },
+        {
+            "title": "Mysql Database Design 19 Thiet Ke Revenues Cho Instructor Va Platform",
+            "video_id": "4d32a20f-19b0-4f9e-863b-e82da84fa6c7"
+        },
+        {
+            "title": "Mysql Database Design 20 Vi Sao Nghiep Vu Thanh Toan Can Transaction",
+            "video_id": "b06b26f8-826c-42ba-9e33-e22e616d005c"
+        },
+        {
+            "title": "Mysql Database Design 18 Thiet Ke Payment Status Va Order Status",
+            "video_id": "3f53ae05-c253-493c-9d56-862aec174d24"
+        },
+        {
+            "title": "Mysql Database Design 17 Thiet Ke Coupons Va Kiem Tra Dieu Kien Su Dung",
+            "video_id": "59ee6091-5340-4244-aaf9-33d3a9d4258e"
+        },
+        {
+            "title": "Mysql Database Design 16 Thiet Ke Orders Cho Don Hang Khoa Hoc",
+            "video_id": "1245fe05-abc3-4b78-b479-a7d508cb334d"
+        },
+        {
+            "title": "Mysql Database Design 15 Tinh Progress Percent Nhu The Nao Cho Hop Ly",
+            "video_id": "2f30f657-7bb1-4f00-8b7d-2c89122ce5ee"
+        },
+        {
+            "title": "Mysql Database Design 14 Thiet Ke Quiz Questions Options Va Attempts",
+            "video_id": "e3efbfb7-1d2d-442d-a2cc-38db976adbfe"
+        },
+        {
+            "title": "Mysql Database Design 13 Thiet Ke Lesson Notes Cho Ghi Chu Ca Nhan",
+            "video_id": "9294f3e5-2e62-46ed-8b09-40d67793bd0d"
+        },
+        {
+            "title": "Mysql Database Design 12 Thiet Ke Lesson Progress Va Video Progress",
+            "video_id": "1b559dda-c615-4ba3-8158-22fb7502d400"
+        },
+        {
+            "title": "Mysql Database Design 11 Thiet Ke Enrollments Sau Khi Mua Khoa Hoc",
+            "video_id": "d5bb9f45-da0d-4b70-87cc-c50b535f285e"
+        },
+        {
+            "title": "Mysql Database Design 10 Luu Video Url Va Asset Url Sao Cho Dung",
+            "video_id": "798a21d9-213b-4535-be79-26892dd4ddd1"
+        },
+        {
+            "title": "Mysql Database Design 09 Thiet Ke Course Sections Va Lessons",
+            "video_id": "fb8aaaa8-36d3-4633-a2d3-996020766cc6"
+        },
+        {
+            "title": "Mysql Database Design 08 Thiet Ke Courses Cho Nen Tang E Learning",
+            "video_id": "7e6af28d-584d-4b04-af19-79b33b39b3cb"
+        },
+        {
+            "title": "Mysql Database Design 07 Thiet Ke Categories Va Course Categories",
+            "video_id": "85fccaa0-eb14-4990-bd2c-a51943d18455"
+        },
+        {
+            "title": "Mysql Database Design 05 Cach Doc Erd Cho Sinh Vien It",
+            "video_id": "b7b339b4-5c1b-4c58-836c-489c6e97591f"
+        },
+        {
+            "title": "Mysql Database Design 06 Thiet Ke Bang Users Va Roles",
+            "video_id": "5ed500cf-6323-467f-8707-3f429e61ead5"
+        },
+        {
+            "title": "Mysql Database Design 04 One To Many Many To Many Va One To One",
+            "video_id": "d939123c-c41d-4183-8a01-66ad5a9e07f8"
+        },
+        {
+            "title": "Mysql Database Design 03 Primary Key Foreign Key Va Unique Constraint",
+            "video_id": "d4791df3-1c06-4e8d-9d18-945793811f65"
+        },
+        {
+            "title": "Mysql Database Design 02 Table Column Record Va Data Type Trong Mysql",
+            "video_id": "43bc8755-07f8-47b3-8d2d-96f20888586c"
+        },
+        {
+            "title": "Mysql Database Design 01 Database Trong He Thong E Learning Dung De Lam Gi",
+            "video_id": "50a85921-afcb-4a39-8bb3-fcbce985ce0f"
+        }
+    ],
+    "MVP Web Product": [
+        {
+            "title": "Mvp Web Product 19 Cach Phat Trien Mvp Thanh Saas Nho",
+            "video_id": "545bdf4d-14ac-49f4-b547-ae23e793f127"
+        },
+        {
+            "title": "Mvp Web Product 20 Tong Ket Khoa Hoc Xay Mvp San Pham Web",
+            "video_id": "bc031901-5ef5-4ee2-bbac-13ddb714d054"
+        },
+        {
+            "title": "Mvp Web Product 16 Cach Trinh Bay Mvp Trong Portfolio",
+            "video_id": "4f78876b-8a1e-44ff-989b-d8954af204fe"
+        },
+        {
+            "title": "Mvp Web Product 18 Cach Chuan Bi Demo Mvp Cho Nha Tuyen Dung",
+            "video_id": "01649b71-d38b-4b14-a105-f70dec9a33dd"
+        },
+        {
+            "title": "Mvp Web Product 17 Cach Viet Case Study San Pham Ca Nhan",
+            "video_id": "57d431ba-b817-44f1-a4aa-38bff9725b05"
+        },
+        {
+            "title": "Mvp Web Product 15 Cach Quyet Dinh Giu Sua Hay Bo Tinh Nang",
+            "video_id": "71cb225d-72d3-4943-ac25-8beef87d8351"
+        },
+        {
+            "title": "Mvp Web Product 14 Cach Nhan Feedback Tu Nguoi Dung Dau Tien",
+            "video_id": "2ba88c3c-58b3-4001-b457-7776e8ad9acb"
+        },
+        {
+            "title": "Mvp Web Product 13 Cach Dung Analytics De Do Hanh Vi Nguoi Dung",
+            "video_id": "0528baff-1540-48be-b054-5b38443ad66a"
+        },
+        {
+            "title": "Mvp Web Product 12 Cach Lam Prototype Truoc Khi Code Toan Bo",
+            "video_id": "d376c950-5bc7-4945-8111-73b685e81544"
+        },
+        {
+            "title": "Mvp Web Product 11 Cach Tao Landing Page Kiem Tra Nhu Cau",
+            "video_id": "4453a721-1998-47c0-9239-4813aa95c6a3"
+        },
+        {
+            "title": "Mvp Web Product 10 Cach Uu Tien Chuc Nang Bang Impact Effort",
+            "video_id": "bb048311-88c8-4af7-aa51-1ad378a4956b"
+        },
+        {
+            "title": "Mvp Web Product 09 Cach Thiet Ke Database Toi Thieu Cho Mvp",
+            "video_id": "d344f40b-e812-4d9f-b02c-6bc766e59918"
+        },
+        {
+            "title": "Mvp Web Product 06 Cach Viet Problem Solution Cho Y Tuong Web",
+            "video_id": "2cb63773-19eb-4a91-8198-8a7c46e3f3da"
+        },
+        {
+            "title": "Mvp Web Product 08 Cach Ve User Flow Don Gian",
+            "video_id": "2b86dcea-851f-4b3e-8835-8173a7333ad3"
+        },
+        {
+            "title": "Mvp Web Product 07 Cach Chon 3 Tinh Nang Cot Loi Dau Tien",
+            "video_id": "015e6a7b-b1bc-4f96-a5a0-0758bbfbacc1"
+        },
+        {
+            "title": "Mvp Web Product 05 Nhung Loi Khi Lam Mvp Qua Lon Ngay Tu Dau",
+            "video_id": "28e41b61-4bcf-4294-879c-ae9537f88254"
+        },
+        {
+            "title": "Mvp Web Product 04 Cach Xac Dinh Nguoi Dung Muc Tieu",
+            "video_id": "15b05776-68f5-48b8-bdab-cec082b06c29"
+        },
+        {
+            "title": "Mvp Web Product 03 Cach Tim Van De Nho Dang Giai Quyet",
+            "video_id": "2997e3c6-354d-4860-bec3-d620bbc0b577"
+        },
+        {
+            "title": "Mvp Web Product 02 San Pham Web Khac Project Hoc Tap Nhu The Nao",
+            "video_id": "91192d28-47d9-4208-814a-d14a61799c37"
+        },
+        {
+            "title": "Mvp Web Product 01 Mvp La Gi Va Vi Sao Nguoi Lam Web Nen Biet",
+            "video_id": "8c5ca8d7-f384-4c0b-9445-d7fafcc4609e"
+        }
+    ],
+    "Deploy VPS AAPanel": [
+        {
+            "title": "Deploy Vps Aapanel 30 Tong Ket Khoa Hoc Deploy Vps Aapanel",
+            "video_id": "193e83dc-fe19-4b83-b23e-5f21a1a7685e"
+        },
+        {
+            "title": "Deploy Vps Aapanel 29 Checklist Bao Mat Co Ban Sau Deploy",
+            "video_id": "2b03d556-9082-4713-9991-a41b9efc3e68"
+        },
+        {
+            "title": "Deploy Vps Aapanel 28 Fix Loi Route Refresh 404 Trong React",
+            "video_id": "448ad7c5-202c-4e41-9884-30c965f60e91"
+        },
+        {
+            "title": "Deploy Vps Aapanel 27 Fix Loi Cors Khi Frontend Goi Api",
+            "video_id": "f6017138-5dd0-4ad9-8715-28fc4470050f"
+        },
+        {
+            "title": "Deploy Vps Aapanel 26 Fix Loi 500 Laravel Sau Khi Deploy",
+            "video_id": "13b47ad2-7d19-409a-9596-f7807c7ff5a8"
+        },
+        {
+            "title": "Deploy Vps Aapanel 25 Backup Media Va Database Truoc Ngay Demo",
+            "video_id": "66b4a5cf-4f33-46a9-91fb-7f3b933a11f3"
+        },
+        {
+            "title": "Deploy Vps Aapanel 23 Db Nen Luu Relative Video Url Nhu The Nao",
+            "video_id": "064c6366-dc53-44f4-a6af-bb48a998b959"
+        },
+        {
+            "title": "Deploy Vps Aapanel 24 Kiem Tra Public Url Cua File Media",
+            "video_id": "d568eccf-e557-41a1-a79f-b9e8d038b05e"
+        },
+        {
+            "title": "Deploy Vps Aapanel 22 Upload Video Khoa Hoc Theo Course Folder",
+            "video_id": "2d1dcef8-c27d-4a39-b443-92e37d27bc86"
+        },
+        {
+            "title": "Deploy Vps Aapanel 20 Kiem Tra Frontend Goi Api Qua Https",
+            "video_id": "b4d939f0-3a82-4e14-be9f-6342493c2791"
+        },
+        {
+            "title": "Deploy Vps Aapanel 21 Tao Cay Thu Muc Video Thumbnails Assets Certificates",
+            "video_id": "9d665761-e33c-4e29-bc0c-d3b9fb5c27c9"
+        },
+        {
+            "title": "Deploy Vps Aapanel 19 Cau Hinh Fallback Cho React Router",
+            "video_id": "e5139d71-f038-443a-a5c7-212fae691b95"
+        },
+        {
+            "title": "Deploy Vps Aapanel 18 Upload Dist Len Website Frontend",
+            "video_id": "23b92395-d55b-413f-964f-3f582312504c"
+        },
+        {
+            "title": "Deploy Vps Aapanel 17 Build React Vite Cho Production",
+            "video_id": "6d69b276-84ff-4721-884c-0c822c1fa582"
+        },
+        {
+            "title": "Deploy Vps Aapanel 16 Cau Hinh Vite Api Base Url Va Vite Media Base Url",
+            "video_id": "b1da36c8-46c5-4934-ae22-93cacf844007"
+        },
+        {
+            "title": "Deploy Vps Aapanel 15 Kiem Tra Api Health Va Loi Laravel Log",
+            "video_id": "75d93a1f-337f-44bb-a967-8173af8e24e4"
+        },
+        {
+            "title": "Deploy Vps Aapanel 14 Chay Migrate Seed Va Cache Config",
+            "video_id": "70c66fd8-f0a7-4590-9e34-8ae51f5023d8"
+        },
+        {
+            "title": "Deploy Vps Aapanel 13 Composer Install Va Quyen Thu Muc Storage Bootstrap Cache",
+            "video_id": "c9342397-b352-45ed-82e4-4e66242f6c73"
+        },
+        {
+            "title": "Deploy Vps Aapanel 12 Cau Hinh Env Production Cho Laravel",
+            "video_id": "25135248-f63c-4a7e-a80f-9b6425535ca8"
+        },
+        {
+            "title": "Deploy Vps Aapanel 11 Upload Code Laravel Len Server",
+            "video_id": "ce0ffbf9-8d3e-489a-91a9-af08954ec8d3"
+        },
+        {
+            "title": "Deploy Vps Aapanel 10 Bat Ssl Cho Domain Va Subdomain",
+            "video_id": "e762970c-e3b6-45f0-bb22-2b4cb7a3d015"
+        },
+        {
+            "title": "Deploy Vps Aapanel 07 Tao Website Frontend Tren Aapanel",
+            "video_id": "022def5f-3d3a-42a1-a89c-560966ee9d39"
+        },
+        {
+            "title": "Deploy Vps Aapanel 09 Tao Website Media De Luu Video Va Anh",
+            "video_id": "8edf32c8-add9-4c15-b486-310d3c572451"
+        },
+        {
+            "title": "Deploy Vps Aapanel 08 Tao Website Api Cho Laravel Public Folder",
+            "video_id": "48c3a4dd-8c29-429f-83a0-19df2bcbbda2"
+        },
+        {
+            "title": "Deploy Vps Aapanel 06 Checklist Truoc Khi Deploy Len Vps",
+            "video_id": "c47eccbc-b521-4662-a45a-a74cd15da62f"
+        },
+        {
+            "title": "Deploy Vps Aapanel 05 Cau Truc Thu Muc Chuan Tren Aapanel",
+            "video_id": "1dbad211-5f9a-4c74-9b9f-bc2c90b6d234"
+        },
+        {
+            "title": "Deploy Vps Aapanel 04 Dns Domain Va Server Ip Hoat Dong Ra Sao",
+            "video_id": "db233621-3faf-46c1-92d9-df4a747498b9"
+        },
+        {
+            "title": "Deploy Vps Aapanel 03 Vi Sao Nen Tach Domain Frontend Api Va Media",
+            "video_id": "79e346c9-919a-4ae0-96ae-1f86864fd686"
+        },
+        {
+            "title": "Deploy Vps Aapanel 02 Frontend Api Va Media Domain Khac Nhau The Nao",
+            "video_id": "b48efa94-9d24-497a-b044-58261374efaf"
+        },
+        {
+            "title": "Deploy Vps Aapanel 01 Deploy Fullstack La Gi",
+            "video_id": "057387ee-6388-424c-8050-fda578baee13"
+        }
+    ],
+    "Career Webdev": [
+        {
+            "title": "Career Webdev 30 Tong Ket Khoa Hoc Tu Sinh Vien Den Web Developer Fresher",
+            "video_id": "06a9ca4d-b549-41fe-8417-38f497c22cc4"
+        },
+        {
+            "title": "Career Webdev 29 30 Ngay Cuoi Luyen Phong Van Va Apply",
+            "video_id": "cdea4f3f-195e-4eaa-babb-1d45b76ac402"
+        },
+        {
+            "title": "Career Webdev 28 30 Ngay Tiep Theo Hoan Thien Project Va Github",
+            "video_id": "87ab54c2-83b0-4d4c-83d6-df100adeaff1"
+        },
+        {
+            "title": "Career Webdev 27 30 Ngay Dau Cung Co Nen Tang Web",
+            "video_id": "b4feff7f-c74c-4a19-8beb-81cd34bd0c87"
+        },
+        {
+            "title": "Career Webdev 25 Cach Hoi Nguoc Lai Nha Tuyen Dung",
+            "video_id": "593e1d32-84eb-457c-890f-fc1af4cf8395"
+        },
+        {
+            "title": "Career Webdev 26 Lo Trinh 90 Ngay De San Sang Xin Internship",
+            "video_id": "f020f83d-d83d-4024-aac3-484931dd1f54"
+        },
+        {
+            "title": "Career Webdev 23 Cach Tra Loi Khi Chua Co Kinh Nghiem Di Lam",
+            "video_id": "ac443a7b-7570-4983-b741-50c781cf952a"
+        },
+        {
+            "title": "Career Webdev 24 Cach Noi Ve Diem Manh Va Diem Yeu",
+            "video_id": "4ea252df-1d3f-4a72-852f-ecd9bcacd849"
+        },
+        {
+            "title": "Career Webdev 20 Checklist Portfolio Truoc Khi Gui Nha Tuyen Dung",
+            "video_id": "139f9d80-5d55-4d4d-88fd-a58bd411c93c"
+        },
+        {
+            "title": "Career Webdev 22 Nhung Loi Khien Sinh Vien Rot Phong Van Itcareer Webdev 22 Nhung Loi Khien Sinh Vien Rot Phong Van It",
+            "video_id": "b30bd826-eaea-4c07-a3da-98d4083c5326"
+        },
+        {
+            "title": "Career Webdev 21 Cach Chuan Bi Truoc Khi Di Phong Van Fresher",
+            "video_id": "67098319-fabd-4253-ba12-42fc2849c643"
+        },
+        {
+            "title": "Career Webdev 19 Cach Trinh Bay Do An E Learning Trong Portfolio",
+            "video_id": "c52cd98c-7595-4edb-b4b3-7194230e4454"
+        },
+        {
+            "title": "Career Webdev 18 Cach Viet Readme Cho Project Tren Github",
+            "video_id": "871ae50c-45bc-4380-a70f-3339f0af19da"
+        },
+        {
+            "title": "Career Webdev 17 Portfolio Ca Nhan Nen Co Nhung Du An Nao",
+            "video_id": "ade7bf1e-6a80-49fd-894a-190c6322d275"
+        },
+        {
+            "title": "Career Webdev 16 Github Profile Can Co Gi De Gay An Tuong",
+            "video_id": "4868a21d-4861-425c-9aba-f9acfd2a394c"
+        },
+        {
+            "title": "Career Webdev 15 Nhung Loi Cv Khien Sinh Vien Mat Diem",
+            "video_id": "52b6003d-b701-4a7d-a7b7-9bb2546a30ab"
+        },
+        {
+            "title": "Career Webdev 14 Cach Viet Phan Du An Ca Nhan Trong Cv",
+            "video_id": "3e840d23-377e-4239-8a5e-633e33a3307f"
+        },
+        {
+            "title": "Career Webdev 13 Cach Viet Phan Ky Nang Trong Cv It",
+            "video_id": "5c254ede-0161-4d0e-8934-d2f73615ee76"
+        },
+        {
+            "title": "Career Webdev 12 Cach Viet Mo Ta Do An Trong Cv",
+            "video_id": "2b6437fb-e7bf-4b07-9bdb-5ef4d40800e9"
+        },
+        {
+            "title": "Career Webdev 11 Cach Xay Cv It Khi Chua Co Kinh Nghiem",
+            "video_id": "2659674b-64a8-4c14-96a6-4cadd2e61922"
+        },
+        {
+            "title": "Career Webdev 10 Lo Trinh Hoc React Va Api De Lam Du An",
+            "video_id": "ee144bbe-aba0-4580-a4c4-915bc1803dce"
+        },
+        {
+            "title": "Career Webdev 08 Lo Trinh Hoc Html Css Javascript",
+            "video_id": "b4c2d3d2-1c2e-4a2f-b710-89986bb9d4b7"
+        },
+        {
+            "title": "Career Webdev 06 Khi Nao Nen Hoc Frontend Truoc",
+            "video_id": "b868c11d-7ece-444e-b15c-d27d94c420b6"
+        },
+        {
+            "title": "Career Webdev 05 Nha Tuyen Dung Can Gi O Sinh Vien It",
+            "video_id": "816c62c3-aa25-41d0-aad4-82175c2e39b2"
+        },
+        {
+            "title": "Career Webdev 03 Sinh Vien It Nen Chon Huong Nao Trong Nam Cuoi",
+            "video_id": "1e681c0c-a1e1-4e9b-af72-b57097ab4d10"
+        },
+        {
+            "title": "Career Webdev 04 Fresher Intern Junior Khac Nhau Ra Sao",
+            "video_id": "cd62ef7c-6aeb-4845-85b3-4bbaaf122955"
+        },
+        {
+            "title": "Career Webdev 02 Frontend Backend Full Stack Khac Nhau The Nao",
+            "video_id": "11db8600-ba7d-4e6d-b4ab-0299b04cd136"
+        },
+        {
+            "title": "Career Webdev 01 Web Developer Can Hoc Gi De Di Thuc Tap",
+            "video_id": "f62be015-0630-4230-a63c-ccb0079d4c56"
+        }
+    ],
+    "Laravel Rest API": [
+        {
+            "title": "Laravel Rest Api 30 Tong Ket Khoa Hoc Laravel Rest Api",
+            "video_id": "3a3c6a0d-c691-4a82-afaa-d8824fc73ce1"
+        },
+        {
+            "title": "Laravel Rest Api 29 Deploy Laravel Api Len Server Aapanel",
+            "video_id": "72c408dc-7131-4eda-bfe8-6ce9fd168ab5"
+        },
+        {
+            "title": "Laravel Rest Api 28 Cors Rate Limit Va Bao Mat Api Co Ban",
+            "video_id": "17025969-538b-43bb-adb0-df0f3ebec587"
+        },
+        {
+            "title": "Laravel Rest Api 26 Test Api Bang Postman Theo Flow Thuc Te",
+            "video_id": "d9976d5c-afce-43aa-bf84-ba6b8f88de6b"
+        },
+        {
+            "title": "Laravel Rest Api 27 Debug Loi Laravel Api Va Doc Log",
+            "video_id": "427ee502-2b60-4fcf-a8e5-b27baf76e20c"
+        },
+        {
+            "title": "Laravel Rest Api 25 Exception Handling Cho Loi Nghiep Vu",
+            "video_id": "5f244b7c-264f-4f4b-9e48-d915fa5a3fbc"
+        },
+        {
+            "title": "Laravel Rest Api 24 Transaction Trong Laravel Khi Xu Ly Thanh Toan",
+            "video_id": "f6257aa3-2832-4723-b9c4-9aebca5973ca"
+        },
+        {
+            "title": "Laravel Rest Api 23 Xu Ly Nghiep Vu Order Va Enrollment",
+            "video_id": "db07a69f-14f8-4f5d-9311-746f8acdf10a"
+        },
+        {
+            "title": "Laravel Rest Api 21 Vi Sao Khong Nen Viet Qua Nhieu Logic Trong Controller",
+            "video_id": "a04f444f-0de6-42d0-9fcb-b10a80148bbc"
+        },
+        {
+            "title": "Laravel Rest Api 22 Repository Service Pattern Trong Laravel Api",
+            "video_id": "65db04eb-8f60-4954-90aa-c5a8b92e8c08"
+        },
+        {
+            "title": "Laravel Rest Api 17 Dang Ky Va Dang Nhap User Bang Api",
+            "video_id": "d687af7a-5a4a-4903-a5b9-3285786b9080"
+        },
+        {
+            "title": "Laravel Rest Api 20 Phan Quyen Learner Instructor Va Admin",
+            "video_id": "80ce28cf-5e61-4682-ae3a-5ce9ed947abe"
+        },
+        {
+            "title": "Laravel Rest Api 19 Middleware Bao Ve Api Trong Laravel",
+            "video_id": "ac7d5596-5244-4d8f-a514-16e73e42fdf2"
+        },
+        {
+            "title": "Laravel Rest Api 18 Access Token Refresh Token Va Session Nen Hieu Ra Sao",
+            "video_id": "328d2140-81a2-47cc-a311-d180bd25ee56"
+        },
+        {
+            "title": "Laravel Rest Api 15 Filter Search Sort Va Pagination Cho Api",
+            "video_id": "582e9321-d80c-4a6e-8ff4-e15974cdf622"
+        },
+        {
+            "title": "Laravel Rest Api 16 Authentication Trong Rest Api Hoat Dong The Nao",
+            "video_id": "13496889-0364-4e46-a40a-5aaa0af6a661"
+        },
+        {
+            "title": "Laravel Rest Api 06 Thiet Ke Database Co Ban Cho Course Api",
+            "video_id": "d68bced0-c7c8-4776-a8e8-a27de0bf5af4"
+        },
+        {
+            "title": "Laravel Rest Api 05 Tao Response Json Chuan Cho Api",
+            "video_id": "5db579bf-d468-4ef1-ab96-d24a081beb08"
+        },
+        {
+            "title": "Laravel Rest Api 04 Route Api Va Controller Trong Laravel",
+            "video_id": "7247d775-163c-4ece-a986-71dc6e03ab1a"
+        },
+        {
+            "title": "Laravel Rest Api 14 Chuan Hoa Response Thanh Cong Va That Bai",
+            "video_id": "0e0cd4ca-da6a-4a62-8201-6d8e03d9c27f"
+        },
+        {
+            "title": "Laravel Rest Api 13 Laravel Api Resource Dung De Lam Gi",
+            "video_id": "61ad9428-51c0-4284-a94a-b75c168f9bfc"
+        },
+        {
+            "title": "Laravel Rest Api 12 Xu Ly Loi Validation Va Tra Response 422",
+            "video_id": "e860ab0b-5559-4966-9af0-a00676d87e82"
+        },
+        {
+            "title": "Laravel Rest Api 11 Form Request Validation Trong Laravel Api",
+            "video_id": "f4817f6d-7c92-409d-a445-d5f6e5443fd8"
+        },
+        {
+            "title": "Laravel Rest Api 10 Xay Api Cap Nhat Va Xoa Du Lieu",
+            "video_id": "15d0fb7b-4ddc-48b4-a87d-bce207f60308"
+        },
+        {
+            "title": "Laravel Rest Api 09 Xay Api Tao Moi Du Lieu Voi Post",
+            "video_id": "0adfce73-f178-4c57-aa32-79e3265842c3"
+        },
+        {
+            "title": "Laravel Rest Api 08 Xay Api Danh Sach Va Chi Tiet Khoa Hoc",
+            "video_id": "38b88c38-6103-427f-a4df-35ad668c2143"
+        },
+        {
+            "title": "Laravel Rest Api 07 Migration Model Va Eloquent Trong Laravel",
+            "video_id": "88a12c18-e5a3-4a4a-9603-f9be104ca9d2"
+        }
+    ],
+    "Backend Interview": [
+        {
+            "title": "Backend Interview 04 Cach Trinh Bay Do An Backend E Learning",
+            "video_id": "07c4e011-6575-457e-8293-9f53a1057095"
+        },
+        {
+            "title": "Backend Interview 03 Cach Gioi Thieu Ban Than Khi Phong Van Backend",
+            "video_id": "5fcbe4f3-1e7b-444b-8c4b-c10ea52a5f6f"
+        },
+        {
+            "title": "Mindhub Backend Interview 02",
+            "video_id": "8a72af94-d3e8-4f8b-aabe-ca211542baaa"
+        },
+        {
+            "title": "Backend Interview 01 Backend Developer Fresher Can Biet Gi",
+            "video_id": "4eead3b2-8490-4205-84c5-f38619be9a49"
+        }
+    ]
+}

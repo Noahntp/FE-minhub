@@ -60,7 +60,9 @@ export const InstructorNotificationDropdown: React.FC<InstructorNotificationDrop
             title: item.title || 'Thông báo hệ thống',
             content: item.message || item.content || item.desc || '',
             time: item.created_at ? new Date(item.created_at).toLocaleDateString('vi-VN') : 'Gần đây',
-            read: Boolean(item.read_at)
+            read: Boolean(item.read_at),
+            action_url: item.action_url || item.data?.action_url || '',
+            type: item.type || ''
           }));
           setNotifications(mapped);
         }
@@ -96,13 +98,18 @@ export const InstructorNotificationDropdown: React.FC<InstructorNotificationDrop
     }
   };
 
-  const handleItemClick = async (id: number | string) => {
+  const handleItemClick = async (item: any) => {
     try {
-      await instructorApi.markInstructorNotificationAsRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      await instructorApi.markInstructorNotificationAsRead(item.id);
+      setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, read: true } : n));
       onUnreadCountChange(Math.max(0, unreadCount - 1));
     } catch {
       // Ignore
+    }
+
+    setIsOpen(false);
+    if (item.action_url) {
+      window.location.href = item.action_url;
     }
   };
 
@@ -173,7 +180,7 @@ export const InstructorNotificationDropdown: React.FC<InstructorNotificationDrop
               notifications.map(item => (
                 <div
                   key={item.id}
-                  onClick={() => handleItemClick(item.id)}
+                  onClick={() => handleItemClick(item)}
                   className={`p-3 text-left transition-colors cursor-pointer flex gap-2.5 items-start ${
                     item.read ? 'bg-white hover:bg-slate-50/70' : 'bg-emerald-50/30 hover:bg-emerald-50/60'
                   }`}

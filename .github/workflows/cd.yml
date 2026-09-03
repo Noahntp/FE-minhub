@@ -1,96 +1,56 @@
-name: Frontend CD
+name: CD - Deploy Frontend to Server
+run-name: 🚀 CD Frontend (${{ github.ref_name }}) - ${{ github.event.head_commit.message || 'Deploy' }}
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
+  push:
     branches:
       - develop
       - main
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Build & Deploy to Server
+    name: Build & Deploy Frontend
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 10
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22.x'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install Dependencies
+        run: npm install
 
-    - name: Build for Production
-      run: npm run build
+      - name: Build Project
+        env:
+          VITE_API_BASE_URL: https://mindhub.io.vn/BE/public/api
+          VITE_API_MODE: api
+          VITE_MEDIA_BASE_URL: https://mindhub.io.vn/mindhub-media
+        run: npm run build
 
-    - name: Prepare Deployment Variables
-      id: vars
-      run: echo "RELEASE_ID=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+      - name: Deploy to Server via SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY || secrets.SSH_KEY }}
+        run: |
+          echo "📦 Đóng gói mã nguồn build dist..."
+          tar -czf /tmp/fe_dist.tar.gz -C dist .
 
-    - name: Create Release Directory on Server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          mkdir -p /var/www/mindhub-frontend/releases/${{ env.RELEASE_ID }}
+          echo "🔑 Cấu hình SSH Key..."
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
-    - name: Upload Build Artifact (dist)
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "dist/*"
-        target: "/var/www/mindhub-frontend/releases/${{ env.RELEASE_ID }}"
-        strip_components: 1
+          echo "🚀 Tải gói mã nguồn lên máy chủ..."
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -P 22 /tmp/fe_dist.tar.gz root@62.171.157.22:/tmp/fe_dist.tar.gz
 
-    - name: Symlink, Health Check & Rollback
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          set -e
-          APP_DIR="/var/www/mindhub-frontend"
-          RELEASE_DIR="${APP_DIR}/releases/${{ env.RELEASE_ID }}"
-          CURRENT_LINK="${APP_DIR}/current"
-          PREVIOUS_LINK="${APP_DIR}/previous"
-          
-          echo "Switching active release..."
-          if [ -L "$CURRENT_LINK" ]; then
-            ln -snf $(readlink -f $CURRENT_LINK) $PREVIOUS_LINK
-          fi
-          
-          ln -snf ${RELEASE_DIR} $CURRENT_LINK
-          
-          echo "Running Health Check..."
-          sleep 2
-          # Thay http://localhost bằng domain thực tế của frontend
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/" || echo "failed")
-          
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "Health Check FAILED (Status: $HTTP_STATUS). Rolling back..."
-            if [ -L "$PREVIOUS_LINK" ]; then
-              ln -snf $(readlink -f $PREVIOUS_LINK) $CURRENT_LINK
-              echo "Rollback successful."
-            else
-              echo "No previous release to rollback to!"
-            fi
-            exit 1
-          fi
-          
-          echo "Health Check PASSED! Frontend deployed."
-          
-          # Cleanup old releases (Keep last 3)
-          ls -1dt ${APP_DIR}/releases/* | tail -n +4 | xargs -d '\n' rm -rf || true
+          echo "📂 Giải nén và cập nhật /www/wwwroot/default..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p 22 root@62.171.157.22 "tar -xzf /tmp/fe_dist.tar.gz -C /www/wwwroot/default && rm -f /tmp/fe_dist.tar.gz && chown -R www:www /www/wwwroot/default/assets /www/wwwroot/default/index.html"
+
+          echo "✅ Frontend triển khai thành công 100%!"

@@ -18,11 +18,14 @@ import {
   Briefcase, 
   Phone, 
   Info,
-  GraduationCap
+  GraduationCap,
+  TrendingUp
 } from "lucide-react";
 import { useApp } from "@/app/AppContext";
 import { apiFetch } from "@/shared/lib/api-client";
 import { resolveMediaUrl } from "@/shared/utils/format";
+import { semanticSearchApi } from "@/services/api";
+import { normalizeText, correctTypo, VI_STOPWORDS, DOMAIN_CLUSTERS, BUNNY_CDN_SUPPLEMENTARY_COURSES } from "@/features/search/SearchPage";
 
 // UI Components
 import { Button } from "@/shared/components/ui/button";
@@ -43,6 +46,8 @@ export default function Navbar() {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [navTrendingList, setNavTrendingList] = useState<string[]>([]);
+  const [cachedCourses, setCachedCourses] = useState<any[]>(BUNNY_CDN_SUPPLEMENTARY_COURSES);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -164,33 +169,100 @@ export default function Navbar() {
     }
   }, [location]);
 
-  // Live search suggestions fetch
+  // Pre-fetch courses catalog once for instant dropdown suggestions (<10ms)
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    semanticSearchApi.getTrendingSearches(6).then((list) => {
+      if (Array.isArray(list) && list.length > 0) {
+        setNavTrendingList(list);
+      }
+    }).catch(() => {});
+
+    apiFetch<any>('/courses?per_page=100').then((res) => {
+      const list = Array.isArray(res?.data?.items)
+        ? res.data.items
+        : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res)
+        ? res
+        : [];
+      
+      const existingTitles = new Set(list.map((c: any) => (c.title || '').toLowerCase().trim()));
+      const extra = BUNNY_CDN_SUPPLEMENTARY_COURSES.filter(
+        (c) => !existingTitles.has(c.title.toLowerCase().trim())
+      );
+      setCachedCourses([...list, ...extra]);
+    }).catch(() => {
+      setCachedCourses(BUNNY_CDN_SUPPLEMENTARY_COURSES);
+    });
+  }, []);
+
+  // Instant Suggestions on user keystroke with Typo Correction
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
       setSuggestions([]);
+      setIsSearching(false);
       return;
     }
-    let isMounted = true;
+
     setIsSearching(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await apiFetch<any>(`/search/suggestions?q=${encodeURIComponent(searchQuery.trim())}`);
-        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        if (isMounted) {
-          setSuggestions(list);
-        }
-      } catch (err) {
-        if (isMounted) setSuggestions([]);
-      } finally {
-        if (isMounted) setIsSearching(false);
-      }
-    }, 250);
+    const timer = setTimeout(() => {
+      const normQ = normalizeText(q);
+      const rawTokens = normQ.split(/\s+/).filter(Boolean);
+      const intentTokens = rawTokens.filter((t) => !VI_STOPWORDS.has(t)).map(correctTypo);
+      const searchTokens = intentTokens.length > 0 ? intentTokens : rawTokens.map(correctTypo);
+
+      // Instant local filter against pre-cached courses with Typo tolerance & Domain relevance
+      const matched = cachedCourses
+        .filter((course: any) => {
+          const title = normalizeText(course.title || '');
+          const desc = normalizeText(course.short_description || course.description || '');
+          const cat = normalizeText(course.categories?.[0]?.name || course.category?.name || '');
+          const fullText = `${title} ${desc} ${cat}`;
+          const tokensSet = new Set(fullText.split(/\s+/).filter(Boolean));
+
+          // Check direct substring
+          if (title.includes(normQ)) return true;
+
+          // Technical domain check
+          const techTokens = searchTokens.filter((t) => DOMAIN_CLUSTERS[t]);
+          if (techTokens.length > 0) {
+            let hasDomain = false;
+            for (const tech of techTokens) {
+              const cluster = DOMAIN_CLUSTERS[tech] || [tech];
+              if (cluster.some((kw) => tokensSet.has(kw) || fullText.includes(kw))) {
+                hasDomain = true;
+                break;
+              }
+            }
+            if (!hasDomain) return false;
+          }
+
+          // Check token match
+          return searchTokens.some((t) => tokensSet.has(t) || title.includes(t) || fullText.includes(t));
+        })
+        .slice(0, 5)
+        .map((c: any) => ({
+          id: c.id,
+          title: c.title,
+          slug: c.slug || c.id,
+          type: 'course',
+          thumbnail_url: c.thumbnail_url,
+          price: c.price,
+          sale_price: c.sale_price,
+          instructor_name: c.instructor?.full_name || c.instructor_name || 'Giảng viên MindHub',
+        }));
+
+      setSuggestions(matched);
+      setIsSearching(false);
+    }, 100);
 
     return () => {
-      isMounted = false;
       clearTimeout(timer);
     };
-  }, [searchQuery]);
+  }, [searchQuery, cachedCourses]);
 
   const handleLogout = () => {
     setIsLoggedIn(false);
@@ -264,6 +336,31 @@ export default function Navbar() {
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
               />
+
+              {/* Trending Searches Dropdown when empty & focused */}
+              {isSearchFocused && searchQuery.trim().length === 0 && navTrendingList.length > 0 && (
+                <div className="absolute top-12 left-0 right-0 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 text-left p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Tìm kiếm phổ biến</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 px-2 pb-1">
+                    {navTrendingList.map((tag, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onMouseDown={() => {
+                          setSearchQuery(tag);
+                          handleExecuteSearch(tag);
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-medium transition-colors cursor-pointer"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Live Search Suggestions Dropdown */}
               {isSearchFocused && searchQuery.trim().length > 0 && (
@@ -486,6 +583,7 @@ export default function Navbar() {
                         src={avatarUrl} 
                         alt="Avatar" 
                         className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover bg-slate-100"
+                        referrerPolicy="no-referrer"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
                         }}
@@ -634,6 +732,7 @@ export default function Navbar() {
                     src={avatarUrl}
                     alt="Avatar"
                     className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500"
+                    referrerPolicy="no-referrer"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80';
                     }}

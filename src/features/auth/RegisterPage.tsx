@@ -11,9 +11,12 @@ export default function RegisterPage() {
   const [searchParams] = useSearchParams();
   const { setCurrentUser, setIsLoggedIn } = useApp();
 
+  const savedRole = localStorage.getItem('mindhub_pending_verify_role');
   const isInstructorRole = 
     searchParams.get('role') === 'instructor' || 
-    location.pathname.includes('/instructor');
+    location.pathname.includes('/instructor') ||
+    location.pathname.includes('/become-instructor') ||
+    savedRole === 'instructor';
 
   const initialRole = isInstructorRole ? 'instructor' : 'student';
 
@@ -39,6 +42,7 @@ export default function RegisterPage() {
         onClose={() => navigate('/')}
         initialMode={initialMode}
         initialRole={initialRole}
+        initialEmail={searchParams.get('email') || ''}
         navigateTo={(path) => {
           const target = path.startsWith('/') ? path : `/${path}`;
           navigate(target, { replace: true });

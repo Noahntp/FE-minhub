@@ -28,8 +28,8 @@ export function ReviewList({
   type: 'course' | 'instructor';
   onCountChange?: (count: number) => void;
 }) {
-  const { currentUser, enrolledCourseIds = [] } = useApp();
-  const isEnrolled = Boolean(currentUser && enrolledCourseIds.some((id) => String(id) === String(targetId)));
+  const { currentUser, isLoggedIn, enrolledCourseIds = [] } = useApp();
+  const isEnrolled = Boolean(isLoggedIn && enrolledCourseIds.some((id) => String(id) === String(targetId)));
 
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);

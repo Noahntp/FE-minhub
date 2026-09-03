@@ -73,8 +73,11 @@ import { InstructorTopCourses } from './InstructorTopCourses';
 import { CouponManagement } from '@/features/coupons/index';
 import CourseMediaStep from '@/components/instructor-course-form/CourseMediaStep';
 import CourseCurriculumStep from '@/components/instructor-course-form/CourseCurriculumStep';
+import RichTextEditor from '@/components/instructor-course-form/RichTextEditor';
+import LanguageSelect from '@/components/instructor-course-form/LanguageSelect';
 import StudentManagement from './components/StudentManagement';
 import InstructorProfilePage from '@/components/instructor-ui/InstructorProfilePage';
+import { COURSE_PRICING_CONFIG } from '@/shared/constants/course-pricing';
 
 interface InstructorDashboardProps {
   currentUser: User;
@@ -594,8 +597,10 @@ export default function InstructorDashboard({
       }
     };
     fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 15000);
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, [activeTab]);
 
@@ -681,9 +686,11 @@ export default function InstructorDashboard({
   const [subcategory, setSubcategory] = useState('');
   const [price, setPrice] = useState<number>(500000);
   const [hasDiscount, setHasDiscount] = useState<boolean>(false);
+  const [discountType, setDiscountType] = useState<'percent' | 'amount'>('percent');
   const [discountPercent, setDiscountPercent] = useState<number | ''>('');
+  const [discountAmount, setDiscountAmount] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number>(350000);
-  const [image, setImage] = useState('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800');
+  const [image, setImage] = useState('');
   const [requirements, setRequirements] = useState<string[]>(['Có máy tính cá nhân kết nối Internet']);
   const [newRequirement, setNewRequirement] = useState('');
   const [slug, setSlug] = useState('');
@@ -699,6 +706,10 @@ export default function InstructorDashboard({
   const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [step1Errors, setStep1Errors] = useState<Record<string, string>>({});
+  const [step2Errors, setStep2Errors] = useState<Record<string, string>>({});
+  const [step3Errors, setStep3Errors] = useState<Record<string, string>>({});
   const [submitErrorModalState, setSubmitErrorModalState] = useState<{
     isOpen: boolean;
     title?: string;
@@ -1049,7 +1060,7 @@ export default function InstructorDashboard({
     : baseOverviewStats;
 
   const resolveMediaUrl = (path?: string | null): string => {
-    if (!path) return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
+    if (!path) return '';
     return formatResolveMediaUrl(path);
   };
 
@@ -1297,7 +1308,7 @@ export default function InstructorDashboard({
           ? item.categories[0].name
           : (item.category || 'Chưa phân loại');
 
-        let image = item.thumbnail_url || item.image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800';
+        let image = item.thumbnail_url || item.image || '';
         if (image && !image.startsWith('http://') && !image.startsWith('https://') && !image.startsWith('data:')) {
           const apiBase = sharedApi.getConfig().baseUrl.replace(/\/api\/?$/, '');
           image = `${apiBase}${image.startsWith('/') ? '' : '/'}${image}`;
@@ -1417,6 +1428,104 @@ export default function InstructorDashboard({
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Helper to persist course draft to backend DB synchronously or via autosave
+  const persistCourseDraft = async (
+    targetStep?: number
+  ): Promise<{ success: boolean; courseId?: string; error?: string }> => {
+    if (!title.trim()) {
+      return { success: false, error: 'Tiêu đề khóa học là bắt buộc.' };
+    }
+
+    setIsSavingDraft(true);
+    setAutosaveError(null);
+
+    try {
+      const isUncategorizedPending = category === 'none_pending';
+      const selectedCatInt = parseInt(String(category), 10);
+      const validCategoryIds = (Number.isInteger(selectedCatInt) && selectedCatInt > 0)
+        ? [selectedCatInt]
+        : [];
+
+      const numPrice = Number(price) || 0;
+      const currentDP = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent), 10) || 0;
+      const currentDA = typeof discountAmount === 'number' ? discountAmount : parseInt(String(discountAmount), 10) || 0;
+
+      const maxPercent = COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT;
+      const maxAllowedDiscount = Math.round(numPrice * (maxPercent / 100));
+      const minAllowedSalePrice = numPrice - maxAllowedDiscount;
+      const calcFinalPrice = (hasDiscount && currentDP >= 1 && currentDP <= maxPercent)
+        ? Math.max(minAllowedSalePrice, numPrice - currentDA)
+        : numPrice;
+
+      const normalizedLvl = level === 'expert' ? 'advanced' : level;
+      const cleanDescription = (description || '')
+        .trim()
+        .replace(/(?:<div>\s*<br\s*\/?>\s*<\/div>|<p>\s*<br\s*\/?>\s*<\/p>|<br\s*\/?>\s*)+$/gi, '')
+        .trim();
+      const cleanImage = (image || '').trim();
+      const cleanIntroVideo = (introVideoUrl || '').trim();
+
+      const payload: Record<string, any> = {
+        title: title.trim(),
+        slug: slug.trim() || undefined,
+        course_level: normalizedLvl,
+        level: normalizedLvl,
+        language: language || 'vi',
+        subtitle: subtitle.trim() || title.trim(),
+        short_description: subtitle.trim() || title.trim(),
+        description: cleanDescription,
+        price: numPrice >= COURSE_PRICING_CONFIG.MIN_PRICE ? numPrice : (numPrice > 0 ? numPrice : 0),
+        has_discount: Boolean(hasDiscount),
+        discount_percent: hasDiscount && currentDP >= 1 && currentDP <= maxPercent ? currentDP : null,
+        sale_price: hasDiscount ? calcFinalPrice : null,
+        image: cleanImage,
+        thumbnail_url: cleanImage || undefined,
+        introVideoUrl: cleanIntroVideo,
+        intro_video_url: cleanIntroVideo || undefined,
+        requirements: Array.isArray(requirements) ? requirements.filter(Boolean) : [],
+        willLearn: Array.isArray(willLearn) ? willLearn.filter(Boolean) : [],
+        outcomes: Array.isArray(willLearn) ? willLearn.filter(Boolean) : [],
+      };
+
+      if (!isUncategorizedPending && validCategoryIds.length > 0) {
+        payload.category_ids = validCategoryIds;
+      } else if (isUncategorizedPending) {
+        payload.category_ids = [];
+      }
+
+      let savedId = editingCourseId;
+      if (editingCourseId) {
+        await instructorApi.updateCourseDraft(editingCourseId, payload);
+      } else {
+        const res = await instructorApi.createCourseDraft(payload);
+        const newId = String(res?.data?.id || res?.id);
+        if (newId) {
+          savedId = newId;
+          setEditingCourseId(newId);
+        }
+      }
+
+      const activeStep = targetStep ?? builderStep;
+      if (savedId) {
+        updateRouteUrl('builder', savedId, activeStep, true);
+        try {
+          localStorage.setItem(`mindhub_draft_${savedId}`, JSON.stringify({ ...payload, id: savedId }));
+        } catch {}
+      }
+
+      const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      setLastSavedTime(timeStr);
+      return { success: true, courseId: savedId ?? undefined };
+    } catch (err: any) {
+      console.warn('Draft save failed:', err);
+      const errMsg = err?.response?.data?.message || err?.message || 'Lưu nháp thất bại.';
+      setAutosaveError(errMsg);
+      return { success: false, error: errMsg };
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
   // Autosave effect (Debounced 1200ms)
   const isInitialMount = useRef(true);
   useEffect(() => {
@@ -1428,64 +1537,12 @@ export default function InstructorDashboard({
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setIsSavingDraft(true);
-      setAutosaveError(null);
-      try {
-        const selectedCatInt = parseInt(String(category), 10);
-        const validCategoryInt = (Number.isInteger(selectedCatInt) && selectedCatInt > 0)
-          ? selectedCatInt
-          : (dbCategories.length > 0 ? (parseInt(String(dbCategories[0].id), 10) || 1) : 1);
-
-        const calcDiscountPercent = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent)) || 0;
-        const calcFinalPrice = (hasDiscount && calcDiscountPercent >= 1 && calcDiscountPercent <= 99)
-          ? Math.round((Number(price) * (100 - calcDiscountPercent)) / 100)
-          : Number(price);
-
-        const payload = {
-          title: title.trim(),
-          slug: slug.trim() || undefined,
-          category_id: validCategoryInt,
-          category_ids: [validCategoryInt],
-          level,
-          language,
-          subtitle,
-          description,
-          original_price: Number(price) || 0,
-          price: Number(price) || 0,
-          has_discount: hasDiscount,
-          discount_percent: hasDiscount && calcDiscountPercent >= 1 && calcDiscountPercent <= 99 ? calcDiscountPercent : null,
-          sale_price: calcFinalPrice,
-          salePrice: calcFinalPrice,
-          image,
-          introVideoUrl,
-          requirements,
-          willLearn,
-        };
-
-        if (editingCourseId) {
-          await instructorApi.updateCourseDraft(editingCourseId, payload);
-          updateRouteUrl('builder', editingCourseId, builderStep, true);
-        } else {
-          const res = await instructorApi.createCourseDraft(payload);
-          const newId = String(res.data?.id || res.id);
-          if (newId) {
-            setEditingCourseId(newId);
-            updateRouteUrl('builder', newId, builderStep, true);
-          }
-        }
-        const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-        setLastSavedTime(timeStr);
-      } catch (err: any) {
-        console.warn("Autosave failed:", err);
-        setAutosaveError(err.message || "Tự động lưu thất bại.");
-      } finally {
-        setIsSavingDraft(false);
-      }
+    const timer = setTimeout(() => {
+      persistCourseDraft().catch(() => {});
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [title, subtitle, description, category, price, hasDiscount, discountPercent, salePrice, image, introVideoUrl, requirements, willLearn, slug, level, language, builderStep]);
+  }, [title, subtitle, description, category, price, hasDiscount, discountPercent, discountAmount, salePrice, image, introVideoUrl, requirements, willLearn, slug, level, language]);
 
   const rawInstructorCourses = courses.filter(c => c.instructorName === currentUser.name && c.status !== 'archived');
   const filteredInstructorCourses = rawInstructorCourses.filter(c => {
@@ -1787,13 +1844,24 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
     setTitle('');
     setSubtitle('');
     setDescription('');
-    setCategory(dbCategories.length > 0 ? String(dbCategories[0].id) : '1');
+    
+    // Suggest category based on instructor expertise if matching
+    let initialCatId = dbCategories.length > 0 ? String(dbCategories[0].id) : '1';
+    if (currentUser?.expertise && dbCategories.length > 0) {
+      const exp = currentUser.expertise.toLowerCase();
+      const matched = dbCategories.find((c: any) => exp.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(exp));
+      if (matched) {
+        initialCatId = String(matched.id);
+      }
+    }
+    setCategory(initialCatId);
+
     setSubcategory('');
     setPrice(500000);
     setHasDiscount(false);
     setDiscountPercent('');
     setSalePrice(500000);
-    setImage('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800');
+    setImage('');
     setRequirements(['Có máy tính cá nhân kết nối Internet']);
     setWillLearn(['Lập trình thành thạo ngôn ngữ ứng dụng với thực tế']);
     setChapters([]);
@@ -1853,9 +1921,9 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
         } else if (detail.category_id) {
           setCategory(String(detail.category_id));
         } else {
-          setCategory(courseObj?.category || '1');
+          setCategory('none_pending');
         }
-        const loadedPrice = typeof detail.price === 'number' ? detail.price : parseFloat(detail.price || 0);
+        const loadedPrice = typeof detail.price === 'number' ? detail.price : parseFloat(detail.price || 0) || 500000;
         setPrice(loadedPrice);
 
         const loadedSalePrice = detail.sale_price !== null && detail.sale_price !== undefined
@@ -1870,33 +1938,65 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           loadedDiscountPercent = Math.round(((loadedPrice - loadedSalePrice) / loadedPrice) * 100);
         }
 
-        if (loadedDiscountPercent && loadedDiscountPercent > 0 && loadedDiscountPercent < 100) {
+        if (loadedDiscountPercent && loadedDiscountPercent > 0 && loadedDiscountPercent <= COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT) {
           setHasDiscount(true);
           setDiscountPercent(loadedDiscountPercent);
-          setSalePrice(loadedSalePrice !== null ? loadedSalePrice : Math.round(loadedPrice * (100 - loadedDiscountPercent) / 100));
+          const computedAmt = loadedSalePrice !== null ? Math.round(loadedPrice - loadedSalePrice) : Math.round((loadedPrice * loadedDiscountPercent) / 100);
+          setDiscountAmount(computedAmt);
+          setSalePrice(loadedSalePrice !== null ? loadedSalePrice : loadedPrice - computedAmt);
         } else {
           setHasDiscount(false);
           setDiscountPercent('');
+          setDiscountAmount('');
           setSalePrice(loadedPrice);
         }
-        setImage(detail.thumbnail_url || courseObj?.image || '');
-        setIntroVideoUrl(detail.intro_video_url || courseObj?.introVideoUrl || '');
+        setImage(detail.thumbnail_url || '');
+        setIntroVideoUrl(detail.intro_video_url || '');
         setSlug(detail.slug || courseObj?.slug || '');
         setIsManualSlug(true);
-        setLevel(detail.level || courseObj?.level || 'beginner');
+
+        const rawLvl = detail.course_level || detail.level || courseObj?.level || 'beginner';
+        const normalizedLvl = rawLvl === 'expert' ? 'advanced' : rawLvl;
+        setLevel(normalizedLvl);
+
         setLanguage(detail.language || courseObj?.language || 'vi');
 
-        let reqs = courseObj?.requirements || [];
-        if (typeof detail.requirements === 'string') {
-          try { reqs = JSON.parse(detail.requirements); } catch { reqs = [detail.requirements]; }
+        let reqs: string[] = [];
+        if (Array.isArray(detail.requirements)) {
+          reqs = detail.requirements;
+        } else if (typeof detail.requirements === 'string') {
+          try {
+            const parsed = JSON.parse(detail.requirements);
+            reqs = Array.isArray(parsed) ? parsed : [detail.requirements];
+          } catch {
+            reqs = detail.requirements.split('\n').map((s: string) => s.trim()).filter(Boolean);
+          }
+        } else if (Array.isArray(courseObj?.requirements)) {
+          reqs = courseObj.requirements;
         }
-        setRequirements(Array.isArray(reqs) ? reqs : []);
+        setRequirements(reqs.length > 0 ? reqs : ['Có máy tính cá nhân kết nối Internet']);
 
-        let outcomes = courseObj?.willLearn || [];
-        if (typeof detail.outcomes === 'string') {
-          try { outcomes = JSON.parse(detail.outcomes); } catch { outcomes = [detail.outcomes]; }
+        let outcomes: string[] = [];
+        if (Array.isArray(detail.outcomes)) {
+          outcomes = detail.outcomes;
+        } else if (typeof detail.outcomes === 'string') {
+          try {
+            const parsed = JSON.parse(detail.outcomes);
+            outcomes = Array.isArray(parsed) ? parsed : [detail.outcomes];
+          } catch {
+            outcomes = detail.outcomes.split('\n').map((s: string) => s.trim()).filter(Boolean);
+          }
+        } else if (Array.isArray(courseObj?.willLearn)) {
+          outcomes = courseObj.willLearn;
         }
-        setWillLearn(Array.isArray(outcomes) ? outcomes : []);
+        setWillLearn(outcomes.length > 0 ? outcomes : ['Lập trình thành thạo ngôn ngữ ứng dụng với thực tế']);
+
+        // Hydrate completed steps
+        const newlyCompleted: number[] = [];
+        if (detail.title && detail.slug) newlyCompleted.push(1);
+        if (loadedPrice >= COURSE_PRICING_CONFIG.MIN_PRICE) newlyCompleted.push(2);
+        if (detail.thumbnail_url && typeof detail.thumbnail_url === 'string' && detail.thumbnail_url.trim()) newlyCompleted.push(3);
+        setCompletedSteps(prev => Array.from(new Set([...prev, ...newlyCompleted])));
 
         // Load full course curriculum (sections & lessons) from Backend content API
         try {
@@ -2024,16 +2124,22 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           : (dbCategories.length > 0 ? (parseInt(String(dbCategories[0].id), 10) || 1) : 1);
 
         const currentDiscountPercent = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent)) || 0;
-        const currentFinalPrice = (hasDiscount && currentDiscountPercent >= 1 && currentDiscountPercent <= 99)
-          ? Math.round((Number(price) * (100 - currentDiscountPercent)) / 100)
+        const currentDA = typeof discountAmount === 'number' ? discountAmount : parseInt(String(discountAmount)) || 0;
+        const maxPercent = COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT;
+        const maxAllowedDiscount = Math.round(Number(price) * (maxPercent / 100));
+        const minAllowedSalePrice = Number(price) - maxAllowedDiscount;
+        const currentFinalPrice = (hasDiscount && currentDiscountPercent >= 1 && currentDiscountPercent <= maxPercent)
+          ? Math.max(minAllowedSalePrice, Number(price) - currentDA)
           : Number(price);
 
+        const normalizedLvl = level === 'expert' ? 'advanced' : (level || 'beginner');
         const payload = {
           title: title.trim(),
           slug: slug.trim() || undefined,
           category_id: validCategoryInt,
           category_ids: [validCategoryInt],
-          level: level || 'beginner',
+          course_level: normalizedLvl,
+          level: normalizedLvl,
           language: language || 'vi',
           short_description: subtitle || title.trim(),
           subtitle: subtitle || title.trim(),
@@ -2102,6 +2208,26 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
               }
             }
           }
+        }
+
+        // Reload chapters from backend to update state with actual DB IDs
+        try {
+          const contentRes = await instructorApi.getCourseContent(courseId);
+          const contentData = contentRes?.data || contentRes;
+          const rawSections = contentData?.sections || [];
+          if (Array.isArray(rawSections) && rawSections.length > 0) {
+            const loadedChapters = rawSections.map((sec: any) => ({
+              id: sec.id,
+              title: sec.title,
+              description: sec.description || '',
+              sort_order: sec.sort_order || 1,
+              status: sec.status || 'published',
+              lessons: (sec.lessons || []).map((les: any) => mapLesson(les))
+            }));
+            setChapters(loadedChapters);
+          }
+        } catch (err) {
+          console.warn('Could not reload course content after sync:', err);
         }
 
         await instructorApi.submitCourseToAdminVerification(courseId);
@@ -2208,7 +2334,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           enrolledCount: enrolled,
           revenue: safeRev,
           price: c.price || matchingCourse?.price || 0,
-          image: c.thumbnail_url ? resolveMediaUrl(c.thumbnail_url) : (matchingCourse?.image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=800')
+          image: c.thumbnail_url ? resolveMediaUrl(c.thumbnail_url) : (matchingCourse?.image || '')
         };
       });
     }
@@ -3854,7 +3980,6 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           let totalDurationSeconds = 0;
           let freePreviewsCount = 0;
           let totalAssetsCount = 0;
-          let hasInvalidVideoLesson = false;
           
           chapters.forEach(ch => {
             if (ch.lessons) {
@@ -3863,48 +3988,44 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 totalDurationSeconds += l.video_duration_seconds || 0;
                 if (l.is_preview) freePreviewsCount++;
                 if (l.resources) totalAssetsCount += l.resources.length;
-                if ((l.lesson_type === 'video' || l.type === 'video') && (!l.video_url || !l.video_url.trim() || l.video_url.startsWith('blob:'))) {
-                  hasInvalidVideoLesson = true;
-                }
-                if ((l.lesson_type === 'video' || l.type === 'video') && (!l.video_duration_seconds || l.video_duration_seconds <= 0)) {
-                  hasInvalidVideoLesson = true;
-                }
               });
             }
           });
 
-          const hasThumbnail = !!image;
-          const hasIntroVideo = !!introVideoUrl;
-          const hasOutcomes = willLearn.length > 0 && willLearn.some(x => x.trim().length > 0);
-          const hasRequirements = requirements.length > 0 && requirements.some(x => x.trim().length > 0);
-          const hasPrice = price >= 0;
+          const hasThumbnail = !!(image && image.trim());
+          const hasIntroVideo = !!(introVideoUrl && introVideoUrl.trim());
+          const hasPrice = Number(price) >= 50000;
+          const hasFreePreview = freePreviewsCount >= 1;
 
           // Missing Items list
           const missingItems: string[] = [];
-          if (!hasTitle) missingItems.push('Tiêu đề khóa học');
-          if (!hasCategory) missingItems.push('Danh mục khóa học');
+          if (!hasTitle || title.trim().length < 10) missingItems.push('Tiêu đề khóa học (tối thiểu 10 ký tự)');
           if (!hasShortDesc) missingItems.push('Mô tả ngắn khóa học');
-          if (!hasDesc) missingItems.push('Mô tả chi tiết khóa học');
-          if (!hasThumbnail) missingItems.push('Thumbnail khóa học');
+          if (!hasDesc || description.trim().length < 20) missingItems.push('Mô tả chi tiết khóa học (tối thiểu 20 ký tự)');
+          if (!hasPrice) missingItems.push('Giá bán hợp lệ (tối thiểu 50.000đ)');
+          if (!hasThumbnail) missingItems.push('Ảnh bìa khóa học (Thumbnail)');
+          if (!hasIntroVideo) missingItems.push('Video trailer giới thiệu (Intro Video)');
           if (totalChapters === 0) missingItems.push('Ít nhất 1 chương học');
-          if (totalLessons === 0) missingItems.push('Ít nhất 1 bài giảng');
-          if (hasInvalidVideoLesson) missingItems.push('Bài học chưa có video được tải lên hợp lệ');
+          if (totalLessons === 0) missingItems.push('Ít nhất 1 bài học');
+          if (totalLessons > 0 && !hasFreePreview) missingItems.push('Ít nhất 1 bài học được bật Học thử miễn phí (Preview)');
 
           // Completed Items list
           const completedItems: string[] = [];
-          if (hasTitle) completedItems.push('Tiêu đề khóa học');
+          if (hasTitle && title.trim().length >= 10) completedItems.push('Tiêu đề khóa học');
           if (hasSlug) completedItems.push('Slug (đường dẫn)');
-          if (hasCategory) completedItems.push('Danh mục');
           if (hasLevel) completedItems.push('Cấp độ');
           if (hasShortDesc) completedItems.push('Mô tả ngắn');
-          if (hasDesc) completedItems.push('Mô tả chi tiết');
-          if (hasThumbnail) completedItems.push('Thumbnail khóa học');
+          if (hasDesc && description.trim().length >= 20) completedItems.push('Mô tả chi tiết');
+          if (hasPrice) completedItems.push('Giá bán hợp lệ');
+          if (hasThumbnail) completedItems.push('Ảnh bìa đại diện (Thumbnail)');
+          if (hasIntroVideo) completedItems.push('Video giới thiệu (Intro Video)');
           if (totalChapters > 0) completedItems.push('Chương học');
-          if (totalLessons > 0 && !hasInvalidVideoLesson) completedItems.push('Bài giảng hoàn chỉnh');
+          if (totalLessons > 0) completedItems.push('Bài học');
+          if (hasFreePreview) completedItems.push('Học thử miễn phí (Preview)');
 
-          const totalChecks = 8;
-          const passedChecks = Math.max(0, totalChecks - missingItems.length);
-          const checklistProgress = missingItems.length === 0 ? 100 : Math.min(95, Math.round((passedChecks / totalChecks) * 100));
+          const totalChecks = Math.max(1, missingItems.length + completedItems.length);
+          const passedChecks = completedItems.length;
+          const checklistProgress = missingItems.length === 0 ? 100 : Math.min(99, Math.round((passedChecks / totalChecks) * 100));
 
           const handleSaveDraft = async () => {
             if (!title.trim()) {
@@ -3915,15 +4036,16 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             setAutosaveError(null);
             try {
               const selectedCatInt = parseInt(String(category), 10);
+              const isUncategorizedPending = category === 'none_pending';
               const validCategoryInt = (Number.isInteger(selectedCatInt) && selectedCatInt > 0)
                 ? selectedCatInt
-                : (dbCategories.length > 0 ? (parseInt(String(dbCategories[0].id), 10) || 1) : 1);
+                : (isUncategorizedPending ? null : (dbCategories.length > 0 ? (parseInt(String(dbCategories[0].id), 10) || 1) : 1));
 
               const payload = {
                 title: title.trim(),
                 slug: slug.trim() || undefined,
-                category_id: validCategoryInt,
-                category_ids: [validCategoryInt],
+                category_id: validCategoryInt || undefined,
+                category_ids: validCategoryInt ? [validCategoryInt] : [],
                 level: level || 'beginner',
                 language: language || 'vi',
                 short_description: subtitle || title.trim(),
@@ -4010,15 +4132,234 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
             }
           };
 
-          const handleNext = () => {
-            if (builderStep === 1 && !title.trim()) {
-              alert('Vui lòng điền Tiêu đề khóa học trước khi sang bước tiếp theo.');
+          const validateStep1 = () => {
+            const errs: Record<string, string> = {};
+
+            // Title
+            if (!title.trim()) {
+              errs.title = 'Vui lòng nhập tiêu đề khóa học.';
+            } else if (title.trim().length < 5) {
+              errs.title = 'Tiêu đề khóa học phải có ít nhất 5 ký tự.';
+            } else if (title.trim().length > 100) {
+              errs.title = 'Tiêu đề khóa học không được vượt quá 100 ký tự.';
+            }
+
+            // Slug
+            if (!slug.trim()) {
+              errs.slug = 'Vui lòng nhập slug đường dẫn.';
+            } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())) {
+              errs.slug = 'Slug chỉ gồm chữ thường không dấu, số và dấu gạch nối (vd: lap-trinh-python).';
+            }
+
+            // Category
+            if (!category || category === '') {
+              errs.category = 'Vui lòng chọn danh mục hoặc chọn "Chưa có danh mục phù hợp".';
+            }
+
+            // Level
+            if (!['beginner', 'intermediate', 'advanced', 'all_levels'].includes(level)) {
+              errs.level = 'Vui lòng chọn cấp độ khóa học.';
+            }
+
+            // Language
+            if (!language || !language.trim()) {
+              errs.language = 'Vui lòng chọn ngôn ngữ giảng dạy.';
+            }
+
+            // Short description
+            if (!subtitle.trim()) {
+              errs.short_description = 'Vui lòng nhập mô tả ngắn khóa học.';
+            } else if (subtitle.trim().length < 10) {
+              errs.short_description = 'Mô tả ngắn phải có ít nhất 10 ký tự.';
+            } else if (subtitle.trim().length > 500) {
+              errs.short_description = 'Mô tả ngắn không được vượt quá 500 ký tự.';
+            }
+
+            // Description
+            const plainDesc = description.replace(/<[^>]+>/g, '').trim();
+            if (!plainDesc) {
+              errs.description = 'Vui lòng nhập mô tả chi tiết khóa học.';
+            } else if (plainDesc.length < 20) {
+              errs.description = 'Mô tả chi tiết phải có ít nhất 20 ký tự.';
+            }
+
+            setStep1Errors(errs);
+            return {
+              isValid: Object.keys(errs).length === 0,
+              errors: errs,
+            };
+          };
+
+          const validateStep2 = () => {
+            const errs: Record<string, string> = {};
+
+            const numPrice = Number(price);
+            const minPrice = COURSE_PRICING_CONFIG.MIN_PRICE;
+            const maxDiscountPercent = COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT;
+
+            if (!numPrice || numPrice < minPrice) {
+              errs.price = `Giá bán của khóa học tối thiểu là ${formatVND(minPrice)}.`;
+            }
+
+            if (hasDiscount) {
+              const currentDP = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent), 10);
+              const currentDA = typeof discountAmount === 'number' ? discountAmount : parseInt(String(discountAmount), 10);
+
+              if (discountType === 'percent') {
+                if (isNaN(currentDP) || currentDP < 1) {
+                  errs.discount = `Vui lòng nhập tỷ lệ giảm giá từ 1% đến ${maxDiscountPercent}%.`;
+                } else if (currentDP > maxDiscountPercent) {
+                  errs.discount = `Theo quy định của sàn, khóa học được giảm tối đa ${maxDiscountPercent}%.`;
+                }
+              } else {
+                const maxAllowedDiscount = Math.round(numPrice * (maxDiscountPercent / 100));
+                if (isNaN(currentDA) || currentDA < 1) {
+                  errs.discount = 'Vui lòng nhập số tiền giảm giá hợp lệ.';
+                } else if (currentDA > maxAllowedDiscount) {
+                  errs.discount = `Theo quy định của sàn, khóa học được giảm tối đa ${maxDiscountPercent}%.`;
+                }
+              }
+            }
+
+            setStep2Errors(errs);
+            return {
+              isValid: Object.keys(errs).length === 0,
+              errors: errs,
+            };
+          };
+
+          const validateStep3 = () => {
+            const errs: Record<string, string> = {};
+            const cleanImg = (image || '').trim();
+            if (!cleanImg) {
+              errs.image = 'Vui lòng tải lên ảnh hoặc nhập liên kết ảnh bìa khóa học (Thumbnail).';
+            }
+            setStep3Errors(errs);
+            return {
+              isValid: Object.keys(errs).length === 0,
+              errors: errs,
+            };
+          };
+
+          const formatVNDInput = (val: number | string | '') => {
+            if (val === '' || val === null || val === undefined) return '';
+            const num = typeof val === 'number' ? val : parseInt(String(val).replace(/\D/g, ''), 10);
+            if (isNaN(num) || num === 0) return '';
+            return num.toLocaleString('vi-VN');
+          };
+
+          const handleNext = async () => {
+            if (builderStep === 1) {
+              const { isValid, errors: valErrors } = validateStep1();
+              if (!isValid) {
+                const orderedFieldKeys = ['title', 'slug', 'category', 'level', 'language', 'short_description', 'description'];
+                const firstErrorKey = orderedFieldKeys.find(key => valErrors[key]);
+
+                if (firstErrorKey) {
+                  const el = document.getElementById(`focus-${firstErrorKey}`) || document.querySelector(`[data-focus-id="${firstErrorKey}"]`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const focusable = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.tagName === 'BUTTON'
+                      ? el
+                      : el.querySelector('input, textarea, select, button, [contenteditable="true"]');
+                    if (focusable && typeof (focusable as HTMLElement).focus === 'function') {
+                      (focusable as HTMLElement).focus();
+                    }
+                    el.classList.add('ring-2', 'ring-red-400', 'ring-offset-2', 'rounded-xl', 'transition-all', 'duration-300');
+                    setTimeout(() => {
+                      el.classList.remove('ring-2', 'ring-red-400', 'ring-offset-2');
+                    }, 1500);
+                  }
+                }
+                return;
+              }
+            } else if (builderStep === 2) {
+              const { isValid, errors: valErrors } = validateStep2();
+              if (!isValid) {
+                const targetKey = valErrors.price ? 'price' : 'discount';
+                const el = document.getElementById(`focus-${targetKey}`) || document.querySelector(`[data-focus-id="${targetKey}"]`);
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  const focusable = el.tagName === 'INPUT' ? el : el.querySelector('input');
+                  if (focusable && typeof (focusable as HTMLElement).focus === 'function') {
+                    (focusable as HTMLElement).focus();
+                  }
+                  el.classList.add('ring-2', 'ring-red-400', 'ring-offset-2', 'rounded-xl', 'transition-all', 'duration-300');
+                  setTimeout(() => {
+                    el.classList.remove('ring-2', 'ring-red-400', 'ring-offset-2');
+                  }, 1500);
+                }
+                return;
+              }
+            } else if (builderStep === 3) {
+              const { isValid, errors: valErrors } = validateStep3();
+              if (!isValid) {
+                const el = document.getElementById('focus-thumbnail') || document.querySelector('[data-focus-id="thumbnail"]');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('ring-2', 'ring-red-400', 'ring-offset-2', 'rounded-xl', 'transition-all', 'duration-300');
+                  setTimeout(() => {
+                    el.classList.remove('ring-2', 'ring-red-400', 'ring-offset-2');
+                  }, 1500);
+                }
+                return;
+              }
+            }
+
+            // Save to DB before advancing step
+            const nextStep = builderStep + 1;
+            const res = await persistCourseDraft(nextStep);
+            if (!res.success) {
+              alert(`Không thể tiếp tục: ${res.error || 'Lưu khóa học thất bại, vui lòng thử lại.'}`);
               return;
             }
-            if (builderStep < 4) setBuilderStep(builderStep + 1);
+
+            // Mark current step as completed
+            setCompletedSteps(prev => Array.from(new Set([...prev, builderStep])));
+
+            if (builderStep < 4) {
+              setBuilderStep(nextStep);
+              updateRouteUrl('builder', res.courseId || editingCourseId, nextStep, true);
+            }
           };
-          const handlePrev = () => {
-            if (builderStep > 1) setBuilderStep(builderStep - 1);
+
+          const handlePrev = async () => {
+            if (builderStep > 1) {
+              const prevStep = builderStep - 1;
+              if (title.trim()) {
+                persistCourseDraft(prevStep).catch(() => {});
+              }
+              setBuilderStep(prevStep);
+              updateRouteUrl('builder', editingCourseId, prevStep, true);
+            }
+          };
+
+          const handleStepClick = async (stepId: number) => {
+            if (stepId === builderStep) return;
+            if (stepId > builderStep) {
+              if (builderStep === 1) {
+                const { isValid } = validateStep1();
+                if (!isValid) return;
+              } else if (builderStep === 2) {
+                const { isValid } = validateStep2();
+                if (!isValid) return;
+              } else if (builderStep === 3) {
+                const { isValid } = validateStep3();
+                if (!isValid) return;
+              }
+            }
+            if (title.trim()) {
+              const res = await persistCourseDraft(stepId);
+              if (!res.success && stepId > builderStep) {
+                alert(`Không thể chuyển bước: ${res.error || 'Lưu khóa học thất bại'}`);
+                return;
+              }
+              if (res.success) {
+                setCompletedSteps(prev => Array.from(new Set([...prev, builderStep])));
+              }
+            }
+            setBuilderStep(stepId);
+            updateRouteUrl('builder', editingCourseId, stepId, true);
           };
 
           const steps = [
@@ -4035,26 +4376,19 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
               <div className="flex justify-between items-center select-none pb-2 border-b border-slate-100">
                 <button 
                   onClick={() => {
-                    if (window.confirm('Quay lại danh sách khóa học và bỏ qua tất cả chưa lưu?')) setActiveTab('courses');
+                    if (window.confirm('Quay lại danh sách khóa học và bỏ qua tất cả thay đổi chưa lưu?')) setActiveTab('courses');
                   }}
                   className="text-[10px] font-black text-stone-450 hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   &larr; Quay lại khóa học
                 </button>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-3xs">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isSavingDraft ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
-                    <span className="text-stone-550 font-bold text-[9.5px]">
-                      {isSavingDraft ? 'Đang tự động lưu nháp...' : lastSavedTime ? `Đã tự động lưu nháp lúc ${lastSavedTime}` : 'Đã tự động lưu nháp'}
+                  <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white border border-slate-200/80 rounded-full shadow-3xs">
+                    <div className={`w-2 h-2 rounded-full ${isSavingDraft ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
+                    <span className="text-stone-600 font-bold text-[10px]">
+                      {isSavingDraft ? 'Đang tự động lưu nháp...' : lastSavedTime ? `Đã tự động lưu nháp lúc ${lastSavedTime}` : 'Hệ thống tự động lưu nháp'}
                     </span>
                   </div>
-                  <button 
-                    onClick={handleSaveDraft}
-                    disabled={isSavingDraft}
-                    className="border border-[#10b981] text-[#10b981] hover:bg-emerald-50 disabled:opacity-50 px-4 py-1.5 rounded-xl font-bold text-[10.5px] cursor-pointer shadow-3xs transition-all"
-                  >
-                    {isSavingDraft ? 'Đang lưu...' : 'Lưu nháp'}
-                  </button>
                 </div>
               </div>
 
@@ -4062,12 +4396,12 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
               <div className="flex flex-wrap items-center justify-between gap-2 bg-white border border-slate-100 rounded-2xl p-4 shadow-3xs">
                 {steps.map((stepItem, idx) => {
                   const isActive = builderStep === stepItem.id;
-                  const isFinished = builderStep > stepItem.id;
+                  const isFinished = completedSteps.includes(stepItem.id);
                   return (
                     <React.Fragment key={stepItem.id}>
                       <button
                         type="button"
-                        onClick={() => setBuilderStep(stepItem.id)}
+                        onClick={() => handleStepClick(stepItem.id)}
                         className="flex items-center gap-2 cursor-pointer focus:outline-none whitespace-nowrap"
                       >
                         {isFinished ? (
@@ -4115,6 +4449,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                           onChange={(e) => {
                             const val = e.target.value.slice(0, 100);
                             setTitle(val);
+                            if (step1Errors.title) setStep1Errors(prev => ({ ...prev, title: '' }));
                             if (!isManualSlug) {
                               const slugified = val.toLowerCase()
                                 .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -4122,13 +4457,21 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                                 .replace(/[^a-z0-9\s-]/g, "")
                                 .trim().replace(/\s+/g, "-");
                               setSlug(slugified);
+                              if (step1Errors.slug) setStep1Errors(prev => ({ ...prev, slug: '' }));
                             }
                           }}
                           placeholder="Lập trình Python cơ bản cho người mới bắt đầu"
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none focus:border-emerald-500"
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none transition-colors ${
+                            step1Errors.title ? 'border-red-400 focus:border-red-500 bg-red-50/10' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         />
+                        {step1Errors.title && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.title}
+                          </p>
+                        )}
                       </div>
-                      <div>
+                      <div id="focus-slug" data-focus-id="slug">
                         <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Slug (đường dẫn) *</label>
                         <input 
                           type="text" 
@@ -4136,20 +4479,41 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                           onChange={(e) => {
                             setSlug(e.target.value);
                             setIsManualSlug(true);
+                            if (step1Errors.slug) setStep1Errors(prev => ({ ...prev, slug: '' }));
                           }}
                           placeholder="lap-trinh-python-co-ban-cho-nguoi-moi-bat-dau"
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none focus:border-emerald-500"
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-slate-50/20 focus:outline-none transition-colors ${
+                            step1Errors.slug ? 'border-red-400 focus:border-red-500 bg-red-50/10' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         />
+                        {step1Errors.slug && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.slug}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
                       <div id="focus-category" data-focus-id="category">
-                        <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Danh mục *</label>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="block text-[10.5px] font-bold text-stone-600">Danh mục *</label>
+                          <span 
+                            title="Khóa học chưa có danh mục sẽ được Quản trị viên phân loại chính xác khi phê duyệt."
+                            className="text-[9.5px] font-bold text-emerald-600 hover:text-emerald-700 cursor-help"
+                          >
+                            Đề xuất danh mục?
+                          </span>
+                        </div>
                         <select 
                           value={category}
-                          onChange={(e) => setCategory(e.target.value)}
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                          onChange={(e) => {
+                            setCategory(e.target.value);
+                            if (step1Errors.category) setStep1Errors(prev => ({ ...prev, category: '' }));
+                          }}
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-white focus:outline-none cursor-pointer transition-colors ${
+                            step1Errors.category ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         >
                           {dbCategories.length > 0 ? (
                             dbCategories.map((cat: any) => (
@@ -4161,30 +4525,48 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                               <option value="2">Trí tuệ nhân tạo (AI)</option>
                             </>
                           )}
+                          <option value="none_pending" className="text-amber-700 font-bold bg-amber-50">
+                            ⚠️ Chưa có danh mục phù hợp (Admin phân loại khi duyệt)
+                          </option>
                         </select>
+                        {step1Errors.category && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.category}
+                          </p>
+                        )}
                       </div>
-                      <div>
+                      <div id="focus-level" data-focus-id="level">
                         <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Cấp độ *</label>
                         <select 
                           value={level}
-                          onChange={(e) => setLevel(e.target.value)}
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                          onChange={(e) => {
+                            setLevel(e.target.value);
+                            if (step1Errors.level) setStep1Errors(prev => ({ ...prev, level: '' }));
+                          }}
+                          className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 bg-white focus:outline-none cursor-pointer transition-colors ${
+                            step1Errors.level ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500'
+                          }`}
                         >
-                          <option value="beginner">Cơ bản</option>
-                          <option value="intermediate">Trung cấp</option>
-                          <option value="expert">Nâng cao</option>
+                          <option value="beginner">Cơ bản (Beginner)</option>
+                          <option value="intermediate">Trung cấp (Intermediate)</option>
+                          <option value="advanced">Nâng cao (Advanced)</option>
+                          <option value="all_levels">Mọi cấp độ (All Levels)</option>
                         </select>
+                        {step1Errors.level && (
+                          <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {step1Errors.level}
+                          </p>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Ngôn ngữ *</label>
-                        <select 
-                          value={language}
-                          onChange={(e) => setLanguage(e.target.value)}
-                          className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-emerald-500 cursor-pointer"
-                        >
-                          <option value="vi">Tiếng Việt</option>
-                          <option value="en">Tiếng Anh</option>
-                        </select>
+                      <div id="focus-language" data-focus-id="language">
+                        <LanguageSelect 
+                          value={language} 
+                          onChange={(langCode) => {
+                            setLanguage(langCode);
+                            if (step1Errors.language) setStep1Errors(prev => ({ ...prev, language: '' }));
+                          }}
+                          error={step1Errors.language}
+                        />
                       </div>
                     </div>
 
@@ -4193,20 +4575,33 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                       <textarea 
                         rows={2}
                         value={subtitle}
-                        onChange={(e) => setSubtitle(e.target.value)}
+                        onChange={(e) => {
+                          setSubtitle(e.target.value);
+                          if (step1Errors.short_description) setStep1Errors(prev => ({ ...prev, short_description: '' }));
+                        }}
                         placeholder="Khóa học giúp bạn nắm vững kiến thức nền tảng Python từ cơ bản đến thực hành..."
-                        className="w-full text-[11px] font-medium text-stone-700 border border-slate-200 rounded-xl p-3 bg-slate-50/20 focus:outline-none"
+                        className={`w-full text-[11px] font-medium text-stone-700 border rounded-xl p-3 bg-slate-50/20 focus:outline-none transition-colors ${
+                          step1Errors.short_description ? 'border-red-400 focus:border-red-500 bg-red-50/10' : 'border-slate-200 focus:border-emerald-500'
+                        }`}
                       />
+                      {step1Errors.short_description && (
+                        <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> {step1Errors.short_description}
+                        </p>
+                      )}
                     </div>
 
                     <div id="focus-description" data-focus-id="description">
                       <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Mô tả chi tiết *</label>
-                      <textarea 
-                        rows={6}
+                      <RichTextEditor
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Soạn nội dung chi tiết bài học..."
-                        className="w-full text-[11px] font-medium text-stone-700 border border-slate-200 rounded-xl p-3 bg-slate-50/20 focus:outline-none"
+                        onChange={(val) => {
+                          setDescription(val);
+                          if (step1Errors.description) setStep1Errors(prev => ({ ...prev, description: '' }));
+                        }}
+                        placeholder="Soạn thảo mục tiêu, cấu trúc nội dung và bài học chi tiết..."
+                        minHeight="220px"
+                        error={step1Errors.description}
                       />
                     </div>
                   </div>
@@ -4214,125 +4609,340 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
 
                 {/* Step 2: Pricing */}
                 {builderStep === 2 && (() => {
-                  const currentDP = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent)) || 0;
-                  const calculatedFinalPrice = (hasDiscount && currentDP >= 1 && currentDP <= 99)
-                    ? Math.round((Number(price) * (100 - currentDP)) / 100)
-                    : Number(price);
+                  const numPrice = Number(price) || 0;
+                  const currentDP = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent), 10) || 0;
+                  const currentDA = typeof discountAmount === 'number' ? discountAmount : parseInt(String(discountAmount), 10) || 0;
+                  const maxPercent = COURSE_PRICING_CONFIG.MAX_DISCOUNT_PERCENT;
+                  const minPrice = COURSE_PRICING_CONFIG.MIN_PRICE;
+                  const maxAllowedDiscount = Math.round(numPrice * (maxPercent / 100));
+                  const minAllowedSalePrice = numPrice - maxAllowedDiscount;
+
+                  const calculatedFinalPrice = (hasDiscount && currentDP >= 1 && currentDP <= maxPercent)
+                    ? Math.max(minAllowedSalePrice, numPrice - currentDA)
+                    : numPrice;
 
                   return (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       <div className="border-b pb-2 mb-2">
                         <h2 className="text-sm font-black text-stone-850">Giá bán</h2>
-                        <p className="text-[10.5px] text-stone-400 font-medium mt-1">Cấu hình giá cả giao dịch khóa học.</p>
+                        <p className="text-[10.5px] text-stone-400 font-medium mt-1">Cấu hình giá cả và các ưu đãi giao dịch cho khóa học.</p>
                       </div>
 
-                      <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-bold text-stone-700 block">Áp dụng giá khuyến mãi</span>
-                          <span className="text-[10.5px] text-stone-400 font-medium mt-0.5 block">
-                            {hasDiscount ? 'Nhập tỷ lệ giảm từ 1% đến 99%.' : 'Khóa học đang bán theo giá gốc.'}
-                          </span>
+                      {/* Policy Notice Box */}
+                      <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-3 flex items-start gap-2.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-amber-800 space-y-0.5">
+                          <p className="font-bold">Theo quy định của sàn MindHub:</p>
+                          <p className="text-[10.5px] text-amber-700">
+                            • Giá bán tối thiểu của mỗi khóa học là <strong>{formatVND(minPrice)}</strong>.<br />
+                            • Khóa học được <strong>giảm tối đa {maxPercent}%</strong> so với giá bán gốc.
+                          </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextState = !hasDiscount;
-                            setHasDiscount(nextState);
-                            if (!nextState) {
-                              setDiscountPercent('');
-                            } else if (!discountPercent || Number(discountPercent) < 1) {
-                              setDiscountPercent(40);
-                            }
-                          }}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                            hasDiscount ? 'bg-emerald-600' : 'bg-stone-300'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              hasDiscount ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      {/* Promotion Toggle & Discount Type Selector */}
+                      <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-stone-700 block">Áp dụng giá khuyến mãi</span>
+                            <span className="text-[10.5px] text-stone-400 font-medium mt-0.5 block">
+                              {hasDiscount ? `Lựa chọn giảm theo % hoặc theo số tiền cụ thể (tối đa ${maxPercent}%).` : 'Khóa học đang áp dụng bán theo giá gốc.'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextState = !hasDiscount;
+                              setHasDiscount(nextState);
+                              if (!nextState) {
+                                setDiscountPercent('');
+                                setDiscountAmount('');
+                                setSalePrice(numPrice);
+                              } else {
+                                const defaultDP = 30;
+                                setDiscountPercent(defaultDP);
+                                const computedDA = Math.round((numPrice * defaultDP) / 100);
+                                setDiscountAmount(computedDA);
+                                setSalePrice(numPrice - computedDA);
+                              }
+                              if (step2Errors.discount) setStep2Errors(prev => ({ ...prev, discount: '' }));
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
+                              hasDiscount ? 'bg-emerald-600' : 'bg-stone-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                hasDiscount ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+
+                        {/* Segmented Button: Choose % vs Fixed Amount */}
+                        {hasDiscount && (
+                          <div className="pt-2.5 border-t border-slate-200/70 flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[10.5px] font-bold text-stone-600">Hình thức áp dụng giảm giá:</span>
+                            <div className="inline-flex p-1 bg-white rounded-xl border border-slate-200 shadow-3xs">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDiscountType('percent');
+                                  if (step2Errors.discount) setStep2Errors(prev => ({ ...prev, discount: '' }));
+                                }}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                                  discountType === 'percent'
+                                    ? 'bg-emerald-600 text-white shadow-3xs'
+                                    : 'text-stone-500 hover:text-stone-700 bg-transparent'
+                                }`}
+                              >
+                                <span className="font-mono">%</span> Giảm theo phần trăm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDiscountType('amount');
+                                  if (step2Errors.discount) setStep2Errors(prev => ({ ...prev, discount: '' }));
+                                }}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                                  discountType === 'amount'
+                                    ? 'bg-emerald-600 text-white shadow-3xs'
+                                    : 'text-stone-500 hover:text-stone-700 bg-transparent'
+                                }`}
+                              >
+                                <span className="font-mono">₫</span> Giảm theo số tiền
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3-Column Compact Inputs */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                        {/* 1. Original Price */}
                         <div id="focus-price" data-focus-id="price">
                           <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Giá bán gốc (VND) *</label>
                           <input 
-                            type="number" 
-                            min="0"
-                            value={price || ''}
+                            type="text" 
+                            inputMode="numeric"
+                            value={price ? formatVNDInput(price) : ''}
                             onChange={(e) => {
                               const sanitized = e.target.value.replace(/\D/g, '');
                               const val = sanitized === '' ? 0 : parseInt(sanitized, 10);
                               setPrice(val);
+                              if (val >= minPrice && step2Errors.price) {
+                                setStep2Errors(prev => ({ ...prev, price: '' }));
+                              }
+                              if (hasDiscount) {
+                                const dp = typeof discountPercent === 'number' ? discountPercent : parseInt(String(discountPercent), 10) || 0;
+                                if (dp > 0) {
+                                  const newDA = Math.round((val * dp) / 100);
+                                  setDiscountAmount(newDA);
+                                  setSalePrice(val - newDA);
+                                }
+                              } else {
+                                setSalePrice(val);
+                              }
                             }}
                             onKeyDown={(e) => {
-                              if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                              if (['e', 'E', '+', '-', '.'].includes(e.key)) {
                                 e.preventDefault();
                               }
                             }}
-                            placeholder="499000"
-                            className="w-full text-[11px] font-bold text-stone-700 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none bg-slate-50/10 focus:border-emerald-500"
+                            placeholder={`Ví dụ: ${formatVNDInput(minPrice * 10)}`}
+                            className={`w-full text-[11px] font-bold text-stone-700 border rounded-xl px-3 py-2.5 focus:outline-none transition-colors ${
+                              step2Errors.price 
+                                ? 'border-red-400 focus:border-red-500 bg-red-50/10' 
+                                : 'border-slate-200 bg-slate-50/10 focus:border-emerald-500'
+                            }`}
                           />
-                          {(!price || price <= 0) && (
-                            <p className="text-[10px] font-medium text-rose-500 mt-1">Giá bán gốc phải lớn hơn 0.</p>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-[10px] text-stone-400 font-medium">Tối thiểu {formatVND(minPrice)}</span>
+                            {numPrice >= minPrice && (
+                              <span className="text-[10px] text-emerald-600 font-bold">{formatVND(numPrice)}</span>
+                            )}
+                          </div>
+                          {step2Errors.price && (
+                            <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" /> {step2Errors.price}
+                            </p>
                           )}
                         </div>
 
-                        <div>
-                          <label className="block text-[10.5px] font-bold text-stone-600 mb-1.5">Phần trăm giảm giá (%)</label>
+                        {/* 2. Discount Percent */}
+                        <div id="focus-discount" data-focus-id="discount">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-[10.5px] font-bold text-stone-600">Giảm theo % (%)</label>
+                            {hasDiscount && discountType === 'amount' && (
+                              <span className="text-[9.5px] text-stone-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                                🔒 Tự động tính
+                              </span>
+                            )}
+                          </div>
                           <input 
                             type="number" 
                             min={1}
-                            max={99}
-                            disabled={!hasDiscount}
+                            max={maxPercent}
+                            disabled={!hasDiscount || discountType !== 'percent'}
                             value={hasDiscount ? discountPercent : ''}
                             onChange={(e) => {
-                              if (!hasDiscount) return;
+                              if (!hasDiscount || discountType !== 'percent') return;
                               const valStr = e.target.value.replace(/\D/g, '');
                               if (valStr === '') {
                                 setDiscountPercent('');
+                                setDiscountAmount('');
+                                setSalePrice(numPrice);
                                 return;
                               }
                               const val = parseInt(valStr, 10);
-                              setDiscountPercent(val > 99 ? 99 : val);
+                              setDiscountPercent(val);
+                              const computedDA = Math.round((numPrice * val) / 100);
+                              setDiscountAmount(computedDA);
+                              setSalePrice(numPrice - computedDA);
+                              if (val >= 1 && val <= maxPercent) {
+                                setStep2Errors(prev => ({ ...prev, discount: '' }));
+                              } else if (val > maxPercent) {
+                                setStep2Errors(prev => ({ ...prev, discount: `Theo quy định của sàn, khóa học được giảm tối đa ${maxPercent}%.` }));
+                              }
                             }}
                             onKeyDown={(e) => {
                               if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
                                 e.preventDefault();
                               }
                             }}
-                            placeholder="Ví dụ: 40"
+                            placeholder="Ví dụ: 30"
                             className={`w-full text-[11px] font-bold border rounded-xl px-3 py-2.5 focus:outline-none transition-colors ${
-                              !hasDiscount 
-                                ? 'bg-slate-100 text-stone-400 border-slate-200 cursor-not-allowed' 
-                                : 'text-stone-700 border-slate-200 bg-slate-50/10 focus:border-emerald-500'
+                              !hasDiscount || discountType !== 'percent'
+                                ? 'bg-slate-100/90 text-stone-400 border-slate-200 cursor-not-allowed' 
+                                : step2Errors.discount 
+                                  ? 'border-red-400 focus:border-red-500 bg-red-50/10 text-stone-700' 
+                                  : 'text-stone-700 border-slate-200 bg-slate-50/10 focus:border-emerald-500'
                             }`}
                           />
-                          <p className="text-[10px] text-stone-400 font-medium mt-1">
-                            {hasDiscount ? 'Nhập tỷ lệ giảm từ 1% đến 99%.' : 'Khóa học đang bán theo giá gốc.'}
-                          </p>
-                          {hasDiscount && (discountPercent === '' || Number(discountPercent) < 1 || Number(discountPercent) > 99) && (
-                            <p className="text-[10px] font-medium text-rose-500 mt-1">Vui lòng nhập phần trăm từ 1% đến 99%.</p>
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-[10px] text-stone-400 font-medium">
+                              {discountType === 'percent' ? `Tối đa: ${maxPercent}%` : `Tự động tính từ số tiền`}
+                            </span>
+                            {hasDiscount && currentDP > 0 && currentDP <= maxPercent && (
+                              <span className="text-[10px] text-amber-600 font-bold">-{currentDP}%</span>
+                            )}
+                          </div>
+                          {hasDiscount && discountType === 'percent' && step2Errors.discount && (
+                            <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" /> {step2Errors.discount}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* 3. Discount Amount */}
+                        <div id="focus-discount-amount" data-focus-id="discount-amount">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-[10.5px] font-bold text-stone-600">Giảm theo số tiền (VND)</label>
+                            {hasDiscount && discountType === 'percent' && (
+                              <span className="text-[9.5px] text-stone-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                                🔒 Tự động tính
+                              </span>
+                            )}
+                          </div>
+                          <input 
+                            type="text" 
+                            inputMode="numeric"
+                            disabled={!hasDiscount || discountType !== 'amount'}
+                            value={hasDiscount && discountAmount !== '' ? formatVNDInput(discountAmount) : ''}
+                            onChange={(e) => {
+                              if (!hasDiscount || discountType !== 'amount') return;
+                              const valStr = e.target.value.replace(/\D/g, '');
+                              if (valStr === '') {
+                                setDiscountAmount('');
+                                setDiscountPercent('');
+                                setSalePrice(numPrice);
+                                return;
+                              }
+                              const val = parseInt(valStr, 10);
+                              setDiscountAmount(val);
+                              const computedDP = numPrice > 0 ? Math.round((val / numPrice) * 100) : 0;
+                              setDiscountPercent(computedDP);
+                              setSalePrice(numPrice - val);
+                              if (val <= maxAllowedDiscount) {
+                                setStep2Errors(prev => ({ ...prev, discount: '' }));
+                              } else {
+                                setStep2Errors(prev => ({ ...prev, discount: `Theo quy định của sàn, khóa học được giảm tối đa ${maxPercent}%.` }));
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
+                            placeholder={`Ví dụ: ${formatVNDInput(150000)}`}
+                            className={`w-full text-[11px] font-bold border rounded-xl px-3 py-2.5 focus:outline-none transition-colors ${
+                              !hasDiscount || discountType !== 'amount'
+                                ? 'bg-slate-100/90 text-stone-400 border-slate-200 cursor-not-allowed' 
+                                : step2Errors.discount 
+                                  ? 'border-red-400 focus:border-red-500 bg-red-50/10 text-stone-700' 
+                                  : 'text-stone-700 border-slate-200 bg-slate-50/10 focus:border-emerald-500'
+                            }`}
+                          />
+                          <div className="flex justify-between items-center mt-1">
+                            <span className="text-[10px] text-stone-400 font-medium">
+                              {hasDiscount 
+                                ? (discountType === 'amount' 
+                                    ? `Tối đa: ${formatVND(maxAllowedDiscount)} (${maxPercent}%)` 
+                                    : `Tự động tính từ %`)
+                                : 'Bật khuyến mãi để nhập'}
+                            </span>
+                            {hasDiscount && currentDA > 0 && currentDA <= maxAllowedDiscount && (
+                              <span className="text-[10px] text-emerald-600 font-bold">-{formatVND(currentDA)}</span>
+                            )}
+                          </div>
+                          {hasDiscount && discountType === 'amount' && step2Errors.discount && (
+                            <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" /> {step2Errors.discount}
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      {/* Price Preview */}
-                      <div className="bg-[#e6f4ea]/40 border border-emerald-100/60 rounded-xl p-3.5 flex justify-between items-center text-[11px]">
-                        <div>
-                          <span className="text-stone-500 block font-bold text-[10px]">Thực tế thanh toán:</span>
-                          <span className="text-sm font-black text-emerald-600 font-sans">
-                            {formatVND(calculatedFinalPrice)}
+                      {/* Realtime Price Summary Flow Card */}
+                      <div className="bg-gradient-to-r from-emerald-50/40 via-teal-50/30 to-slate-50 border border-emerald-100 rounded-2xl p-4 shadow-3xs">
+                        <div className="flex items-center justify-between pb-3 border-b border-emerald-100/60 mb-3">
+                          <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                            Tóm tắt bảng giá khóa học (Realtime)
                           </span>
+                          {hasDiscount && currentDP >= 1 && currentDP <= maxPercent ? (
+                            <span className="text-[10.5px] font-black text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
+                              🎉 Tiết kiệm {currentDP}% ({formatVND(currentDA)})
+                            </span>
+                          ) : (
+                            <span className="text-[10.5px] font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-full">
+                              Giá niêm yết chuẩn
+                            </span>
+                          )}
                         </div>
-                        {hasDiscount && currentDP >= 1 && currentDP <= 99 && (
-                          <div className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1 text-[10px]">
-                            Đã áp dụng giảm giá -{currentDP}%
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+                          <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
+                            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider mb-1">Giá bán gốc</span>
+                            <span className={`text-sm font-black ${hasDiscount && currentDP > 0 ? 'line-through text-stone-400' : 'text-stone-700'}`}>
+                              {formatVND(numPrice)}
+                            </span>
                           </div>
-                        )}
+
+                          <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
+                            <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider mb-1">Mức giảm ưu đãi</span>
+                            <span className="text-sm font-black text-amber-600">
+                              {hasDiscount && currentDP > 0 ? `-${currentDP}% (-${formatVND(currentDA)})` : '0 đ (0%)'}
+                            </span>
+                          </div>
+
+                          <div className="bg-white p-3 rounded-xl border border-emerald-200/60 shadow-3xs ring-1 ring-emerald-500/10">
+                            <span className="text-[10px] text-emerald-600 font-bold block uppercase tracking-wider mb-1">Học viên thanh toán</span>
+                            <span className="text-base font-black text-emerald-600">
+                              {formatVND(calculatedFinalPrice)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -4342,9 +4952,16 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                 {builderStep === 3 && (
                   <CourseMediaStep 
                     image={image}
-                    setImage={setImage}
+                    setImage={(val) => {
+                      setImage(val);
+                      if (val.trim() && step3Errors.image) {
+                        setStep3Errors(prev => ({ ...prev, image: '' }));
+                      }
+                    }}
                     introVideoUrl={introVideoUrl}
                     setIntroVideoUrl={setIntroVideoUrl}
+                    imageError={step3Errors.image}
+                    courseId={editingCourseId || undefined}
                   />
                 )}
 
@@ -4357,6 +4974,7 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                     missingItems={missingItems}
                     completedItems={completedItems}
                     onSubmitForReview={handleFinishCoursePublish}
+                    courseId={editingCourseId || undefined}
                   />
                 )}
 
@@ -4375,17 +4993,10 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
                   </button>
 
                   <div className="flex gap-2">
-                    <button 
-                      type="button"
-                      onClick={handleSaveDraft}
-                      className="border border-[#10b981] text-[#10b981] hover:bg-emerald-50 px-4 py-2 rounded-xl font-bold cursor-pointer"
-                    >
-                      Lưu nháp
-                    </button>
                     <button
                       type="button"
                       onClick={handleNext}
-                      className="bg-[#10b981] hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-xl flex items-center gap-1 cursor-pointer select-none"
+                      className="bg-[#10b981] hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-xl flex items-center gap-1 cursor-pointer select-none shadow-3xs transition-all"
                     >
                       Tiếp theo &rarr;
                     </button>

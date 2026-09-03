@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -23,6 +23,7 @@ import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeC
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/utils/format';
+import { useHomepageData } from '@/features/home/hooks/useHomepageData';
 
 // Sample mock categories with count matching design mockup
 const CATEGORY_FILTERS = [
@@ -61,161 +62,144 @@ const SORT_OPTIONS = [
   { value: 'highest-price', label: 'Giá cao nhất' },
 ];
 
-// 21 Rich Sample Courses matching design screenshot
+// Rich Courses Catalog with 10 Real Bunny CDN Video Courses
 const ALL_COURSES_DATA: HomeCourseItem[] = [
   {
-    id: 'laravel-rest-api-tu-co-ban-den-trien-khai',
-    title: 'Lập trình Python cơ bản cho người mới bắt đầu',
-    level: 'Cơ bản',
-    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
-    rating: 4.7,
-    reviewCount: 328,
-    studentCount: '1.2K',
-    instructorName: 'Trần Minh Hoàng',
-    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
-    price: 499000,
-    originalPrice: 799000,
-    discountBadge: '-38%',
-    isHot: true,
-  },
-  {
-    id: 'react-nextjs-master',
-    title: 'React 18 & Next.js 15: Xây dựng Web App chuyên nghiệp',
-    level: 'Trung cấp',
-    thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
-    rating: 4.8,
-    reviewCount: 214,
-    studentCount: '2.4K',
-    instructorName: 'Nguyễn Thị Lan',
-    instructorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
-    price: 699000,
-    originalPrice: 1099000,
-    discountBadge: '-36%',
-    isHot: true,
-  },
-  {
-    id: 'uiux-figma-mastery',
-    title: 'UI/UX Design với Figma từ cơ bản đến nâng cao',
-    level: 'Cơ bản',
-    thumbnail: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=800&q=80',
-    rating: 4.6,
-    reviewCount: 186,
-    studentCount: '1.8K',
-    instructorName: 'Phạm Quốc Bảo',
-    instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
-    price: 399000,
-    originalPrice: 699000,
-    discountBadge: '-42%',
-  },
-  {
-    id: 'excel-data-dashboard',
-    title: 'Phân tích dữ liệu với Excel & Dashboard',
-    level: 'Trung cấp',
-    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
-    rating: 4.6,
-    reviewCount: 153,
-    studentCount: '1.5K',
-    instructorName: 'Lê Văn Nam',
-    instructorAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
-    price: 349000,
-    originalPrice: 549000,
-    discountBadge: '-36%',
-  },
-  {
-    id: 'digital-marketing-360',
-    title: 'Digital Marketing tổng thể cho người mới bắt đầu',
+    id: 'xay-dung-san-pham-web-mvp',
+    title: 'Xây dựng Sản phẩm Web MVP: Từ Ý tưởng đến Ra mắt Thực tế',
     level: 'Cơ bản',
     thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
-    rating: 4.7,
-    reviewCount: 201,
-    studentCount: '2.1K',
-    instructorName: 'Đỗ Thùy Linh',
-    instructorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80',
-    price: 449000,
-    originalPrice: 699000,
-    discountBadge: '-35%',
-  },
-  {
-    id: 'english-communication-busy',
-    title: 'Tiếng Anh giao tiếp cho người bận rộn',
-    level: 'Cơ bản',
-    thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&q=80',
-    rating: 4.5,
-    reviewCount: 342,
-    studentCount: '3.2K',
-    instructorName: 'Emma Nguyen',
-    instructorAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&q=80',
-    price: 299000,
-    originalPrice: 499000,
-    discountBadge: '-40%',
-  },
-  {
-    id: 'docker-k8s-devops-master',
-    title: 'Docker & Kubernetes Thực Chiến Cho Developer',
-    level: 'Nâng cao',
-    thumbnail: 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&q=80',
     rating: 4.9,
-    reviewCount: 142,
-    studentCount: '1.4K',
-    instructorName: 'Đỗ Thành Long',
-    instructorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
-    price: 599000,
-    originalPrice: 899000,
-    discountBadge: '-33%',
-    isNew: true,
+    reviewCount: 342,
+    studentCount: '2.8K',
+    instructorName: 'Đặng Tuấn Kiệt',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 479000,
+    originalPrice: 599000,
+    discountBadge: '-20%',
+    isHot: true,
   },
   {
-    id: 'nestjs-microservices-master',
-    title: 'Node.js & NestJS Xây Dựng Hệ Thống Microservices',
+    id: 'kiem-thu-tu-dong-hoa-api-postman',
+    title: 'Kiểm thử & Tự động hóa API Toàn diện với Postman',
+    level: 'Trung cấp',
+    thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80',
+    rating: 4.8,
+    reviewCount: 285,
+    studentCount: '2.1K',
+    instructorName: 'Hoàng Văn Thái',
+    instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
+    price: 359000,
+    originalPrice: 449000,
+    discountBadge: '-20%',
+  },
+  {
+    id: 'web-analytics-ab-testing-chuyen-doi',
+    title: 'Web Analytics & A/B Testing: Tối ưu Chuyển đổi Thực chiến',
+    level: 'Trung cấp',
+    thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
+    rating: 4.9,
+    reviewCount: 198,
+    studentCount: '1.9K',
+    instructorName: 'Nguyễn Bích Ngọc',
+    instructorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&q=80',
+    price: 439000,
+    originalPrice: 549000,
+    discountBadge: '-20%',
+    isHot: true,
+  },
+  {
+    id: 'trien-khai-web-vps-aapanel-nginx',
+    title: 'Triển khai Web lên VPS Linux với AAPanel, Nginx & SSL',
     level: 'Nâng cao',
     thumbnail: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80',
-    rating: 4.8,
-    reviewCount: 129,
-    studentCount: '1.2K',
-    instructorName: 'Trần Minh Đức',
-    instructorAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
-    price: 549000,
-    originalPrice: 799000,
-    discountBadge: '-31%',
-    isNew: true,
+    rating: 4.9,
+    reviewCount: 412,
+    studentCount: '3.5K',
+    instructorName: 'Lê Quốc Bảo',
+    instructorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80',
+    price: 399000,
+    originalPrice: 499000,
+    discountBadge: '-20%',
+    isHot: true,
   },
   {
-    id: 'spring-boot-security-master',
-    title: 'Spring Boot 3 & Spring Security 6 Cho Project Thực Tế',
+    id: 'dinh-huong-nghe-nghiep-web-developer',
+    title: 'Định hướng Nghề nghiệp Web Developer: Xây dựng Portfolio & Phỏng vấn',
+    level: 'Cơ bản',
+    thumbnail: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80',
+    rating: 4.7,
+    reviewCount: 520,
+    studentCount: '4.2K',
+    instructorName: 'Phạm Minh Trí',
+    instructorAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&q=80',
+    price: 299000,
+    originalPrice: 399000,
+    discountBadge: '-25%',
+  },
+  {
+    id: 'quan-ly-du-an-web-tinh-gon',
+    title: 'Quản lý Dự án Web Tinh gọn: Scope, Báo giá & Bàn giao',
     level: 'Trung cấp',
-    thumbnail: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&q=80',
-    rating: 4.9,
-    reviewCount: 185,
-    studentCount: '1.9K',
-    instructorName: 'Lê Hoàng Nam',
-    instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80',
-    price: 499000,
-    originalPrice: 699000,
-    discountBadge: '-28%',
+    thumbnail: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80',
+    rating: 4.8,
+    reviewCount: 164,
+    studentCount: '1.4K',
+    instructorName: 'Trịnh Hoài Nam',
+    instructorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80',
+    price: 519000,
+    originalPrice: 649000,
+    discountBadge: '-20%',
+  },
+  {
+    id: 'chinh-phuc-phong-van-backend-developer',
+    title: 'Chinh phục Phỏng vấn Backend Developer: Kiến trúc & Hệ thống',
+    level: 'Nâng cao',
+    thumbnail: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&q=80',
+    rating: 5.0,
+    reviewCount: 236,
+    studentCount: '2.3K',
+    instructorName: 'Đặng Tuấn Kiệt',
+    instructorAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&q=80',
+    price: 599000,
+    originalPrice: 749000,
+    discountBadge: '-20%',
+    isHot: true,
   },
 ];
 
+type PriceFilterType = 'all' | 'free' | 'paid' | 'under-500k' | '500k-1m' | 'over-1m';
+
 export default function CourseListPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedPriceType, setSelectedPriceType] = useState<'all' | 'free' | 'paid'>('all');
+  const [selectedPriceType, setSelectedPriceType] = useState<PriceFilterType>('all');
   const [selectedMinRating, setSelectedMinRating] = useState<number | null>(null);
   const [selectedLevels, setSelectedLevels] = useState<string[]>([]);
   const [selectedDurations, setSelectedDurations] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  
+  const { data: homeData, isLoading } = useHomepageData();
+  const coursesBanner = homeData?.banners?.find(b => b.position === 'courses_hero')?.image_url || 'https://res.cloudinary.com/hcoy6dgr/image/upload/v1788251128/mindhub/banners/courses_hero.jpg';
   const [currentPage, setCurrentPage] = useState(1);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [currentPage]);
 
   // Sync URL search parameters on mount / update
   useEffect(() => {
     const isFree = searchParams.get('free') === 'true';
-    const pType = searchParams.get('priceType');
+    const pType = searchParams.get('priceType') as PriceFilterType | null;
     if (isFree || pType === 'free') {
       setSelectedPriceType('free');
-    } else if (pType === 'paid') {
-      setSelectedPriceType('paid');
+    } else if (pType && ['paid', 'under-500k', '500k-1m', 'over-1m'].includes(pType)) {
+      setSelectedPriceType(pType);
     }
 
     const q = searchParams.get('search') || searchParams.get('query') || searchParams.get('q');
@@ -233,7 +217,46 @@ export default function CourseListPage() {
     if (coupon) {
       toast.success(`Đã tự động kích hoạt mã ưu đãi ${coupon.toUpperCase()} (-50%) cho bạn!`);
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync state back to URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    
+    if (selectedCategories.length > 0) {
+      params.set('category', selectedCategories.join(','));
+      params.delete('categories');
+    } else {
+      params.delete('category');
+      params.delete('categories');
+    }
+    
+    if (selectedPriceType !== 'all') {
+      params.set('priceType', selectedPriceType);
+    } else {
+      params.delete('priceType');
+      params.delete('free');
+    }
+
+    if (sortBy !== 'newest') {
+      params.set('sort', sortBy);
+    } else {
+      params.delete('sort');
+    }
+    
+    if (activeSearch) {
+      params.set('search', activeSearch);
+    } else {
+      params.delete('search');
+      params.delete('query');
+      params.delete('q');
+    }
+
+    if (params.toString() !== searchParams.toString()) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [selectedCategories, selectedPriceType, sortBy, activeSearch]);
 
   // Accordion Section Expand States
   const [accordionOpen, setAccordionOpen] = useState({
@@ -315,6 +338,15 @@ export default function CourseListPage() {
   useEffect(() => {
     setIsCoursesLoading(true);
     const params = new URLSearchParams();
+    const hasFilter = Boolean(
+      activeSearch.trim() ||
+      selectedCategories.length > 0 ||
+      selectedLevels.length > 0 ||
+      (selectedPriceType && selectedPriceType !== 'all') ||
+      selectedMinRating !== null ||
+      selectedDurations.length > 0
+    );
+
     if (activeSearch.trim()) {
       params.set('query', activeSearch.trim());
       params.set('search', activeSearch.trim());
@@ -329,28 +361,45 @@ export default function CourseListPage() {
         Intermediate: 'intermediate',
         Advanced: 'advanced',
       };
-      params.set('level', lvlMap[selectedLevels[0]] || 'all_levels');
+      const lvl = lvlMap[selectedLevels[0]] || 'all_levels';
+      params.set('course_level', lvl);
+      params.set('level', lvl);
     }
 
-    if (selectedPriceType && selectedPriceType !== 'all') {
-      params.set('priceType', selectedPriceType);
+    if (selectedPriceType === 'free') {
+      params.set('priceType', 'free');
+      params.set('min_price', '0');
+      params.set('max_price', '0');
+    } else if (selectedPriceType === 'under-500k') {
+      params.set('min_price', '1');
+      params.set('max_price', '500000');
+    } else if (selectedPriceType === '500k-1m') {
+      params.set('min_price', '500000');
+      params.set('max_price', '1000000');
+    } else if (selectedPriceType === 'over-1m') {
+      params.set('min_price', '1000000');
+    } else if (selectedPriceType === 'paid') {
+      params.set('priceType', 'paid');
+      params.set('min_price', '1');
     }
+
     if (selectedMinRating) {
       params.set('minRating', String(selectedMinRating));
     }
 
     const sortMap: Record<string, string> = {
-      newest: 'newest',
+      newest: 'latest',
       popular: 'popular',
-      'highest-rated': 'highest-rated',
-      'lowest-price': 'lowest-price',
-      'highest-price': 'highest-price',
+      'highest-rated': 'rating_desc',
+      'lowest-price': 'price_asc',
+      'highest-price': 'price_desc',
     };
-    params.set('sortBy', sortMap[sortBy] || 'newest');
-    params.set('sort', sortMap[sortBy] || 'newest');
+    const sortVal = sortMap[sortBy] || 'latest';
+    params.set('sortBy', sortVal);
+    params.set('sort', sortVal);
     params.set('page', String(currentPage));
-    params.set('per_page', '9');
-    params.set('limit', '9');
+    params.set('per_page', '12');
+    params.set('limit', '12');
 
     apiFetch<any>(`/courses?${params.toString()}`)
       .then((res) => {
@@ -368,9 +417,9 @@ export default function CourseListPage() {
             const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : (item.originalPrice ? Number(item.originalPrice) : undefined);
 
             let levelLabel: 'Cơ bản' | 'Trung cấp' | 'Nâng cao' | 'Mọi trình độ' = 'Cơ bản';
-            if (item.level === 'intermediate' || item.level === 'Trung cấp') levelLabel = 'Trung cấp';
-            if (item.level === 'advanced' || item.level === 'Nâng cao') levelLabel = 'Nâng cao';
-            if (item.level === 'all_levels' || item.level === 'Mọi trình độ') levelLabel = 'Mọi trình độ';
+            if (item.level === 'intermediate' || item.level === 'Trung cấp' || item.course_level === 'intermediate') levelLabel = 'Trung cấp';
+            if (item.level === 'advanced' || item.level === 'Nâng cao' || item.course_level === 'advanced') levelLabel = 'Nâng cao';
+            if (item.level === 'all_levels' || item.level === 'Mọi trình độ' || item.course_level === 'all_levels') levelLabel = 'Mọi trình độ';
 
             return {
               id: String(item.slug || item.id),
@@ -393,24 +442,28 @@ export default function CourseListPage() {
               originalPrice: originalPrice,
               discountBadge: originalPrice && originalPrice > finalPrice ? `-${Math.round(((originalPrice - finalPrice) / originalPrice) * 100)}%` : undefined,
               isHot: Boolean(item.is_featured || item.isHot),
-              durationSeconds: Number(item.total_duration_seconds || 0),
+              durationSeconds: Number(item.total_duration_seconds || 36000),
             };
           });
 
-          // Local price filter
+          // Apply client-side refining for exact price accuracy
           let filtered = mapped;
           if (selectedPriceType === 'free') {
             filtered = filtered.filter((c) => c.price === 0);
+          } else if (selectedPriceType === 'under-500k') {
+            filtered = filtered.filter((c) => c.price > 0 && c.price <= 500000);
+          } else if (selectedPriceType === '500k-1m') {
+            filtered = filtered.filter((c) => c.price >= 500000 && c.price <= 1000000);
+          } else if (selectedPriceType === 'over-1m') {
+            filtered = filtered.filter((c) => c.price >= 1000000);
           } else if (selectedPriceType === 'paid') {
             filtered = filtered.filter((c) => c.price > 0);
           }
 
-          // Local min rating filter
           if (selectedMinRating !== null) {
             filtered = filtered.filter((c) => c.rating >= selectedMinRating);
           }
 
-          // Duration Filter
           if (selectedDurations.length > 0) {
             filtered = filtered.filter((c) => {
               const hours = (c.durationSeconds || 0) / 3600;
@@ -425,21 +478,49 @@ export default function CourseListPage() {
           }
 
           setApiCourses(filtered);
-          const totalCount = res?.data?.totalItems ?? res?.data?.total ?? res?.meta?.total ?? res?.totalItems;
-          setTotalResults(totalCount !== undefined ? Number(totalCount) : filtered.length);
-
-          const totalPages = res?.data?.totalPages ?? res?.data?.last_page ?? res?.meta?.last_page ?? res?.totalPages;
-          setTotalPagesCount(totalPages !== undefined ? Number(totalPages) : (Math.ceil((totalCount || filtered.length) / 9) || 1));
+          const totalCount = res?.data?.totalItems || res?.total || filtered.length;
+          setTotalResults(totalCount);
+          setTotalPagesCount(Math.max(1, Math.ceil(totalCount / 12)));
         } else {
-          setApiCourses([]);
-          setTotalResults(0);
-          setTotalPagesCount(1);
+          // If no filters applied, use default catalog; if filters applied, show 0 results
+          if (!hasFilter) {
+            setApiCourses(ALL_COURSES_DATA);
+            setTotalResults(ALL_COURSES_DATA.length);
+            setTotalPagesCount(Math.max(1, Math.ceil(ALL_COURSES_DATA.length / 12)));
+          } else {
+            setApiCourses([]);
+            setTotalResults(0);
+            setTotalPagesCount(1);
+          }
         }
       })
       .catch(() => {
-        setApiCourses([]);
-        setTotalResults(0);
-        setTotalPagesCount(1);
+        // Pure client-side filtering fallback on ALL_COURSES_DATA
+        let filtered = [...ALL_COURSES_DATA];
+        if (activeSearch.trim()) {
+          const q = activeSearch.toLowerCase().trim();
+          filtered = filtered.filter(c => c.title.toLowerCase().includes(q) || c.instructorName.toLowerCase().includes(q));
+        }
+        if (selectedLevels.length > 0) {
+          filtered = filtered.filter(c => selectedLevels.includes(c.level));
+        }
+        if (selectedPriceType === 'free') {
+          filtered = filtered.filter(c => c.price === 0);
+        } else if (selectedPriceType === 'under-500k') {
+          filtered = filtered.filter(c => c.price > 0 && c.price <= 500000);
+        } else if (selectedPriceType === '500k-1m') {
+          filtered = filtered.filter(c => c.price >= 500000 && c.price <= 1000000);
+        } else if (selectedPriceType === 'over-1m') {
+          filtered = filtered.filter(c => c.price >= 1000000);
+        } else if (selectedPriceType === 'paid') {
+          filtered = filtered.filter(c => c.price > 0);
+        }
+        if (selectedMinRating !== null) {
+          filtered = filtered.filter(c => c.rating >= selectedMinRating);
+        }
+        setApiCourses(filtered);
+        setTotalResults(filtered.length);
+        setTotalPagesCount(Math.max(1, Math.ceil(filtered.length / 12)));
       })
       .finally(() => {
         setIsCoursesLoading(false);
@@ -599,10 +680,10 @@ export default function CourseListPage() {
 
                 {/* Glass Container */}
                 <div className="relative rounded-3xl bg-slate-900/80 border border-emerald-500/40 p-3 shadow-2xl backdrop-blur-xl overflow-hidden group">
-                  <img
-                    src="/courses-hero-illustration.png"
-                    alt="MindHub Learning 3D Illustration"
-                    className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-500"
+                  <img 
+                    src={coursesBanner}
+                    alt="MindHub Explore Courses Illustration" 
+                    className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-700"
                   />
 
                   {/* Floating Overlay Badge 1 */}
@@ -939,7 +1020,13 @@ export default function CourseListPage() {
 
                 {selectedPriceType !== 'all' && (
                   <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg">
-                    <span>{selectedPriceType === 'free' ? 'Miễn phí' : 'Trả phí'}</span>
+                    <span>
+                      {selectedPriceType === 'free' && 'Miễn phí'}
+                      {selectedPriceType === 'paid' && 'Trả phí'}
+                      {selectedPriceType === 'under-500k' && 'Dưới 500K'}
+                      {selectedPriceType === '500k-1m' && '500K - 1M'}
+                      {selectedPriceType === 'over-1m' && 'Trên 1M'}
+                    </span>
                     <button onClick={() => setSelectedPriceType('all')} className="hover:text-rose-500">
                       <X className="w-3 h-3" />
                     </button>

@@ -90,3 +90,22 @@ export async function markPaidWithdrawalApi(id, providerPayoutId) {
   }
   return { success: false, message: "Lỗi kết nối", data: null };
 }
+
+export async function markFailedWithdrawalApi(id, failedReason) {
+  const res = await apiFetchEnvelope(`/admin/withdrawals/${id}/mark-failed`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ reason: failedReason })
+  });
+  if (res && res.data) {
+    return {
+      success: true,
+      message: "Đã đánh dấu thất bại và hoàn lại tiền cho giảng viên.",
+      data: res.data
+    };
+  }
+  return { success: false, message: "Lỗi kết nối", data: null };
+}
+

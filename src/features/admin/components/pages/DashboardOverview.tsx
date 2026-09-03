@@ -609,46 +609,29 @@ export default function DashboardOverview() {
         label: "Đã xuất bản",
         code: "published",
         count: status.published || 0,
-        colorClass: "bg-success",
-        textClass: "text-success",
-        bgSoftClass: "bg-success-soft/60",
+        colorClass: "bg-emerald-600",
+        textClass: "text-emerald-700",
+        bgSoftClass: "bg-emerald-50 border-emerald-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
           </svg>
         ),
-        link: "courses.html?status=published"
       },
       {
         key: "pending_review",
         label: "Chờ duyệt",
         code: "pending_review",
         count: status.pending_review || 0,
-        colorClass: "bg-warning",
-        textClass: "text-warning",
-        bgSoftClass: "bg-warning-soft/60",
+        colorClass: "bg-amber-500",
+        textClass: "text-amber-700",
+        bgSoftClass: "bg-amber-50 border-amber-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
           </svg>
         ),
-        link: "courses.html?status=pending_review"
-      },
-      {
-        key: "draft",
-        label: "Bản nháp",
-        code: "draft",
-        count: status.draft || 0,
-        colorClass: "bg-mid-gray",
-        textClass: "text-mid-gray",
-        bgSoftClass: "bg-canvas border-hairline/10",
-        icon: (
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>
-          </svg>
-        ),
-        link: "courses.html?status=draft"
       },
       {
         key: "approved",
@@ -656,44 +639,55 @@ export default function DashboardOverview() {
         code: "approved",
         count: status.approved || 0,
         colorClass: "bg-blue-600",
-        textClass: "text-blue-600",
-        bgSoftClass: "bg-blue-50/60",
+        textClass: "text-blue-700",
+        bgSoftClass: "bg-blue-50 border-blue-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
         ),
-        link: "courses.html?status=approved"
+      },
+      {
+        key: "draft",
+        label: "Bản nháp",
+        code: "draft",
+        count: status.draft || 0,
+        colorClass: "bg-slate-400",
+        textClass: "text-slate-600",
+        bgSoftClass: "bg-slate-50 border-slate-200",
+        icon: (
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>
+          </svg>
+        ),
       },
       {
         key: "rejected",
         label: "Từ chối",
         code: "rejected",
         count: status.rejected || 0,
-        colorClass: "bg-danger-brick",
-        textClass: "text-danger-brick",
-        bgSoftClass: "bg-danger-brick-soft/40",
+        colorClass: "bg-rose-600",
+        textClass: "text-rose-700",
+        bgSoftClass: "bg-rose-50 border-rose-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ),
-        link: "courses.html?status=rejected"
       },
       {
         key: "hidden",
         label: "Đang ẩn",
         code: "hidden",
         count: status.hidden || 0,
-        colorClass: "bg-mid-gray",
-        textClass: "text-ink-soft",
-        bgSoftClass: "bg-canvas",
+        colorClass: "bg-purple-600",
+        textClass: "text-purple-700",
+        bgSoftClass: "bg-purple-50 border-purple-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 01-1.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/>
           </svg>
         ),
-        link: "courses.html?status=hidden"
       }
     ];
   }, [dashboardData]);
@@ -707,45 +701,42 @@ export default function DashboardOverview() {
         label: "Đang hoạt động",
         code: "active",
         count: status.active || 0,
-        colorClass: "bg-success",
-        textClass: "text-success",
-        bgSoftClass: "bg-success-soft/40",
+        colorClass: "bg-emerald-600",
+        textClass: "text-emerald-700",
+        bgSoftClass: "bg-emerald-50 border-emerald-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
         ),
-        link: "users.html?status=active"
       },
       {
         key: "inactive",
         label: "Ngưng hoạt động",
         code: "inactive",
         count: status.inactive || 0,
-        colorClass: "bg-mid-gray",
-        textClass: "text-mid-gray",
-        bgSoftClass: "bg-canvas",
+        colorClass: "bg-slate-400",
+        textClass: "text-slate-600",
+        bgSoftClass: "bg-slate-50 border-slate-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
           </svg>
         ),
-        link: "users.html?status=inactive"
       },
       {
         key: "locked",
         label: "Đang bị khóa",
         code: "locked",
         count: status.locked || 0,
-        colorClass: "bg-danger-brick",
-        textClass: "text-danger-brick",
-        bgSoftClass: "bg-danger-brick-soft/40",
+        colorClass: "bg-rose-600",
+        textClass: "text-rose-700",
+        bgSoftClass: "bg-rose-50 border-rose-200",
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
           </svg>
         ),
-        link: "users.html?status=locked"
       }
     ];
   }, [dashboardData]);
@@ -760,40 +751,30 @@ export default function DashboardOverview() {
         title: "Khóa học chờ duyệt",
         desc: `${actions.pending_course_reviews || 0} khóa học mới cần kiểm duyệt`,
         btnText: "Duyệt ngay",
-        link: `/admin/course-reviews`,
-        borderClass: "border-l-3 border-warning",
-        badgeClass: "bg-warning-soft text-warning border border-warning/10",
-        btnClass: "bg-success text-white hover:opacity-90"
+        link: `/admin/courses?status=pending_review`,
+        borderClass: "border-l-3 border-amber-500",
+        badgeClass: "bg-amber-50 text-amber-700 border border-amber-200",
+        btnClass: "bg-amber-500 text-white hover:opacity-90"
       },
       {
         count: actions.pending_instructor_upgrades || 0,
-        title: "Yêu cầu nâng giảng viên",
+        title: "Yêu cầu lên giảng viên",
         desc: `${actions.pending_instructor_upgrades || 0} hồ sơ đăng ký cần xác minh`,
         btnText: "Xử lý",
-        link: `/admin/instructor-upgrades`,
-        borderClass: "border-l-3 border-warning",
-        badgeClass: "bg-warning-soft text-warning border border-warning/10",
-        btnClass: "bg-warning text-white hover:opacity-90"
+        link: `/admin/instructor-upgrades?status=pending`,
+        borderClass: "border-l-3 border-blue-500",
+        badgeClass: "bg-blue-50 text-blue-700 border border-blue-200",
+        btnClass: "bg-blue-600 text-white hover:opacity-90"
       },
       {
         count: actions.pending_withdrawals || 0,
         title: "Yêu cầu rút tiền",
         desc: `${actions.pending_withdrawals || 0} lệnh rút tiền đang chờ xử lý`,
         btnText: "Chi tiền",
-        link: `/admin/withdrawals`,
-        borderClass: "border-l-3 border-danger-brick",
-        badgeClass: "bg-danger-brick-soft text-danger-brick border border-danger-brick/10",
-        btnClass: "bg-danger-brick text-white hover:opacity-90"
-      },
-      {
-        count: actions.pending_payout_accounts || 0,
-        title: "Tài khoản nhận tiền",
-        desc: `${actions.pending_payout_accounts || 0} tài khoản ngân hàng chờ xác minh`,
-        btnText: "Xác minh",
-        link: `/admin/payout-accounts`,
-        borderClass: "border-l-3 border-success",
-        badgeClass: "bg-success-soft text-success border border-success/10",
-        btnClass: "bg-success text-white hover:opacity-90"
+        link: `/admin/withdrawals?status=pending`,
+        borderClass: "border-l-3 border-emerald-600",
+        badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+        btnClass: "bg-emerald-600 text-white hover:opacity-90"
       }
     ].filter(item => item.count > 0);
   }, [dashboardData]);
@@ -1235,7 +1216,7 @@ export default function DashboardOverview() {
                   {formatVND(dashboardData.dashboard.data.withdrawal_summary.approved_amount)}
                 </p>
                 <span className="text-[9px] text-danger-brick mt-1 leading-tight font-medium block">
-                  {dashboardData.dashboard.data.withdrawal_summary.approved_count} yêu cầu đã duyệt, chờ chi
+                  {dashboardData.dashboard.data.withdrawal_summary.approved_count} yêu cầu đã duyệt, chờ chuyển tiền
                 </span>
               </div>
             </button>
@@ -1468,12 +1449,12 @@ export default function DashboardOverview() {
           {/* 5. Rankings & Timeline */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
 
-            {/* Cột 1: Xếp hạng khóa học */}
+            {/* Cột 1: Xếp hạng khóa học nổi bật */}
             <div className="rounded-[6px] border border-border-strong bg-paper p-4 shadow-sm flex flex-col">
-              <div className="border-l-3 border-success pl-2.5 mb-2.5">
-                <h2 className="text-sm font-semibold text-ink leading-snug">Top khóa học tiêu biểu</h2>
+              <div className="border-l-3 border-emerald-600 pl-2.5 mb-2.5">
+                <h2 className="text-sm font-semibold text-ink leading-snug">Khóa học nổi bật</h2>
                 <p className="text-xs text-mid-gray mt-1">
-                  Xếp hạng theo điểm chất lượng và độ thịnh hành (Trending)
+                  Xếp hạng theo độ nổi bật (40% lượt học viên + 40% tỷ lệ hoàn thành + 20% đánh giá sao)
                 </p>
               </div>
               <div className="mt-2.5 overflow-x-auto flex-1 max-h-80 custom-scrollbar pr-1">
@@ -1492,7 +1473,7 @@ export default function DashboardOverview() {
                         <tr
                           key={idx}
                           onClick={() => navigate(`/admin/courses?open_course_id=${course.course_id}`)}
-                          className={cn("hover:bg-canvas/50 transition-colors cursor-pointer", idx === 0 ? "bg-success-soft/30 border-l-2 border-success" : "")}
+                          className={cn("hover:bg-canvas/50 transition-colors cursor-pointer", idx === 0 ? "bg-emerald-50/50 border-l-2 border-emerald-600" : "")}
                         >
                           <td className="py-2.5 pl-2 font-semibold text-mid-gray">#{idx + 1}</td>
                           <td className="py-2.5 font-medium text-ink">
@@ -1506,7 +1487,7 @@ export default function DashboardOverview() {
                           <td className="py-2.5 text-right text-mid-gray font-sans">
                             {formatNumber(course.sales_count)}
                           </td>
-                          <td className="py-2.5 text-right font-semibold text-success font-sans">
+                          <td className="py-2.5 text-right font-semibold text-emerald-700 font-sans">
                             {formatVND(course.gross_revenue)}
                           </td>
                         </tr>
@@ -1521,12 +1502,12 @@ export default function DashboardOverview() {
               </div>
             </div>
 
-            {/* Cột 2: Giảng viên doanh thu cao */}
+            {/* Cột 2: Giảng viên nổi bật */}
             <div className="rounded-[6px] border border-border-strong bg-paper p-4 shadow-sm flex flex-col">
               <div className="border-l-3 border-ink pl-2.5 mb-2.5">
                 <h2 className="text-sm font-semibold text-ink leading-snug">Giảng viên nổi bật</h2>
                 <p className="text-xs text-mid-gray mt-1">
-                  Xếp hạng theo tổng lượt đăng ký và tỷ lệ hoàn thành
+                  Xếp hạng theo độ nổi bật (60% tổng lượt học viên + 40% tỷ lệ hoàn thành học tập)
                 </p>
               </div>
               <div className="mt-2.5 overflow-x-auto flex-1 max-h-80 custom-scrollbar pr-1">

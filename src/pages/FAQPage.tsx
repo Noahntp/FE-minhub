@@ -10,6 +10,7 @@ import {
 import { Input } from '@/shared/components/ui/input';
 import { Button } from '@/shared/components/ui/button';
 import { toast } from 'sonner';
+import { useHomepageData } from '@/features/home/hooks/useHomepageData';
 
 export interface FAQItem {
   id: string;
@@ -83,190 +84,6 @@ const FAQ_CATEGORIES = [
   },
 ];
 
-const INITIAL_FAQS: FAQItem[] = [
-  // Tài khoản
-  {
-    id: 'faq-acc-1',
-    category: 'account',
-    categoryLabel: 'Tài khoản & Bảo mật',
-    q: 'Làm thế nào để đổi mật khẩu hoặc lấy lại mật khẩu đã quên?',
-    a: 'Bạn có thể lấy lại mật khẩu bằng cách bấm vào đường dẫn "Quên mật khẩu?" tại màn hình Đăng nhập. Hệ thống sẽ gửi một liên kết hoặc mã xác thực (OTP) tới email đăng ký của bạn. Sau khi nhập đúng mã OTP, bạn có thể thiết lập mật khẩu mới ngay lập tức.\n\nNếu muốn đổi mật khẩu khi đang đăng nhập, hãy truy cập Cài đặt tài khoản > Bảo mật & Mật khẩu.',
-    helpfulCount: 245,
-    unhelpfulCount: 4,
-    views: 1820,
-    tags: ['mật khẩu', 'quên mật khẩu', 'otp', 'đăng nhập'],
-    isPopular: true
-  },
-  {
-    id: 'faq-acc-2',
-    category: 'account',
-    categoryLabel: 'Tài khoản & Bảo mật',
-    q: 'Tôi có thể sử dụng 1 tài khoản MindHub trên nhiều thiết bị cùng lúc không?',
-    a: 'MindHub cho phép bạn đăng nhập và học tập trên tối đa 3 thiết bị cá nhân (Máy tính, Máy tính bảng, Điện thoại).\n\nTuy nhiên, để đảm bảo an toàn tài khoản và bản quyền khóa học, hệ thống không cho phép xem video bài giảng đồng thời trên 2 thiết bị khác nhau tại cùng một thời điểm.',
-    helpfulCount: 188,
-    unhelpfulCount: 9,
-    views: 1450,
-    tags: ['thiết bị', 'đăng nhập', 'bảo mật', 'tài khoản'],
-  },
-  {
-    id: 'faq-acc-3',
-    category: 'account',
-    categoryLabel: 'Tài khoản & Bảo mật',
-    q: 'Làm sao để kích hoạt bảo mật 2 lớp (2FA) cho tài khoản?',
-    a: 'Vào Trang cá nhân > Cài đặt tài khoản > Mục "Bảo mật & 2FA". Tại đây, bạn chọn kích hoạt xác thực qua Mã OTP Email hoặc Số điện thoại. Sau khi kích hoạt, mỗi khi đăng nhập trên thiết bị lạ, hệ thống sẽ yêu cầu nhập mã xác thực gửi về điện thoại/email của bạn.',
-    helpfulCount: 96,
-    unhelpfulCount: 2,
-    views: 740,
-    tags: ['2fa', 'bảo mật', 'otp'],
-  },
-
-  // Thanh toán
-  {
-    id: 'faq-pay-1',
-    category: 'payment',
-    categoryLabel: 'Thanh toán & Hoàn tiền',
-    q: 'Chính sách hoàn tiền trong vòng 7 ngày áp dụng như thế nào?',
-    a: 'MindHub cam kết hoàn tiền 100% trong vòng 7 ngày kể từ ngày mua khóa học nếu bạn không hài lòng với nội dung, với điều kiện thời lượng học chưa vượt quá 20% tổng dung lượng khóa học và chưa tải xuống tài liệu đi kèm.\n\nĐể yêu cầu hoàn tiền, bạn truy cập Lịch sử giao dịch > Chọn đơn hàng > Nhấn "Yêu cầu hoàn tiền" hoặc liên hệ bộ phận CSKH.',
-    helpfulCount: 412,
-    unhelpfulCount: 15,
-    views: 3100,
-    tags: ['hoàn tiền', 'refund', 'chính sách', '7 ngày'],
-    isPopular: true
-  },
-  {
-    id: 'faq-pay-2',
-    category: 'payment',
-    categoryLabel: 'Thanh toán & Hoàn tiền',
-    q: 'MindHub hỗ trợ những phương thức thanh toán nào?',
-    a: 'Chúng tôi hỗ trợ đa dạng các cổng thanh toán an toàn hàng đầu Việt Nam bao gồm:\n• Cổng VNPAY (Thẻ ATM nội địa, QR Pay ngân hàng)\n• Ví điện tử MoMo\n• Thẻ tín dụng/ghi nợ quốc tế (Visa, Mastercard, JCB)\n• Chuyển khoản ngân hàng trực tiếp 24/7 với cú pháp tự động kích hoạt tức thì.',
-    helpfulCount: 320,
-    unhelpfulCount: 6,
-    views: 2400,
-    tags: ['vnpay', 'momo', 'visa', 'chuyển khoản', 'thanh toán'],
-    isPopular: true
-  },
-  {
-    id: 'faq-pay-3',
-    category: 'payment',
-    categoryLabel: 'Thanh toán & Hoàn tiền',
-    q: 'Sau khi chuyển khoản ngân hàng, bao lâu thì khóa học được kích hoạt?',
-    a: 'Nếu bạn quét mã QR Code chuyển khoản với nội dung chuyển khoản chính xác do hệ thống tạo ra, khóa học sẽ được tự động kích hoạt trong vòng 10 - 30 giây.\n\nNếu sau 5 phút bạn vẫn chưa thấy khóa học trong mục "Khóa học của tôi", vui lòng kiểm tra lại sao kê hoặc gửi hóa đơn cho CSKH qua Live Chat.',
-    helpfulCount: 175,
-    unhelpfulCount: 5,
-    views: 1290,
-    tags: ['kích hoạt', 'chuyển khoản', 'thời gian'],
-  },
-
-  // Khóa học
-  {
-    id: 'faq-crs-1',
-    category: 'course',
-    categoryLabel: 'Khóa học & Học tập',
-    q: 'Khóa học trên MindHub có thời hạn truy cập bao lâu?',
-    a: 'Tất cả các khóa học lẻ trên MindHub đều có quyền truy cập TRỌN ĐỜI sau khi đăng ký thành công. Bạn có thể xem lại bài giảng, bài tập, mã nguồn và tài liệu cập nhật bất kỳ lúc nào, không giới hạn số lần xem.',
-    helpfulCount: 530,
-    unhelpfulCount: 8,
-    views: 4200,
-    tags: ['thời hạn', 'trọn đời', 'truy cập'],
-    isPopular: true
-  },
-  {
-    id: 'faq-crs-2',
-    category: 'course',
-    categoryLabel: 'Khóa học & Học tập',
-    q: 'Tôi có thể tải video bài giảng về xem ngoại tuyến (Offline) không?',
-    a: 'Để bảo vệ bản quyền của giảng viên, bạn hiện chưa thể tải file video trực tiếp về máy tính. Tuy nhiên, trên ứng dụng di động MindHub Mobile App, bạn có thể bấm "Tải xuống bài giảng" để xem ngoại tuyến khi không có kết nối Internet.',
-    helpfulCount: 210,
-    unhelpfulCount: 14,
-    views: 1650,
-    tags: ['offline', 'tải video', 'app mobile'],
-  },
-  {
-    id: 'faq-crs-3',
-    category: 'course',
-    categoryLabel: 'Khóa học & Học tập',
-    q: 'Nếu gặp thắc mắc hoặc lỗi bài tập trong lúc học thì hỏi ai?',
-    a: 'Mỗi bài giảng đều có mục "Thảo luận & Hỏi đáp (Q&A)" ngay bên dưới video. Bạn có thể đặt câu hỏi kèm hình ảnh/mã nguồn tại đó. Giảng viên và đội ngũ Trợ giảng MindHub sẽ phản hồi thắc mắc của bạn trong vòng 24 giờ làm việc.',
-    helpfulCount: 164,
-    unhelpfulCount: 3,
-    views: 1100,
-    tags: ['hỏi đáp', 'q&a', 'giảng viên', 'trợ giảng'],
-  },
-
-  // Chứng chỉ
-  {
-    id: 'faq-cert-1',
-    category: 'certificate',
-    categoryLabel: 'Chứng chỉ & Bằng cấp',
-    q: 'Điều kiện để nhận Chứng chỉ hoàn thành khóa học là gì?',
-    a: 'Để nhận chứng chỉ điện tử từ MindHub, bạn cần:\n1. Hoàn thành 100% các bài học video\n2. Vượt qua tất cả các bài kiểm tra trắc nghiệm/quizzes với điểm số từ 70% trở lên\n3. Hoàn thành đồ án cuối khóa (nếu khóa học yêu cầu).\n\nChứng chỉ sẽ tự động xuất hiện trong trang "Trung tâm chứng chỉ".',
-    helpfulCount: 380,
-    unhelpfulCount: 7,
-    views: 2900,
-    tags: ['chứng chỉ', 'hoàn thành', 'điều kiện'],
-    isPopular: true
-  },
-  {
-    id: 'faq-cert-2',
-    category: 'certificate',
-    categoryLabel: 'Chứng chỉ & Bằng cấp',
-    q: 'Chứng chỉ MindHub có thể chia sẻ lên LinkedIn hoặc đính kèm CV không?',
-    a: 'Có! Mỗi chứng chỉ MindHub cấp đều có một đường dẫn xác thực công khai (Verification Link) và mã định danh duy nhất (Unique Certificate ID). Bạn có thể bấm nút "Thêm vào LinkedIn Profile" hoặc tải bản PDF chất lượng cao để in ấn và đưa vào CV xin việc.',
-    helpfulCount: 295,
-    unhelpfulCount: 4,
-    views: 2150,
-    tags: ['linkedin', 'pdf', 'xác thực', 'cv'],
-  },
-
-  // Giảng viên
-  {
-    id: 'faq-inst-1',
-    category: 'instructor',
-    categoryLabel: 'Dành cho Giảng viên',
-    q: 'Tôi muốn trở thành Giảng viên trên MindHub thì làm thế nào?',
-    a: 'Bạn chỉ cần truy cập trang "Trở thành Giảng viên" (Đăng ký Instructor), điền đầy đủ thông tin chuyên môn, kinh nghiệm giảng dạy và video giảng thử 3-5 phút.\n\nĐội ngũ thẩm định chuyên môn MindHub sẽ duyệt hồ sơ trong vòng 48 giờ làm việc và liên hệ hướng dẫn bạn tạo khóa học đầu tiên.',
-    helpfulCount: 260,
-    unhelpfulCount: 11,
-    views: 1980,
-    tags: ['đăng ký giảng viên', 'instructor', 'tạo khóa học'],
-  },
-  {
-    id: 'faq-inst-2',
-    category: 'instructor',
-    categoryLabel: 'Dành cho Giảng viên',
-    q: 'Tỷ lệ chia sẻ doanh thu cho Giảng viên là bao nhiêu?',
-    a: 'MindHub áp dụng mức chia sẻ doanh thu cạnh tranh top đầu thị trường:\n• Giảng viên nhận tới 80% doanh thu đối với các đơn hàng mua qua mã giới thiệu/link trực tiếp của giảng viên.\n• 50% doanh thu đối với các đơn hàng phát sinh tự nhiên từ nền tảng MindHub.',
-    helpfulCount: 310,
-    unhelpfulCount: 8,
-    views: 2200,
-    tags: ['doanh thu', 'hoa hồng', 'rút tiền'],
-  },
-
-  // Kỹ thuật
-  {
-    id: 'faq-tech-1',
-    category: 'technical',
-    categoryLabel: 'Kỹ thuật & Hệ thống',
-    q: 'Video bài giảng bị giật/lag hoặc không có tiếng thì khắc phục sao?',
-    a: 'Bạn có thể xử lý nhanh theo các bước:\n1. Kiểm tra kết nối Internet\n2. Đổi chất lượng video từ 1080p xuống 720p hoặc Auto ở góc trình phát\n3. Thử xóa bộ nhớ đệm (Cache) trình duyệt hoặc đổi sang trình duyệt Chrome/Edge mới nhất\n4. Tắt các tiện ích mở rộng chặn quảng cáo (AdBlock) có thể gây xung đột trình phát HTML5.',
-    helpfulCount: 190,
-    unhelpfulCount: 12,
-    views: 1400,
-    tags: ['video lỗi', 'lag', 'chất lượng', 'sự cố'],
-  },
-  {
-    id: 'faq-tech-2',
-    category: 'technical',
-    categoryLabel: 'Kỹ thuật & Hệ thống',
-    q: 'Yêu cầu cấu hình máy tính để học lập trình trên MindHub?',
-    a: 'Các khóa học trên MindHub xem mượt mà trên mọi máy tính/laptop phổ thông có trình duyệt web hiện đại.\n\nĐối với các khóa học thực hành Lập trình Web, Mobile hoặc AI/Data, chúng tôi khuyên dùng máy tính có tối thiểu RAM 8GB và hệ điều hành Windows 10/11, macOS hoặc Linux.',
-    helpfulCount: 145,
-    unhelpfulCount: 3,
-    views: 980,
-    tags: ['cấu hình', 'máy tính', 'yêu cầu'],
-  }
-];
-
 const POPULAR_SEARCH_TAGS = [
   'Hoàn tiền 7 ngày',
   'Cấp chứng chỉ',
@@ -281,7 +98,10 @@ export default function FAQPage() {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [openFaqIds, setOpenFaqIds] = useState<Record<string, boolean>>({ 'faq-pay-1': true });
   const [votedMap, setVotedMap] = useState<Record<string, 'up' | 'down'>>({});
-  const [faqs, setFaqs] = useState<FAQItem[]>(INITIAL_FAQS);
+  const [faqs, setFaqs] = useState<FAQItem[]>([]);
+  const { data: homeData, isLoading: homeIsLoading } = useHomepageData();
+  
+  const faqBanner = homeData?.banners?.find(b => b.position === 'faq_hero')?.image_url || 'https://res.cloudinary.com/hcoy6dgr/image/upload/v1788251134/mindhub/banners/faq_hero.jpg';
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -342,7 +162,7 @@ export default function FAQPage() {
           }
         }
       } catch (err) {
-        console.warn('Backend API FAQs fetch fallback to initial FAQs:', err);
+        console.warn('Backend API FAQs fetch failed:', err);
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -600,7 +420,7 @@ export default function FAQPage() {
                 {/* Glass Illustration Frame */}
                 <div className="relative rounded-3xl bg-slate-900/70 border border-slate-700/60 p-3 shadow-2xl backdrop-blur-xl overflow-hidden group">
                   <img 
-                    src="/faq-hero-illustration.png" 
+                    src={faqBanner} 
                     alt="MindHub FAQ Support Assistant Illustration" 
                     className="w-full h-auto object-cover rounded-2xl shadow-inner group-hover:scale-105 transition-transform duration-500"
                   />

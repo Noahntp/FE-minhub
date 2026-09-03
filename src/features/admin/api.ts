@@ -198,5 +198,18 @@ async toggleUserLockAdmin(userId: string, action: 'lock' | 'unlock'): Promise<{ 
     });
     const queryStr = query.toString();
     return apiFetch<any>(`/admin/reports/instructors${queryStr ? '?' + queryStr : ''}`);
+  },
+
+  async aiSuggestCategory(courseId: number | string): Promise<any> {
+    devLog('Admin', `AI suggest category for course ${courseId}`);
+    return apiFetch<any>(`/admin/courses/${courseId}/ai-suggest-category`, { method: 'POST' });
+  },
+
+  async aiApplyCategory(courseId: number | string, payload: { type: 'existing' | 'create_new'; category_id?: number; name?: string; slug?: string; description?: string }): Promise<any> {
+    devLog('Admin', `AI apply category for course ${courseId}`, payload);
+    return apiFetch<any>(`/admin/courses/${courseId}/ai-apply-category`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 };

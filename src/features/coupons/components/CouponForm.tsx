@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown } from 'lucide-react';
+import { X, Calendar, ChevronDown, Sparkles, Tag, Gift, Info } from 'lucide-react';
 import { Coupon, CourseOption } from '../types';
 
 interface Props {
@@ -36,8 +36,10 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
     code: '',
     name: '',
     course_id: '',
+    campaign_type: 'discount',
     discount_type: 'percent',
-    discount_value: 0,
+    discount_value: 10,
+    max_discount_amount: undefined,
     usage_limit: undefined,
     start_at: '',
     end_at: '',
@@ -53,15 +55,18 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
     if (coupon) {
       const courseId = coupon.course_id ? String(coupon.course_id) : (coupon.course?.id ? String(coupon.course.id) : defaultCourseId);
       const discountType = (coupon.discount_type === 'percentage' ? 'percent' : coupon.discount_type) || 'percent';
-      const discountValue = Number(coupon.discount_value);
+      const discountValue = coupon.discount_value != null ? Number(coupon.discount_value) : 10;
+      const campaignType = coupon.campaign_type || (coupon.discount_type ? 'discount' : 'discount');
 
       setFormData({
         id: coupon.id,
         code: coupon.code || '',
         name: coupon.name || '',
         course_id: courseId,
+        campaign_type: campaignType,
         discount_type: discountType as any,
         discount_value: isNaN(discountValue) ? 0 : discountValue,
+        max_discount_amount: coupon.max_discount_amount != null ? Number(coupon.max_discount_amount) : undefined,
         usage_limit: coupon.usage_limit != null ? Number(coupon.usage_limit) : undefined,
         start_at: toDateTimeLocalValue(coupon.start_at),
         end_at: toDateTimeLocalValue(coupon.end_at),
@@ -73,8 +78,10 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
         code: '',
         name: '',
         course_id: defaultCourseId,
+        campaign_type: 'discount',
         discount_type: 'percent',
-        discount_value: 0,
+        discount_value: 10,
+        max_discount_amount: undefined,
         usage_limit: undefined,
         start_at: '',
         end_at: '',
@@ -90,27 +97,50 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
     
     if (name === 'code') {
       setFormData(prev => ({ ...prev, [name]: value.replace(/\s+/g, '').toUpperCase() }));
-    } else if (name === 'discount_value' || name === 'usage_limit') {
+    } else if (name === 'discount_value' || name === 'usage_limit' || name === 'max_discount_amount') {
       const sanitized = value.replace(/\D/g, '');
       setFormData(prev => ({ ...prev, [name]: sanitized !== '' ? Math.max(0, parseInt(sanitized, 10)) : undefined }));
+    } else if (name === 'campaign_type') {
+      const newType = value as 'discount' | 'trial';
+      setFormData(prev => ({
+        ...prev,
+        campaign_type: newType,
+        discount_type: newType === 'discount' ? (prev.discount_type || 'percent') : undefined,
+        discount_value: newType === 'discount' ? (prev.discount_value || 10) : undefined,
+        usage_limit: newType === 'trial' ? (prev.usage_limit && prev.usage_limit <= 15 ? prev.usage_limit : 5) : prev.usage_limit,
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
   const validate = (): boolean => {
-    if (!formData.code) {
-      setValidationError('Mã giảm giá không được để trống.');
+    if (!formData.code && !coupon) {
+      setValidationError('Mã chương trình không được để trống.');
       return false;
     }
-    if (formData.discount_value === undefined || formData.discount_value <= 0) {
-      setValidationError('Giá trị giảm giá phải lớn hơn 0.');
+
+    if (!formData.course_id) {
+      setValidationError('Vui lòng chọn khóa học áp dụng.');
       return false;
     }
-    if ((formData.discount_type === 'percent' || formData.discount_type === 'percentage') && formData.discount_value > 100) {
-      setValidationError('Phần trăm giảm giá không được vượt quá 100%.');
-      return false;
+
+    if (formData.campaign_type === 'discount') {
+      if (formData.discount_value === undefined || formData.discount_value <= 0) {
+        setValidationError('Giá trị giảm giá phải lớn hơn 0.');
+        return false;
+      }
+      if ((formData.discount_type === 'percent' || formData.discount_type === 'percentage') && formData.discount_value > 70) {
+        setValidationError('Phần trăm giảm giá linh hoạt từ 1% đến tối đa 70% theo quy định sàn.');
+        return false;
+      }
+    } else if (formData.campaign_type === 'trial') {
+      if (!formData.usage_limit || formData.usage_limit < 1 || formData.usage_limit > 15) {
+        setValidationError('Số suất học thử miễn phí cho phép tùy chọn từ 1 đến tối đa 15 suất.');
+        return false;
+      }
     }
+
     if (!formData.start_at || !formData.end_at) {
       setValidationError('Vui lòng chọn ngày bắt đầu và kết thúc.');
       return false;
@@ -123,9 +153,12 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
       return false;
     }
 
-    if (!formData.course_id) {
-      setValidationError('Vui lòng chọn khóa học áp dụng.');
-      return false;
+    if (formData.campaign_type === 'trial') {
+      const diffHours = (end - start) / (1000 * 60 * 60);
+      if (diffHours > 72.5) { // 3 days max
+        setValidationError('Thời gian chạy chiến dịch học thử linh hoạt tối đa 3 ngày (72 giờ).');
+        return false;
+      }
     }
 
     setValidationError('');
@@ -139,11 +172,11 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
 
     setIsSubmitting(true);
     try {
+      const isTrial = formData.campaign_type === 'trial';
       const payload: any = {
-        name: formData.name || `Khuyến mãi ${formData.code}`,
+        name: formData.name || (isTrial ? `Học thử miễn phí ${formData.code}` : `Khuyến mãi ${formData.code}`),
         course_id: Number(formData.course_id),
-        discount_type: formData.discount_type === 'percentage' ? 'percent' : formData.discount_type,
-        discount_value: Number(formData.discount_value),
+        campaign_type: isTrial ? 'trial' : 'discount',
         usage_limit: formData.usage_limit ? Number(formData.usage_limit) : null,
         start_at: toApiDateTime(formData.start_at),
         end_at: toApiDateTime(formData.end_at),
@@ -151,8 +184,16 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
         description: formData.description || '',
       };
 
-      if (!isUsed) {
-        payload.code = formData.code?.toUpperCase().trim();
+      if (!isTrial) {
+        payload.discount_type = formData.discount_type === 'percentage' ? 'percent' : formData.discount_type;
+        payload.discount_value = Number(formData.discount_value);
+        if (formData.max_discount_amount) {
+          payload.max_discount_amount = Number(formData.max_discount_amount);
+        }
+      }
+
+      if (!isUsed && formData.code) {
+        payload.code = formData.code.toUpperCase().trim();
       }
 
       await onSubmit(payload);
@@ -166,19 +207,29 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
           return;
         }
       }
-      setValidationError(err.message || 'Lỗi lưu thông tin mã giảm giá.');
+      setValidationError(err.message || 'Lỗi lưu thông tin chương trình.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const isTrialCampaign = formData.campaign_type === 'trial';
+
   return (
     <div className="bg-white rounded-2xl shadow-3xs border border-slate-100 flex flex-col h-[750px] overflow-hidden text-left">
       {/* Header */}
       <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between shrink-0 bg-slate-50/50">
-        <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-          {coupon ? 'Chỉnh sửa mã giảm giá' : 'Tạo mã giảm giá'}
-        </h2>
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+            {isTrialCampaign ? <Gift className="w-4 h-4" /> : <Tag className="w-4 h-4" />}
+          </div>
+          <div>
+            <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+              {coupon ? 'Chỉnh sửa chương trình' : 'Tạo chương trình ưu đãi'}
+            </h2>
+            <p className="text-[10px] text-slate-400 font-medium">Tùy chọn linh hoạt trong hạn mức cho phép</p>
+          </div>
+        </div>
         <button 
           type="button" 
           onClick={(e) => {
@@ -201,9 +252,48 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
         )}
 
         <form id="coupon-drawer-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
-          {/* Mã giảm giá */}
+          
+          {/* Loại hình chiến dịch */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hình thức ưu đãi *</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleChange({ target: { name: 'campaign_type', value: 'discount' } } as any)}
+                className={`p-2.5 rounded-xl border flex items-center gap-2 text-left transition-all cursor-pointer ${
+                  !isTrialCampaign 
+                    ? 'border-emerald-500 bg-emerald-50/60 text-emerald-800 font-bold' 
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <Tag className="w-4 h-4 shrink-0 text-emerald-600" />
+                <div>
+                  <div className="text-xs font-extrabold">Mã giảm giá</div>
+                  <div className="text-[9px] text-slate-400 font-normal">Giảm % hoặc trừ tiền cố định</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleChange({ target: { name: 'campaign_type', value: 'trial' } } as any)}
+                className={`p-2.5 rounded-xl border flex items-center gap-2 text-left transition-all cursor-pointer ${
+                  isTrialCampaign 
+                    ? 'border-blue-500 bg-blue-50/60 text-blue-800 font-bold' 
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <Gift className="w-4 h-4 shrink-0 text-blue-600" />
+                <div>
+                  <div className="text-xs font-extrabold">Suất học thử miễn phí</div>
+                  <div className="text-[9px] text-slate-400 font-normal">Tặng lượt học có thời hạn</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Mã code */}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mã giảm giá *</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mã chương trình *</label>
             <input 
               required 
               type="text" 
@@ -211,7 +301,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
               value={formData.code || ''} 
               onChange={handleChange} 
               disabled={isUsed}
-              placeholder="Nhập mã (VD: WELCOME20)" 
+              placeholder={isTrialCampaign ? "VD: TRIALFREE" : "VD: WELCOME20"} 
               className={`w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal uppercase font-mono font-bold ${
                 isUsed ? 'bg-slate-100 text-slate-500 cursor-not-allowed border-slate-200' : 'bg-white'
               }`}
@@ -225,7 +315,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
             )}
           </div>
 
-          {/* Tên mã giảm giá */}
+          {/* Tên chương trình */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tên chương trình *</label>
             <input 
@@ -234,101 +324,9 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
               name="name" 
               value={formData.name || ''} 
               onChange={handleChange} 
-              placeholder="Nhập tên chương trình khuyến mãi" 
+              placeholder={isTrialCampaign ? "Ví dụ: Học thử 3 ngày cho tân sinh viên" : "Ví dụ: Ưu đãi chào mừng thành viên mới"} 
               className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-bold" 
             />
-          </div>
-
-          {/* Loại giảm giá */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Loại giảm giá *</label>
-            <div className="relative">
-              <select 
-                required 
-                name="discount_type" 
-                value={formData.discount_type || 'percent'} 
-                onChange={handleChange} 
-                className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer appearance-none"
-              >
-                <option value="percent">Phần trăm (%)</option>
-                <option value="fixed">Số tiền cố định (đ)</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Giá trị */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Giá trị *</label>
-            <input 
-              required 
-              type="number"
-              min="0"
-              name="discount_value" 
-              value={formData.discount_value ?? ''} 
-              onChange={handleChange} 
-              onKeyDown={(e) => {
-                if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
-                  e.preventDefault();
-                }
-              }}
-              placeholder="Nhập giá trị" 
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-bold" 
-            />
-            <p className="text-[9px] text-slate-400 font-semibold">
-              Ví dụ: {formData.discount_type === 'percent' || formData.discount_type === 'percentage' ? '20 cho 20%' : '100000 cho 100.000đ'}
-            </p>
-          </div>
-
-          {/* Giới hạn sử dụng */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Giới hạn sử dụng</label>
-            <input 
-              type="number"
-              min="0"
-              name="usage_limit" 
-              value={formData.usage_limit ?? ''} 
-              onChange={handleChange} 
-              onKeyDown={(e) => {
-                if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
-                  e.preventDefault();
-                }
-              }}
-              placeholder="Để trống nếu không giới hạn" 
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
-            />
-          </div>
-
-          {/* Ngày bắt đầu */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày bắt đầu *</label>
-            <div className="relative">
-              <input 
-                required 
-                type="datetime-local" 
-                name="start_at" 
-                value={formData.start_at || ''} 
-                onChange={handleChange} 
-                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
-              />
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Ngày kết thúc */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày kết thúc *</label>
-            <div className="relative">
-              <input 
-                required 
-                type="datetime-local" 
-                name="end_at" 
-                value={formData.end_at || ''} 
-                onChange={handleChange} 
-                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
-              />
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-            </div>
           </div>
 
           {/* Khóa học áp dụng */}
@@ -342,7 +340,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
                 onChange={handleChange} 
                 className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer appearance-none"
               >
-                <option value="">Chọn khóa học</option>
+                <option value="">-- Chọn khóa học của bạn --</option>
                 {courseOptions.map((c) => (
                   <option key={c.id} value={String(c.id)}>
                     {c.title}
@@ -352,6 +350,157 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
             </div>
           </div>
+
+          {/* Cấu hình giảm giá (Chỉ hiển thị khi là Discount) */}
+          {!isTrialCampaign && (
+            <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-100 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                {/* Loại giảm giá */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Loại giảm giá *</label>
+                  <div className="relative">
+                    <select 
+                      required 
+                      name="discount_type" 
+                      value={formData.discount_type || 'percent'} 
+                      onChange={handleChange} 
+                      className="w-full px-3 py-2 pr-8 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal bg-white font-semibold cursor-pointer appearance-none text-xs"
+                    >
+                      <option value="percent">Phần trăm (%)</option>
+                      <option value="fixed">Số tiền cố định (đ)</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Giá trị giảm */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mức giảm *</label>
+                  <input 
+                    required 
+                    type="number"
+                    min="1"
+                    max={formData.discount_type === 'percent' ? 70 : undefined}
+                    name="discount_value" 
+                    value={formData.discount_value ?? ''} 
+                    onChange={handleChange} 
+                    onKeyDown={(e) => {
+                      if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    placeholder={formData.discount_type === 'percent' ? "1 - 70%" : "Số tiền"} 
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-bold bg-white text-xs" 
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-start gap-1.5 text-[10px] text-slate-500 font-medium">
+                <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  {formData.discount_type === 'percent' 
+                    ? 'Bạn có thể tùy chọn mức giảm linh hoạt từ 1% đến tối đa 70% giá khóa học.' 
+                    : 'Tùy chọn số tiền giảm cố định (sau giảm giá phải tối thiểu 10.000đ).'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Cấu hình Học thử (Chỉ hiển thị khi là Trial) */}
+          {isTrialCampaign && (
+            <div className="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-2.5">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-blue-900 uppercase tracking-wider">
+                  Số suất học thử miễn phí * (Tùy chọn 1 - 15 suất)
+                </label>
+                <input 
+                  required
+                  type="number"
+                  min="1"
+                  max="15"
+                  name="usage_limit" 
+                  value={formData.usage_limit ?? ''} 
+                  onChange={handleChange} 
+                  onKeyDown={(e) => {
+                    if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  placeholder="Nhập số suất (VD: 5, 10, 15)" 
+                  className="w-full px-3 py-2 border border-blue-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 font-bold bg-white text-xs" 
+                />
+              </div>
+              <div className="flex items-start gap-1.5 text-[10px] text-blue-700 font-medium">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-600" />
+                <span>Giảng viên tùy ý chọn số suất học thử miễn phí từ 1 đến tối đa 15 học viên theo quy định sàn.</span>
+              </div>
+            </div>
+          )}
+
+          {/* Giới hạn sử dụng (Chỉ hiển thị khi là Discount) */}
+          {!isTrialCampaign && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Giới hạn số lượt dùng (Tùy chọn)
+              </label>
+              <input 
+                type="number"
+                min="1"
+                name="usage_limit" 
+                value={formData.usage_limit ?? ''} 
+                onChange={handleChange} 
+                onKeyDown={(e) => {
+                  if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+                placeholder="Để trống nếu không giới hạn số lượt" 
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold" 
+              />
+              <p className="text-[9px] text-slate-400 font-medium">Tùy chọn số lượng học viên tối đa được áp dụng mã.</p>
+            </div>
+          )}
+
+          {/* Thời gian bắt đầu & kết thúc */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Ngày bắt đầu */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày bắt đầu *</label>
+              <div className="relative">
+                <input 
+                  required 
+                  type="datetime-local" 
+                  name="start_at" 
+                  value={formData.start_at || ''} 
+                  onChange={handleChange} 
+                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold text-[11px]" 
+                />
+                <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Ngày kết thúc */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày kết thúc *</label>
+              <div className="relative">
+                <input 
+                  required 
+                  type="datetime-local" 
+                  name="end_at" 
+                  value={formData.end_at || ''} 
+                  onChange={handleChange} 
+                  className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-semibold text-[11px]" 
+                />
+                <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          <p className="text-[9px] text-slate-400 font-medium">
+            {isTrialCampaign 
+              ? 'Tùy chọn thời gian chiến dịch học thử linh hoạt từ vài giờ đến tối đa 3 ngày (72 giờ).' 
+              : 'Tùy chọn lịch bắt đầu và kết thúc chương trình giảm giá theo nhu cầu của bạn.'}
+          </p>
 
           {/* Trạng thái */}
           <div className="space-y-1">
@@ -378,7 +527,7 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
               name="description" 
               value={formData.description || ''} 
               onChange={handleChange} 
-              placeholder="Nhập mô tả cho mã giảm giá" 
+              placeholder="Nhập ghi chú hoặc điều kiện của chương trình..." 
               rows={2} 
               className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-normal font-medium" 
             />
@@ -405,10 +554,9 @@ export const CouponForm: React.FC<Props> = ({ coupon, courseOptions, onClose, on
           disabled={isSubmitting}
           className="px-4 py-2 bg-brand-normal hover:bg-brand-hover text-white rounded-xl font-bold transition-all text-xs shadow-sm cursor-pointer disabled:opacity-50"
         >
-          {isSubmitting ? 'Đang lưu...' : (coupon ? 'Lưu thay đổi' : 'Tạo mã mới')}
+          {isSubmitting ? 'Đang lưu...' : (coupon ? 'Lưu thay đổi' : 'Tạo chương trình mới')}
         </button>
       </div>
     </div>
   );
 };
-

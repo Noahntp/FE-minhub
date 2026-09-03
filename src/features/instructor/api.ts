@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchEnvelope, devLog, config, ApiError } from '@/shared/lib/api-client';
+import { apiFetch, apiFetchEnvelope, devLog, config, ApiError, uploadFileWithProgress } from '@/shared/lib/api-client';
 import { Course, Chapter, Lesson, Resource, User, QAMessage, StudentProgress, PayoutRequest, AuditLog, InstructorRequest, AccountRequest } from '@/shared/types';
 
 export const instructorApi = {
@@ -348,102 +348,138 @@ async getCourseEngagementAnalytics(courseId: string): Promise<any> {
     return apiFetch<any>(`/instructor/courses/${courseId}/analytics`);
   },
 
-async uploadInstructorFile(file: File, type: string = 'course_media'): Promise<{ url: string; path?: string }> {
-    devLog('Instructor', 'Upload media file', { fileName: file.name, type });
+async uploadInstructorFile(file: File, type: string = 'course_media', courseId?: number | string): Promise<{ url: string; path?: string }> {
+    return this.uploadInstructorFileWithProgress(file, type, undefined, courseId);
+  },
+
+async uploadInstructorFileWithProgress(
+    file: File, 
+    type: string = 'course_media',
+    onProgress?: (percent: number) => void,
+    courseId?: number | string
+  ): Promise<{ url: string; path?: string; file_name?: string; mime_type?: string; size?: number }> {
+    devLog('Instructor', 'Upload media file with progress', { fileName: file.name, type, courseId });
     const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
-      const res = await apiFetch<any>('/instructor/media/upload', {
-              method: 'POST',
-              body: formData,
-            });
-      return { 
-              url: res?.url || res?.data?.url || res?.file_url || '',
-              path: res?.path || res?.data?.path || ''
-            };
+    formData.append('file', file);
+    formData.append('type', type);
+    if (courseId) {
+      formData.append('course_id', String(courseId));
+    }
+    const res = await uploadFileWithProgress<any>('/instructor/media/upload', formData, onProgress);
+    return { 
+      url: res?.url || res?.data?.url || res?.file_url || '',
+      path: res?.path || res?.data?.path || '',
+      file_name: res?.file_name || res?.data?.file_name || file.name,
+      mime_type: res?.mime_type || res?.data?.mime_type || file.type,
+      size: res?.size || res?.data?.size || file.size,
+    };
   },
 
 async createCourseDraft(payload: any): Promise<any> {
     devLog('Instructor', 'Create course draft', payload);
     const backendPayload: any = {
-              title: payload.title || 'Khóa học chưa đặt tên',
-            };
-      if (payload.slug) backendPayload.slug = payload.slug;
-      if (payload.category_id || payload.categoryId) {
-              backendPayload.category_ids = [Number(payload.category_id || payload.categoryId)];
-            }
-      if (payload.level) backendPayload.level = payload.level;
-      if (payload.language) backendPayload.language = payload.language;
-      if (payload.subtitle || payload.short_description) {
-              backendPayload.short_description = payload.subtitle ?? payload.short_description;
-            }
-      if (payload.description) backendPayload.description = payload.description;
-      if (payload.price !== undefined) {
-              backendPayload.price = typeof payload.price === 'number' ? payload.price : parseFloat(payload.price || 0);
-            }
-      if (payload.salePrice !== undefined || payload.sale_price !== undefined) {
-              const sp = payload.salePrice ?? payload.sale_price;
-              backendPayload.sale_price = sp !== null && sp !== undefined ? parseFloat(sp) : null;
-            }
-      if (payload.image || payload.thumbnail_url) {
-              backendPayload.thumbnail_url = payload.image ?? payload.thumbnail_url;
-            }
-      if (payload.introVideoUrl || payload.intro_video_url) {
-              backendPayload.intro_video_url = payload.introVideoUrl ?? payload.intro_video_url;
-            }
-      if (payload.requirements) {
-              backendPayload.requirements = Array.isArray(payload.requirements) ? JSON.stringify(payload.requirements) : payload.requirements;
-            }
-      if (payload.willLearn || payload.outcomes) {
-              const out = payload.willLearn ?? payload.outcomes;
-              backendPayload.outcomes = Array.isArray(out) ? JSON.stringify(out) : out;
-            }
-      return apiFetch<any>('/instructor/courses/draft', {
-              method: 'POST',
-              body: JSON.stringify(backendPayload),
-            });
+      title: payload.title || 'Khóa học chưa đặt tên',
+    };
+    if (payload.slug) backendPayload.slug = payload.slug;
+    
+    if (payload.category_ids && Array.isArray(payload.category_ids)) {
+      backendPayload.category_ids = payload.category_ids.map(Number).filter((n: number) => !isNaN(n) && n > 0);
+    } else if (payload.category_id || payload.categoryId) {
+      const catInt = Number(payload.category_id || payload.categoryId);
+      if (!isNaN(catInt) && catInt > 0) backendPayload.category_ids = [catInt];
+    }
+
+    const rawLevel = payload.course_level || payload.level;
+    if (rawLevel) {
+      const normalizedLevel = rawLevel === 'expert' ? 'advanced' : rawLevel;
+      if (['beginner', 'intermediate', 'advanced', 'all_levels'].includes(normalizedLevel)) {
+        backendPayload.course_level = normalizedLevel;
+      }
+    }
+
+    if (payload.language) backendPayload.language = payload.language;
+    if (payload.subtitle !== undefined || payload.short_description !== undefined) {
+      backendPayload.short_description = payload.short_description ?? payload.subtitle;
+    }
+    if (payload.description !== undefined) backendPayload.description = payload.description;
+    if (payload.price !== undefined) {
+      backendPayload.price = typeof payload.price === 'number' ? payload.price : parseFloat(payload.price || 0);
+    }
+    if (payload.salePrice !== undefined || payload.sale_price !== undefined) {
+      const sp = payload.salePrice ?? payload.sale_price;
+      backendPayload.sale_price = sp !== null && sp !== undefined ? parseFloat(sp) : null;
+    }
+    if (payload.image || payload.thumbnail_url) {
+      backendPayload.thumbnail_url = payload.image ?? payload.thumbnail_url;
+    }
+    if (payload.introVideoUrl || payload.intro_video_url) {
+      backendPayload.intro_video_url = payload.introVideoUrl ?? payload.intro_video_url;
+    }
+    if (payload.requirements) {
+      backendPayload.requirements = Array.isArray(payload.requirements) ? JSON.stringify(payload.requirements) : payload.requirements;
+    }
+    if (payload.willLearn || payload.outcomes) {
+      const out = payload.willLearn ?? payload.outcomes;
+      backendPayload.outcomes = Array.isArray(out) ? JSON.stringify(out) : out;
+    }
+    return apiFetch<any>('/instructor/courses/draft', {
+      method: 'POST',
+      body: JSON.stringify(backendPayload),
+    });
   },
 
 async updateCourseDraft(id: string | number, payload: any): Promise<any> {
     devLog('Instructor', `Update course draft ID ${id}`, payload);
     const backendPayload: any = {};
-      if (payload.title !== undefined) backendPayload.title = payload.title;
-      if (payload.slug !== undefined) backendPayload.slug = payload.slug || undefined;
-      if (payload.category_id !== undefined || payload.categoryId !== undefined) {
-              const catId = payload.category_id || payload.categoryId;
-              if (catId) backendPayload.category_ids = [Number(catId)];
-            }
-      if (payload.level !== undefined) backendPayload.level = payload.level;
-      if (payload.language !== undefined) backendPayload.language = payload.language;
-      if (payload.subtitle !== undefined || payload.short_description !== undefined) {
-              backendPayload.short_description = payload.subtitle ?? payload.short_description;
-            }
-      if (payload.description !== undefined) backendPayload.description = payload.description;
-      if (payload.price !== undefined) {
-              backendPayload.price = typeof payload.price === 'number' ? payload.price : parseFloat(payload.price || 0);
-            }
-      if (payload.salePrice !== undefined || payload.sale_price !== undefined) {
-              const sp = payload.salePrice ?? payload.sale_price;
-              backendPayload.sale_price = sp !== null && sp !== undefined ? parseFloat(sp) : null;
-            }
-      if (payload.image !== undefined || payload.thumbnail_url !== undefined) {
-              backendPayload.thumbnail_url = payload.image ?? payload.thumbnail_url;
-            }
-      if (payload.introVideoUrl !== undefined || payload.intro_video_url !== undefined) {
-              backendPayload.intro_video_url = payload.introVideoUrl ?? payload.intro_video_url;
-            }
-      if (payload.requirements !== undefined) {
-              backendPayload.requirements = Array.isArray(payload.requirements) ? JSON.stringify(payload.requirements) : payload.requirements;
-            }
-      if (payload.willLearn !== undefined || payload.outcomes !== undefined) {
-              const out = payload.willLearn ?? payload.outcomes;
-              backendPayload.outcomes = Array.isArray(out) ? JSON.stringify(out) : out;
-            }
-      return apiFetch<any>(`/instructor/courses/${id}/draft`, {
-              method: 'PATCH',
-              body: JSON.stringify(backendPayload),
-            });
+    if (payload.title !== undefined) backendPayload.title = payload.title;
+    if (payload.slug !== undefined) backendPayload.slug = payload.slug || undefined;
+    
+    if (payload.category_ids && Array.isArray(payload.category_ids)) {
+      backendPayload.category_ids = payload.category_ids.map(Number).filter((n: number) => !isNaN(n) && n > 0);
+    } else if (payload.category_id !== undefined || payload.categoryId !== undefined) {
+      const catInt = Number(payload.category_id || payload.categoryId);
+      if (!isNaN(catInt) && catInt > 0) backendPayload.category_ids = [catInt];
+    }
+
+    const rawLevel = payload.course_level ?? payload.level;
+    if (rawLevel !== undefined) {
+      const normalizedLevel = rawLevel === 'expert' ? 'advanced' : rawLevel;
+      if (['beginner', 'intermediate', 'advanced', 'all_levels'].includes(normalizedLevel)) {
+        backendPayload.course_level = normalizedLevel;
+      }
+    }
+
+    if (payload.language !== undefined) backendPayload.language = payload.language;
+    if (payload.subtitle !== undefined || payload.short_description !== undefined) {
+      backendPayload.short_description = payload.short_description ?? payload.subtitle;
+    }
+    if (payload.description !== undefined) backendPayload.description = payload.description;
+    if (payload.price !== undefined) {
+      backendPayload.price = typeof payload.price === 'number' ? payload.price : parseFloat(payload.price || 0);
+    }
+    if (payload.salePrice !== undefined || payload.sale_price !== undefined) {
+      const sp = payload.salePrice ?? payload.sale_price;
+      backendPayload.sale_price = sp !== null && sp !== undefined ? parseFloat(sp) : null;
+    }
+    if (payload.image !== undefined || payload.thumbnail_url !== undefined) {
+      backendPayload.thumbnail_url = payload.image ?? payload.thumbnail_url;
+    }
+    if (payload.introVideoUrl !== undefined || payload.intro_video_url !== undefined) {
+      backendPayload.intro_video_url = payload.introVideoUrl ?? payload.intro_video_url;
+    }
+    if (payload.requirements !== undefined) {
+      backendPayload.requirements = Array.isArray(payload.requirements) ? JSON.stringify(payload.requirements) : payload.requirements;
+    }
+    if (payload.willLearn !== undefined || payload.outcomes !== undefined) {
+      const out = payload.willLearn ?? payload.outcomes;
+      backendPayload.outcomes = Array.isArray(out) ? JSON.stringify(out) : out;
+    }
+    return apiFetch<any>(`/instructor/courses/${id}/draft`, {
+      method: 'PATCH',
+      body: JSON.stringify(backendPayload),
+    });
   },
+
 
 async getCourseDetail(id: string | number): Promise<any> {
     devLog('Instructor', `Get course detail ID ${id}`);
@@ -465,6 +501,11 @@ async submitCourseToAdminVerification(id: string | number): Promise<any> {
     return apiFetch<any>(`/instructor/courses/${id}/submit`, {
               method: 'POST',
             });
+  },
+
+  async getLessonTypes(): Promise<any> {
+    devLog('Instructor', 'Get lesson types');
+    return apiFetch<any>('/instructor/lesson-types');
   },
 
 async createSection(payload: any): Promise<any> {
@@ -1244,6 +1285,62 @@ async exportInstructorRevenues(params?: { preset?: string; date_from?: string; d
       if (params?.course_id && params.course_id !== 'all') q.set('course_id', String(params.course_id));
       const queryString = q.toString() ? `?${q.toString()}` : '';
       return apiFetch<any>(`/instructor/revenues/export${queryString}`);
+  },
+
+  async exportInstructorRevenuesBlob(params?: { preset?: string; date_from?: string; date_to?: string; course_id?: string | number }): Promise<Blob> {
+    devLog('Instructor', 'Export revenues list to CSV Blob', params);
+    const q = new URLSearchParams();
+    if (params?.preset) q.set('preset', String(params.preset));
+    if (params?.date_from) q.set('date_from', String(params.date_from));
+    if (params?.date_to) q.set('date_to', String(params.date_to));
+    if (params?.course_id && params.course_id !== 'all') q.set('course_id', String(params.course_id));
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+
+    const baseUrl = config.baseUrl || 'http://127.0.0.1:8000/api';
+    const cleanBase = baseUrl.replace(/\/+$/, '');
+    const token = config.authToken || localStorage.getItem('mindhub_api_token') || localStorage.getItem('token') || '';
+
+    const response = await fetch(`${cleanBase}/instructor/revenues/export${queryString}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'text/csv, */*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Không thể xuất báo cáo doanh thu (Mã lỗi: ${response.status})`);
+    }
+    return response.blob();
+  },
+
+  async exportInstructorLearnersBlob(params?: { course_id?: string | number; status?: string; preset?: string; date_from?: string; date_to?: string; search?: string }): Promise<Blob> {
+    devLog('Instructor', 'Export learners list to CSV Blob', params);
+    const q = new URLSearchParams();
+    if (params?.course_id && params.course_id !== 'all') q.set('course_id', String(params.course_id));
+    if (params?.status && params.status !== 'all') q.set('status', String(params.status));
+    if (params?.preset && params.preset !== '30d') q.set('preset', String(params.preset));
+    if (params?.date_from) q.set('date_from', String(params.date_from));
+    if (params?.date_to) q.set('date_to', String(params.date_to));
+    if (params?.search) q.set('search', String(params.search));
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+
+    const baseUrl = config.baseUrl || 'http://127.0.0.1:8000/api';
+    const cleanBase = baseUrl.replace(/\/+$/, '');
+    const token = config.authToken || localStorage.getItem('mindhub_api_token') || localStorage.getItem('token') || '';
+
+    const response = await fetch(`${cleanBase}/instructor/learners/export${queryString}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'text/csv, */*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Không thể xuất báo cáo học viên (Mã lỗi: ${response.status})`);
+    }
+    return response.blob();
   },
 
   async toggleCourseFeatured(courseId: number, isFeatured: boolean): Promise<any> {

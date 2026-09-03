@@ -212,16 +212,6 @@ export const InstructorUserDropdown: React.FC<InstructorUserDropdownProps> = ({
               <LayoutDashboard className="w-4 h-4 text-stone-500 shrink-0" />
               <span>Tổng quan Dashboard</span>
             </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              onClick={handleGoLearnerSite}
-              className="w-full text-left px-3 py-2 text-xs font-semibold text-stone-700 hover:text-stone-900 hover:bg-slate-100/70 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
-            >
-              <Eye className="w-4 h-4 text-stone-500 shrink-0" />
-              <span>Xem trang học viên</span>
-            </button>
           </div>
 
           <div className="border-t border-slate-100 p-1.5">

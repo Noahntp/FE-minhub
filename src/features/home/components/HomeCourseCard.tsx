@@ -1,6 +1,6 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Star, Users, Heart, ShoppingCart, Flame, Sparkles, GraduationCap, Clock } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Star, Users, Heart, ShoppingCart, Flame, Sparkles, GraduationCap, Clock, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/shared/lib/api-client';
 import { useApp } from '@/app/AppContext';
@@ -32,11 +32,34 @@ export interface HomeCourseItem {
   isNew?: boolean;
   isHot?: boolean;
   durationSeconds?: number;
+  campaign_type?: 'discount' | 'trial' | null;
+  has_trial?: boolean;
+  hasTrial?: boolean;
+  isTrial?: boolean;
+  is_enrolled?: boolean;
+}
+
+export function isCourseTrialEligible(course?: any): boolean {
+  if (!course) return false;
+  if (course.campaign_type === 'trial' || course.coupon?.campaign_type === 'trial') return true;
+  if (course.has_trial === true || course.hasTrial === true || course.isTrial === true) return true;
+  const price = Number(course.price ?? 0);
+  const salePrice = course.sale_price !== null && course.sale_price !== undefined ? Number(course.sale_price) : undefined;
+  if (price > 0 && salePrice === 0) return true;
+  return false;
+}
+
+export function isPermanentFreeCourse(course?: any): boolean {
+  if (!course) return false;
+  const price = Number(course.price ?? 0);
+  const isExplicitFree = Boolean(course.isFree || course.is_free);
+  return (price === 0 || isExplicitFree) && !isCourseTrialEligible(course);
 }
 
 interface HomeCourseCardProps {
   course: HomeCourseItem;
-  tagVariant?: 'hot' | 'new' | 'discount';
+  tagVariant?: 'hot' | 'new' | 'discount' | 'none';
+  hideThumbnailTag?: boolean;
   showCompletionProgress?: boolean;
   showProofBadge?: boolean;
 }
@@ -44,11 +67,25 @@ interface HomeCourseCardProps {
 export function HomeCourseCard({
   course,
   tagVariant,
+  hideThumbnailTag = false,
   showCompletionProgress = false,
   showProofBadge = false,
 }: HomeCourseCardProps) {
   const navigate = useNavigate();
-  const { favorites, setFavorites, currentUser } = useApp();
+  const location = useLocation();
+  const { favorites, setFavorites, currentUser, isLoggedIn, enrolledCourseIds } = useApp();
+
+  const isEnrolled = Boolean(
+    isLoggedIn &&
+    ((course as any)?.is_enrolled ||
+      (course as any)?.isEnrolled ||
+      enrolledCourseIds?.some(
+        (id) =>
+          String(id) === String(course.id) ||
+          String(id) === String((course as any).slug) ||
+          String(id) === String(course.realId)
+      ))
+  );
 
   const releaseProofText = course.publishedAt
     ? (course.publishedAt.startsWith('Ra mắt') || course.publishedAt.startsWith('Vừa')
@@ -65,7 +102,7 @@ export function HomeCourseCard({
       ? Math.min(100, Math.max(0, Math.round((course.completedStudentCount / course.rawStudentCount) * 100)))
       : course.averageProgress !== undefined && course.averageProgress !== null
       ? Math.min(100, Math.max(0, Math.round(course.averageProgress)))
-      : 80;
+      : null;
 
   const completedCountDisplay = course.completedStudentCount
     ? (course.completedStudentCount >= 1000
@@ -77,22 +114,35 @@ export function HomeCourseCard({
     favorites.includes(course.id) ||
     (course.realId ? favorites.includes(String(course.realId)) : false);
 
-  // Determine which single tag to show on top-left of thumbnail
+  // Bỏ toàn bộ nhãn trên thumbnail nếu hideThumbnailTag = true hoặc tagVariant = 'none'
   const effectiveVariant =
-    tagVariant ||
-    (course.isHot
-      ? 'hot'
-      : course.isNew
-      ? 'new'
-      : course.discountBadge
-      ? 'discount'
-      : undefined);
+    hideThumbnailTag || tagVariant === 'none'
+      ? undefined
+      : tagVariant ||
+        (course.isHot
+          ? 'hot'
+          : course.isNew
+          ? 'new'
+          : course.discountBadge
+          ? 'discount'
+          : undefined);
+
+  // Chỉ hiển thị số học viên, lượt đánh giá và rating khi có dữ liệu ý nghĩa (> 0)
+  const hasRatings = Boolean(course.reviewCount && course.reviewCount > 0 && course.rating && course.rating > 0);
+  const hasStudents = Boolean(course.rawStudentCount && course.rawStudentCount > 0);
+  const hasMeaningfulStats = hasRatings || hasStudents;
 
   const courseTarget = (course as any).slug || course.id;
 
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (!isLoggedIn) {
+      toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
+      navigate('/login', { state: { from: location.pathname + location.search } });
+      return;
+    }
 
     if (currentUser?.role === 'admin') {
       toast.error('Tài khoản Quản trị viên (Admin) không sử dụng danh sách yêu thích.');
@@ -134,18 +184,51 @@ export function HomeCourseCard({
     e.preventDefault();
     e.stopPropagation();
 
+    if (!isLoggedIn) {
+      toast.error('Vui lòng đăng nhập để thực hiện chức năng này.');
+      navigate('/login', { state: { from: location.pathname + location.search } });
+      return;
+    }
+
     if (currentUser?.role === 'admin') {
       toast.error('Tài khoản Quản trị viên (Admin) không thực hiện mua khóa học.');
       return;
     }
 
-    if (course.isFree || course.price === 0) {
-      toast.success(`Đăng ký tham gia khóa học miễn phí thành công: ${course.title}`);
+    if (isEnrolled) {
       navigate(`/learn/${courseTarget}`);
-    } else {
-      toast.success(`Đang mở trang thanh toán cho khóa học: ${course.title}`);
-      navigate(`/checkout?courseId=${courseTarget}`);
+      return;
     }
+
+    const isTrial = isCourseTrialEligible(course);
+    const isFree = isPermanentFreeCourse(course) || Number(course.price ?? 0) === 0;
+
+    if (isTrial || isFree) {
+      const numericTargetId = Number(course.realId || (course as any).course_id || course.id);
+      if (numericTargetId && !isNaN(numericTargetId)) {
+        apiFetch<any>('/orders', {
+          method: 'POST',
+          body: JSON.stringify({ course_id: numericTargetId }),
+        })
+          .then(() => {
+            toast.success(`Đăng ký tham gia khóa học thành công: ${course.title}`);
+            navigate(`/learn/${courseTarget}`);
+          })
+          .catch((err: any) => {
+            if (err?.message?.includes('sở hữu') || err?.message?.includes('đã từng học') || err?.status === 409) {
+              navigate(`/learn/${courseTarget}`);
+              return;
+            }
+            toast.error(err?.message || 'Không thể đăng ký lúc này.');
+          });
+      } else {
+        navigate(`/learn/${courseTarget}`);
+      }
+      return;
+    }
+
+    toast.success(`Đang mở trang thanh toán cho khóa học: ${course.title}`);
+    navigate(`/checkout?courseId=${courseTarget}`);
   };
 
   const formatPrice = (amount: number) => {
@@ -220,47 +303,30 @@ export function HomeCourseCard({
             </h3>
           </Link>
 
-          {/* Rating & Students */}
-          <div className="flex items-center gap-3 text-xs text-slate-500 mb-3">
-            <div className="flex items-center gap-1">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span className="font-bold text-slate-700">{course.rating.toFixed(1)}</span>
-              <span className="text-slate-400">({course.reviewCount})</span>
+          {/* Rating & Students - Chỉ hiển thị khi có dữ liệu đủ ý nghĩa (> 0), ẩn nếu chưa có */}
+          {hasMeaningfulStats ? (
+            <div className="flex items-center gap-2.5 text-xs text-slate-500 mb-3 min-h-[1.25rem] flex-wrap">
+              {hasRatings && (
+                <div className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                  <span className="font-bold text-slate-700">{course.rating.toFixed(1)}</span>
+                  <span className="text-slate-400">({course.reviewCount})</span>
+                </div>
+              )}
+              {hasRatings && hasStudents && <span className="text-slate-300">•</span>}
+              {hasStudents && (
+                <div className="flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>{course.studentCount} học viên</span>
+                </div>
+              )}
             </div>
-            <span className="text-slate-300">•</span>
-            <div className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-slate-400" />
-              <span>{course.studentCount} học viên</span>
-            </div>
-          </div>
-
-          {/* Completion Progress Bar */}
-          {showCompletionProgress && (
-            <div className="mb-3 p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100/80 space-y-1.5 transition-all">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="flex items-center gap-1.5 font-bold text-slate-700">
-                  <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Tiến độ hoàn thành</span>
-                </span>
-                <span className="font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded text-[11px]">
-                  {completionRate}%
-                </span>
-              </div>
-
-              {/* Progress Track & Indicator */}
-              <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 transition-all duration-700"
-                  style={{ width: `${completionRate}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
-                <span>Tổng: <strong className="text-slate-700">{course.studentCount}</strong> học viên</span>
-                <span className="text-emerald-700 font-semibold">
-                  {completedCountDisplay ? `${completedCountDisplay} đã xong` : `${completionRate}% hoàn thành`}
-                </span>
-              </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-3 min-h-[1.25rem]">
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50/90 border border-emerald-100 px-2 py-0.5 rounded-md">
+                <Sparkles className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span>Khóa học mới xuất bản</span>
+              </span>
             </div>
           )}
 
@@ -288,6 +354,36 @@ export function HomeCourseCard({
               {course.instructorName}
             </span>
           </div>
+
+          {/* Completion Progress Bar - Vị trí: ngay bên dưới thông tin Giảng viên, trước phần giá và nút hành động */}
+          {showCompletionProgress && (
+            <div className="mt-2.5 p-2 rounded-xl bg-slate-50/90 border border-slate-200/80 space-y-1.5 transition-all">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="flex items-center gap-1.5 font-bold text-slate-700">
+                  <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{isEnrolled ? 'Tiến độ học tập của bạn' : 'Tỉ lệ hoàn thành khóa học'}</span>
+                </span>
+                <span className="font-black text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded text-[11px]">
+                  {completionRate ?? 0}%
+                </span>
+              </div>
+
+              {/* Progress Track & Color Bar */}
+              <div className="w-full h-1.5 bg-slate-200/90 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-400 transition-all duration-700"
+                  style={{ width: `${Math.min(100, Math.max(completionRate ?? 0, 4))}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
+                <span>Tổng: <strong className="text-slate-700">{course.studentCount}</strong> học viên</span>
+                <span className="text-emerald-700 font-semibold">
+                  {completedCountDisplay ? `${completedCountDisplay} đã xong` : `${completionRate ?? 0}% hoàn thành`}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bottom Section: Price & Action */}
@@ -295,7 +391,14 @@ export function HomeCourseCard({
           
           {/* Price Display */}
           <div className="flex items-baseline justify-between">
-            {course.isFree || course.price === 0 ? (
+            {isCourseTrialEligible(course) ? (
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-black text-emerald-600">0đ</span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                  Học thử miễn phí
+                </span>
+              </div>
+            ) : isPermanentFreeCourse(course) ? (
               <div className="flex items-center gap-2">
                 <span className="text-lg font-black text-emerald-600">0đ</span>
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
@@ -317,13 +420,37 @@ export function HomeCourseCard({
           </div>
 
           {/* Nút Mua ngay / Học ngay (Chuẩn Full Width Không Vỡ Chữ) */}
-          <button
-            onClick={handleBuyNow}
-            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span>{course.isFree ? 'Đăng ký học ngay' : 'Mua ngay'}</span>
-          </button>
+          {isEnrolled ? (
+            <button
+              onClick={handleBuyNow}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-slate-900/20 active:scale-[0.98] transition-all"
+            >
+              <PlayCircle className="w-4 h-4" />
+              <span>Vào học</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleBuyNow}
+              className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
+            >
+              {isCourseTrialEligible(course) ? (
+                <>
+                  <PlayCircle className="w-4 h-4" />
+                  <span>Học thử ngay</span>
+                </>
+              ) : isPermanentFreeCourse(course) ? (
+                <>
+                  <PlayCircle className="w-4 h-4" />
+                  <span>Xem khóa học</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>Mua ngay</span>
+                </>
+              )}
+            </button>
+          )}
 
         </div>
       </div>

@@ -9,6 +9,7 @@ import FilterSelect, { SelectOption } from "./FilterSelect";
 import AdminPagination from "../shared/AdminPagination";
 import { config } from "@/shared/lib/api-client";
 import { autoCalculateFeaturedCoursesAdmin } from "@/services/api";
+import { resolveMediaUrl } from "@/shared/utils/format";
 
 // Format Helpers
 const formatDateTime = (isoString: string) => {
@@ -512,13 +513,50 @@ export default function CoursesManagement() {
     perPageParam,
   ]);
 
-  // Sync open drawer on mount if query open_course_id is present
+  // Auto smart scroll down to courses table when status or open_course_id is present
+  useEffect(() => {
+    if (statusParam || searchParams.has("status") || searchParams.has("open_course_id")) {
+      const timer = setTimeout(() => {
+        if (tableRef.current) {
+          tableRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [statusParam, searchParams]);
+
+  const loadCourseDetail = async (courseId: number) => {
+    setDetailLoading(true);
+    setIsDrawerOpen(true);
+    try {
+      const res = await coursesApi.getCourse(courseId);
+      if (res && res.success) {
+        setActiveDetailCourse(res.data);
+      } else {
+        toast.error(res ? res.message : "Không tìm thấy chi tiết khóa học.");
+        closeDetailDrawer();
+      }
+    } catch (e) {
+      toast.error("Lỗi kết nối tải thông tin chi tiết.");
+      closeDetailDrawer();
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  // Sync open drawer on mount and on browser Back/Forward (searchParams change)
   useEffect(() => {
     const cid = searchParams.get("open_course_id");
     if (cid) {
       const courseId = Number(cid);
-      if (courseId) {
-        openDetailDrawer(courseId);
+      if (courseId && (!activeDetailCourse || activeDetailCourse.id !== courseId)) {
+        loadCourseDetail(courseId);
+      }
+    } else {
+      // Khi nhấn Browser Back mà URL không còn open_course_id -> Đóng Drawer ngay lập tức
+      if (isDrawerOpen) {
+        setIsDrawerOpen(false);
+        setActiveDetailCourse(null);
       }
     }
   }, [searchParams]);
@@ -541,36 +579,21 @@ export default function CoursesManagement() {
     }
   }, [activeDetailCourse]);
 
-  const openDetailDrawer = async (courseId: number) => {
-    setDetailLoading(true);
-    setIsDrawerOpen(true);
-    // write to url search params open_course_id
+  const openDetailDrawer = (courseId: number) => {
+    // Đẩy open_course_id vào History Stack (push) để Back #1 đóng Drawer
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("open_course_id", String(courseId));
     setSearchParams(nextParams);
-
-    try {
-      const res = await coursesApi.getCourse(courseId);
-      if (res && res.success) {
-        setActiveDetailCourse(res.data);
-      } else {
-        toast.error(res ? res.message : "Không tìm thấy chi tiết khóa học.");
-        closeDetailDrawer();
-      }
-    } catch (e) {
-      toast.error("Lỗi kết nối tải thông tin chi tiết.");
-      closeDetailDrawer();
-    } finally {
-      setDetailLoading(false);
-    }
+    loadCourseDetail(courseId);
   };
 
   const closeDetailDrawer = () => {
     setIsDrawerOpen(false);
     setActiveDetailCourse(null);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("open_course_id");
-    setSearchParams(nextParams);
+    if (searchParams.has("open_course_id")) {
+      // Lùi lại 1 history entry để quay về danh sách, không tạo entry rác
+      navigate(-1);
+    }
   };
 
   // Actions
@@ -1781,7 +1804,7 @@ export default function CoursesManagement() {
                       <td className="p-3 pl-4">
                         <div className="flex items-center gap-3 group min-w-0">
                           <img
-                            src={course.thumbnail_url}
+                            src={resolveMediaUrl(course.thumbnail_url)}
                             alt={course.title}
                             loading="lazy"
                             className="h-10 w-16 rounded-[4px] object-cover bg-canvas border border-hairline group-hover:opacity-90 transition-opacity shrink-0"
@@ -1967,7 +1990,7 @@ export default function CoursesManagement() {
                   <section className="space-y-3">
                     <div className="aspect-video w-full rounded-[6px] bg-canvas overflow-hidden border border-hairline relative">
                       <img
-                        src={activeDetailCourse.thumbnail_url}
+                        src={resolveMediaUrl(activeDetailCourse.thumbnail_url)}
                         alt="Thumbnail"
                         id="detail-thumbnail"
                         className="w-full h-full object-cover"
@@ -2203,13 +2226,14 @@ export default function CoursesManagement() {
                       <h4 className="text-[10px] font-bold text-mid-gray uppercase tracking-wider">
                         Mô tả đầy đủ
                       </h4>
-                      <p
-                        className="text-ink leading-relaxed text-justify whitespace-pre-line"
+                      <div
+                        className="text-ink text-xs leading-relaxed text-justify prose prose-sm max-w-none [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-emerald-500 [&_blockquote]:pl-3 [&_blockquote]:italic [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-bold [&_h3]:text-xs [&_h3]:font-bold"
                         id="detail-desc"
-                      >
-                        {activeDetailCourse.description ||
-                          "Không có nội dung mô tả chi tiết."}
-                      </p>
+                        dangerouslySetInnerHTML={{
+                          __html: activeDetailCourse.description ||
+                            '<span class="text-mid-gray">Không có nội dung mô tả chi tiết.</span>',
+                        }}
+                      />
                     </div>
                     <div className="space-y-1.5 pt-2">
                       <h4 className="text-[10px] font-bold text-mid-gray uppercase tracking-wider">
@@ -2419,7 +2443,7 @@ export default function CoursesManagement() {
                             >
                               {senderAvatar ? (
                                 <img
-                                  src={senderAvatar}
+                                  src={resolveMediaUrl(senderAvatar)}
                                   alt={senderName}
                                   className="w-8 h-8 rounded-full object-cover shrink-0 border border-hairline"
                                   onError={(e: any) => {
@@ -2583,7 +2607,7 @@ export default function CoursesManagement() {
             <div className="rounded-[6px] border border-hairline bg-surface-alt p-3 flex gap-3 items-center text-xs">
               <div className="h-[54px] w-[88px] rounded-[4px] bg-canvas overflow-hidden shrink-0 border border-hairline">
                 <img
-                  src={featuredModal.course?.thumbnail_url}
+                  src={resolveMediaUrl(featuredModal.course?.thumbnail_url)}
                   alt="Thumbnail"
                   id="featured-modal-img"
                   className="w-full h-full object-cover"

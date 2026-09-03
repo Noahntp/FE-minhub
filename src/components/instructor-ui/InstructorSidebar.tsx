@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   INSTRUCTOR_NAVIGATION_ITEMS, 
   InstructorNavItem 
@@ -46,9 +47,19 @@ export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       <div className="space-y-6">
         {/* LOGO BRANDING */}
         <div className="flex items-center justify-between px-2 pb-5 border-b border-slate-100">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = '/'}>
+          <Link 
+            to="/instructor/dashboard" 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => {
+              const dashboardItem = INSTRUCTOR_NAVIGATION_ITEMS.find(i => i.key === 'dashboard');
+              if (dashboardItem && onNavigate) {
+                onNavigate(dashboardItem);
+              }
+              if (onCloseMobile) onCloseMobile();
+            }}
+          >
             <img src="/mindhub-logo.png" alt="MindHub Instructor Logo" className="h-10 w-auto object-contain shrink-0" />
-          </div>
+          </Link>
 
           {/* Close button for mobile drawer */}
           {onCloseMobile && (

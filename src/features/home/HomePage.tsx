@@ -7,8 +7,8 @@ import { FeaturedCategoriesSection } from './components/FeaturedCategoriesSectio
 import { FeaturedCoursesSection } from './components/FeaturedCoursesSection';
 import { NewCoursesSection } from './components/NewCoursesSection';
 import { DiscountedCoursesSection } from './components/DiscountedCoursesSection';
-import { PromoVoucherSection } from './components/PromoVoucherSection';
 import { FeaturedInstructorsSection } from './components/FeaturedInstructorsSection';
+
 import { WhyChooseUsSection } from './components/WhyChooseUsSection';
 import { StudentTestimonialsSection } from './components/StudentTestimonialsSection';
 import { HomeFaqSection } from './components/HomeFaqSection';
@@ -53,8 +53,6 @@ export default function HomePage() {
           allCourses={[...(data.featuredCourses || []), ...(data.newCourses || []), ...(data.discountedCourses || [])]} 
         />
 
-        {/* Voucher Promo Banner */}
-        <PromoVoucherSection vouchers={data.vouchers} />
 
         {/* Why Choose Us */}
         <WhyChooseUsSection />

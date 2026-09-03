@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageTransition } from '@/shared/components/ui/PageTransition';
 import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeCourseCard';
@@ -136,6 +136,12 @@ export default function InstructorProfilePage() {
   const [coursesList, setCoursesList] = useState<HomeCourseItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [reviewsCount, setReviewsCount] = useState<number>(3);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [instructorId, currentPage]);
 
   useEffect(() => {
     let isMounted = true;

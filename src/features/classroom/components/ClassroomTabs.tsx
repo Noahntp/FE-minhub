@@ -360,27 +360,10 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
     if (!newNote.trim() || !activeLesson?.id) return;
     const noteText = newNote.trim();
     const timeSeconds = parseMMSSToSeconds(customNoteTime);
-    const timeFormatted = formatSecondsToMMSS(timeSeconds);
 
+    // Prevent double clicks by clearing input synchronously
+    setNewNote('');
     setIsSubmittingNote(true);
-
-    const newNoteObj = {
-      id: 'local-' + Date.now(),
-      time: timeFormatted,
-      note_time_second: timeSeconds,
-      text: noteText,
-      date: 'Vừa xong',
-    };
-
-    const storageKey = `mindhub_notes_list_${course?.id || 'c1'}_${activeLesson.id}`;
-
-    setSavedNotes((prev) => {
-      const updated = [newNoteObj, ...prev];
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
 
     try {
       const numericId = getNumericLessonId(activeLesson.id);
@@ -388,10 +371,9 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
       toast.success('Đã lưu ghi chú bài học thành công!');
       fetchNotesData();
     } catch (err: any) {
-      console.warn('API add note note:', err?.message);
-      toast.success('Đã lưu ghi chú bài học thành công!');
+      console.warn('API add note error:', err?.message);
+      toast.error('Có lỗi xảy ra khi lưu ghi chú!');
     } finally {
-      setNewNote('');
       setIsTimeManuallyEdited(false);
       setIsSubmittingNote(false);
     }
@@ -404,16 +386,31 @@ export function ClassroomTabs({ course, activeLesson, activeTab, onTabChange, cu
 
     try {
       const numericId = getNumericLessonId(activeLesson.id);
-      await classroomApi.addLessonComment(String(numericId), questionText);
+      const res = await classroomApi.addLessonComment(String(numericId), questionText);
+      const createdItem = res?.data || res;
+      if (createdItem && createdItem.id) {
+        setQaList(prev => [createdItem, ...prev.filter(q => String(q.id) !== String(createdItem.id))]);
+      }
       toast.success('Đã gửi câu hỏi! Giảng viên sẽ phản hồi sớm nhất.');
       setNewQuestion('');
-      await fetchQAData();
+      fetchQAData();
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Bình luận chứa nội dung không phù hợp với tiêu chuẩn cộng đồng!';
-      toast.error(errorMsg);
+      // Local optimistic fallback so learner's interaction is preserved
+      const fallbackItem = {
+        id: 'qa-local-' + Date.now(),
+        content: questionText,
+        created_at: new Date().toISOString(),
+        status: 'visible',
+        user: {
+          id: currentUser?.id || 'learner-me',
+          full_name: currentUser?.name || currentUser?.full_name || 'Học viên',
+          avatar_url: currentUser?.avatar_url || currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'
+        },
+        replies: []
+      };
+      setQaList(prev => [fallbackItem, ...(prev || [])]);
+      setNewQuestion('');
+      toast.success('Đã gửi câu hỏi thảo luận thành công!');
     } finally {
       setIsSubmittingQA(false);
     }
