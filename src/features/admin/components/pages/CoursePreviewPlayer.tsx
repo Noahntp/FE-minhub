@@ -26,6 +26,9 @@ import {
   Layers,
   ChevronRight,
   Tv,
+  ArrowRight,
+  ClipboardCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { getCourseReview, approveCourse, rejectCourse } from '@/assets/js/api/course-reviews-api';
 import { showToast } from '@/assets/js/toast';
@@ -69,6 +72,7 @@ export default function CoursePreviewPlayer() {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
   // Moderation action modals
+  const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -398,6 +402,7 @@ export default function CoursePreviewPlayer() {
   const course = courseData.course || {};
   const sections = courseData.sections || [];
   const allLessons = courseData.lessons || [];
+  const checklist = courseData.checklist || { passed: false, checks: [], missing_items: [] };
 
   // Determine current media source
   const currentVideoUrl = activeItemType === 'trailer'
@@ -455,25 +460,26 @@ export default function CoursePreviewPlayer() {
 
         {/* Quick Moderation Action Buttons */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {!isCurrentStatusApproved && (
-            <button
-              onClick={() => setIsApproveModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer hover:scale-102"
-              title="Phê duyệt khóa học này ngay lập tức"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Duyệt khóa học</span>
-            </button>
-          )}
-
           {!isCurrentStatusRejected && (
             <button
               onClick={() => setIsRejectModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer hover:scale-102"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-white rounded-lg text-xs font-bold shadow-xs transition-all cursor-pointer hover:scale-102"
               title="Từ chối phê duyệt và gửi lý do"
             >
               <XCircle className="w-4 h-4" />
               <span>Từ chối</span>
+            </button>
+          )}
+
+          {!isCurrentStatusApproved && (
+            <button
+              onClick={() => setIsChecklistModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-lg text-xs font-bold shadow-md transition-all cursor-pointer hover:scale-102"
+              title="Chuyển sang bước kiểm tra tiêu chí checklist để xem xét duyệt"
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              <span>Bước tiếp theo: Kiểm tra Checklist</span>
+              <ArrowRight className="w-4 h-4 ml-0.5" />
             </button>
           )}
         </div>
@@ -826,6 +832,163 @@ export default function CoursePreviewPlayer() {
           </div>
         </div>
       </div>
+
+      {/* Modal Kiểm tra Checklist Tiêu Chí Phê Duyệt */}
+      {isChecklistModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-stone-800 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-stone-800 flex items-center justify-between shrink-0 bg-stone-900">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-950 border border-indigo-800 flex items-center justify-center text-indigo-400">
+                  <ClipboardCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Bước 2: Kiểm tra Checklist Tiêu chí Khóa học</h3>
+                  <p className="text-xs text-stone-400">Phải đạt 100% tiêu chí sàn mới mở khóa quyền Phê duyệt</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsChecklistModalOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-stone-800 text-stone-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {/* Overall Status Banner */}
+              {checklist.passed ? (
+                <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-800 flex items-start gap-3 text-emerald-300">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-200">100% Tiêu chí đã đạt chuẩn!</h4>
+                    <p className="text-xs text-emerald-300/90 mt-0.5">
+                      Khóa học đáp ứng đầy đủ điều kiện quy định của MindHub (thông tin, video trailer, nội dung bài học và giá bán). Đã đủ điều kiện để phê duyệt.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800 flex items-start gap-3 text-rose-300">
+                  <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-bold text-rose-200">Khóa học chưa đủ điều kiện phê duyệt!</h4>
+                    <p className="text-xs text-rose-300/90 mt-0.5">
+                      Còn một số tiêu chí chưa hoàn thiện. Theo quy định, nút Duyệt khóa học chỉ được mở khi tất cả tiêu chí đạt chuẩn.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Missing Items List (if any) */}
+              {checklist.missing_items && checklist.missing_items.length > 0 && (
+                <div className="p-4 rounded-xl bg-stone-950 border border-rose-900/60 space-y-2">
+                  <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <XCircle className="w-4 h-4" />
+                    Các mục bắt buộc còn thiếu ({checklist.missing_items.length}):
+                  </h4>
+                  <ul className="space-y-1.5 text-xs text-stone-300 pl-5 list-disc">
+                    {checklist.missing_items.map((item: string, idx: number) => (
+                      <li key={idx} className="text-rose-300/90">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Detailed 6 Checks */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider">
+                  Chi tiết các tiêu chí kiểm duyệt:
+                </h4>
+                <div className="space-y-2">
+                  {checklist.checks && checklist.checks.map((c: any, i: number) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        'p-3.5 rounded-xl border flex items-start justify-between gap-3 text-xs transition-colors',
+                        c.passed
+                          ? 'bg-stone-950/60 border-stone-800'
+                          : 'bg-rose-950/20 border-rose-900/40'
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          {c.passed ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-rose-400" />
+                          )}
+                        </div>
+                        <div>
+                          <p className={cn('font-bold', c.passed ? 'text-stone-200' : 'text-rose-300')}>
+                            {c.name}
+                          </p>
+                          <p className="text-stone-400 text-[11px] mt-0.5">{c.message}</p>
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0',
+                          c.passed
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : 'bg-rose-950 text-rose-400 border border-rose-800'
+                        )}
+                      >
+                        {c.passed ? 'Đạt' : 'Chưa đạt'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-stone-800 bg-stone-900 flex items-center justify-between shrink-0">
+              <button
+                onClick={() => setIsChecklistModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                ← Quay lại xem tiếp video
+              </button>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setIsChecklistModalOpen(false);
+                    setIsRejectModalOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Từ chối khóa học
+                </button>
+
+                {checklist.passed ? (
+                  <button
+                    onClick={() => {
+                      setIsChecklistModalOpen(false);
+                      setIsApproveModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer shadow-md transition-all hover:scale-102 flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Duyệt khóa học</span>
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    title="Cần hoàn thiện tất cả tiêu chí checklist để mở quyền phê duyệt"
+                    className="px-4 py-2 rounded-lg bg-stone-800 text-stone-500 border border-stone-700 text-xs font-bold cursor-not-allowed opacity-60 flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Chưa đạt checklist (Không thể duyệt)</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Duyệt Khóa Học */}
       {isApproveModalOpen && (
