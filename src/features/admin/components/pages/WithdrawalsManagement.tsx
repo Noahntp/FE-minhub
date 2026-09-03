@@ -350,6 +350,27 @@ export default function WithdrawalsManagement() {
     }
   };
 
+  // --- Auto-poll status when QR modal is open ---
+  useEffect(() => {
+    if (!markPaidOpen || !activeItem?.id) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetchWithdrawalById(activeItem.id);
+        if (res?.success && res.data?.status === "paid") {
+          toast.success(`Yêu cầu ${res.data.withdrawal_code} đã được MB Bank thanh toán thành công!`);
+          setMarkPaidOpen(false);
+          loadData();
+          if (selectedWithdrawalId === activeItem.id) {
+            setDetail(res.data);
+          }
+        }
+      } catch (e) {
+        // Silent poll error
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [markPaidOpen, activeItem]);
+
   // --- Actions handlers ---
   const handleApprove = async () => {
     if (!activeItem || isSubmitting) return;
@@ -2009,42 +2030,18 @@ export default function WithdrawalsManagement() {
                 </div>
               </div>
 
-              {/* Provider Payout ID input */}
-              <div className="pt-2">
-                <label
-                  htmlFor="provider-payout-id-input"
-                  className="block text-xs font-semibold text-ink mb-1.5"
-                >
-                  Mã tham chiếu / Mã giao dịch ngân hàng sau khi chuyển <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="provider-payout-id-input"
-                  maxLength={255}
-                  value={markPaidTxnId}
-                  onChange={(e) => {
-                    setMarkPaidTxnId(e.target.value);
-                    setMarkPaidError("");
-                  }}
-                  placeholder="Nhập mã giao dịch trên biên lai (VD: FT26090312345678...)"
-                  className="w-full h-9 px-3 text-xs bg-canvas border border-hairline rounded-[6px] focus:outline-none focus:border-ink transition-colors text-ink font-mono placeholder:text-mid-gray/60"
-                />
-                {markPaidError && (
-                  <span className="text-[11px] text-rose-600 font-medium mt-1 block">
-                    {markPaidError}
-                  </span>
-                )}
-                <div className="p-2.5 bg-blue-50/60 border border-blue-200 rounded-[6px] text-[11px] text-blue-900 mt-2 space-y-1">
-                  <p className="font-semibold flex items-center gap-1 text-blue-800">
-                    ⚡ Tự động đối soát qua MB Bank & GPM:
-                  </p>
-                  <p className="text-blue-700 leading-relaxed">
-                    Hệ thống sẽ <strong>tự động chuyển sang trạng thái "Đã thanh toán"</strong> ngay khi tài khoản MB Bank ghi nhận tiền ra và GPM gửi biến động về.
-                  </p>
-                  <p className="text-blue-600/90 text-[10px]">
-                    (Tùy chọn) Bạn cũng có thể nhập mã giao dịch ngân hàng bên trên và bấm nút xác nhận thủ công nếu cần duyệt ngay lập tức.
-                  </p>
+              {/* Auto Reconciliation Banner */}
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-[8px] text-xs text-emerald-950 space-y-1">
+                <div className="flex items-center gap-2 font-bold text-emerald-800">
+                  <div className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </div>
+                  <span>Hệ thống tự động đối soát qua MB Bank & GPM</span>
                 </div>
+                <p className="text-[11px] text-emerald-800/90 leading-relaxed">
+                  Admin chỉ cần mở App MB Bank quét mã QR phía trên và xác nhận chuyển tiền. Trạng thái yêu cầu sẽ <strong>tự động chuyển sang "Đã thanh toán"</strong> ngay khi tiền được gửi đi.
+                </p>
               </div>
 
               {/* Action Buttons */}
@@ -2067,20 +2064,9 @@ export default function WithdrawalsManagement() {
                   <button
                     type="button"
                     onClick={() => setMarkPaidOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold bg-canvas hover:bg-paper border border-hairline rounded-[6px] text-ink transition-colors cursor-pointer"
+                    className="px-5 py-2 text-xs font-semibold bg-ink text-paper hover:bg-ink/90 rounded-[6px] transition-colors cursor-pointer shadow-sm"
                   >
                     Đóng
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={handleMarkPaid}
-                    className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-[6px] transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
-                  >
-                    {isSubmitting && (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    )}
-                    <span>Xác nhận đã chuyển tiền</span>
                   </button>
                 </div>
               </div>
