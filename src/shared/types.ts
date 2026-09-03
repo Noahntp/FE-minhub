@@ -169,6 +169,10 @@ export interface Course {
   discountPercent?: number | null;
   has_discount?: boolean;
   hasDiscount?: boolean;
+  campaign_type?: 'discount' | 'trial' | null;
+  has_trial?: boolean;
+  hasTrial?: boolean;
+  isTrial?: boolean;
   rating: number;
   reviewCount: number;
   enrolledCount: number;

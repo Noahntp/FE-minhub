@@ -43,6 +43,8 @@ import { CourseDetailSkeleton } from "./components/CourseDetailSkeleton";
 import {
   HomeCourseCard,
   HomeCourseItem,
+  isCourseTrialEligible,
+  isPermanentFreeCourse,
 } from "@/features/home/components/HomeCourseCard";
 import { toast } from "sonner";
 import { apiFetch } from "@/shared/lib/api-client";
@@ -195,7 +197,7 @@ export default function CourseDetailPage() {
   >({ 0: true, 1: true });
 
   const isEnrolled = Boolean(
-    currentUser &&
+    isLoggedIn &&
     ((course as any)?.is_enrolled ||
       (course as any)?.isEnrolled ||
       enrolledCourseIds.some(
@@ -441,10 +443,11 @@ export default function CourseDetailPage() {
       );
       return;
     }
-    const isFreeCourse = Boolean(
-      (course as any).isFree || Number(course.price || 0) === 0,
-    );
-    if (isFreeCourse) {
+
+    const isTrial = isCourseTrialEligible(course);
+    const isFree = isPermanentFreeCourse(course);
+
+    if (isTrial) {
       const numericTargetId = Number(course.id) || (course as any).realId;
       if (numericTargetId && !isNaN(numericTargetId)) {
         try {
@@ -456,18 +459,24 @@ export default function CourseDetailPage() {
             setEnrolledCourseIds([...enrolledCourseIds, course.id]);
           }
           toast.success(
-            "Đăng ký tham gia khóa học miễn phí thành công! Bắt đầu học ngay.",
+            "Đăng ký học thử khóa học thành công! Bắt đầu học ngay.",
           );
           navigate(`/learn/${course.id}`);
           return;
         } catch (err: any) {
-          toast.error(err?.message || 'Không thể ghi danh khóa học miễn phí lúc này.');
+          toast.error(err?.message || 'Không thể đăng ký học thử lúc này.');
           return;
         }
       }
       navigate(`/learn/${course.id}`);
       return;
     }
+
+    if (isFree) {
+      toast.info('Khóa học miễn phí đang được đồng bộ cổng ghi danh tự động trên hệ thống. Bạn có thể xem trước các bài học mở bên dưới.');
+      return;
+    }
+
     if (!cart.includes(course.id)) {
       setCart([...cart, course.id]);
     }
@@ -774,19 +783,34 @@ export default function CourseDetailPage() {
 
                 {/* Price Display */}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-black text-slate-900">
-                    {course.price === 0
-                      ? "Miễn phí"
-                      : new Intl.NumberFormat("vi-VN").format(course.price) +
-                        "đ"}
-                  </span>
-                  {course.salePrice && (
-                    <span className="text-sm text-slate-400 line-through">
-                      {new Intl.NumberFormat("vi-VN").format(
-                        course.originalPrice || Math.round(course.price * 1.4),
+                  {isCourseTrialEligible(course) ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-black text-emerald-600">0đ</span>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                        Học thử miễn phí
+                      </span>
+                    </div>
+                  ) : isPermanentFreeCourse(course) ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-black text-emerald-600">0đ</span>
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                        Miễn phí
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-black text-slate-900">
+                        {new Intl.NumberFormat("vi-VN").format(course.price) + "đ"}
+                      </span>
+                      {course.salePrice && (
+                        <span className="text-sm text-slate-400 line-through">
+                          {new Intl.NumberFormat("vi-VN").format(
+                            course.originalPrice || Math.round(course.price * 1.4),
+                          )}
+                          đ
+                        </span>
                       )}
-                      đ
-                    </span>
+                    </>
                   )}
                 </div>
 
@@ -866,16 +890,16 @@ export default function CourseDetailPage() {
                         onClick={handleEnrollNow}
                         className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
                       >
-                        {(course as any).isFree ||
-                        Number(course.price || 0) === 0 ? (
+                        {isCourseTrialEligible(course) || isPermanentFreeCourse(course) ? (
                           <PlayCircle className="w-4 h-4" />
                         ) : (
                           <ShoppingCart className="w-4 h-4" />
                         )}
                         <span>
-                          {(course as any).isFree ||
-                          Number(course.price || 0) === 0
-                            ? "Tham gia ngay"
+                          {isCourseTrialEligible(course)
+                            ? "Đăng ký học thử khóa học"
+                            : isPermanentFreeCourse(course)
+                            ? "Khóa học miễn phí"
                             : "Mua ngay"}
                         </span>
                       </button>
@@ -892,7 +916,7 @@ export default function CourseDetailPage() {
                         className="w-full py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-xs flex items-center justify-center gap-2 border border-emerald-200 transition-all cursor-pointer"
                       >
                         <PlayCircle className="w-4 h-4 text-emerald-600" />
-                        <span>Học thử bài giảng miễn phí</span>
+                        <span>Xem trước bài giảng mẫu</span>
                       </button>
                     </>
                   )}
