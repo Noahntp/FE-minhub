@@ -4035,9 +4035,9 @@ Hãy viết một hàm đệ quy để giải quyết bài toán lồng thư m�
           if (totalLessons > 0 && !hasInvalidVideoLesson) completedItems.push('Bài học hoàn chỉnh');
           if (hasFreePreview) completedItems.push('Học thử miễn phí (Preview)');
 
-          const totalChecks = 9;
-          const passedChecks = Math.max(0, totalChecks - missingItems.length);
-          const checklistProgress = missingItems.length === 0 ? 100 : Math.min(95, Math.round((passedChecks / totalChecks) * 100));
+          const totalChecks = Math.max(1, missingItems.length + completedItems.length);
+          const passedChecks = completedItems.length;
+          const checklistProgress = missingItems.length === 0 ? 100 : Math.min(99, Math.round((passedChecks / totalChecks) * 100));
 
           const handleSaveDraft = async () => {
             if (!title.trim()) {
