@@ -47,7 +47,6 @@ import {
 import { toast } from "sonner";
 import { apiFetch } from "@/shared/lib/api-client";
 import { semanticSearchApi } from "@/services/api";
-import { resolveMediaUrl as resolveMediaUrlAlt } from "@/shared/lib/media-url";
 
 // Mock chapters matching design
 const mockChapters = [
