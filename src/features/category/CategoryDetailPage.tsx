@@ -10,6 +10,7 @@ import { HomeCourseCard, HomeCourseItem } from '@/features/home/components/HomeC
 import { EmptyState } from '@/shared/components/ui/EmptyState';
 import { apiFetch } from '@/shared/lib/api-client';
 import { resolveMediaUrl } from '@/shared/utils/format';
+import { INITIAL_COURSES } from '@/shared/data';
 
 const CATEGORY_SLUG_ALIAS: Record<string, string> = {
   'ai-data': 'ai-va-du-lieu',
@@ -242,6 +243,12 @@ export default function CategoryDetailPage() {
         let coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(dbSlug)}&sort=${sortParam}`).catch(() => null);
         rawCourses = extractList(coursesRes);
 
+        // Secondary fallback query using categories=dbSlug
+        if (rawCourses.length === 0) {
+          coursesRes = await apiFetch<any>(`/courses?categories=${encodeURIComponent(dbSlug)}&sort=${sortParam}`).catch(() => null);
+          rawCourses = extractList(coursesRes);
+        }
+
         // Secondary fallback query using original slug if dbSlug was different
         if (rawCourses.length === 0 && dbSlug !== slug) {
           coursesRes = await apiFetch<any>(`/courses?category_slug=${encodeURIComponent(slug)}&sort=${sortParam}`).catch(() => null);
@@ -254,8 +261,24 @@ export default function CategoryDetailPage() {
           rawCourses = extractList(coursesRes);
         }
 
+        // Try querying by category title keyword
+        if (rawCourses.length === 0 && meta.title) {
+          coursesRes = await apiFetch<any>(`/courses?query=${encodeURIComponent(meta.title)}&sort=${sortParam}`).catch(() => null);
+          rawCourses = extractList(coursesRes);
+        }
+
         if (isMounted) {
-          setCourses(rawCourses.map(mapApiCourseToHomeCourseItem));
+          if (rawCourses.length > 0) {
+            setCourses(rawCourses.map(mapApiCourseToHomeCourseItem));
+          } else {
+            // Fallback to client catalog search
+            const catName = (meta.title || '').toLowerCase();
+            const fallbackMatched = INITIAL_COURSES.filter((c: any) => 
+              (c.category && c.category.toLowerCase().includes(catName)) ||
+              (c.title && c.title.toLowerCase().includes(catName))
+            ).map(mapApiCourseToHomeCourseItem);
+            setCourses(fallbackMatched);
+          }
         }
       } catch (err) {
         console.warn('Unable to load courses for category from Backend API', err);

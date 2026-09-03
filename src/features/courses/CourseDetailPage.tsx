@@ -666,7 +666,25 @@ export default function CourseDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Cột trái (5 cols): Video Preview Box */}
             <div className="lg:col-span-4">
-              <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 shadow-xl group border border-slate-200">
+              <div 
+                onClick={() => {
+                  const introVideo = (course as any).intro_video_url || (course as any).video_url || (course as any).preview_video_url;
+                  const previewLesson = ((course as any).curriculum || displayChapters || [])
+                    .flatMap((c: any) => c.lessons || [])
+                    .find((l: any) => l.is_preview || l.is_free_preview || l.isPreview);
+
+                  openTrialModal({
+                    id: previewLesson ? String(previewLesson.id) : 'intro-' + course.id,
+                    title: previewLesson ? `Xem thử: ${previewLesson.title}` : `Video giới thiệu: ${course.title}`,
+                    duration: previewLesson?.duration || '12:30',
+                    videoUrl: previewLesson?.videoUrl || previewLesson?.video_url || introVideo || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                    courseTitle: course.title,
+                    courseId: course.slug || course.id,
+                    instructorName: course.instructorName
+                  });
+                }}
+                className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-900 shadow-xl group border border-slate-200 cursor-pointer"
+              >
                 <img
                   src={
                     course.image ||
@@ -1223,9 +1241,10 @@ export default function CourseDetailPage() {
                                   type="button"
                                   onClick={() =>
                                     openTrialModal({
-                                      id: lesson.id,
+                                      id: String(lesson.id),
                                       title: lesson.title,
                                       duration: lesson.duration || "10:00",
+                                      videoUrl: lesson.videoUrl || lesson.video_url || lesson.stream_url || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
                                       courseTitle: course.title,
                                       courseId: course.slug || course.id,
                                       instructorName: course.instructorName,

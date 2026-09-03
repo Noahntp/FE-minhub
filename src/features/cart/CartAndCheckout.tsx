@@ -19,6 +19,8 @@ import {
   BookOpen,
   Award,
   Loader2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { Course, Order, Coupon } from '@/shared/types';
 import { safeLocalStorage as localStorage } from '@/shared/utils/safeStorage';
@@ -321,10 +323,11 @@ export default function CartAndCheckout({
     transfer_content: string;
     qr_url: string;
   } | null>(null);
-  // Flow phase: 'form' (Bước 1) | 'payment_pending' (Bước 2: Chờ chuyển khoản) | 'success' (Bước 3: Hoàn tất)
   const [phase, setPhase] = useState<'form' | 'payment_pending' | 'success'>('form');
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancelingOrder, setIsCancelingOrder] = useState(false);
 
   // Restore pending order on mount if student already created an order
   useEffect(() => {
@@ -477,21 +480,32 @@ export default function CartAndCheckout({
     }
   };
 
-  const handleCancelPendingOrder = async () => {
+  const handleCancelPendingOrder = () => {
     if (!sepayData?.order_id) {
       setPhase('form');
       localStorage.removeItem('mindhub_pending_order');
       return;
     }
-    const confirmed = window.confirm('Bạn có chắc muốn hủy đơn hàng này để chọn phương thức thanh toán hoặc khóa học khác?');
-    if (!confirmed) return;
+    setShowCancelModal(true);
+  };
 
+  const handleConfirmCancelPendingOrder = async () => {
+    if (!sepayData?.order_id) {
+      setShowCancelModal(false);
+      setPhase('form');
+      localStorage.removeItem('mindhub_pending_order');
+      return;
+    }
+
+    setIsCancelingOrder(true);
     try {
       await apiFetch<any>(`/orders/${sepayData.order_id}/cancel`, { method: 'PATCH' });
       toast.info('Đã hủy đơn hàng chờ thanh toán.');
     } catch (e) {
       // ignore
     } finally {
+      setIsCancelingOrder(false);
+      setShowCancelModal(false);
       localStorage.removeItem('mindhub_pending_order');
       setSepayData(null);
       setPhase('form');
@@ -1661,7 +1675,65 @@ export default function CartAndCheckout({
           </div>
         )}
 
+        {/* 5. WEB CONFIRMATION MODAL CHO HỦY THANH TOÁN */}
+        {showCancelModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="relative w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-5 text-center">
+              
+              {/* Close Button */}
+              <button
+                onClick={() => !isCancelingOrder && setShowCancelModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
+              {/* Warning Icon Badge */}
+              <div className="w-16 h-16 rounded-full bg-rose-50 text-rose-600 border-4 border-rose-100 flex items-center justify-center mx-auto shadow-inner">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+
+              {/* Modal Text Content */}
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                  Xác nhận hủy đơn hàng?
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                  Bạn có chắc chắn muốn hủy đơn hàng đang chờ thanh toán này để chọn phương thức thanh toán khác hoặc đổi khóa học không?
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={isCancelingOrder}
+                  className="w-full py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+                >
+                  Giữ đơn hàng
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmCancelPendingOrder}
+                  disabled={isCancelingOrder}
+                  className="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/20 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isCancelingOrder ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Đang hủy...</span>
+                    </>
+                  ) : (
+                    <span>Xác nhận hủy</span>
+                  )}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

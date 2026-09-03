@@ -158,22 +158,35 @@ export function TrialPreviewModal() {
           {/* Left / Top: Video Player & Details */}
           <div className="lg:col-span-8 p-5 space-y-4 bg-slate-950 flex flex-col">
 
-            {/* HTML5 Video Player */}
+            {/* Video Player: Direct MP4/HLS vs Embed Iframe */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl flex items-center justify-center">
               {videoSrc ? (
-                <video
-                  ref={videoRef}
-                  key={videoSrc}
-                  controls
-                  autoPlay
-                  playsInline
-                  onError={handleVideoError}
-                  className="w-full h-full object-contain bg-black"
-                  poster="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80"
-                >
-                  <source src={videoSrc} type="video/mp4" />
-                  Trình duyệt của bạn không hỗ trợ phát video HTML5.
-                </video>
+                videoSrc.includes('iframe.mediadelivery.net') ||
+                videoSrc.includes('mediadelivery.net/embed') ||
+                videoSrc.includes('youtube.com/embed') ||
+                videoSrc.includes('player.vimeo.com') ? (
+                  <iframe
+                    src={videoSrc}
+                    title={currentLesson?.title || 'Video xem thử'}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    key={videoSrc}
+                    controls
+                    autoPlay
+                    playsInline
+                    onError={handleVideoError}
+                    className="w-full h-full object-contain bg-black"
+                    poster="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&q=80"
+                  >
+                    <source src={videoSrc} type="video/mp4" />
+                    Trình duyệt của bạn không hỗ trợ phát video HTML5.
+                  </video>
+                )
               ) : (
                 <div className="flex items-center gap-2 text-slate-400 text-xs">
                   <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />

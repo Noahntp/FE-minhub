@@ -336,6 +336,15 @@ export default function CourseListPage() {
   useEffect(() => {
     setIsCoursesLoading(true);
     const params = new URLSearchParams();
+    const hasFilter = Boolean(
+      activeSearch.trim() ||
+      selectedCategories.length > 0 ||
+      selectedLevels.length > 0 ||
+      (selectedPriceType && selectedPriceType !== 'all') ||
+      selectedMinRating !== null ||
+      selectedDurations.length > 0
+    );
+
     if (activeSearch.trim()) {
       params.set('query', activeSearch.trim());
       params.set('search', activeSearch.trim());
@@ -350,28 +359,37 @@ export default function CourseListPage() {
         Intermediate: 'intermediate',
         Advanced: 'advanced',
       };
-      params.set('level', lvlMap[selectedLevels[0]] || 'all_levels');
+      const lvl = lvlMap[selectedLevels[0]] || 'all_levels';
+      params.set('course_level', lvl);
+      params.set('level', lvl);
     }
 
-    if (selectedPriceType && selectedPriceType !== 'all') {
-      params.set('priceType', selectedPriceType);
+    if (selectedPriceType === 'free') {
+      params.set('priceType', 'free');
+      params.set('min_price', '0');
+      params.set('max_price', '0');
+    } else if (selectedPriceType === 'paid') {
+      params.set('priceType', 'paid');
+      params.set('min_price', '1');
     }
+
     if (selectedMinRating) {
       params.set('minRating', String(selectedMinRating));
     }
 
     const sortMap: Record<string, string> = {
-      newest: 'newest',
+      newest: 'latest',
       popular: 'popular',
-      'highest-rated': 'highest-rated',
-      'lowest-price': 'lowest-price',
-      'highest-price': 'highest-price',
+      'highest-rated': 'rating_desc',
+      'lowest-price': 'price_asc',
+      'highest-price': 'price_desc',
     };
-    params.set('sortBy', sortMap[sortBy] || 'newest');
-    params.set('sort', sortMap[sortBy] || 'newest');
+    const sortVal = sortMap[sortBy] || 'latest';
+    params.set('sortBy', sortVal);
+    params.set('sort', sortVal);
     params.set('page', String(currentPage));
-    params.set('per_page', '9');
-    params.set('limit', '9');
+    params.set('per_page', '12');
+    params.set('limit', '12');
 
     apiFetch<any>(`/courses?${params.toString()}`)
       .then((res) => {
@@ -389,9 +407,9 @@ export default function CourseListPage() {
             const originalPrice = rawSalePrice !== undefined && rawSalePrice < rawPrice ? rawPrice : (item.originalPrice ? Number(item.originalPrice) : undefined);
 
             let levelLabel: 'Cơ bản' | 'Trung cấp' | 'Nâng cao' | 'Mọi trình độ' = 'Cơ bản';
-            if (item.level === 'intermediate' || item.level === 'Trung cấp') levelLabel = 'Trung cấp';
-            if (item.level === 'advanced' || item.level === 'Nâng cao') levelLabel = 'Nâng cao';
-            if (item.level === 'all_levels' || item.level === 'Mọi trình độ') levelLabel = 'Mọi trình độ';
+            if (item.level === 'intermediate' || item.level === 'Trung cấp' || item.course_level === 'intermediate') levelLabel = 'Trung cấp';
+            if (item.level === 'advanced' || item.level === 'Nâng cao' || item.course_level === 'advanced') levelLabel = 'Nâng cao';
+            if (item.level === 'all_levels' || item.level === 'Mọi trình độ' || item.course_level === 'all_levels') levelLabel = 'Mọi trình độ';
 
             return {
               id: String(item.slug || item.id),
@@ -414,34 +432,22 @@ export default function CourseListPage() {
               originalPrice: originalPrice,
               discountBadge: originalPrice && originalPrice > finalPrice ? `-${Math.round(((originalPrice - finalPrice) / originalPrice) * 100)}%` : undefined,
               isHot: Boolean(item.is_featured || item.isHot),
-              durationSeconds: Number(item.total_duration_seconds || 0),
+              durationSeconds: Number(item.total_duration_seconds || 36000),
             };
           });
 
-          // Merge API courses with all rich catalog courses without duplicates
-          const apiTitles = new Set(mapped.map((c) => c.title.toLowerCase().trim()));
-          const supplementary = ALL_COURSES_DATA.filter(
-            (c) => !apiTitles.has(c.title.toLowerCase().trim())
-          ).map((c) => ({
-            ...c,
-            durationSeconds: 36000,
-          }));
-          const combined = [...mapped, ...supplementary];
-
-          // Local price filter
-          let filtered = combined;
+          // Apply client-side refining if needed
+          let filtered = mapped;
           if (selectedPriceType === 'free') {
             filtered = filtered.filter((c) => c.price === 0);
           } else if (selectedPriceType === 'paid') {
             filtered = filtered.filter((c) => c.price > 0);
           }
 
-          // Local min rating filter
           if (selectedMinRating !== null) {
             filtered = filtered.filter((c) => c.rating >= selectedMinRating);
           }
 
-          // Duration Filter
           if (selectedDurations.length > 0) {
             filtered = filtered.filter((c) => {
               const hours = (c.durationSeconds || 0) / 3600;
@@ -455,28 +461,44 @@ export default function CourseListPage() {
             });
           }
 
-          // Local search filter if searched
-          if (activeSearch.trim()) {
-            const q = activeSearch.toLowerCase().trim();
-            filtered = filtered.filter((c) =>
-              c.title.toLowerCase().includes(q) ||
-              c.instructorName.toLowerCase().includes(q)
-            );
-          }
-
           setApiCourses(filtered);
-          setTotalResults(filtered.length);
-          setTotalPagesCount(Math.max(1, Math.ceil(filtered.length / 9)));
+          const totalCount = res?.data?.totalItems || res?.total || filtered.length;
+          setTotalResults(totalCount);
+          setTotalPagesCount(Math.max(1, Math.ceil(totalCount / 12)));
         } else {
-          setApiCourses(ALL_COURSES_DATA);
-          setTotalResults(ALL_COURSES_DATA.length);
-          setTotalPagesCount(Math.max(1, Math.ceil(ALL_COURSES_DATA.length / 9)));
+          // If no filters applied, use default catalog; if filters applied, show 0 results
+          if (!hasFilter) {
+            setApiCourses(ALL_COURSES_DATA);
+            setTotalResults(ALL_COURSES_DATA.length);
+            setTotalPagesCount(Math.max(1, Math.ceil(ALL_COURSES_DATA.length / 12)));
+          } else {
+            setApiCourses([]);
+            setTotalResults(0);
+            setTotalPagesCount(1);
+          }
         }
       })
       .catch(() => {
-        setApiCourses([]);
-        setTotalResults(0);
-        setTotalPagesCount(1);
+        // Pure client-side filtering fallback on ALL_COURSES_DATA
+        let filtered = [...ALL_COURSES_DATA];
+        if (activeSearch.trim()) {
+          const q = activeSearch.toLowerCase().trim();
+          filtered = filtered.filter(c => c.title.toLowerCase().includes(q) || c.instructorName.toLowerCase().includes(q));
+        }
+        if (selectedLevels.length > 0) {
+          filtered = filtered.filter(c => selectedLevels.includes(c.level));
+        }
+        if (selectedPriceType === 'free') {
+          filtered = filtered.filter(c => c.price === 0);
+        } else if (selectedPriceType === 'paid') {
+          filtered = filtered.filter(c => c.price > 0);
+        }
+        if (selectedMinRating !== null) {
+          filtered = filtered.filter(c => c.rating >= selectedMinRating);
+        }
+        setApiCourses(filtered);
+        setTotalResults(filtered.length);
+        setTotalPagesCount(Math.max(1, Math.ceil(filtered.length / 12)));
       })
       .finally(() => {
         setIsCoursesLoading(false);
