@@ -360,7 +360,7 @@ export function HomeCourseCard({
               <div className="flex items-center justify-between text-[11px]">
                 <span className="flex items-center gap-1.5 font-bold text-slate-700">
                   <GraduationCap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>{isEnrolled ? 'Tiến độ học tập của bạn' : 'Tiến độ hoàn thành'}</span>
+                  <span>{isEnrolled ? 'Tiến độ học tập của bạn' : 'Tỉ lệ hoàn thành khóa học'}</span>
                 </span>
                 <span className="font-black text-emerald-700 bg-emerald-100/90 px-1.5 py-0.5 rounded text-[11px]">
                   {completionRate ?? 0}%

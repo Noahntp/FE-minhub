@@ -67,7 +67,9 @@ export function mapApiCourseToHomeCourseItem(c: any): HomeCourseItem {
   const avgProgress = Number(c.progress_percent ?? c.average_progress_percent ?? 0);
 
   let completionRate: number | undefined = undefined;
-  if (c.progress_percent !== undefined && c.progress_percent !== null) {
+  if (c.user_progress_percent !== undefined && c.user_progress_percent !== null) {
+    completionRate = Number(c.user_progress_percent);
+  } else if (c.progress_percent !== undefined && c.progress_percent !== null) {
     completionRate = Number(c.progress_percent);
   } else if (c.completion_rate !== undefined && c.completion_rate !== null) {
     completionRate = Number(c.completion_rate);
@@ -78,6 +80,7 @@ export function mapApiCourseToHomeCourseItem(c: any): HomeCourseItem {
   }
 
   return {
+    is_enrolled: Boolean(c.is_enrolled),
     id: String(c.id || c.slug),
     realId: typeof c.id === 'number' ? c.id : (!isNaN(Number(c.id)) ? Number(c.id) : undefined),
     title: c.title || 'Khóa học chưa có tên',

@@ -106,8 +106,8 @@ export interface Assignment {
 export interface Lesson {
   id: number | string;
   title: string;
-  type: 'video' | 'quiz' | 'assignment' | 'doc';
-  lesson_type?: 'video' | 'quiz' | 'assignment' | 'doc';
+  type: 'video' | 'quiz' | 'assignment' | 'doc' | 'document' | 'text';
+  lesson_type?: 'video' | 'quiz' | 'assignment' | 'doc' | 'document' | 'text';
   duration: string; // e.g. "12:30" or "5 Qs"
   video_duration_seconds?: number;
   videoUrl?: string;
