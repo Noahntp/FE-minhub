@@ -499,6 +499,11 @@ async submitCourseToAdminVerification(id: string | number): Promise<any> {
             });
   },
 
+  async getLessonTypes(): Promise<any> {
+    devLog('Instructor', 'Get lesson types');
+    return apiFetch<any>('/instructor/lesson-types');
+  },
+
 async createSection(payload: any): Promise<any> {
     devLog('Instructor', 'Create section', payload);
     return apiFetch<any>('/instructor/sections', {

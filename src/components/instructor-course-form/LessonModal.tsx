@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { X, Video, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import { InstructorVideoUploader } from './InstructorUploaders';
+import { X, Video, FileText, CheckCircle, Clock, AlertCircle, File, AlignLeft } from 'lucide-react';
+import { InstructorVideoUploader, InstructorAssetUploader } from './InstructorUploaders';
+import { instructorApi } from '@/features/instructor/api';
 import { 
   formatDuration, 
   parseDurationToSeconds, 
   generateSlug 
 } from '@/shared/utils/format';
+
+export interface LessonTypeItem {
+  key: string;
+  name: string;
+  description: string;
+  icon?: string;
+  file_accept?: string;
+  hint?: string;
+}
+
+const DEFAULT_LESSON_TYPES: LessonTypeItem[] = [
+  { key: 'video', name: 'Video bài giảng', description: 'Tải lên video MP4/MOV hoặc liên kết bài giảng' },
+  { key: 'document', name: 'Tài liệu học tập (Doc/PDF/Slide)', description: 'Đính kèm tài liệu học tập, PDF, Slide bài giảng' },
+  { key: 'text', name: 'Bài đọc lý thuyết (Text)', description: 'Nội dung bài viết hướng dẫn chi tiết qua văn bản' },
+];
 
 interface LessonModalProps {
   isOpen: boolean;
@@ -13,24 +29,26 @@ interface LessonModalProps {
   onSave: (payload: {
     title: string;
     slug: string;
-    lesson_type: 'video' | 'doc';
+    lesson_type: string;
     content: string;
     video_url: string;
     video_duration_seconds: number;
     is_preview: boolean;
     status: string;
     sort_order: number;
+    resources?: any[];
   }) => void;
   initialData?: {
     title: string;
     slug: string;
-    lesson_type: 'video' | 'doc';
+    lesson_type: string;
     content: string;
     video_url: string;
     video_duration_seconds: number;
     is_preview: boolean;
     status: string;
     sort_order: number;
+    resources?: any[];
   } | null;
 }
 
@@ -40,9 +58,11 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
   const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
   const [slugError, setSlugError] = useState<string | null>(null);
 
-  const [lessonType, setLessonType] = useState<'video' | 'doc'>('video');
+  const [availableTypes, setAvailableTypes] = useState<LessonTypeItem[]>(DEFAULT_LESSON_TYPES);
+  const [lessonType, setLessonType] = useState<string>('video');
   const [content, setContent] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [attachedAssets, setAttachedAssets] = useState<any[]>([]);
   const [durationSeconds, setDurationSeconds] = useState<number>(0);
   const [durationStr, setDurationStr] = useState<string>('00:00');
   const [isDurationAuto, setIsDurationAuto] = useState<boolean>(false);
@@ -51,6 +71,22 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
   const [isPreview, setIsPreview] = useState(false);
   const [status, setStatus] = useState('active');
   const [sortOrder, setSortOrder] = useState(1);
+
+  // Load dynamic lesson types from Backend API
+  useEffect(() => {
+    let mounted = true;
+    instructorApi.getLessonTypes()
+      .then((res: any) => {
+        const types = res?.data || res;
+        if (mounted && Array.isArray(types) && types.length > 0) {
+          setAvailableTypes(types);
+        }
+      })
+      .catch(() => {
+        // Fallback to default types if offline
+      });
+    return () => { mounted = false; };
+  }, []);
 
   // Complete reset or populate state when modal opens or initialData changes
   useEffect(() => {
@@ -63,9 +99,11 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
       setSlug(loadedSlug);
       setIsSlugManuallyEdited(!!initialData.slug);
       
-      setLessonType(initialData.lesson_type || 'video');
+      const rawType = initialData.lesson_type === 'doc' ? 'text' : (initialData.lesson_type || 'video');
+      setLessonType(rawType);
       setContent(initialData.content || '');
       setVideoUrl(initialData.video_url || '');
+      setAttachedAssets(initialData.resources || []);
       
       const seconds = initialData.video_duration_seconds || 0;
       setDurationSeconds(seconds);
@@ -78,7 +116,7 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
       setStatus(initialData.status || 'active');
       setSortOrder(initialData.sort_order || 1);
     } else {
-      // Complete reset for Create Lesson Mode
+      // Reset for Create Lesson Mode
       setTitle('');
       setSlug('');
       setIsSlugManuallyEdited(false);
@@ -86,6 +124,7 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
       setLessonType('video');
       setContent('');
       setVideoUrl('');
+      setAttachedAssets([]);
       setDurationSeconds(0);
       setDurationStr('00:00');
       setIsDurationAuto(false);
@@ -156,7 +195,7 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
   const isSubmitDisabled = isReadingMetadata || !title.trim() || (
     lessonType === 'video' 
       ? (!videoUrl || !videoUrl.trim() || videoUrl.startsWith('blob:') || durationSeconds <= 0 || !!metadataError)
-      : false
+      : (lessonType === 'document' ? (!videoUrl && attachedAssets.length === 0 && !content.trim()) : !content.trim())
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -179,7 +218,8 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
       video_duration_seconds: lessonType === 'video' ? finalSeconds : 0,
       is_preview: isPreview,
       status,
-      sort_order: sortOrder
+      sort_order: sortOrder,
+      resources: attachedAssets,
     });
   };
 
@@ -228,21 +268,24 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
               <label className="block text-[10.5px] font-bold text-stone-600 mb-1">Loại bài học</label>
               <select 
                 value={lessonType} 
-                onChange={(e) => setLessonType(e.target.value as any)}
+                onChange={(e) => setLessonType(e.target.value)}
                 className="w-full text-[11px] font-semibold text-stone-700 border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none cursor-pointer"
               >
-                <option value="video">Video bài giảng</option>
-                <option value="doc">Bài đọc lý thuyết (HTML/Markdown)</option>
+                {availableTypes.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.name}
+                  </option>
+                ))}
               </select>
             </div>
-            {lessonType === 'video' && (
+            {lessonType === 'video' ? (
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1">
                   <label className="text-[10.5px] font-bold text-stone-600 whitespace-nowrap">Thời lượng</label>
                   {isDurationAuto && durationSeconds > 0 && !!videoUrl && (
                     <span className="inline-flex items-center gap-1 whitespace-nowrap text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
                       <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" />
-                      Tự động lấy từ video
+                      Tự động từ video
                     </span>
                   )}
                 </div>
@@ -260,6 +303,13 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
                 />
                 <p className="text-[9.5px] text-stone-400 font-medium mt-1">
                   {isDurationAuto && durationSeconds > 0 && !!videoUrl ? 'Đã tự động đọc từ video' : 'Định dạng mm:ss hoặc hh:mm:ss'}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col justify-center">
+                <span className="text-[10.5px] font-bold text-stone-600 mb-1">Định dạng hỗ trợ</span>
+                <p className="text-[10px] text-stone-500 font-medium">
+                  {lessonType === 'document' ? 'Tài liệu PDF, DOCX, Slide bài giảng' : 'Văn bản hướng dẫn / Markdown / HTML'}
                 </p>
               </div>
             )}
@@ -284,15 +334,47 @@ export default function LessonModal({ isOpen, onClose, onSave, initialData }: Le
             </div>
           )}
 
-          {/* Conditional Input for Doc */}
-          {lessonType === 'doc' && (
+          {/* Conditional Input for Document */}
+          {lessonType === 'document' && (
+            <div className="space-y-3 p-3 bg-slate-50 rounded-xl border">
+              <label className="block text-[10.5px] font-bold text-stone-700">Tải lên tài liệu học tập (PDF, DOCX, ZIP, Slide)</label>
+              <InstructorAssetUploader 
+                onAssetUploaded={(asset) => {
+                  setAttachedAssets(prev => [...prev, asset]);
+                  if (!videoUrl) setVideoUrl(asset.file_url);
+                }}
+                label="Tải tài liệu đính kèm"
+              />
+              {attachedAssets.length > 0 && (
+                <div className="space-y-1 mt-2">
+                  <span className="text-[10px] font-bold text-stone-600">Tài liệu đã tải lên ({attachedAssets.length}):</span>
+                  {attachedAssets.map((ast, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-white rounded-lg border text-[10px]">
+                      <span className="font-bold text-stone-700 truncate">{ast.file_name || ast.title}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setAttachedAssets(prev => prev.filter((_, i) => i !== idx))}
+                        className="text-rose-500 hover:underline font-bold"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Conditional Input for Text */}
+          {lessonType === 'text' && (
             <div>
-              <label className="block text-[10.5px] font-bold text-stone-600 mb-1">Nội dung bài viết (Markdown/HTML)</label>
+              <label className="block text-[10.5px] font-bold text-stone-600 mb-1">Nội dung bài viết (Markdown/HTML) *</label>
               <textarea 
                 rows={6} 
+                required
                 value={content} 
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Nhập nội dung bài viết hướng dẫn..."
+                placeholder="Nhập nội dung bài viết hướng dẫn chi tiết..."
                 className="w-full text-[11px] font-medium text-stone-700 border border-slate-200 rounded-xl p-2.5 bg-slate-50/20 focus:outline-none"
               />
             </div>

@@ -9,7 +9,7 @@ import SectionModal from './SectionModal';
 import LessonModal from './LessonModal';
 import AssetModal from './AssetModal';
 import LessonPreviewModal from './LessonPreviewModal';
-import { InstructorVideoUploader } from './InstructorUploaders';
+import { InstructorVideoUploader, InstructorAssetUploader } from './InstructorUploaders';
 import { sharedApi } from '@/features/shared/api';
 import { instructorApi } from '@/features/instructor/api';
 import { 
@@ -833,7 +833,21 @@ export default function CourseCurriculumStep({
                   </div>
                 </div>
 
-                {/* 2. Đường dẫn bài học (slug) */}
+                {/* 2. Loại bài học */}
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold text-stone-600">Loại bài học</label>
+                  <select 
+                    value={lessonDraft.lesson_type || 'video'} 
+                    onChange={(e) => handleUpdateDraftField('lesson_type', e.target.value)}
+                    className="w-full text-[10.5px] font-semibold text-stone-700 border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="video">Video bài giảng</option>
+                    <option value="document">Tài liệu học tập (Doc/PDF/Slide)</option>
+                    <option value="text">Bài đọc lý thuyết (Text)</option>
+                  </select>
+                </div>
+
+                {/* 3. Đường dẫn bài học (slug) */}
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold text-stone-600">Đường dẫn bài học (slug)</label>
                   <input 
@@ -848,25 +862,27 @@ export default function CourseCurriculumStep({
                   />
                 </div>
 
-                {/* 3. Mô tả bài học */}
+                {/* 4. Mô tả / Nội dung bài học */}
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold text-stone-600">Mô tả bài học</label>
+                  <label className="block text-[10px] font-bold text-stone-600">
+                    {lessonDraft.lesson_type === 'text' ? 'Nội dung bài viết (Markdown/HTML) *' : 'Mô tả bài học'}
+                  </label>
                   <div className="relative">
                     <textarea 
-                      rows={4}
-                      maxLength={500}
+                      rows={lessonDraft.lesson_type === 'text' ? 7 : 4}
+                      maxLength={lessonDraft.lesson_type === 'text' ? 5000 : 500}
                       value={lessonDraft.content}
                       onChange={(e) => handleUpdateDraftField('content', e.target.value)}
-                      placeholder="Mô tả tóm tắt nội dung bài học..."
+                      placeholder={lessonDraft.lesson_type === 'text' ? "Soạn thảo nội dung bài viết hướng dẫn chi tiết..." : "Mô tả tóm tắt nội dung bài học..."}
                       className="w-full text-[10.5px] font-medium text-stone-700 border border-slate-200 rounded-xl p-3 bg-slate-50/15 focus:outline-none focus:border-emerald-500"
                     />
                     <span className="absolute right-3.5 bottom-2.5 text-[8.5px] text-stone-400 font-bold">
-                      {lessonDraft.content ? lessonDraft.content.length : 0}/500
+                      {lessonDraft.content ? lessonDraft.content.length : 0}/{lessonDraft.lesson_type === 'text' ? 5000 : 500}
                     </span>
                   </div>
                 </div>
 
-                {/* 4. Tải lên video bài học (File Upload Duy Nhất) */}
+                {/* 5. Tải lên video bài học (File Upload Duy Nhất cho Video) */}
                 {lessonDraft.lesson_type === 'video' && (
                   <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200/80 space-y-2">
                     <InstructorVideoUploader 
@@ -894,7 +910,23 @@ export default function CourseCurriculumStep({
                   </div>
                 )}
 
-                {/* 5. Cài đặt thời lượng & Học thử */}
+                {/* 5. Tải lên file tài liệu (cho loại Document) */}
+                {lessonDraft.lesson_type === 'document' && (
+                  <div className="p-3 bg-slate-50/60 rounded-xl border border-slate-200/80 space-y-2">
+                    <label className="block text-[10px] font-bold text-stone-700">Tải lên file tài liệu học tập (PDF, DOCX, ZIP, Slide)</label>
+                    <InstructorAssetUploader 
+                      onAssetUploaded={(asset) => {
+                        handleSaveAsset(asset);
+                        if (!lessonDraft.video_url) {
+                          handleUpdateDraftField('video_url', asset.file_url);
+                        }
+                      }}
+                      label="Tải tài liệu đính kèm"
+                    />
+                  </div>
+                )}
+
+                {/* 6. Cài đặt thời lượng & Học thử */}
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                   <div>
                     <label className="block text-[10px] font-bold text-stone-600 mb-1">Thời lượng (mm:ss)</label>

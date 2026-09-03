@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Filter, RotateCcw } from 'lucide-react';
+import { Filter, RotateCcw, Sparkles } from 'lucide-react';
 import {
   getCourseReviews,
   getCourseReview,
@@ -12,6 +12,7 @@ import { showToast } from '@/assets/js/toast';
 import { cn } from '@/shared/lib/utils';
 import FilterSelect, { SelectOption } from './FilterSelect';
 import AdminPagination from "../shared/AdminPagination";
+import { AiCategoryModal } from "../shared/AiCategoryModal";
 
 interface Instructor {
   id: number;
@@ -134,6 +135,7 @@ export default function CourseReviews() {
   // Card click active filter state (default to pending review)
   const [statusFilter, setStatusFilter] = useState('pending');
   const [reviewedDateFilter, setReviewedDateFilter] = useState('');
+  const [aiCategoryModalCourse, setAiCategoryModalCourse] = useState<any | null>(null);
 
   // Applied filter states
   const [appliedFilters, setAppliedFilters] = useState({
@@ -1668,12 +1670,18 @@ export default function CourseReviews() {
                           const isUnassigned = !catName || catName === 'N/A' || catName.includes('Chưa phân loại') || Boolean((item as any).category_unassigned);
                           if (isUnassigned) {
                             return (
-                              <span 
-                                title="Giảng viên đề xuất danh mục mới - Cần Admin phân loại khi kiểm duyệt"
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-help"
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAiCategoryModalCourse(item);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9.5px] font-extrabold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all cursor-pointer shadow-2xs hover:scale-105"
+                                title="Bấm để dùng DeepSeek AI phân tích và gợi ý danh mục tự động"
                               >
-                                ⚠️ Chưa có danh mục
-                              </span>
+                                <span>⚠️ Chưa có danh mục</span>
+                                <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />
+                              </button>
                             );
                           }
                           return <span className="text-ink font-semibold">{catName}</span>;
@@ -1888,6 +1896,25 @@ export default function CourseReviews() {
                           <p className="text-[11px] text-mid-gray font-mono">
                             Slug: {drawerData.course?.slug}
                           </p>
+                          <div className="flex items-center gap-2 py-0.5">
+                            <span className="text-xs text-mid-gray font-medium">Danh mục:</span>
+                            {drawerData.course?.category?.name ? (
+                              <span className="text-xs font-bold text-ink bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                {drawerData.course.category.name}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setAiCategoryModalCourse(drawerData.course)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-all cursor-pointer shadow-2xs hover:scale-105"
+                                title="Bấm để dùng DeepSeek AI phân tích và gợi ý danh mục tự động"
+                              >
+                                <span>⚠️ Chưa có danh mục</span>
+                                <Sparkles className="w-3 h-3 text-amber-600 animate-pulse" />
+                                <span className="text-indigo-600 underline font-bold ml-0.5">AI Gợi ý danh mục</span>
+                              </button>
+                            )}
+                          </div>
                           <div className="flex items-center gap-4 pt-1">
                             <div className="flex items-baseline gap-1.5">
                               <span className="text-xs text-mid-gray">Giá bán:</span>
@@ -2311,6 +2338,30 @@ export default function CourseReviews() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI Category Suggestion Modal */}
+      {aiCategoryModalCourse && (
+        <AiCategoryModal
+          isOpen={!!aiCategoryModalCourse}
+          onClose={() => setAiCategoryModalCourse(null)}
+          course={aiCategoryModalCourse}
+          onCategoryAssigned={(newCatName, catId) => {
+            showToast(`Đã gán danh mục "${newCatName}" cho khóa học thành công!`, 'success');
+            loadData();
+            if (drawerData && drawerData.course && drawerData.course.id === aiCategoryModalCourse.id) {
+              setDrawerData((prev: any) => ({
+                ...prev,
+                course: {
+                  ...prev.course,
+                  category_id: catId,
+                  category_name: newCatName,
+                  category: { id: catId, name: newCatName },
+                },
+              }));
+            }
+          }}
+        />
       )}
     </div>
   );
