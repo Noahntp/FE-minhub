@@ -19,7 +19,6 @@ const TITLE_MAP: Record<string, string> = {
   'orders': 'Quản lý đơn hàng',
   'revenues': 'Doanh thu & Đối soát',
   'withdrawals': 'Yêu cầu rút tiền',
-  'payout-accounts': 'Tài khoản nhận tiền',
   'instructor-upgrades': 'Yêu cầu lên giảng viên',
   'moderation': 'Kiểm duyệt bình luận',
   'faqs': 'Quản lý FAQ',

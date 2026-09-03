@@ -2960,15 +2960,6 @@ export default function InstructorUpgrades() {
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
                     Tài khoản nhận tiền
                   </h4>
-                  {activeDetailUser.application_status === "approved" && activeDetailUser.payout_account && (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/admin/payout-accounts?open_payout_account_id=${activeDetailUser.payout_account.id}`)}
-                      className="px-3 py-1 text-[11px] font-semibold rounded-[4px] border border-hairline bg-paper hover:bg-surface-alt text-ink transition-colors cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-                    >
-                      Xem chi tiết
-                    </button>
-                  )}
                 </div>
                 {activeDetailUser.application_status === "approved" && activeDetailUser.payout_account ? (
                   <div className="rounded-[6px] border border-hairline bg-surface-alt p-3.5 space-y-2.5">

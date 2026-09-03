@@ -1399,14 +1399,6 @@ export default function WithdrawalsManagement() {
                   <h3 className="text-[10px] font-bold uppercase tracking-wider text-mid-gray">
                     Tài khoản nhận tiền (Lịch sử Snapshot)
                   </h3>
-                  {detail.payout_snapshot?.payout_account_id && (
-                    <button
-                      onClick={() => navigate(`/admin/payout-accounts?open_payout_account_id=${detail.payout_snapshot.payout_account_id}`)}
-                      className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                    >
-                      Xem chi tiết &rarr;
-                    </button>
-                  )}
                 </div>
                 <div className="p-3.5 border border-hairline rounded-[6px] bg-paper space-y-2 text-xs">
                   <div className="flex justify-between items-center pb-2 border-b border-hairline/60">
